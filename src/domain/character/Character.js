@@ -1,3 +1,9 @@
+import {
+  createAttributes,
+  validateAttributes,
+  serializeAttributes,
+} from "./Attributes.js";
+
 /**
  * Character Aggregate Root
  * ------------------------
@@ -15,7 +21,7 @@ export function createCharacter(input = {}) {
   const character = {
     identity: input.identity ?? createDefaultIdentity(),
 
-    attributes: input.attributes ?? createDefaultAttributes(),
+    attributes: createAttributes(input.attributes),
 
     secondaryCharacteristics:
       input.secondaryCharacteristics ?? createDefaultSecondaryCharacteristics(),
@@ -63,17 +69,7 @@ export function validateCharacter(character) {
     throw new Error("Character must have a valid identity.name");
   }
 
-  if (!character.attributes) {
-    throw new Error("Character must have attributes");
-  }
-
-  const requiredAttributes = ["ST", "DX", "IQ", "HT"];
-
-  for (const attribute of requiredAttributes) {
-    if (typeof character.attributes[attribute] !== "number") {
-      throw new Error(`Missing or invalid attribute: ${attribute}`);
-    }
-  }
+  validateAttributes(character.attributes);
 
   if (!character.state) {
     throw new Error("Character must have state");
@@ -91,7 +87,7 @@ export function serializeCharacter(character) {
 
   return {
     identity: character.identity,
-    attributes: character.attributes,
+    attributes: serializeAttributes(character.attributes),
     secondaryCharacteristics: character.secondaryCharacteristics,
     pools: character.pools,
     advantages: character.advantages,
@@ -118,15 +114,6 @@ function createDefaultIdentity() {
     concept: "",
     playerId: null,
     campaignId: null,
-  };
-}
-
-function createDefaultAttributes() {
-  return {
-    ST: 10,
-    DX: 10,
-    IQ: 10,
-    HT: 10,
   };
 }
 
