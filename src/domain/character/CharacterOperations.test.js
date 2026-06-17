@@ -12,61 +12,66 @@ import {
   removeCharacterCondition,
 } from "./CharacterOperations.js";
 
-test("renames character", () => {
+test("renames character without mutating original", () => {
   const character = new Character();
 
-  renameCharacter(character, "Aldric");
+  const updated = renameCharacter(character, "Aldric");
 
-  assert.equal(character.identity.name, "Aldric");
+  assert.equal(character.identity.name, "Unnamed");
+  assert.equal(updated.identity.name, "Aldric");
 });
 
-test("adds skill", () => {
+test("adds skill without mutating original", () => {
   const character = new Character();
-  const skill = { name: "Espadas Curtas" };
+  const updated = addCharacterSkill(character, { name: "Espadas Curtas" });
 
-  addCharacterSkill(character, skill);
-
-  assert.equal(character.skills.length, 1);
-  assert.equal(character.skills[0].name, "Espadas Curtas");
+  assert.equal(character.skills.length, 0);
+  assert.equal(updated.skills.length, 1);
 });
 
-test("adds advantage", () => {
+test("adds advantage without mutating original", () => {
   const character = new Character();
+  const updated = addCharacterAdvantage(character, { name: "Reflexos em Combate" });
 
-  addCharacterAdvantage(character, { name: "Reflexos em Combate" });
-
-  assert.equal(character.advantages.length, 1);
+  assert.equal(character.advantages.length, 0);
+  assert.equal(updated.advantages.length, 1);
 });
 
-test("adds disadvantage", () => {
+test("adds disadvantage without mutating original", () => {
   const character = new Character();
+  const updated = addCharacterDisadvantage(character, { name: "Código de Honra" });
 
-  addCharacterDisadvantage(character, { name: "Código de Honra" });
-
-  assert.equal(character.disadvantages.length, 1);
+  assert.equal(character.disadvantages.length, 0);
+  assert.equal(updated.disadvantages.length, 1);
 });
 
-test("adds equipment", () => {
+test("adds equipment without mutating original", () => {
   const character = new Character();
+  const updated = addCharacterEquipment(character, { name: "Espada Curta" });
 
-  addCharacterEquipment(character, { name: "Espada Curta" });
-
-  assert.equal(character.equipment.length, 1);
+  assert.equal(character.equipment.length, 0);
+  assert.equal(updated.equipment.length, 1);
 });
 
-test("adds condition", () => {
+test("adds condition without mutating original", () => {
   const character = new Character();
-
-  addCharacterCondition(character, { name: "stunned" });
-
-  assert.equal(character.state.conditions.length, 1);
-});
-
-test("removes condition", () => {
-  const character = new Character();
-
-  addCharacterCondition(character, { name: "stunned" });
-  removeCharacterCondition(character, "stunned");
+  const updated = addCharacterCondition(character, { name: "stunned" });
 
   assert.equal(character.state.conditions.length, 0);
+  assert.equal(updated.state.conditions.length, 1);
+});
+
+test("removes condition without mutating original", () => {
+  const character = new Character({
+    state: {
+      conditions: [{ name: "stunned" }],
+      modifiers: [],
+      combat: { engaged: false },
+    },
+  });
+
+  const updated = removeCharacterCondition(character, "stunned");
+
+  assert.equal(character.state.conditions.length, 1);
+  assert.equal(updated.state.conditions.length, 0);
 });
