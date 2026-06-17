@@ -1,153 +1,173 @@
-// src/Character.js
-
 /**
- * Character (Aggregate Root - SINGULAR)
- * -------------------------------------
- * Núcleo estrutural do personagem.
- * Não contém regras de GURPS.
- * Não contém lógica de UI.
- * Apenas composição + integridade estrutural.
+ * Character Aggregate Root
+ * ------------------------
+ * Estrutura funcional do Character.
+ *
+ * Conforme ADR-0001 e ADR-0002:
+ * - sem class;
+ * - sem métodos mutáveis;
+ * - criação por factory;
+ * - serialização direta;
+ * - validação estrutural mínima.
  */
 
-export class Character {
-  constructor(input = {}) {
-    this.identity = input.identity ?? this._defaultIdentity();
+export function createCharacter(input = {}) {
+  const character = {
+    identity: input.identity ?? createDefaultIdentity(),
 
-    this.attributes = input.attributes ?? this._defaultAttributes();
-    this.secondaryCharacteristics =
-      input.secondaryCharacteristics ?? this._defaultSecondary();
+    attributes: input.attributes ?? createDefaultAttributes(),
 
-    this.pools = input.pools ?? this._defaultPools();
+    secondaryCharacteristics:
+      input.secondaryCharacteristics ?? createDefaultSecondaryCharacteristics(),
 
-    this.advantages = input.advantages ?? [];
-    this.disadvantages = input.disadvantages ?? [];
-    this.quirks = input.quirks ?? [];
+    pools: input.pools ?? createDefaultPools(),
 
-    this.skills = input.skills ?? [];
-    this.techniques = input.techniques ?? [];
+    advantages: input.advantages ?? [],
+    disadvantages: input.disadvantages ?? [],
+    quirks: input.quirks ?? [],
 
-    this.spells = input.spells ?? [];
-    this.powers = input.powers ?? [];
+    skills: input.skills ?? [],
+    techniques: input.techniques ?? [],
 
-    this.equipment = input.equipment ?? [];
-    this.attacks = input.attacks ?? [];
+    spells: input.spells ?? [],
+    powers: input.powers ?? [],
 
-    this.languages = input.languages ?? [];
-    this.familiarities = input.familiarities ?? [];
+    equipment: input.equipment ?? [],
+    attacks: input.attacks ?? [],
 
-    this.templates = input.templates ?? [];
+    languages: input.languages ?? [],
+    familiarities: input.familiarities ?? [],
 
-    this.state = input.state ?? this._defaultState();
+    templates: input.templates ?? [],
 
-    this._validateInvariants();
-  }
+    state: input.state ?? createDefaultState(),
 
-  // ---------------------------
-  // Defaults
-  // ---------------------------
+    metadata: input.metadata ?? createDefaultMetadata(),
+  };
 
-  _defaultIdentity() {
-    return {
-      id: cryptoRandomId(),
-      name: "Unnamed",
-      concept: "",
-      playerId: null,
-      campaignId: null,
-    };
-  }
+  validateCharacter(character);
 
-  _defaultAttributes() {
-    return {
-      ST: 10,
-      DX: 10,
-      IQ: 10,
-      HT: 10,
-    };
-  }
-
-  _defaultSecondary() {
-    return {
-      HP: null,
-      FP: null,
-      Will: null,
-      Perception: null,
-      BasicSpeed: null,
-      BasicMove: null,
-    };
-  }
-
-  _defaultPools() {
-    return {
-      HP: { current: null, max: null },
-      FP: { current: null, max: null },
-      ER: { current: null, max: null },
-    };
-  }
-
-  _defaultState() {
-    return {
-      conditions: [],
-      modifiers: [],
-      combat: {
-        engaged: false,
-      },
-    };
-  }
-
-  // ---------------------------
-  // Invariants
-  // ---------------------------
-
-  _validateInvariants() {
-    if (!this.identity?.id) {
-      throw new Error("Character must have a valid identity.id");
-    }
-
-    if (!this.attributes) {
-      throw new Error("Character must have attributes");
-    }
-
-    const required = ["ST", "DX", "IQ", "HT"];
-
-    for (const attr of required) {
-      if (typeof this.attributes[attr] !== "number") {
-        throw new Error(`Missing or invalid attribute: ${attr}`);
-      }
-    }
-
-    if (!this.state) {
-      throw new Error("Character must have state");
-    }
-  // ---------------------------
-  // Serialization
-  // ---------------------------
-
-  toJSON() {
-    return {
-      identity: this.identity,
-      attributes: this.attributes,
-      secondaryCharacteristics: this.secondaryCharacteristics,
-      pools: this.pools,
-      advantages: this.advantages,
-      disadvantages: this.disadvantages,
-      quirks: this.quirks,
-      skills: this.skills,
-      techniques: this.techniques,
-      spells: this.spells,
-      powers: this.powers,
-      equipment: this.equipment,
-      attacks: this.attacks,
-      languages: this.languages,
-      familiarities: this.familiarities,
-      templates: this.templates,
-      state: this.state,
-    };
-  }
+  return character;
 }
 
-// ---------------------------
-// util interno (sem dependência externa)
-// ---------------------------
+export function validateCharacter(character) {
+  if (!character || typeof character !== "object") {
+    throw new Error("Character must be an object");
+  }
+
+  if (!character.identity?.id) {
+    throw new Error("Character must have a valid identity.id");
+  }
+
+  if (!character.identity?.name) {
+    throw new Error("Character must have a valid identity.name");
+  }
+
+  if (!character.attributes) {
+    throw new Error("Character must have attributes");
+  }
+
+  const requiredAttributes = ["ST", "DX", "IQ", "HT"];
+
+  for (const attribute of requiredAttributes) {
+    if (typeof character.attributes[attribute] !== "number") {
+      throw new Error(`Missing or invalid attribute: ${attribute}`);
+    }
+  }
+
+  if (!character.state) {
+    throw new Error("Character must have state");
+  }
+
+  if (!character.metadata) {
+    throw new Error("Character must have metadata");
+  }
+
+  return true;
+}
+
+export function serializeCharacter(character) {
+  validateCharacter(character);
+
+  return {
+    identity: character.identity,
+    attributes: character.attributes,
+    secondaryCharacteristics: character.secondaryCharacteristics,
+    pools: character.pools,
+    advantages: character.advantages,
+    disadvantages: character.disadvantages,
+    quirks: character.quirks,
+    skills: character.skills,
+    techniques: character.techniques,
+    spells: character.spells,
+    powers: character.powers,
+    equipment: character.equipment,
+    attacks: character.attacks,
+    languages: character.languages,
+    familiarities: character.familiarities,
+    templates: character.templates,
+    state: character.state,
+    metadata: character.metadata,
+  };
+}
+
+function createDefaultIdentity() {
+  return {
+    id: cryptoRandomId(),
+    name: "Unnamed",
+    concept: "",
+    playerId: null,
+    campaignId: null,
+  };
+}
+
+function createDefaultAttributes() {
+  return {
+    ST: 10,
+    DX: 10,
+    IQ: 10,
+    HT: 10,
+  };
+}
+
+function createDefaultSecondaryCharacteristics() {
+  return {
+    HP: null,
+    FP: null,
+    Will: null,
+    Perception: null,
+    BasicSpeed: null,
+    BasicMove: null,
+  };
+}
+
+function createDefaultPools() {
+  return {
+    HP: { current: null, max: null },
+    FP: { current: null, max: null },
+    ER: { current: null, max: null },
+  };
+}
+
+function createDefaultState() {
+  return {
+    conditions: [],
+    modifiers: [],
+    combat: {
+      engaged: false,
+    },
+  };
+}
+
+function createDefaultMetadata() {
+  const now = new Date().toISOString();
+
+  return {
+    createdAt: now,
+    updatedAt: now,
+    source: "singular",
+  };
+}
 
 function cryptoRandomId() {
   if (typeof crypto !== "undefined" && crypto.randomUUID) {
