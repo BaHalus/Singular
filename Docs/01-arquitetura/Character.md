@@ -1,237 +1,261 @@
-# Character — SINGULAR
+Character
 
-## 1. Definição
-
-Um Character é o **agregado raiz do sistema SINGULAR para GURPS 4e**.
-
-Ele representa uma instância completa e coerente de personagem jogável, contendo identidade, construção, capacidades, estado e equipamentos sob um modelo estritamente composto.
-
-O Character NÃO é um modelo genérico de RPG. Ele é um modelo específico de GURPS com possibilidade futura de extensão modular.
+Código: DOM-CHAR-1.0
+Status: Aprovado
+Camada: Domain
+Tipo: Aggregate Root
 
 ---
 
-## 2. Princípios fundamentais
+1. Objetivo
 
-### 2.1 Composição sobre herança
-O Character não herda de uma hierarquia de nós.
-Ele é composto por subestruturas independentes.
+O Character é o Aggregate Root da SINGULAR.
 
-### 2.2 Separação de responsabilidades
-- Schema → estrutura de dados
-- Rules → lógica de GURPS
-- Presentation → UI/UX
+Ele representa um personagem completo e constitui a unidade fundamental de persistência, carregamento, serialização e manipulação do domínio.
 
-O Character pertence exclusivamente ao domínio estrutural.
-
-### 2.3 Coerência interna
-O Character deve sempre existir em estado válido segundo regras estruturais mínimas (invariantes).
+Todo dado pertencente a um personagem deve estar contido direta ou indiretamente em um Character.
 
 ---
 
-## 3. Estrutura do Character
+2. Responsabilidades
 
-O Character é composto pelos seguintes sub-agregados:
+O Character é responsável por:
 
-### 3.1 Identity
-Identificação do personagem e metadados:
-- id
-- name
-- concept
-- playerId (opcional)
-- campaignId (opcional)
-
----
-
-### 3.2 Attributes
-Atributos base GURPS:
-- ST
-- DX
-- IQ
-- HT
+- manter a identidade do personagem;
+- manter a composição estrutural dos agregados;
+- preservar dados permanentes;
+- preservar estados transitórios;
+- garantir invariantes estruturais mínimas;
+- fornecer serialização consistente.
 
 ---
 
-### 3.3 Secondary Characteristics
-Derivados estruturais:
-- HP
-- FP
-- Will
-- Perception
-- Basic Speed
-- Basic Move
+3. Não Responsabilidades
+
+O Character não é responsável por:
+
+- cálculos de GURPS;
+- custos em pontos;
+- dano;
+- carga;
+- movimento;
+- NH;
+- pré-requisitos;
+- aplicação de modificadores;
+- renderização;
+- persistência;
+- importação;
+- exportação;
+- lógica de interface.
+
+Essas responsabilidades pertencem a outros módulos.
 
 ---
 
-### 3.4 Pools
-Recursos dinâmicos derivados ou independentes:
-- Current HP
-- Current FP
-- Current ER (se aplicável)
+4. Composição
+
+Um Character é composto pelos seguintes agregados:
+
+Character
+│
+├── Identity
+├── Attributes
+├── SecondaryCharacteristics
+├── Pools
+├── Advantages
+├── Disadvantages
+├── Quirks
+├── Skills
+├── Techniques
+├── Spells
+├── Powers
+├── Equipment
+├── Attacks
+├── Languages
+├── Familiarities
+├── Templates
+├── State
+└── Metadata
 
 ---
 
-### 3.5 Advantages
-Lista de vantagens compradas.
+5. Estrutura Canônica
+
+{
+  identity,
+  attributes,
+  secondaryCharacteristics,
+  pools,
+  advantages,
+  disadvantages,
+  quirks,
+  skills,
+  techniques,
+  spells,
+  powers,
+  equipment,
+  attacks,
+  languages,
+  familiarities,
+  templates,
+  state,
+  metadata
+}
 
 ---
 
-### 3.6 Disadvantages
-Lista de desvantagens.
+6. Dados Permanentes
+
+São considerados permanentes:
+
+- identity;
+- attributes;
+- secondaryCharacteristics;
+- advantages;
+- disadvantages;
+- quirks;
+- skills;
+- techniques;
+- spells;
+- powers;
+- equipment;
+- attacks;
+- languages;
+- familiarities;
+- templates;
+- metadata.
 
 ---
 
-### 3.7 Quirks
-Traços menores de custo reduzido.
+7. Dados Transitórios
+
+São considerados transitórios:
+
+- HP atual;
+- FP atual;
+- ER atual;
+- condições;
+- efeitos temporários;
+- buffs;
+- debuffs;
+- estado de combate;
+- recursos consumidos durante a sessão.
+
+Esses dados pertencem ao State ou aos agregados operacionais apropriados.
 
 ---
 
-### 3.8 Skills
-Lista de habilidades com níveis e base attribute links.
+8. GURPS First
+
+A SINGULAR é construída inicialmente para GURPS 4e.
+
+O Character deve utilizar conceitos compatíveis com GURPS sempre que isso produzir um modelo mais claro.
+
+Abstrações genéricas somente devem ser introduzidas quando resolverem um problema real da arquitetura.
 
 ---
 
-### 3.9 Techniques
-Sub-habilidades derivadas de skills.
+9. Composição sobre Herança
+
+O domínio deverá privilegiar:
+
+- composição;
+- objetos simples;
+- serialização direta;
+- funções puras.
+
+Hierarquias profundas de herança devem ser evitadas.
 
 ---
 
-### 3.10 Spells (opcional)
-Magias quando o módulo estiver ativo.
+10. Separação de Responsabilidades
+
+O Character armazena dados.
+
+Ele não contém:
+
+- Schema;
+- Rules;
+- Presentation.
+
+Esses elementos devem permanecer desacoplados.
 
 ---
 
-### 3.11 Powers (opcional)
-Sistema de poderes (módulo extensível).
+11. Invariantes Estruturais
+
+O Character deve sempre garantir apenas invariantes estruturais mínimas.
+
+Um Character válido deve possuir:
+
+- Identity;
+- Attributes;
+- State.
+
+Identity deve conter:
+
+- id;
+- name.
+
+Attributes deve conter:
+
+- ST;
+- DX;
+- IQ;
+- HT.
+
+State deve existir mesmo que esteja vazio.
+
+Estas invariantes não executam regras de GURPS.
+
+Elas apenas garantem a integridade estrutural mínima do agregado.
+
+Validações como:
+
+- HP derivado de ST;
+- limites de Pools;
+- pré-requisitos de perícias;
+- consistência de carga;
+- cálculos de atributos secundários;
+
+não pertencem ao Character.
+
+Essas validações pertencem ao módulo Rules.
 
 ---
 
-### 3.12 Equipment
-Inventário estruturado:
-- itens
-- containers
-- peso
-- carga
+12. Serialização
+
+O Character deve ser serializável para JSON sem perda estrutural.
+
+A serialização não deve conter:
+
+- métodos;
+- referências circulares;
+- estado de UI;
+- dependências externas.
 
 ---
 
-### 3.13 Attacks
-Derivação de combate:
-- ataques corpo a corpo
-- ataques à distância
-- armas equipadas
+13. Direção de Implementação
+
+A implementação deve evoluir para:
+
+- composição;
+- imutabilidade quando viável;
+- funções puras;
+- separação clara entre dados e regras.
+
+O Aggregate Root deve permanecer simples e previsível.
 
 ---
 
-### 3.14 Languages
-Idiomas conhecidos.
+14. Checklist de Implementação
 
----
-
-### 3.15 Familiarities
-Conhecimentos culturais ou técnicos leves.
-
----
-
-### 3.16 Templates
-- racial templates
-- character templates
-
----
-
-### 3.17 State
-Estado transitório do personagem:
-- conditions (stunned, bleeding etc.)
-- modifiers temporários
-- buffs/debuffs
-- status de combate
-
----
-
-## 4. Permanente vs Temporário
-
-### Permanente
-- Identity
-- Attributes
-- Advantages
-- Disadvantages
-- Skills
-- Techniques
-- Templates
-- Languages
-- Familiarities
-- Equipment base
-
-### Temporário
-- Current HP / FP
-- Conditions
-- Modifiers temporários
-- estado de combate
-- carga momentânea
-
----
-
-## 5. Invariantes do Character
-
-O Character deve sempre garantir:
-
-- HP máximo derivado de ST (via Rules)
-- Pools nunca excedem máximos definidos por Rules
-- Skills sempre referenciam Attributes válidos
-- Equipment sempre consistente com carga
-- State não pode alterar estrutura permanente
-
----
-
-## 6. Limites do domínio
-
-O Character NÃO é responsável por:
-
-- cálculos de regras GURPS
-- lógica de validação de custo
-- renderização ou layout
-- decisões de UI
-- formatação de dados
-
-Essas responsabilidades pertencem a:
-
-- Rules module
-- Presentation layer
-
----
-
-## 7. Ciclo de vida
-
-### 7.1 Criação
-Character nasce com Identity + estrutura mínima.
-
-### 7.2 Construção
-Recebe:
-- attributes
-- advantages/disadvantages
-- skills
-- templates
-
-### 7.3 Execução
-Durante jogo:
-- state é atualizado
-- pools são consumidos
-- equipment influencia carga e combate
-
-### 7.4 Persistência
-Character pode ser serializado como JSON estruturado baseado em Schema.
-
----
-
-## 8. Fronteira arquitetural
-
-Character é:
-
-- agregado raiz
-- fonte de verdade estrutural
-- independente de UI
-- independente de regras
-
-Character NÃO contém lógica de cálculo.
-Character NÃO contém lógica de apresentação.
-
-Ele apenas organiza e mantém consistência estrutural dos dados.
+- [x] Criar Character.md
+- [x] Criar Character.js
+- [ ] Criar Character.test.js
+- [ ] Validar invariantes estruturais
+- [ ] Validar serialização
+- [ ] Refatorar Character.js para arquitetura funcional
+- [ ] Aprovar Character v1.0
