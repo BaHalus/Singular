@@ -21,13 +21,31 @@ test("creates identity automatically", () => {
   assert.ok(character.identity.name);
 });
 
-test("creates default attributes", () => {
+test("creates default attributes aggregate", () => {
   const character = createCharacter();
 
-  assert.equal(character.attributes.ST, 10);
-  assert.equal(character.attributes.DX, 10);
-  assert.equal(character.attributes.IQ, 10);
-  assert.equal(character.attributes.HT, 10);
+  assert.equal(character.attributes.ST.base, 10);
+  assert.equal(character.attributes.DX.base, 10);
+  assert.equal(character.attributes.IQ.base, 10);
+  assert.equal(character.attributes.HT.base, 10);
+
+  assert.equal(character.attributes.ST.override, null);
+});
+
+test("accepts numeric attributes input", () => {
+  const character = createCharacter({
+    attributes: {
+      ST: 12,
+      DX: 11,
+      IQ: 10,
+      HT: 9,
+    },
+  });
+
+  assert.equal(character.attributes.ST.base, 12);
+  assert.equal(character.attributes.DX.base, 11);
+  assert.equal(character.attributes.IQ.base, 10);
+  assert.equal(character.attributes.HT.base, 9);
 });
 
 test("creates state automatically", () => {
@@ -52,6 +70,7 @@ test("serializes character", () => {
   assert.ok(json);
   assert.ok(json.identity);
   assert.ok(json.attributes);
+  assert.ok(json.attributes.ST);
   assert.ok(json.state);
   assert.ok(json.metadata);
 });
@@ -65,53 +84,53 @@ test("validates valid character", () => {
   );
 });
 
-test("throws when ST is not numeric", () => {
+test("throws when ST base is not numeric", () => {
   assert.throws(() => {
     createCharacter({
       attributes: {
-        ST: "10",
-        DX: 10,
-        IQ: 10,
-        HT: 10,
+        ST: {
+          base: "10",
+          override: null,
+        },
       },
     });
   });
 });
 
-test("throws when DX is not numeric", () => {
+test("throws when DX base is not numeric", () => {
   assert.throws(() => {
     createCharacter({
       attributes: {
-        ST: 10,
-        DX: null,
-        IQ: 10,
-        HT: 10,
+        DX: {
+          base: null,
+          override: null,
+        },
       },
     });
   });
 });
 
-test("throws when IQ is not numeric", () => {
+test("throws when IQ base is not numeric", () => {
   assert.throws(() => {
     createCharacter({
       attributes: {
-        ST: 10,
-        DX: 10,
-        IQ: undefined,
-        HT: 10,
+        IQ: {
+          base: undefined,
+          override: null,
+        },
       },
     });
   });
 });
 
-test("throws when HT is not numeric", () => {
+test("throws when HT base is not numeric", () => {
   assert.throws(() => {
     createCharacter({
       attributes: {
-        ST: 10,
-        DX: 10,
-        IQ: 10,
-        HT: "abc",
+        HT: {
+          base: "abc",
+          override: null,
+        },
       },
     });
   });
