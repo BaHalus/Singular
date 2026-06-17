@@ -118,42 +118,6 @@ export class Character {
     if (!this.state) {
       throw new Error("Character must have state");
     }
-  }
-
-  // ---------------------------
-  // Minimal mutation API
-  // (sem Rules, sem cálculos)
-  // ---------------------------
-
-  setName(name) {
-    this.identity.name = String(name);
-  }
-
-  addSkill(skill) {
-    this.skills.push(skill);
-  }
-
-  addAdvantage(adv) {
-    this.advantages.push(adv);
-  }
-
-  addDisadvantage(disadv) {
-    this.disadvantages.push(disadv);
-  }
-
-  addItem(item) {
-    this.equipment.push(item);
-  }
-
-  addCondition(condition) {
-    this.state.conditions.push(condition);
-  }
-
-  removeCondition(conditionName) {
-    this.state.conditions =
-      this.state.conditions.filter(c => c.name !== conditionName);
-  }
-
   // ---------------------------
   // Serialization
   // ---------------------------
