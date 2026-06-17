@@ -1,16 +1,20 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { Character } from "./Character.js";
+import {
+  createCharacter,
+  validateCharacter,
+  serializeCharacter,
+} from "./Character.js";
 
 test("creates a default character", () => {
-  const character = new Character();
+  const character = createCharacter();
 
   assert.ok(character);
 });
 
 test("creates identity automatically", () => {
-  const character = new Character();
+  const character = createCharacter();
 
   assert.ok(character.identity);
   assert.ok(character.identity.id);
@@ -18,7 +22,7 @@ test("creates identity automatically", () => {
 });
 
 test("creates default attributes", () => {
-  const character = new Character();
+  const character = createCharacter();
 
   assert.equal(character.attributes.ST, 10);
   assert.equal(character.attributes.DX, 10);
@@ -27,24 +31,43 @@ test("creates default attributes", () => {
 });
 
 test("creates state automatically", () => {
-  const character = new Character();
+  const character = createCharacter();
 
   assert.ok(character.state);
 });
 
-test("serializes to JSON", () => {
-  const character = new Character();
-  const json = character.toJSON();
+test("creates metadata automatically", () => {
+  const character = createCharacter();
+
+  assert.ok(character.metadata);
+  assert.ok(character.metadata.createdAt);
+  assert.ok(character.metadata.updatedAt);
+});
+
+test("serializes character", () => {
+  const character = createCharacter();
+
+  const json = serializeCharacter(character);
 
   assert.ok(json);
   assert.ok(json.identity);
   assert.ok(json.attributes);
   assert.ok(json.state);
+  assert.ok(json.metadata);
+});
+
+test("validates valid character", () => {
+  const character = createCharacter();
+
+  assert.equal(
+    validateCharacter(character),
+    true
+  );
 });
 
 test("throws when ST is not numeric", () => {
   assert.throws(() => {
-    new Character({
+    createCharacter({
       attributes: {
         ST: "10",
         DX: 10,
@@ -57,7 +80,7 @@ test("throws when ST is not numeric", () => {
 
 test("throws when DX is not numeric", () => {
   assert.throws(() => {
-    new Character({
+    createCharacter({
       attributes: {
         ST: 10,
         DX: null,
@@ -70,7 +93,7 @@ test("throws when DX is not numeric", () => {
 
 test("throws when IQ is not numeric", () => {
   assert.throws(() => {
-    new Character({
+    createCharacter({
       attributes: {
         ST: 10,
         DX: 10,
@@ -83,7 +106,7 @@ test("throws when IQ is not numeric", () => {
 
 test("throws when HT is not numeric", () => {
   assert.throws(() => {
-    new Character({
+    createCharacter({
       attributes: {
         ST: 10,
         DX: 10,
