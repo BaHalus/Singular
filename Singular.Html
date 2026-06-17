@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+
+<title>SINGULAR — GURPS 4e</title>
+
+<style>
+
+:root{
+
+--bg:#202124;
+--panel:#2b2d31;
+--border:#555;
+--text:#f3f3f3;
+--accent:#5ea6ff;
+
+}
+
+*{
+
+box-sizing:border-box;
+
+}
+
+body{
+
+margin:0;
+background:var(--bg);
+color:var(--text);
+font-family:Arial,Helvetica,sans-serif;
+
+}
+
+header{
+
+position:sticky;
+top:0;
+
+display:flex;
+gap:6px;
+
+padding:8px;
+
+background:var(--panel);
+
+border-bottom:1px solid var(--border);
+
+overflow:auto;
+
+}
+
+button{
+
+padding:8px 12px;
+
+background:#3b3d42;
+
+color:white;
+
+border:none;
+
+border-radius:6px;
+
+white-space:nowrap;
+
+}
+
+main{
+
+padding:10px;
+
+}
+
+.card{
+
+background:var(--panel);
+
+padding:10px;
+
+margin-bottom:10px;
+
+border-radius:8px;
+
+border:1px solid var(--border);
+
+}
+
+.grid{
+
+display:grid;
+
+grid-template-columns:repeat(4,1fr);
+
+gap:8px;
+
+}
+
+.value{
+
+font-size:24px;
+
+font-weight:bold;
+
+}
+
+</style>
+
+</head>
+
+<body>
+
+<header>
+
+<button>Abrir</button>
+
+<button>Biblioteca</button>
+
+<button>↶</button>
+
+<button>↷</button>
+
+<button>Tema</button>
+
+</header>
+
+<main>
+
+<div class="card">
+
+<h2>SINGULAR</h2>
+
+<p>Ficha GURPS 4e Mobile First</p>
+
+</div>
+
+<div class="grid">
+
+<div class="card">
+
+ST
+
+<div class="value">10</div>
+
+</div>
+
+<div class="card">
+
+DX
+
+<div class="value">10</div>
+
+</div>
+
+<div class="card">
+
+IQ
+
+<div class="value">10</div>
+
+</div>
+
+<div class="card">
+
+HT
+
+<div class="value">10</div>
+
+</div>
+
+</div>
+
+</main>
+
+<script>
+
+const Character={
+
+id:crypto.randomUUID(),
+
+version:"0.1"
+
+};
+
+const State={};
+
+const UIState={};
+
+console.log(Character);
+
+</script>
+
+</body>
+
+</html>
