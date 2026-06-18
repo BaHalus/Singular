@@ -134,3 +134,11 @@ export {
   validateFamiliarity,
   serializeFamiliarities,
 } from "./Familiarities.js";
+
+export {
+  createEquipment,
+  createEquipmentItem,
+  validateEquipment,
+  validateEquipmentItem,
+  serializeEquipment,
+} from "./Equipment.js";
