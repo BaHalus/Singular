@@ -12,7 +12,7 @@ export function createAdvantage(input = {}) {
     externalIds: normalizeExternalIds(input.externalIds),
     name: input.name ?? "",
     notes: input.notes ?? "",
-    tags: Array.isArray(input.tags) ? [...input.tags] : [],
+    tags: normalizeTags(input.tags),
   };
 }
 
@@ -78,6 +78,18 @@ function normalizeExternalIds(externalIds) {
   }
 
   return { ...externalIds };
+}
+
+function normalizeTags(tags) {
+  if (tags === undefined || tags === null) {
+    return [];
+  }
+
+  if (!Array.isArray(tags)) {
+    throw new Error("Advantage tags must be array");
+  }
+
+  return [...tags];
 }
 
 function isPlainObject(value) {
