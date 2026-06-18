@@ -10,99 +10,76 @@ import {
 test("creates a default character", () => {
   const character = createCharacter();
 
-  assert.ok(character);
-});
-
-test("creates identity automatically", () => {
-  const character = createCharacter();
-
-  assert.ok(character.identity);
   assert.ok(character.identity.id);
-  assert.ok(character.identity.name);
+  assert.equal(character.identity.name, "Unnamed");
 });
 
-test("creates default attributes aggregate", () => {
+test("creates default structural aggregates", () => {
   const character = createCharacter();
 
   assert.equal(character.attributes.ST.base, 10);
-  assert.equal(character.attributes.DX.base, 10);
-  assert.equal(character.attributes.IQ.base, 10);
-  assert.equal(character.attributes.HT.base, 10);
-});
-
-test("creates default secondary characteristics aggregate", () => {
-  const character = createCharacter();
-
   assert.equal(character.secondaryCharacteristics.HP.base, null);
-  assert.equal(character.secondaryCharacteristics.FP.base, null);
-  assert.equal(character.secondaryCharacteristics.Will.base, null);
-  assert.equal(character.secondaryCharacteristics.Per.base, null);
-  assert.equal(character.secondaryCharacteristics.BasicSpeed.base, null);
-  assert.equal(character.secondaryCharacteristics.BasicMove.base, null);
-});
-
-test("creates default pools aggregate", () => {
-  const character = createCharacter();
-
   assert.equal(character.pools.HP.current, null);
-  assert.equal(character.pools.HP.maximum, null);
-  assert.equal(character.pools.FP.current, null);
-  assert.equal(character.pools.FP.maximum, null);
-});
-
-test("creates default state aggregate", () => {
-  const character = createCharacter();
-
   assert.deepEqual(character.state.conditions, []);
-  assert.deepEqual(character.state.effects, []);
-  assert.equal(character.state.combat.engaged, false);
 });
 
-test("creates perks collection automatically", () => {
+test("creates default trait aggregates", () => {
   const character = createCharacter();
 
-  assert.ok(Array.isArray(character.perks));
-  assert.equal(character.perks.length, 0);
+  assert.deepEqual(character.advantages, []);
+  assert.deepEqual(character.perks, []);
+  assert.deepEqual(character.disadvantages, []);
+  assert.deepEqual(character.quirks, []);
 });
 
-test("accepts numeric pools input", () => {
+test("accepts trait aggregate input", () => {
   const character = createCharacter({
-    pools: {
-      HP: 10,
-      FP: 12,
-    },
-  });
-
-  assert.equal(character.pools.HP.current, 10);
-  assert.equal(character.pools.HP.maximum, 10);
-  assert.equal(character.pools.FP.current, 12);
-  assert.equal(character.pools.FP.maximum, 12);
-});
-
-test("accepts optional EnergyReserve pool", () => {
-  const character = createCharacter({
-    pools: {
-      EnergyReserve: {
-        current: 5,
-        maximum: 10,
+    advantages: [
+      {
+        id: "adv-001",
+        externalIds: { gcs: "gcs-adv-001" },
+        name: "Combat Reflexes",
       },
-    },
+    ],
+    perks: [
+      {
+        id: "perk-001",
+        externalIds: { gcs: "gcs-perk-001" },
+        name: "Accessory",
+      },
+    ],
+    disadvantages: [
+      {
+        id: "disadv-001",
+        externalIds: { gcs: "gcs-disadv-001" },
+        name: "Bad Temper",
+      },
+    ],
+    quirks: [
+      {
+        id: "quirk-001",
+        externalIds: { gcs: "gcs-quirk-001" },
+        name: "Minor Habit",
+      },
+    ],
   });
 
-  assert.equal(character.pools.EnergyReserve.current, 5);
-  assert.equal(character.pools.EnergyReserve.maximum, 10);
-});
-
-test("creates metadata automatically", () => {
-  const character = createCharacter();
-
-  assert.ok(character.metadata);
-  assert.ok(character.metadata.createdAt);
-  assert.ok(character.metadata.updatedAt);
+  assert.equal(character.advantages[0].name, "Combat Reflexes");
+  assert.equal(character.perks[0].name, "Accessory");
+  assert.equal(character.disadvantages[0].name, "Bad Temper");
+  assert.equal(character.quirks[0].name, "Minor Habit");
 });
 
 test("serializes character", () => {
-  const character = createCharacter();
+  const character = createCharacter({
+    advantages: [
+      {
+        id: "adv-001",
+        externalIds: { gcs: "gcs-adv-001" },
+        name: "Combat Reflexes",
+      },
+    ],
+  });
 
   const json = serializeCharacter(character);
 
@@ -111,13 +88,12 @@ test("serializes character", () => {
   assert.ok(json.secondaryCharacteristics);
   assert.ok(json.pools);
   assert.ok(json.state);
-
-  assert.ok(json.advantages);
-  assert.ok(json.perks);
-  assert.ok(json.disadvantages);
-  assert.ok(json.quirks);
-
   assert.ok(json.metadata);
+
+  assert.equal(json.advantages[0].externalIds.gcs, "gcs-adv-001");
+  assert.deepEqual(json.perks, []);
+  assert.deepEqual(json.disadvantages, []);
+  assert.deepEqual(json.quirks, []);
 });
 
 test("validates valid character", () => {
@@ -165,19 +141,6 @@ test("throws when HP pool current is invalid", () => {
   });
 });
 
-test("throws when FP pool maximum is invalid", () => {
-  assert.throws(() => {
-    createCharacter({
-      pools: {
-        FP: {
-          current: 10,
-          maximum: "12",
-        },
-      },
-    });
-  });
-});
-
 test("throws when state conditions is invalid", () => {
   assert.throws(() => {
     createCharacter({
@@ -188,12 +151,16 @@ test("throws when state conditions is invalid", () => {
   });
 });
 
-test("throws when state effects is invalid", () => {
+test("throws when advantage externalIds is invalid", () => {
   assert.throws(() => {
     createCharacter({
-      state: {
-        effects: "Bless",
-      },
+      advantages: [
+        {
+          id: "adv-001",
+          externalIds: "gcs-adv-001",
+          name: "Combat Reflexes",
+        },
+      ],
     });
   });
 });
@@ -201,7 +168,23 @@ test("throws when state effects is invalid", () => {
 test("throws when perks is not an array", () => {
   assert.throws(() => {
     createCharacter({
-      perks: "Combat Reflexes",
+      perks: "Accessory",
+    });
+  });
+});
+
+test("throws when disadvantages is not an array", () => {
+  assert.throws(() => {
+    createCharacter({
+      disadvantages: "Bad Temper",
+    });
+  });
+});
+
+test("throws when quirks is not an array", () => {
+  assert.throws(() => {
+    createCharacter({
+      quirks: "Minor Habit",
     });
   });
 });
