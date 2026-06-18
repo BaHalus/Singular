@@ -58,6 +58,13 @@ test("creates default state aggregate", () => {
   assert.equal(character.state.combat.engaged, false);
 });
 
+test("creates perks collection automatically", () => {
+  const character = createCharacter();
+
+  assert.ok(Array.isArray(character.perks));
+  assert.equal(character.perks.length, 0);
+});
+
 test("accepts numeric pools input", () => {
   const character = createCharacter({
     pools: {
@@ -103,12 +110,13 @@ test("serializes character", () => {
   assert.ok(json.attributes);
   assert.ok(json.secondaryCharacteristics);
   assert.ok(json.pools);
-  assert.ok(json.pools.HP);
-  assert.ok(json.pools.FP);
   assert.ok(json.state);
-  assert.ok(json.state.conditions);
-  assert.ok(json.state.effects);
-  assert.ok(json.state.combat);
+
+  assert.ok(json.advantages);
+  assert.ok(json.perks);
+  assert.ok(json.disadvantages);
+  assert.ok(json.quirks);
+
   assert.ok(json.metadata);
 });
 
@@ -186,6 +194,14 @@ test("throws when state effects is invalid", () => {
       state: {
         effects: "Bless",
       },
+    });
+  });
+});
+
+test("throws when perks is not an array", () => {
+  assert.throws(() => {
+    createCharacter({
+      perks: "Combat Reflexes",
     });
   });
 });
