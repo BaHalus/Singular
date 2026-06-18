@@ -17,32 +17,24 @@ export function createEquipmentItem(input = {}) {
   return {
     id: input.id ?? generateEquipmentId(),
     externalIds: normalizeExternalIds(input.externalIds),
-
     kind,
     containerKind,
-
     name: input.name ?? input.description ?? "",
     quantity: input.quantity ?? 1,
-
     techLevel: input.techLevel ?? input.tech_level ?? null,
     legalityClass: input.legalityClass ?? input.legality_class ?? null,
     reference: input.reference ?? null,
-
-    value: input.value ?? "0",
-    weight: input.weight ?? "0 lb",
-
+    cost: normalizeCost(input.cost ?? input.value ?? 0),
+    weightKg: normalizeWeightKg(input.weightKg ?? input.weight ?? 0),
     state: input.state ?? inferState(kind, containerKind),
-
     categories: normalizeArray(input.categories, "Equipment categories must be array"),
     notes: input.notes ?? "",
     tags: normalizeArray(input.tags, "Equipment tags must be array"),
-
     weapons: normalizeArray(input.weapons, "Equipment weapons must be array"),
     features: normalizeArray(input.features, "Equipment features must be array"),
     modifiers: normalizeArray(input.modifiers, "Equipment modifiers must be array"),
     prereqs: input.prereqs ?? null,
     calc: input.calc ?? null,
-
     children: createEquipment(input.children ?? []),
     raw: input.raw ?? null,
   };
@@ -77,10 +69,7 @@ export function validateEquipmentItem(item) {
     throw new Error("Equipment kind is invalid");
   }
 
-  if (
-    item.containerKind !== null &&
-    !CONTAINER_KINDS.includes(item.containerKind)
-  ) {
+  if (item.containerKind !== null && !CONTAINER_KINDS.includes(item.containerKind)) {
     throw new Error("Equipment containerKind is invalid");
   }
 
@@ -108,12 +97,12 @@ export function validateEquipmentItem(item) {
     throw new Error("Equipment reference must be string or null");
   }
 
-  if (typeof item.value !== "string") {
-    throw new Error("Equipment value must be string");
+  if (typeof item.cost !== "number" || item.cost < 0) {
+    throw new Error("Equipment cost must be non-negative number");
   }
 
-  if (typeof item.weight !== "string") {
-    throw new Error("Equipment weight must be string");
+  if (typeof item.weightKg !== "number" || item.weightKg < 0) {
+    throw new Error("Equipment weightKg must be non-negative number");
   }
 
   if (!EQUIPMENT_STATES.includes(item.state)) {
@@ -155,32 +144,24 @@ export function serializeEquipment(equipment) {
   return equipment.map(item => ({
     id: item.id,
     externalIds: { ...item.externalIds },
-
     kind: item.kind,
     containerKind: item.containerKind,
-
     name: item.name,
     quantity: item.quantity,
-
     techLevel: item.techLevel,
     legalityClass: item.legalityClass,
     reference: item.reference,
-
-    value: item.value,
-    weight: item.weight,
-
+    cost: item.cost,
+    weightKg: item.weightKg,
     state: item.state,
-
     categories: [...item.categories],
     notes: item.notes,
     tags: [...item.tags],
-
     weapons: [...item.weapons],
     features: [...item.features],
     modifiers: [...item.modifiers],
     prereqs: item.prereqs,
     calc: item.calc,
-
     children: serializeEquipment(item.children),
     raw: item.raw,
   }));
@@ -195,11 +176,7 @@ function inferKind(input) {
 }
 
 function normalizeContainerKind(containerKind, kind) {
-  if (
-    kind !== "container" &&
-    containerKind !== undefined &&
-    containerKind !== null
-  ) {
+  if (kind !== "container" && containerKind !== undefined && containerKind !== null) {
     throw new Error("Only containers can have containerKind");
   }
 
@@ -246,12 +223,53 @@ function normalizeArray(value, errorMessage) {
   return [...value];
 }
 
+function normalizeCost(cost) {
+  if (typeof cost === "number") {
+    if (cost < 0) throw new Error("Equipment cost must be non-negative number");
+    return cost;
+  }
+
+  if (typeof cost === "string") {
+    if (cost.trim() === "") return 0;
+    const parsed = Number(cost.trim());
+    if (Number.isNaN(parsed) || parsed < 0) {
+      throw new Error("Equipment cost must be non-negative number");
+    }
+    return parsed;
+  }
+
+  throw new Error("Equipment cost must be non-negative number");
+}
+
+function normalizeWeightKg(weight) {
+  if (typeof weight === "number") {
+    if (weight < 0) throw new Error("Equipment weightKg must be non-negative number");
+    return weight;
+  }
+
+  if (weight === undefined || weight === null || weight === "") {
+    return 0;
+  }
+
+  if (typeof weight !== "string") {
+    throw new Error("Equipment weightKg must be non-negative number");
+  }
+
+  const normalized = weight.trim().toLowerCase();
+  const match = normalized.match(/^(\d+(?:\.\d+)?)\s*(lb|lbs|kg)?$/);
+
+  if (!match) {
+    throw new Error("Equipment weightKg must be non-negative number");
+  }
+
+  const value = Number(match[1]);
+  const unit = match[2] ?? "kg";
+
+  return unit === "kg" ? value : value / 2;
+}
+
 function isPlainObject(value) {
-  return (
-    value !== null &&
-    typeof value === "object" &&
-    !Array.isArray(value)
-  );
+  return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
 function generateEquipmentId() {
