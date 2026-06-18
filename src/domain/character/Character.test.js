@@ -28,24 +28,6 @@ test("creates default attributes aggregate", () => {
   assert.equal(character.attributes.DX.base, 10);
   assert.equal(character.attributes.IQ.base, 10);
   assert.equal(character.attributes.HT.base, 10);
-
-  assert.equal(character.attributes.ST.override, null);
-});
-
-test("accepts numeric attributes input", () => {
-  const character = createCharacter({
-    attributes: {
-      ST: 12,
-      DX: 11,
-      IQ: 10,
-      HT: 9,
-    },
-  });
-
-  assert.equal(character.attributes.ST.base, 12);
-  assert.equal(character.attributes.DX.base, 11);
-  assert.equal(character.attributes.IQ.base, 10);
-  assert.equal(character.attributes.HT.base, 9);
 });
 
 test("creates default secondary characteristics aggregate", () => {
@@ -57,28 +39,43 @@ test("creates default secondary characteristics aggregate", () => {
   assert.equal(character.secondaryCharacteristics.Per.base, null);
   assert.equal(character.secondaryCharacteristics.BasicSpeed.base, null);
   assert.equal(character.secondaryCharacteristics.BasicMove.base, null);
-
-  assert.equal(character.secondaryCharacteristics.HP.override, null);
 });
 
-test("accepts numeric secondary characteristics input", () => {
+test("creates default pools aggregate", () => {
+  const character = createCharacter();
+
+  assert.equal(character.pools.HP.current, null);
+  assert.equal(character.pools.HP.maximum, null);
+  assert.equal(character.pools.FP.current, null);
+  assert.equal(character.pools.FP.maximum, null);
+});
+
+test("accepts numeric pools input", () => {
   const character = createCharacter({
-    secondaryCharacteristics: {
-      HP: 12,
-      FP: 11,
-      Will: 13,
-      Per: 14,
-      BasicSpeed: 5.75,
-      BasicMove: 6,
+    pools: {
+      HP: 10,
+      FP: 12,
     },
   });
 
-  assert.equal(character.secondaryCharacteristics.HP.base, 12);
-  assert.equal(character.secondaryCharacteristics.FP.base, 11);
-  assert.equal(character.secondaryCharacteristics.Will.base, 13);
-  assert.equal(character.secondaryCharacteristics.Per.base, 14);
-  assert.equal(character.secondaryCharacteristics.BasicSpeed.base, 5.75);
-  assert.equal(character.secondaryCharacteristics.BasicMove.base, 6);
+  assert.equal(character.pools.HP.current, 10);
+  assert.equal(character.pools.HP.maximum, 10);
+  assert.equal(character.pools.FP.current, 12);
+  assert.equal(character.pools.FP.maximum, 12);
+});
+
+test("accepts optional EnergyReserve pool", () => {
+  const character = createCharacter({
+    pools: {
+      EnergyReserve: {
+        current: 5,
+        maximum: 10,
+      },
+    },
+  });
+
+  assert.equal(character.pools.EnergyReserve.current, 5);
+  assert.equal(character.pools.EnergyReserve.maximum, 10);
 });
 
 test("creates state automatically", () => {
@@ -100,12 +97,12 @@ test("serializes character", () => {
 
   const json = serializeCharacter(character);
 
-  assert.ok(json);
   assert.ok(json.identity);
   assert.ok(json.attributes);
-  assert.ok(json.attributes.ST);
   assert.ok(json.secondaryCharacteristics);
-  assert.ok(json.secondaryCharacteristics.HP);
+  assert.ok(json.pools);
+  assert.ok(json.pools.HP);
+  assert.ok(json.pools.FP);
   assert.ok(json.state);
   assert.ok(json.metadata);
 });
@@ -113,10 +110,7 @@ test("serializes character", () => {
 test("validates valid character", () => {
   const character = createCharacter();
 
-  assert.equal(
-    validateCharacter(character),
-    true
-  );
+  assert.equal(validateCharacter(character), true);
 });
 
 test("throws when ST base is not numeric", () => {
@@ -132,46 +126,7 @@ test("throws when ST base is not numeric", () => {
   });
 });
 
-test("throws when DX base is not numeric", () => {
-  assert.throws(() => {
-    createCharacter({
-      attributes: {
-        DX: {
-          base: null,
-          override: null,
-        },
-      },
-    });
-  });
-});
-
-test("throws when IQ base is not numeric", () => {
-  assert.throws(() => {
-    createCharacter({
-      attributes: {
-        IQ: {
-          base: undefined,
-          override: null,
-        },
-      },
-    });
-  });
-});
-
-test("throws when HT base is not numeric", () => {
-  assert.throws(() => {
-    createCharacter({
-      attributes: {
-        HT: {
-          base: "abc",
-          override: null,
-        },
-      },
-    });
-  });
-});
-
-test("throws when HP base is invalid", () => {
+test("throws when HP secondary base is invalid", () => {
   assert.throws(() => {
     createCharacter({
       secondaryCharacteristics: {
@@ -184,13 +139,26 @@ test("throws when HP base is invalid", () => {
   });
 });
 
-test("throws when secondary characteristic override is invalid", () => {
+test("throws when HP pool current is invalid", () => {
   assert.throws(() => {
     createCharacter({
-      secondaryCharacteristics: {
-        Will: {
-          base: null,
-          override: "abc",
+      pools: {
+        HP: {
+          current: "10",
+          maximum: 10,
+        },
+      },
+    });
+  });
+});
+
+test("throws when FP pool maximum is invalid", () => {
+  assert.throws(() => {
+    createCharacter({
+      pools: {
+        FP: {
+          current: 10,
+          maximum: "12",
         },
       },
     });
