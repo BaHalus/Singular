@@ -1,9 +1,0 @@
-{
-  "name": "singular",
-  "version": "0.1.0",
-  "description": "Ficha GURPS 4e Mobile First",
-  "type": "module",
-  "scripts": {
-    "test": "node --test"
-  }
-}
