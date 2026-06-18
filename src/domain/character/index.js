@@ -27,3 +27,17 @@ export {
   setAttributeOverride,
   clearAttributeOverride,
 } from "./AttributesOperations.js";
+
+export {
+  createSecondaryCharacteristics,
+  createSecondaryCharacteristic,
+  validateSecondaryCharacteristics,
+  validateSecondaryCharacteristic,
+  serializeSecondaryCharacteristics,
+} from "./SecondaryCharacteristics.js";
+
+export {
+  setSecondaryCharacteristicBase,
+  setSecondaryCharacteristicOverride,
+  clearSecondaryCharacteristicOverride,
+} from "./SecondaryCharacteristicsOperations.js";
