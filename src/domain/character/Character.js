@@ -16,6 +16,12 @@ import {
   serializePools,
 } from "./Pools.js";
 
+import {
+  createState,
+  validateState,
+  serializeState,
+} from "./State.js";
+
 /**
  * Character Aggregate Root
  * ------------------------
@@ -58,7 +64,7 @@ export function createCharacter(input = {}) {
 
     templates: input.templates ?? [],
 
-    state: input.state ?? createDefaultState(),
+    state: createState(input.state),
 
     metadata: input.metadata ?? createDefaultMetadata(),
   };
@@ -85,9 +91,7 @@ export function validateCharacter(character) {
   validateSecondaryCharacteristics(character.secondaryCharacteristics);
   validatePools(character.pools);
 
-  if (!character.state) {
-    throw new Error("Character must have state");
-  }
+  validateState(character.state);
 
   if (!character.metadata) {
     throw new Error("Character must have metadata");
@@ -117,7 +121,7 @@ export function serializeCharacter(character) {
     languages: character.languages,
     familiarities: character.familiarities,
     templates: character.templates,
-    state: character.state,
+    state: serializeState(character.state),
     metadata: character.metadata,
   };
 }
@@ -129,16 +133,6 @@ function createDefaultIdentity() {
     concept: "",
     playerId: null,
     campaignId: null,
-  };
-}
-
-function createDefaultState() {
-  return {
-    conditions: [],
-    modifiers: [],
-    combat: {
-      engaged: false,
-    },
   };
 }
 
