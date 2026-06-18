@@ -1,6 +1,6 @@
 # Advantages
 
-**Código:** DOM-ADV-1.0  
+**Código:** DOM-ADV-1.1  
 **Status:** Aprovado  
 **Camada:** Domain  
 **Tipo:** Agregado
@@ -26,49 +26,23 @@ Não contém regras de GURPS.
 A implementação inicial considera cada vantagem como um objeto simples contendo:
 
 - id
+- externalIds
 - name
 - notes
 - tags
 
 ---
 
-# 3. Responsabilidades
-
-Advantages é responsável por:
-
-- armazenar vantagens do personagem;
-- preservar identidade individual de cada vantagem;
-- preservar notas;
-- preservar tags;
-- fornecer serialização consistente;
-- garantir integridade estrutural mínima.
-
----
-
-# 4. Não Responsabilidades
-
-Advantages não é responsável por:
-
-- calcular custo em pontos;
-- validar pré-requisitos;
-- aplicar modificadores;
-- interpretar níveis;
-- interpretar frequência de aparição;
-- interpretar habilidades alternativas;
-- calcular efeitos mecânicos;
-- renderizar interface.
-
-Essas responsabilidades pertencem a Rules, Schema ou Presentation.
-
----
-
-# 5. Estrutura
-
-A estrutura canônica de uma vantagem é:
+# 3. Estrutura
 
 ```js
 {
   id: "adv-id",
+
+  externalIds: {
+    gcs: "gcs-id"
+  },
+
   name: "Combat Reflexes",
   notes: "",
   tags: []
