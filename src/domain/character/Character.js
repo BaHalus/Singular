@@ -22,17 +22,16 @@ import {
   serializeState,
 } from "./State.js";
 
+import {
+  createAdvantages,
+  validateAdvantages,
+  serializeAdvantages,
+} from "./Advantages.js";
+
 /**
  * Character Aggregate Root
  * ------------------------
  * Estrutura funcional do Character.
- *
- * Conforme ADR-0001 e ADR-0002:
- * - sem class;
- * - sem métodos mutáveis;
- * - criação por factory;
- * - serialização direta;
- * - validação estrutural mínima.
  */
 
 export function createCharacter(input = {}) {
@@ -40,33 +39,25 @@ export function createCharacter(input = {}) {
     identity: input.identity ?? createDefaultIdentity(),
 
     attributes: createAttributes(input.attributes),
-
     secondaryCharacteristics:
       createSecondaryCharacteristics(input.secondaryCharacteristics),
-
     pools: createPools(input.pools),
+    state: createState(input.state),
 
-    advantages: input.advantages ?? [],
+    advantages: createAdvantages(input.advantages),
     perks: input.perks ?? [],
-
     disadvantages: input.disadvantages ?? [],
     quirks: input.quirks ?? [],
 
     skills: input.skills ?? [],
     techniques: input.techniques ?? [],
-
     spells: input.spells ?? [],
     powers: input.powers ?? [],
-
     equipment: input.equipment ?? [],
     attacks: input.attacks ?? [],
-
     languages: input.languages ?? [],
     familiarities: input.familiarities ?? [],
-
     templates: input.templates ?? [],
-
-    state: createState(input.state),
 
     metadata: input.metadata ?? createDefaultMetadata(),
   };
@@ -93,10 +84,7 @@ export function validateCharacter(character) {
   validateSecondaryCharacteristics(character.secondaryCharacteristics);
   validatePools(character.pools);
   validateState(character.state);
-
-  if (!Array.isArray(character.advantages)) {
-    throw new Error("Character advantages must be an array");
-  }
+  validateAdvantages(character.advantages);
 
   if (!Array.isArray(character.perks)) {
     throw new Error("Character perks must be an array");
@@ -124,35 +112,25 @@ export function serializeCharacter(character) {
     identity: character.identity,
 
     attributes: serializeAttributes(character.attributes),
-
     secondaryCharacteristics:
-      serializeSecondaryCharacteristics(
-        character.secondaryCharacteristics
-      ),
-
+      serializeSecondaryCharacteristics(character.secondaryCharacteristics),
     pools: serializePools(character.pools),
+    state: serializeState(character.state),
 
-    advantages: character.advantages,
+    advantages: serializeAdvantages(character.advantages),
     perks: character.perks,
-
     disadvantages: character.disadvantages,
     quirks: character.quirks,
 
     skills: character.skills,
     techniques: character.techniques,
-
     spells: character.spells,
     powers: character.powers,
-
     equipment: character.equipment,
     attacks: character.attacks,
-
     languages: character.languages,
     familiarities: character.familiarities,
-
     templates: character.templates,
-
-    state: serializeState(character.state),
 
     metadata: character.metadata,
   };
@@ -184,4 +162,4 @@ function cryptoRandomId() {
   }
 
   return `char_${Math.random().toString(36).slice(2, 10)}`;
-} 
+}
