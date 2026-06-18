@@ -70,3 +70,35 @@ export {
   removeEffect,
   setCombatEngaged,
 } from "./StateOperations.js";
+
+export {
+  createAdvantages,
+  createAdvantage,
+  validateAdvantages,
+  validateAdvantage,
+  serializeAdvantages,
+} from "./Advantages.js";
+
+export {
+  createPerks,
+  createPerk,
+  validatePerks,
+  validatePerk,
+  serializePerks,
+} from "./Perks.js";
+
+export {
+  createDisadvantages,
+  createDisadvantage,
+  validateDisadvantages,
+  validateDisadvantage,
+  serializeDisadvantages,
+} from "./Disadvantages.js";
+
+export {
+  createQuirks,
+  createQuirk,
+  validateQuirks,
+  validateQuirk,
+  serializeQuirks,
+} from "./Quirks.js";
