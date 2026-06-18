@@ -41,3 +41,18 @@ export {
   setSecondaryCharacteristicOverride,
   clearSecondaryCharacteristicOverride,
 } from "./SecondaryCharacteristicsOperations.js";
+
+export {
+  createPools,
+  createPool,
+  validatePools,
+  validatePool,
+  serializePools,
+} from "./Pools.js";
+
+export {
+  setPoolCurrent,
+  setPoolMaximum,
+  addPool,
+  removePool,
+} from "./PoolsOperations.js";
