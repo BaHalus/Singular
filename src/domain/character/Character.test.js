@@ -41,6 +41,12 @@ test("creates default skill and culture aggregates", () => {
   assert.deepEqual(character.familiarities, []);
 });
 
+test("creates default equipment aggregate", () => {
+  const character = createCharacter();
+
+  assert.deepEqual(character.equipment, []);
+});
+
 test("accepts trait aggregate input", () => {
   const character = createCharacter({
     advantages: [
@@ -131,6 +137,34 @@ test("accepts skill and culture aggregate input", () => {
   assert.equal(character.familiarities[0].name, "Western");
 });
 
+test("accepts equipment aggregate input", () => {
+  const character = createCharacter({
+    equipment: [
+      {
+        id: "eq-001",
+        externalIds: { gcs: "gcs-eq-001" },
+        name: "Mochila",
+        kind: "container",
+        containerKind: "physical",
+        value: "100",
+        weight: "10 lb",
+        children: [
+          {
+            id: "eq-002",
+            name: "Bandagens",
+            value: "10",
+            weight: "2 lb",
+          },
+        ],
+      },
+    ],
+  });
+
+  assert.equal(character.equipment[0].name, "Mochila");
+  assert.equal(character.equipment[0].containerKind, "physical");
+  assert.equal(character.equipment[0].children[0].name, "Bandagens");
+});
+
 test("serializes character", () => {
   const character = createCharacter({
     advantages: [
@@ -158,6 +192,15 @@ test("serializes character", () => {
         writtenLevel: "native",
       },
     ],
+    equipment: [
+      {
+        id: "eq-001",
+        externalIds: { gcs: "gcs-eq-001" },
+        name: "Espada Larga",
+        value: "500",
+        weight: "3 lb",
+      },
+    ],
   });
 
   const json = serializeCharacter(character);
@@ -172,6 +215,7 @@ test("serializes character", () => {
   assert.equal(json.advantages[0].externalIds.gcs, "gcs-adv-001");
   assert.equal(json.skills[0].externalIds.gcs, "gcs-skill-001");
   assert.equal(json.languages[0].externalIds.gcs, "gcs-lang-001");
+  assert.equal(json.equipment[0].externalIds.gcs, "gcs-eq-001");
   assert.deepEqual(json.perks, []);
   assert.deepEqual(json.disadvantages, []);
   assert.deepEqual(json.quirks, []);
@@ -295,5 +339,25 @@ test("throws when language level is invalid", () => {
 test("throws when familiarities is not an array", () => {
   assert.throws(() => {
     createCharacter({ familiarities: "Western" });
+  });
+});
+
+test("throws when equipment is not an array", () => {
+  assert.throws(() => {
+    createCharacter({ equipment: "Espada Larga" });
+  });
+});
+
+test("throws when equipment state is invalid", () => {
+  assert.throws(() => {
+    createCharacter({
+      equipment: [
+        {
+          id: "eq-001",
+          name: "Espada Larga",
+          state: "lost",
+        },
+      ],
+    });
   });
 });
