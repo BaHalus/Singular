@@ -70,6 +70,12 @@ import {
   serializeFamiliarities,
 } from "./Familiarities.js";
 
+import {
+  createEquipment,
+  validateEquipment,
+  serializeEquipment,
+} from "./Equipment.js";
+
 export function createCharacter(input = {}) {
   const character = {
     identity: input.identity ?? createDefaultIdentity(),
@@ -89,7 +95,7 @@ export function createCharacter(input = {}) {
     techniques: createTechniques(input.techniques),
     spells: input.spells ?? [],
     powers: input.powers ?? [],
-    equipment: input.equipment ?? [],
+    equipment: createEquipment(input.equipment),
     attacks: input.attacks ?? [],
     languages: createLanguages(input.languages),
     familiarities: createFamiliarities(input.familiarities),
@@ -130,6 +136,7 @@ export function validateCharacter(character) {
   validateTechniques(character.techniques);
   validateLanguages(character.languages);
   validateFamiliarities(character.familiarities);
+  validateEquipment(character.equipment);
 
   if (!character.metadata) {
     throw new Error("Character must have metadata");
@@ -159,7 +166,7 @@ export function serializeCharacter(character) {
     techniques: serializeTechniques(character.techniques),
     spells: character.spells,
     powers: character.powers,
-    equipment: character.equipment,
+    equipment: serializeEquipment(character.equipment),
     attacks: character.attacks,
     languages: serializeLanguages(character.languages),
     familiarities: serializeFamiliarities(character.familiarities),
