@@ -195,6 +195,14 @@ function inferKind(input) {
 }
 
 function normalizeContainerKind(containerKind, kind) {
+  if (
+    kind !== "container" &&
+    containerKind !== undefined &&
+    containerKind !== null
+  ) {
+    throw new Error("Only containers can have containerKind");
+  }
+
   if (kind !== "container") {
     return null;
   }
