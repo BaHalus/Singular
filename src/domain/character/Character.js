@@ -46,6 +46,30 @@ import {
   serializeQuirks,
 } from "./Quirks.js";
 
+import {
+  createSkills,
+  validateSkills,
+  serializeSkills,
+} from "./Skills.js";
+
+import {
+  createTechniques,
+  validateTechniques,
+  serializeTechniques,
+} from "./Techniques.js";
+
+import {
+  createLanguages,
+  validateLanguages,
+  serializeLanguages,
+} from "./Languages.js";
+
+import {
+  createFamiliarities,
+  validateFamiliarities,
+  serializeFamiliarities,
+} from "./Familiarities.js";
+
 export function createCharacter(input = {}) {
   const character = {
     identity: input.identity ?? createDefaultIdentity(),
@@ -61,14 +85,14 @@ export function createCharacter(input = {}) {
     disadvantages: createDisadvantages(input.disadvantages),
     quirks: createQuirks(input.quirks),
 
-    skills: input.skills ?? [],
-    techniques: input.techniques ?? [],
+    skills: createSkills(input.skills),
+    techniques: createTechniques(input.techniques),
     spells: input.spells ?? [],
     powers: input.powers ?? [],
     equipment: input.equipment ?? [],
     attacks: input.attacks ?? [],
-    languages: input.languages ?? [],
-    familiarities: input.familiarities ?? [],
+    languages: createLanguages(input.languages),
+    familiarities: createFamiliarities(input.familiarities),
     templates: input.templates ?? [],
 
     metadata: input.metadata ?? createDefaultMetadata(),
@@ -102,6 +126,11 @@ export function validateCharacter(character) {
   validateDisadvantages(character.disadvantages);
   validateQuirks(character.quirks);
 
+  validateSkills(character.skills);
+  validateTechniques(character.techniques);
+  validateLanguages(character.languages);
+  validateFamiliarities(character.familiarities);
+
   if (!character.metadata) {
     throw new Error("Character must have metadata");
   }
@@ -126,14 +155,14 @@ export function serializeCharacter(character) {
     disadvantages: serializeDisadvantages(character.disadvantages),
     quirks: serializeQuirks(character.quirks),
 
-    skills: character.skills,
-    techniques: character.techniques,
+    skills: serializeSkills(character.skills),
+    techniques: serializeTechniques(character.techniques),
     spells: character.spells,
     powers: character.powers,
     equipment: character.equipment,
     attacks: character.attacks,
-    languages: character.languages,
-    familiarities: character.familiarities,
+    languages: serializeLanguages(character.languages),
+    familiarities: serializeFamiliarities(character.familiarities),
     templates: character.templates,
 
     metadata: character.metadata,
