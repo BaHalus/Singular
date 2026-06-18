@@ -18,6 +18,7 @@ test("creates advantage with defaults", () => {
   const advantage = createAdvantage();
 
   assert.ok(advantage.id);
+  assert.deepEqual(advantage.externalIds, {});
   assert.equal(advantage.name, "");
   assert.equal(advantage.notes, "");
   assert.deepEqual(advantage.tags, []);
@@ -26,12 +27,16 @@ test("creates advantage with defaults", () => {
 test("creates advantage from input", () => {
   const advantage = createAdvantage({
     id: "adv-001",
+    externalIds: {
+      gcs: "gcs-adv-001",
+    },
     name: "Combat Reflexes",
     notes: "Fast reactions.",
     tags: ["combat"],
   });
 
   assert.equal(advantage.id, "adv-001");
+  assert.equal(advantage.externalIds.gcs, "gcs-adv-001");
   assert.equal(advantage.name, "Combat Reflexes");
   assert.equal(advantage.notes, "Fast reactions.");
   assert.deepEqual(advantage.tags, ["combat"]);
@@ -41,6 +46,9 @@ test("creates advantages list from input", () => {
   const advantages = createAdvantages([
     {
       id: "adv-001",
+      externalIds: {
+        gcs: "gcs-adv-001",
+      },
       name: "Combat Reflexes",
       tags: ["combat"],
     },
@@ -48,6 +56,7 @@ test("creates advantages list from input", () => {
 
   assert.equal(advantages.length, 1);
   assert.equal(advantages[0].name, "Combat Reflexes");
+  assert.equal(advantages[0].externalIds.gcs, "gcs-adv-001");
 });
 
 test("validates valid advantages", () => {
@@ -60,6 +69,9 @@ test("serializes advantages", () => {
   const advantages = createAdvantages([
     {
       id: "adv-001",
+      externalIds: {
+        gcs: "gcs-adv-001",
+      },
       name: "Combat Reflexes",
       notes: "",
       tags: ["combat"],
@@ -70,6 +82,7 @@ test("serializes advantages", () => {
 
   assert.equal(json.length, 1);
   assert.equal(json[0].id, "adv-001");
+  assert.equal(json[0].externalIds.gcs, "gcs-adv-001");
   assert.equal(json[0].name, "Combat Reflexes");
   assert.deepEqual(json[0].tags, ["combat"]);
 });
@@ -77,6 +90,18 @@ test("serializes advantages", () => {
 test("throws when advantages is not array", () => {
   assert.throws(() => {
     createAdvantages("Combat Reflexes");
+  });
+});
+
+test("throws when advantage externalIds is invalid", () => {
+  assert.throws(() => {
+    createAdvantages([
+      {
+        id: "adv-001",
+        externalIds: "gcs-adv-001",
+        name: "Combat Reflexes",
+      },
+    ]);
   });
 });
 
