@@ -28,11 +28,23 @@ import {
   serializeAdvantages,
 } from "./Advantages.js";
 
-/**
- * Character Aggregate Root
- * ------------------------
- * Estrutura funcional do Character.
- */
+import {
+  createPerks,
+  validatePerks,
+  serializePerks,
+} from "./Perks.js";
+
+import {
+  createDisadvantages,
+  validateDisadvantages,
+  serializeDisadvantages,
+} from "./Disadvantages.js";
+
+import {
+  createQuirks,
+  validateQuirks,
+  serializeQuirks,
+} from "./Quirks.js";
 
 export function createCharacter(input = {}) {
   const character = {
@@ -45,9 +57,9 @@ export function createCharacter(input = {}) {
     state: createState(input.state),
 
     advantages: createAdvantages(input.advantages),
-    perks: input.perks ?? [],
-    disadvantages: input.disadvantages ?? [],
-    quirks: input.quirks ?? [],
+    perks: createPerks(input.perks),
+    disadvantages: createDisadvantages(input.disadvantages),
+    quirks: createQuirks(input.quirks),
 
     skills: input.skills ?? [],
     techniques: input.techniques ?? [],
@@ -84,19 +96,11 @@ export function validateCharacter(character) {
   validateSecondaryCharacteristics(character.secondaryCharacteristics);
   validatePools(character.pools);
   validateState(character.state);
+
   validateAdvantages(character.advantages);
-
-  if (!Array.isArray(character.perks)) {
-    throw new Error("Character perks must be an array");
-  }
-
-  if (!Array.isArray(character.disadvantages)) {
-    throw new Error("Character disadvantages must be an array");
-  }
-
-  if (!Array.isArray(character.quirks)) {
-    throw new Error("Character quirks must be an array");
-  }
+  validatePerks(character.perks);
+  validateDisadvantages(character.disadvantages);
+  validateQuirks(character.quirks);
 
   if (!character.metadata) {
     throw new Error("Character must have metadata");
@@ -118,9 +122,9 @@ export function serializeCharacter(character) {
     state: serializeState(character.state),
 
     advantages: serializeAdvantages(character.advantages),
-    perks: character.perks,
-    disadvantages: character.disadvantages,
-    quirks: character.quirks,
+    perks: serializePerks(character.perks),
+    disadvantages: serializeDisadvantages(character.disadvantages),
+    quirks: serializeQuirks(character.quirks),
 
     skills: character.skills,
     techniques: character.techniques,
