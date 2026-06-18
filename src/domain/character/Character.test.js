@@ -32,6 +32,15 @@ test("creates default trait aggregates", () => {
   assert.deepEqual(character.quirks, []);
 });
 
+test("creates default skill and culture aggregates", () => {
+  const character = createCharacter();
+
+  assert.deepEqual(character.skills, []);
+  assert.deepEqual(character.techniques, []);
+  assert.deepEqual(character.languages, []);
+  assert.deepEqual(character.familiarities, []);
+});
+
 test("accepts trait aggregate input", () => {
   const character = createCharacter({
     advantages: [
@@ -70,6 +79,58 @@ test("accepts trait aggregate input", () => {
   assert.equal(character.quirks[0].name, "Minor Habit");
 });
 
+test("accepts skill and culture aggregate input", () => {
+  const character = createCharacter({
+    skills: [
+      {
+        id: "skill-001",
+        externalIds: { gcs: "gcs-skill-001" },
+        name: "Stealth",
+        attribute: "DX",
+        difficulty: "A",
+        points: 2,
+        importedLevel: 12,
+      },
+    ],
+    techniques: [
+      {
+        id: "tech-001",
+        externalIds: { gcs: "gcs-tech-001" },
+        name: "Arm Lock",
+        skillId: "skill-001",
+        skillName: "Judo",
+        difficulty: "H",
+        points: 2,
+        importedLevel: 14,
+      },
+    ],
+    languages: [
+      {
+        id: "lang-001",
+        externalIds: { gcs: "gcs-lang-001" },
+        name: "Portuguese",
+        spokenLevel: "native",
+        writtenLevel: "native",
+        importedCost: 0,
+      },
+    ],
+    familiarities: [
+      {
+        id: "fam-001",
+        externalIds: { gcs: "gcs-fam-001" },
+        name: "Western",
+        importedCost: 0,
+      },
+    ],
+  });
+
+  assert.equal(character.skills[0].name, "Stealth");
+  assert.equal(character.skills[0].importedLevel, 12);
+  assert.equal(character.techniques[0].skillName, "Judo");
+  assert.equal(character.languages[0].spokenLevel, "native");
+  assert.equal(character.familiarities[0].name, "Western");
+});
+
 test("serializes character", () => {
   const character = createCharacter({
     advantages: [
@@ -77,6 +138,24 @@ test("serializes character", () => {
         id: "adv-001",
         externalIds: { gcs: "gcs-adv-001" },
         name: "Combat Reflexes",
+      },
+    ],
+    skills: [
+      {
+        id: "skill-001",
+        externalIds: { gcs: "gcs-skill-001" },
+        name: "Stealth",
+        points: 2,
+        importedLevel: 12,
+      },
+    ],
+    languages: [
+      {
+        id: "lang-001",
+        externalIds: { gcs: "gcs-lang-001" },
+        name: "Portuguese",
+        spokenLevel: "native",
+        writtenLevel: "native",
       },
     ],
   });
@@ -91,9 +170,13 @@ test("serializes character", () => {
   assert.ok(json.metadata);
 
   assert.equal(json.advantages[0].externalIds.gcs, "gcs-adv-001");
+  assert.equal(json.skills[0].externalIds.gcs, "gcs-skill-001");
+  assert.equal(json.languages[0].externalIds.gcs, "gcs-lang-001");
   assert.deepEqual(json.perks, []);
   assert.deepEqual(json.disadvantages, []);
   assert.deepEqual(json.quirks, []);
+  assert.deepEqual(json.techniques, []);
+  assert.deepEqual(json.familiarities, []);
 });
 
 test("validates valid character", () => {
@@ -167,24 +250,50 @@ test("throws when advantage externalIds is invalid", () => {
 
 test("throws when perks is not an array", () => {
   assert.throws(() => {
-    createCharacter({
-      perks: "Accessory",
-    });
+    createCharacter({ perks: "Accessory" });
   });
 });
 
 test("throws when disadvantages is not an array", () => {
   assert.throws(() => {
-    createCharacter({
-      disadvantages: "Bad Temper",
-    });
+    createCharacter({ disadvantages: "Bad Temper" });
   });
 });
 
 test("throws when quirks is not an array", () => {
   assert.throws(() => {
+    createCharacter({ quirks: "Minor Habit" });
+  });
+});
+
+test("throws when skills is not an array", () => {
+  assert.throws(() => {
+    createCharacter({ skills: "Stealth" });
+  });
+});
+
+test("throws when techniques is not an array", () => {
+  assert.throws(() => {
+    createCharacter({ techniques: "Arm Lock" });
+  });
+});
+
+test("throws when language level is invalid", () => {
+  assert.throws(() => {
     createCharacter({
-      quirks: "Minor Habit",
+      languages: [
+        {
+          id: "lang-001",
+          name: "Portuguese",
+          spokenLevel: "fluent",
+        },
+      ],
     });
+  });
+});
+
+test("throws when familiarities is not an array", () => {
+  assert.throws(() => {
+    createCharacter({ familiarities: "Western" });
   });
 });
