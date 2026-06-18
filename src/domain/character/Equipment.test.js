@@ -23,8 +23,8 @@ test("creates equipment item with defaults", () => {
   assert.equal(item.containerKind, null);
   assert.equal(item.name, "");
   assert.equal(item.quantity, 1);
-  assert.equal(item.value, "0");
-  assert.equal(item.weight, "0 lb");
+  assert.equal(item.cost, 0);
+  assert.equal(item.weightKg, 0);
   assert.equal(item.state, "carried");
   assert.deepEqual(item.children, []);
 });
@@ -52,6 +52,8 @@ test("creates equipment item from GCS-style input", () => {
   assert.equal(item.techLevel, "2");
   assert.equal(item.legalityClass, "3");
   assert.equal(item.reference, "B271");
+  assert.equal(item.cost, 500);
+  assert.equal(item.weightKg, 1.5);
   assert.deepEqual(item.categories, ["Arma de Combate Corpo a Corpo"]);
   assert.equal(item.weapons.length, 1);
 });
@@ -62,8 +64,8 @@ test("creates physical container", () => {
     kind: "container",
     containerKind: "physical",
     name: "Mochila",
-    value: "100",
-    weight: "10 lb",
+    cost: 100,
+    weightKg: 5,
   });
 
   assert.equal(item.kind, "container");
@@ -77,8 +79,8 @@ test("creates group container as ignored by default", () => {
     kind: "container",
     containerKind: "group",
     name: "Unguentos",
-    value: "0",
-    weight: "0 lb",
+    cost: 0,
+    weightKg: 0,
   });
 
   assert.equal(item.kind, "container");
@@ -106,6 +108,7 @@ test("creates nested equipment", () => {
   assert.equal(equipment.length, 1);
   assert.equal(equipment[0].children.length, 1);
   assert.equal(equipment[0].children[0].name, "Bandagens");
+  assert.equal(equipment[0].children[0].weightKg, 1);
 });
 
 test("validates valid equipment", () => {
@@ -132,6 +135,8 @@ test("serializes equipment", () => {
   assert.equal(json[0].id, "eq-001");
   assert.equal(json[0].externalIds.gcs, "gcs-eq-001");
   assert.equal(json[0].name, "Espada Larga");
+  assert.equal(json[0].cost, 500);
+  assert.equal(json[0].weightKg, 1.5);
   assert.equal(json[0].weapons.length, 1);
 });
 
@@ -165,15 +170,15 @@ test("throws when quantity is invalid", () => {
   });
 });
 
-test("throws when value is invalid", () => {
+test("throws when cost is invalid", () => {
   assert.throws(() => {
-    createEquipment([{ id: "eq-001", value: 500 }]);
+    createEquipment([{ id: "eq-001", cost: -1 }]);
   });
 });
 
 test("throws when weight is invalid", () => {
   assert.throws(() => {
-    createEquipment([{ id: "eq-001", weight: 3 }]);
+    createEquipment([{ id: "eq-001", weight: "heavy" }]);
   });
 });
 
