@@ -56,3 +56,17 @@ export {
   addPool,
   removePool,
 } from "./PoolsOperations.js";
+
+export {
+  createState,
+  validateState,
+  serializeState,
+} from "./State.js";
+
+export {
+  addCondition,
+  removeCondition,
+  addEffect,
+  removeEffect,
+  setCombatEngaged,
+} from "./StateOperations.js";
