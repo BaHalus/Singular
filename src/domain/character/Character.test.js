@@ -50,6 +50,14 @@ test("creates default pools aggregate", () => {
   assert.equal(character.pools.FP.maximum, null);
 });
 
+test("creates default state aggregate", () => {
+  const character = createCharacter();
+
+  assert.deepEqual(character.state.conditions, []);
+  assert.deepEqual(character.state.effects, []);
+  assert.equal(character.state.combat.engaged, false);
+});
+
 test("accepts numeric pools input", () => {
   const character = createCharacter({
     pools: {
@@ -78,12 +86,6 @@ test("accepts optional EnergyReserve pool", () => {
   assert.equal(character.pools.EnergyReserve.maximum, 10);
 });
 
-test("creates state automatically", () => {
-  const character = createCharacter();
-
-  assert.ok(character.state);
-});
-
 test("creates metadata automatically", () => {
   const character = createCharacter();
 
@@ -104,6 +106,9 @@ test("serializes character", () => {
   assert.ok(json.pools.HP);
   assert.ok(json.pools.FP);
   assert.ok(json.state);
+  assert.ok(json.state.conditions);
+  assert.ok(json.state.effects);
+  assert.ok(json.state.combat);
   assert.ok(json.metadata);
 });
 
@@ -160,6 +165,26 @@ test("throws when FP pool maximum is invalid", () => {
           current: 10,
           maximum: "12",
         },
+      },
+    });
+  });
+});
+
+test("throws when state conditions is invalid", () => {
+  assert.throws(() => {
+    createCharacter({
+      state: {
+        conditions: "Stunned",
+      },
+    });
+  });
+});
+
+test("throws when state effects is invalid", () => {
+  assert.throws(() => {
+    createCharacter({
+      state: {
+        effects: "Bless",
       },
     });
   });
