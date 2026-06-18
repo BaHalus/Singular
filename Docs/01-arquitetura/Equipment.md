@@ -1,19 +1,21 @@
 # Equipment
 
-**Código:** DOM-EQP-1.0
+**Código:** DOM-EQP-1.1
 **Status:** Aprovado
 **Camada:** Domain
 **Tipo:** Agregado
 
 Equipment representa os equipamentos do personagem em GURPS 4e.
 
-A arquitetura segue ADR-0005.
+A arquitetura segue ADR-0005 e ADR-0006.
 
 ---
 
 ## Objetivo
 
 Equipment armazena inventário e equipamentos importados, preservando estrutura hierárquica e dados relevantes do GCS sem calcular regras.
+
+O formato canônico interno da SINGULAR usa custo numérico e peso numérico em quilogramas.
 
 ---
 
@@ -34,8 +36,8 @@ Equipment armazena inventário e equipamentos importados, preservando estrutura 
   legalityClass: null,
   reference: "B271",
 
-  value: "500",
-  weight: "3 lb",
+  cost: 500,
+  weightKg: 1.5,
 
   state: "carried",
 
@@ -52,6 +54,30 @@ Equipment armazena inventário e equipamentos importados, preservando estrutura 
   children: [],
   raw: null
 }
+```
+
+---
+
+## Entrada GCS
+
+Durante criação ou importação, campos GCS como:
+
+```js
+value: "500"
+weight: "3 lb"
+```
+
+podem ser aceitos como entrada, mas são normalizados para:
+
+```js
+cost: 500
+weightKg: 1.5
+```
+
+A conversão usa a convenção GURPS:
+
+```text
+2 lb = 1 kg
 ```
 
 ---
@@ -94,7 +120,9 @@ Equipment é responsável por:
 - preservar features;
 - preservar modificadores;
 - preservar dados brutos importados;
-- diferenciar recipientes físicos de agrupamentos.
+- diferenciar recipientes físicos de agrupamentos;
+- normalizar custo para número;
+- normalizar peso para kg.
 
 ---
 
@@ -108,17 +136,17 @@ Equipment não calcula:
 - RD;
 - ataques;
 - defaults;
-- pré-requisitos;
-- conversão de unidades.
+- pré-requisitos.
 
 ---
 
 ## Checklist
 
 - [x] Criar ADR-0005
+- [x] Criar ADR-0006
 - [x] Criar Equipment.md
-- [ ] Criar Equipment.js
-- [ ] Criar Equipment.test.js
-- [ ] Criar EquipmentOperations.js
-- [ ] Criar EquipmentOperations.test.js
-- [ ] Integrar com Character
+- [x] Criar Equipment.js
+- [x] Criar Equipment.test.js
+- [x] Criar EquipmentOperations.js
+- [x] Criar EquipmentOperations.test.js
+- [x] Integrar com Character
