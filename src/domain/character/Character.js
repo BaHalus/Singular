@@ -4,6 +4,12 @@ import {
   serializeAttributes,
 } from "./Attributes.js";
 
+import {
+  createSecondaryCharacteristics,
+  validateSecondaryCharacteristics,
+  serializeSecondaryCharacteristics,
+} from "./SecondaryCharacteristics.js";
+
 /**
  * Character Aggregate Root
  * ------------------------
@@ -24,7 +30,7 @@ export function createCharacter(input = {}) {
     attributes: createAttributes(input.attributes),
 
     secondaryCharacteristics:
-      input.secondaryCharacteristics ?? createDefaultSecondaryCharacteristics(),
+      createSecondaryCharacteristics(input.secondaryCharacteristics),
 
     pools: input.pools ?? createDefaultPools(),
 
@@ -71,6 +77,8 @@ export function validateCharacter(character) {
 
   validateAttributes(character.attributes);
 
+  validateSecondaryCharacteristics(character.secondaryCharacteristics);
+
   if (!character.state) {
     throw new Error("Character must have state");
   }
@@ -88,7 +96,8 @@ export function serializeCharacter(character) {
   return {
     identity: character.identity,
     attributes: serializeAttributes(character.attributes),
-    secondaryCharacteristics: character.secondaryCharacteristics,
+    secondaryCharacteristics:
+      serializeSecondaryCharacteristics(character.secondaryCharacteristics),
     pools: character.pools,
     advantages: character.advantages,
     disadvantages: character.disadvantages,
@@ -114,17 +123,6 @@ function createDefaultIdentity() {
     concept: "",
     playerId: null,
     campaignId: null,
-  };
-}
-
-function createDefaultSecondaryCharacteristics() {
-  return {
-    HP: null,
-    FP: null,
-    Will: null,
-    Perception: null,
-    BasicSpeed: null,
-    BasicMove: null,
   };
 }
 
