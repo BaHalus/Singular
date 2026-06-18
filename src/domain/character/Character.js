@@ -47,6 +47,8 @@ export function createCharacter(input = {}) {
     pools: createPools(input.pools),
 
     advantages: input.advantages ?? [],
+    perks: input.perks ?? [],
+
     disadvantages: input.disadvantages ?? [],
     quirks: input.quirks ?? [],
 
@@ -90,8 +92,23 @@ export function validateCharacter(character) {
   validateAttributes(character.attributes);
   validateSecondaryCharacteristics(character.secondaryCharacteristics);
   validatePools(character.pools);
-
   validateState(character.state);
+
+  if (!Array.isArray(character.advantages)) {
+    throw new Error("Character advantages must be an array");
+  }
+
+  if (!Array.isArray(character.perks)) {
+    throw new Error("Character perks must be an array");
+  }
+
+  if (!Array.isArray(character.disadvantages)) {
+    throw new Error("Character disadvantages must be an array");
+  }
+
+  if (!Array.isArray(character.quirks)) {
+    throw new Error("Character quirks must be an array");
+  }
 
   if (!character.metadata) {
     throw new Error("Character must have metadata");
@@ -105,23 +122,38 @@ export function serializeCharacter(character) {
 
   return {
     identity: character.identity,
+
     attributes: serializeAttributes(character.attributes),
+
     secondaryCharacteristics:
-      serializeSecondaryCharacteristics(character.secondaryCharacteristics),
+      serializeSecondaryCharacteristics(
+        character.secondaryCharacteristics
+      ),
+
     pools: serializePools(character.pools),
+
     advantages: character.advantages,
+    perks: character.perks,
+
     disadvantages: character.disadvantages,
     quirks: character.quirks,
+
     skills: character.skills,
     techniques: character.techniques,
+
     spells: character.spells,
     powers: character.powers,
+
     equipment: character.equipment,
     attacks: character.attacks,
+
     languages: character.languages,
     familiarities: character.familiarities,
+
     templates: character.templates,
+
     state: serializeState(character.state),
+
     metadata: character.metadata,
   };
 }
@@ -152,4 +184,4 @@ function cryptoRandomId() {
   }
 
   return `char_${Math.random().toString(36).slice(2, 10)}`;
-}
+} 
