@@ -314,7 +314,7 @@ function createMaterializedForm(set, knownForm, template, materializedAt, option
     notes: knownForm.notes,
     tags: unique([...(knownForm.tags ?? []), ...(template.tags ?? [])]),
     state: {},
-    runtimeState: null,
+    runtimeState: {},
     transitionRules: null,
     transitionRulesOverride: null,
     transitionRulesResolution: null,
