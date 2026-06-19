@@ -1,13 +1,13 @@
 # CharacterImporter
 
-**Código:** DOM-IMP-1.7
+**Código:** DOM-IMP-1.8
 **Status:** Aprovado
 **Camada:** Domain / Import
 **Tipo:** Import Pipeline
 
 CharacterImporter importa dados externos para um Character válido da SINGULAR.
 
-A arquitetura segue ADR-0008 e ADR-0009.
+A arquitetura segue ADR-0008, ADR-0009 e ADR-0012.
 
 ---
 
@@ -21,7 +21,8 @@ Ele apenas:
 - normaliza campos conhecidos;
 - preserva dados desconhecidos;
 - cria agregados válidos;
-- evita aplicar pacotes quando a fonte representa apenas um template.
+- evita aplicar pacotes quando a fonte representa apenas um template;
+- vincula Forma Alternativa a templates somente quando a relação é determinística.
 
 Cálculos continuam nos serviços de domínio.
 
@@ -36,7 +37,9 @@ ImportSnapshot
   ↓
 Character Aggregate
   ↓
-Domain Services
+AlternateFormsLinker
+  ↓
+Character importado + diagnóstico de vínculos
 ```
 
 ---
@@ -95,7 +98,7 @@ Estrutura atual:
 
 ---
 
-## DOM-IMP-1.7
+## DOM-IMP-1.8
 
 A entrega atual importa:
 
@@ -112,7 +115,8 @@ A entrega atual importa:
 - idiomas;
 - familiaridades culturais;
 - equipamentos;
-- templates `.gct`.
+- templates `.gct`;
+- vínculos seguros de Forma Alternativa.
 
 ---
 
@@ -239,26 +243,6 @@ O importador reconhece:
 - forma explicitamente declarada;
 - tipo desconhecido preservado.
 
-São preservados:
-
-- versão GCS;
-- ID do documento e IDs externos;
-- nome;
-- ancestralidade;
-- referência;
-- custo informado em `calc.points`;
-- containers estruturais;
-- vantagens, qualidades, desvantagens e peculiaridades;
-- níveis, modificadores, features e pré-requisitos;
-- bônus de atributos;
-- ataques naturais em `weapons`;
-- perícias do pacote;
-- Forma Alternativa como trait do pacote;
-- dados desconhecidos;
-- documento integral em `raw`.
-
-As categorias portuguesas e inglesas do GCS são aceitas na classificação de traits.
-
 O custo do pacote não é recalculado. O valor fornecido pelo GCS entra em `importedPoints`.
 
 ### Isolamento de um GCT standalone
@@ -271,27 +255,91 @@ type: "template"
 
 ela é importada como um pacote em `Character.templates`.
 
-Seus componentes não são duplicados em:
+Seus componentes não são duplicados nas listas principais do personagem.
 
-- `Character.advantages`;
-- `Character.disadvantages`;
-- `Character.skills`;
-- `Character.spells`;
-- `Character.equipment`.
+---
 
-A aplicação futura do pacote deverá ser uma operação explícita de domínio.
+## Vinculação de Forma Alternativa
+
+Depois da criação do Character, `AlternateFormsLinker` analisa vantagens como:
+
+```text
+Forma Alternativa
+Forma Alternativa: Lobo
+Forma Alternativa (Morcego)
+Alternate Form
+```
+
+A vinculação usa:
+
+1. ID explícito do template;
+2. nome explícito do template;
+3. nome declarado na vantagem;
+4. notas;
+5. equivalência canônica exata.
+
+Exemplo:
+
+```text
+Notas: Morcego
+Template: Forma de Morcego
+```
+
+produz um vínculo seguro quando houver apenas um template correspondente.
+
+Nenhum vínculo é criado quando:
+
+- o alvo não foi informado;
+- o ID explícito não existe;
+- nenhum nome corresponde;
+- mais de um template corresponde;
+- existe conflito com vínculo manual.
+
+### Grupo corporal padrão
+
+Sem grupo explícito, vantagens reconhecidas como Forma Alternativa entram no conjunto:
+
+```text
+body
+```
+
+Grupos explícitos como `body` e `armor` permanecem independentes.
+
+### Diagnósticos
+
+`importCharacterWithDiagnostics(source)` retorna:
+
+```js
+{
+  character,
+  snapshot,
+  alternateFormLinkReport
+}
+```
+
+O relatório separa:
+
+- candidatos;
+- resolvidos;
+- já vinculados;
+- ambíguos;
+- não resolvidos;
+- conjuntos criados;
+- conjuntos atualizados.
+
+`importCharacter(source)` retorna apenas o Character já submetido à vinculação segura.
 
 ---
 
 ## Fora de escopo atual
 
-DOM-IMP-1.7 ainda não executa:
+DOM-IMP-1.8 ainda não executa:
 
-- aplicação ou remoção de templates;
-- incorporação destrutiva de componentes;
+- aplicação automática de templates permanentes;
+- ativação automática de uma forma vinculada;
 - cálculo do custo do pacote;
 - cálculo de atributos resultantes;
-- ligação automática de Forma Alternativa a outro template sem ID explícito;
+- escolha aproximada entre nomes semelhantes;
 - cálculo de Morfo;
 - ataques derivados finais;
 - cálculo de NH;
@@ -314,13 +362,13 @@ DOM-IMP-1.7 ainda não executa:
 - [x] Criar LanguagesImporter.js
 - [x] Criar FamiliaritiesImporter.js
 - [x] Criar EquipmentImporter.js
-- [x] Criar Templates.js
 - [x] Criar TemplatesImporter.js
 - [x] Integrar Templates ao Character
-- [x] Integrar TemplatesImporter ao CharacterImporter
 - [x] Preservar extensão original `.gct`
-- [x] Preservar raças e metacaracterísticas
-- [x] Preservar skills incluídas no template
-- [x] Preservar ataques naturais e bônus de atributos
 - [x] Evitar aplicação automática de template standalone
-- [x] Preservar containers e nós desconhecidos
+- [x] Criar AlternateFormsLinker.js
+- [x] Vincular Forma Alternativa por ID explícito
+- [x] Vincular Forma Alternativa por nome canônico único
+- [x] Preservar ambiguidades e casos não resolvidos
+- [x] Integrar linker ao CharacterImporter
+- [x] Expor importação com diagnósticos
