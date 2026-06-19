@@ -1,6 +1,6 @@
 # Character
 
-**Código:** DOM-CHAR-1.7  
+**Código:** DOM-CHAR-1.8  
 **Status:** Aprovado  
 **Camada:** Domain  
 **Tipo:** Aggregate Root
@@ -12,44 +12,23 @@ Character é o Aggregate Root da SINGULAR e a unidade fundamental de persistênc
 Character mantém:
 
 - identidade;
-- atributos e secundárias;
-- pools;
+- atributos, secundárias e pools;
+- estado transitório;
 - traits;
 - perícias, técnicas, mágicas e poderes;
 - equipamentos e ataques;
 - idiomas e familiaridades;
 - templates importados;
-- histórico de incorporação;
+- histórico de incorporações permanentes;
 - conjuntos de formas;
-- forma ativa;
-- estado transitório atual;
 - snapshots das formas inativas;
 - políticas de continuidade;
-- regras declarativas de transição por forma;
-- runtime persistente da forma ativa;
+- regras declarativas por forma;
+- runtime da forma ativa;
+- histórico persistente do ciclo de formas;
 - metadados.
 
-Character garante apenas invariantes estruturais.
-
-## Não responsabilidades
-
-Character não:
-
-- calcula regras de GURPS;
-- calcula custos, dano, cura, carga, movimento ou NH;
-- interpreta pré-requisitos;
-- calcula máximos de pools;
-- converte dano entre formas;
-- planeja ou executa transições por conta própria;
-- executa testes;
-- decide requisitos, gatilhos ou impedimentos;
-- avança o relógio global da campanha;
-- agenda tarefas externas;
-- executa automaticamente pedidos de retorno;
-- persiste recibos de execução por conta própria;
-- implementa limites de Morfo.
-
-Essas responsabilidades pertencem a Rules, planners, executores e runtimes apropriados.
+Character garante invariantes estruturais, mas não executa regras de GURPS.
 
 ## Composição
 
@@ -59,6 +38,7 @@ Character
 ├── Attributes
 ├── SecondaryCharacteristics
 ├── Pools
+├── State
 ├── Advantages
 ├── Perks
 ├── Disadvantages
@@ -74,7 +54,7 @@ Character
 ├── Templates
 ├── TemplateApplications
 ├── AlternateFormSets
-├── State
+├── FormTransitionHistory
 └── Metadata
 ```
 
@@ -84,7 +64,7 @@ Character
 
 `templateApplications` registra incorporações permanentes.
 
-Importar e incorporar são operações distintas. Uma aplicação removida permanece no histórico com status `removed`.
+Importar, incorporar e ativar uma forma são operações distintas.
 
 ## Formas Alternativas
 
@@ -94,10 +74,10 @@ Cada conjunto possui:
 
 - forma-base;
 - forma ativa;
-- formas disponíveis;
 - mecanismo;
+- formas disponíveis;
 - política de continuidade;
-- regras de transição compartilhadas como defaults;
+- regras compartilhadas como defaults;
 - proveniência da ativação atual;
 - runtime da sessão ativa.
 
@@ -106,17 +86,17 @@ Cada forma pode possuir:
 - template vinculado;
 - trait de origem;
 - snapshot transitório;
-- regras de transição efetivas;
-- override de transição;
-- resolução explicável das regras.
+- regras efetivas;
+- override;
+- resolução explicável.
 
 Somente uma forma fica ativa dentro de cada conjunto. Conjuntos independentes podem coexistir.
 
-Templates permanentes como Elfo, Vampiro, Orc, Lich, Anão ou Licantropo não são removidos quando uma forma temporária muda.
+Templates permanentes não são removidos quando uma forma temporária muda.
 
 ## Continuidade de estado
 
-O estado atualmente ativo permanece em:
+O estado ativo permanece em:
 
 ```text
 Pools
@@ -132,30 +112,17 @@ AlternateForm.runtimeState
 
 `AlternateFormSet.statePolicy` define `shared` ou `perForm` para PV, PF, Reserva de Energia, ferimentos, condições, efeitos e equipamento.
 
-## Regras de transição
+## Regras, planejamento e execução
 
-`AlternateFormSet.transitionRules` contém padrões compartilhados.
+`AlternateFormSet.transitionRules` contém defaults compartilhados.
 
-`AlternateForm.transitionRules` contém as regras efetivas daquela forma.
+`AlternateForm.transitionRules` contém as regras efetivas da forma.
 
-Essas regras podem declarar tempo, manobra, custos, testes, requisitos, gatilhos, ativação involuntária, interrupção, duração, retorno e impedimentos.
+`FormTransitionPlanner` cria um plano sem modificar o Character.
 
-Character armazena essas declarações, mas não as executa.
+`FormTransitionExecutor` recebe um plano `ready`, revalida o estado atual, consome custos atomicamente, troca a forma e registra o recibo.
 
-## Planejamento e execução
-
-`FormTransitionPlanner` lê o Character e produz um plano sem modificá-lo.
-
-`FormTransitionExecutor` recebe um plano pronto, revalida o Character atual, consome os pools e chama `activateAlternateForm` atomicamente.
-
-Uma execução bem-sucedida:
-
-1. troca a forma;
-2. inicializa o runtime da nova forma alternativa;
-3. mantém runtime nulo quando o destino é a forma-base;
-4. devolve Character novo, plano revalidado e recibo.
-
-O Character original permanece intacto em qualquer falha.
+Falhas não alteram o Character original.
 
 ## Runtime da forma ativa
 
@@ -163,25 +130,57 @@ O Character original permanece intacto em qualquer falha.
 AlternateFormSet.transitionRuntime
 ```
 
-Esse runtime mantém:
+O runtime mantém:
 
-- ID da sessão de ativação;
+- ID da sessão;
 - forma associada;
-- instante inicial e última observação;
+- início e última observação;
 - tempo decorrido;
-- custos periódicos e intervalos já cobrados;
+- manutenção e intervalos cobrados;
 - duração mínima e máxima;
 - pedido de retorno pendente.
 
-Ele pertence ao conjunto porque acompanha a sessão atualmente ativa, enquanto `AlternateForm.runtimeState` pertence à forma e preserva seu snapshot quando inativa.
+A forma-base deve possuir `transitionRuntime: null`.
 
-Ao mudar a forma ativa, o runtime anterior é limpo. O executor inicializa a nova sessão.
+Uma forma alternativa pode permanecer temporariamente sem runtime quando foi importada ou construída antes da primeira observação. O runtime é inicializado pelo executor ou pelo motor de avanço.
 
-O motor de runtime pode consumir manutenção e preparar um plano de retorno, mas nunca executa silenciosamente a mudança de forma.
+## Histórico persistente
+
+```text
+Character.formTransitionHistory
+```
+
+Eventos suportados:
+
+```text
+transition-executed
+maintenance-charged
+maintenance-unpaid
+return-requested
+```
+
+O histórico é append-only, possui IDs únicos e todos os eventos devem pertencer ao `identity.id` do Character.
+
+Recibos e eventos sobrevivem à serialização e restauração.
+
+## FormLifecycle
+
+`FormLifecycle` integra:
+
+```text
+runtime
+→ planner
+→ executor
+→ histórico
+```
+
+Por padrão, o ciclo apenas prepara o retorno.
+
+A execução depende de opção explícita, preservando a regra de que nenhuma transformação acontece silenciosamente.
 
 ## Dados permanentes
 
-São permanentes estruturalmente:
+Incluem:
 
 - identidade;
 - atributos e secundárias;
@@ -190,26 +189,23 @@ São permanentes estruturalmente:
 - equipamentos cadastrados;
 - idiomas e familiaridades;
 - templates;
-- histórico de aplicações;
-- definição dos conjuntos de formas;
-- políticas e regras declaradas;
+- aplicações;
+- definição dos conjuntos;
+- políticas e regras;
+- histórico de transições;
 - metadados.
-
-Componentes temporários da forma ativa permanecem serializados enquanto estiverem ativos, com proveniência explícita.
 
 ## Dados transitórios persistíveis
 
 Incluem:
 
-- valores atuais de pools;
-- ferimentos;
-- condições;
-- efeitos;
+- valores atuais dos pools;
+- ferimentos, condições e efeitos;
 - estado de combate;
-- estado e usos de equipamentos;
+- estado e usos de equipamento;
 - forma ativa;
-- snapshots das formas inativas;
-- runtime da sessão de forma ativa;
+- snapshots por forma;
+- runtime da sessão ativa;
 - manutenção já cobrada;
 - pedido de retorno pendente.
 
@@ -218,81 +214,63 @@ Incluem:
 Um Character válido deve possuir:
 
 - Identity com `id` e `name`;
-- Attributes com ST, DX, IQ e HT;
-- Pools válidos;
-- State válido;
+- atributos, secundárias, pools e estado válidos;
 - coleções estruturais válidas;
-- templates válidos;
-- histórico de aplicações válido;
-- conjuntos de formas válidos.
+- templates e aplicações válidos;
+- conjuntos de formas válidos;
+- histórico de formas válido e pertencente ao Character;
+- metadados.
 
-Cada conjunto de formas deve possuir:
+Cada conjunto deve possuir:
 
 - pelo menos uma forma;
 - forma-base existente;
 - forma ativa existente;
 - IDs únicos;
-- política de estado válida;
-- regras de transição default válidas;
-- runtime nulo ou estruturalmente válido;
-- runtime, quando existente, vinculado à forma ativa e à ativação correspondente.
-
-Cada forma deve possuir:
-
-- `runtimeState` válido;
-- regras de transição nulas ou válidas;
-- `return.targetFormId`, quando informado, apontando para uma forma do mesmo conjunto.
-
-Essas invariantes não executam regras de GURPS.
+- política válida;
+- regras válidas;
+- runtime nulo ou vinculado à forma ativa;
+- runtime nulo quando a forma-base está ativa.
 
 ## Serialização
 
-Character deve ser serializável para JSON sem perda estrutural.
-
 A serialização inclui:
 
-- templates;
-- aplicações;
+- templates e aplicações;
 - conjuntos de formas;
 - forma ativa;
-- políticas e suas resoluções;
-- regras de transição e suas resoluções;
-- overrides manuais;
-- snapshots de estado;
-- runtime da sessão ativa;
-- intervalos de manutenção já processados;
-- pedido de retorno pendente.
+- políticas, regras, overrides e resoluções;
+- snapshots;
+- runtime;
+- histórico de transições;
+- metadados.
 
-Planos e recibos de transição não são armazenados automaticamente no Character.
+Planos permanecem efêmeros. Recibos bem-sucedidos são persistidos como eventos do histórico.
 
-A serialização não inclui métodos, referências circulares, estado de interface ou dependências externas.
+## Não responsabilidades
 
-## Direção de implementação
+Character não:
 
-A implementação privilegia:
-
-- composição;
-- objetos simples;
-- funções puras;
-- imutabilidade;
-- operações reversíveis;
-- proveniência explícita;
-- separação entre dados, regras, planejamento, execução, runtime e apresentação.
+- calcula regras de GURPS;
+- executa testes;
+- decide fatos do mundo;
+- avança o relógio global;
+- agenda tarefas externas;
+- executa retornos automaticamente por conta própria;
+- implementa limites de Morfo.
 
 ## Checklist
 
-- [x] Criar Character.js
-- [x] Validar invariantes
-- [x] Validar serialização
-- [x] Integrar templates
-- [x] Integrar histórico de aplicações
-- [x] Integrar conjuntos de formas
-- [x] Integrar linker seguro
-- [x] Integrar política de continuidade
-- [x] Integrar snapshots por forma
-- [x] Integrar regras de transição por forma
-- [x] Integrar overrides e resoluções explicáveis
-- [x] Integrar planejamento puro de transições
-- [x] Integrar execução atômica
-- [x] Integrar runtime persistente de duração e manutenção
-- [x] Aprovar Character v1.7
+- [x] Character e serialização
+- [x] Templates e aplicações
+- [x] AlternateFormSets
+- [x] Linker seguro
+- [x] Continuidade de estado
+- [x] Regras por forma
+- [x] Planner
+- [x] Executor atômico
+- [x] Runtime persistente
+- [x] Histórico persistente
+- [x] Orquestração explícita do ciclo
+- [x] Regressão completa
+- [x] Aprovar Character v1.8
