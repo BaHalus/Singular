@@ -8,6 +8,9 @@ import {
 import {
   consumeFormTransitionCosts,
 } from "./FormTransitionExecutorResources.js";
+import {
+  initializeFormTransitionRuntime,
+} from "./FormTransitionRuntimeOperations.js";
 
 export class FormTransitionExecutionError extends Error {
   constructor(code, message, details = null, options = {}) {
@@ -134,6 +137,11 @@ export function executeFormTransition(character, plan, options = {}) {
         activationId: options.activationId,
       },
     );
+    transitionedCharacter = initializeFormTransitionRuntime(
+      transitionedCharacter,
+      currentPlan.formSetId,
+      { now: executedAt },
+    );
   } catch (error) {
     throw new FormTransitionExecutionError(
       "TRANSITION_FAILED",
@@ -163,6 +171,7 @@ export function executeFormTransition(character, plan, options = {}) {
 
     planFingerprint: currentFingerprint,
     activationId: transitionedSet?.activeActivationId ?? null,
+    runtimeId: transitionedSet?.transitionRuntime?.activationId ?? null,
 
     maneuvers: [...currentPlan.maneuvers],
     timeSeconds: currentPlan.timeSeconds,
