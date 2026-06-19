@@ -5,8 +5,13 @@ export function createImportSnapshot(input = {}) {
     secondaryCharacteristics: input.secondaryCharacteristics ?? {},
 
     traits: input.traits ?? createEmptyImportedTraits(),
+
     skills: input.skills ?? [],
     techniques: input.techniques ?? [],
+    skillContainers: input.skillContainers ?? [],
+    techniqueNodes: input.techniqueNodes ?? [],
+    unknownSkillNodes: input.unknownSkillNodes ?? [],
+
     languages: input.languages ?? [],
     familiarities: input.familiarities ?? [],
     equipment: input.equipment ?? [],
