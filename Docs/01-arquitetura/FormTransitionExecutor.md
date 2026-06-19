@@ -1,6 +1,6 @@
 # FormTransitionExecutor
 
-**Código:** DOM-FORM-1.7  
+**Código:** DOM-FORM-1.8  
 **Status:** Aprovado  
 **Camada:** Domain / Application boundary  
 **Tipo:** Executor atômico
@@ -16,52 +16,33 @@ executeFormTransition(character, plan, options)
 ## Fluxo
 
 ```text
-validar o plano
+validar plano
 confirmar characterId e forma de origem
 replanejar com o estado atual
-comparar a impressão digital
-preparar o consumo dos recursos
+comparar impressão digital
+preparar consumo dos recursos
 chamar activateAlternateForm
-inicializar o runtime da forma de destino
-retornar Character novo e recibo
-```
-
-## Opções
-
-```js
-{
-  now,
-  executionId,
-  activationId,
-  context
-}
+inicializar ou limpar runtime
+criar recibo
+persistir recibo no histórico
+retornar Character novo
 ```
 
 ## Revalidação
 
-O executor reconstrói do plano os resultados conhecidos e chama novamente:
+O executor reconstrói resultados conhecidos e chama novamente:
 
 ```js
 planFormTransition(character, formSetId, targetFormId, context)
 ```
 
-Uma mudança que bloqueia a transição produz `REVALIDATION_FAILED`.
-
-Mudanças nas regras produzem `PLAN_STALE`.
+Uma mudança bloqueadora produz `REVALIDATION_FAILED`. Mudanças nas regras produzem `PLAN_STALE`.
 
 ## Recursos
 
-Custos são agregados por:
+Custos são agregados por HP, FP e EnergyReserve. O débito registra valor anterior, valor posterior, quantidade e IDs.
 
-```text
-HP
-FP
-EnergyReserve
-```
-
-O débito registra valor anterior, valor posterior, quantidade e IDs dos custos.
-
-Custos de manutenção não entram no débito inicial. Eles são tratados pelo FormTransitionRuntime.
+Custos de manutenção permanecem sob responsabilidade do runtime.
 
 ## Runtime
 
@@ -71,9 +52,7 @@ Depois da troca, o executor chama:
 initializeFormTransitionRuntime(character, formSetId, { now })
 ```
 
-Uma forma alternativa recebe runtime iniciado no instante da execução. A forma-base mantém runtime nulo.
-
-Se a inicialização falhar, a execução inteira falha como `TRANSITION_FAILED` e nenhuma versão parcial é retornada.
+Formas alternativas recebem runtime novo. A forma-base mantém runtime nulo.
 
 ## Recibo
 
@@ -98,7 +77,9 @@ Se a inicialização falhar, a execução inteira falha como `TRANSITION_FAILED`
 }
 ```
 
-`runtimeId` identifica a sessão criada e é nulo quando o destino é a forma-base.
+O recibo é devolvido e também persistido como evento `transition-executed` em `Character.formTransitionHistory`.
+
+Falhas anteriores à conclusão não criam evento de sucesso.
 
 ## Erros principais
 
@@ -117,11 +98,11 @@ TRANSITION_FAILED
 - plano pendente ou bloqueado não é executado;
 - plano de outro personagem não é executado;
 - recursos são rechecados;
-- custos iniciais são consumidos uma vez;
-- a mesma execução não pode ser repetida;
-- o runtime corresponde à forma ativada;
-- falha não deixa débito ou runtime parcial.
+- custos são consumidos uma vez;
+- runtime corresponde à forma ativada;
+- recibo corresponde à execução concluída;
+- falha não deixa débito, runtime ou histórico parcial.
 
 ## Não responsabilidades
 
-O executor não rola dados, não avança tempo posterior, não cobra manutenção, não resolve gatilhos futuros, não executa retornos preparados pelo runtime e não persiste histórico por conta própria.
+O executor não rola dados, não avança o relógio posterior, não cobra manutenção, não decide fatos do mundo e não executa retornos sem chamada explícita.
