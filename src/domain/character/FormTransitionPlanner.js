@@ -41,7 +41,7 @@ export function planFormTransition(
   const intent = context.intent ?? "voluntary";
 
   if (fromForm.id === targetForm.id) {
-    return createAlreadyActivePlan(set, fromForm, intent);
+    return createAlreadyActivePlan(character, set, fromForm, intent);
   }
 
   const phases = buildTransitionPhases(set, fromForm, targetForm)
@@ -82,6 +82,7 @@ export function planFormTransition(
   const targetRules = getEffectiveTransitionRules(set, targetForm);
 
   return {
+    characterId: character.identity.id,
     allowed: status === "ready",
     status,
     intent,
@@ -202,10 +203,11 @@ function determineTransitionKind(set, fromForm, targetForm) {
   return "switch";
 }
 
-function createAlreadyActivePlan(set, form, intent) {
+function createAlreadyActivePlan(character, set, form, intent) {
   const rules = getEffectiveTransitionRules(set, form);
 
   return {
+    characterId: character.identity.id,
     allowed: false,
     status: "already-active",
     intent,
@@ -255,6 +257,9 @@ function findForm(set, formId) {
 function validateCharacter(character) {
   if (!character || typeof character !== "object" || Array.isArray(character)) {
     throw new Error("Character must be object");
+  }
+  if (!character.identity || typeof character.identity.id !== "string" || character.identity.id === "") {
+    throw new Error("Character identity.id must be non-empty string");
   }
   if (!Array.isArray(character.alternateFormSets)) {
     throw new Error("Character alternateFormSets must be array");
