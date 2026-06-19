@@ -11,9 +11,15 @@ export function createFamiliarity(input = {}) {
     id: input.id ?? generateFamiliarityId(),
     externalIds: normalizeExternalIds(input.externalIds),
     name: input.name ?? "",
+    isNative: input.isNative ?? false,
     importedCost: input.importedCost ?? null,
+    reference: input.reference ?? null,
+    modifiers: normalizeArray(input.modifiers, "Familiarity modifiers must be array"),
+    prereqs: input.prereqs ?? null,
     notes: input.notes ?? "",
-    tags: normalizeTags(input.tags),
+    tags: normalizeArray(input.tags, "Familiarity tags must be array"),
+    importMeta: input.importMeta ?? null,
+    raw: input.raw ?? null,
   };
 }
 
@@ -46,8 +52,27 @@ export function validateFamiliarity(familiarity) {
     throw new Error("Familiarity name must be string");
   }
 
-  if (familiarity.importedCost !== null && typeof familiarity.importedCost !== "number") {
+  if (typeof familiarity.isNative !== "boolean") {
+    throw new Error("Familiarity isNative must be boolean");
+  }
+
+  if (
+    familiarity.importedCost !== null &&
+    (typeof familiarity.importedCost !== "number" || Number.isNaN(familiarity.importedCost))
+  ) {
     throw new Error("Familiarity importedCost must be number or null");
+  }
+
+  if (familiarity.reference !== null && typeof familiarity.reference !== "string") {
+    throw new Error("Familiarity reference must be string or null");
+  }
+
+  if (!Array.isArray(familiarity.modifiers)) {
+    throw new Error("Familiarity modifiers must be array");
+  }
+
+  if (familiarity.prereqs !== null && !isPlainObject(familiarity.prereqs)) {
+    throw new Error("Familiarity prereqs must be object or null");
   }
 
   if (typeof familiarity.notes !== "string") {
@@ -56,6 +81,10 @@ export function validateFamiliarity(familiarity) {
 
   if (!Array.isArray(familiarity.tags)) {
     throw new Error("Familiarity tags must be array");
+  }
+
+  if (familiarity.importMeta !== null && !isPlainObject(familiarity.importMeta)) {
+    throw new Error("Familiarity importMeta must be object or null");
   }
 
   return true;
@@ -68,9 +97,15 @@ export function serializeFamiliarities(familiarities) {
     id: familiarity.id,
     externalIds: { ...familiarity.externalIds },
     name: familiarity.name,
+    isNative: familiarity.isNative,
     importedCost: familiarity.importedCost,
+    reference: familiarity.reference,
+    modifiers: [...familiarity.modifiers],
+    prereqs: familiarity.prereqs,
     notes: familiarity.notes,
     tags: [...familiarity.tags],
+    importMeta: familiarity.importMeta,
+    raw: familiarity.raw,
   }));
 }
 
@@ -86,16 +121,16 @@ function normalizeExternalIds(externalIds) {
   return { ...externalIds };
 }
 
-function normalizeTags(tags) {
-  if (tags === undefined || tags === null) {
+function normalizeArray(value, errorMessage) {
+  if (value === undefined || value === null) {
     return [];
   }
 
-  if (!Array.isArray(tags)) {
-    throw new Error("Familiarity tags must be array");
+  if (!Array.isArray(value)) {
+    throw new Error(errorMessage);
   }
 
-  return [...tags];
+  return [...value];
 }
 
 function isPlainObject(value) {
