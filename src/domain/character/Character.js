@@ -59,6 +59,12 @@ import {
 } from "./Techniques.js";
 
 import {
+  createSpells,
+  validateSpells,
+  serializeSpells,
+} from "./Spells.js";
+
+import {
   createLanguages,
   validateLanguages,
   serializeLanguages,
@@ -93,7 +99,7 @@ export function createCharacter(input = {}) {
 
     skills: createSkills(input.skills),
     techniques: createTechniques(input.techniques),
-    spells: input.spells ?? [],
+    spells: createSpells(input.spells),
     powers: input.powers ?? [],
     equipment: createEquipment(input.equipment),
     attacks: input.attacks ?? [],
@@ -134,6 +140,7 @@ export function validateCharacter(character) {
 
   validateSkills(character.skills);
   validateTechniques(character.techniques);
+  validateSpells(character.spells);
   validateLanguages(character.languages);
   validateFamiliarities(character.familiarities);
   validateEquipment(character.equipment);
@@ -164,7 +171,7 @@ export function serializeCharacter(character) {
 
     skills: serializeSkills(character.skills),
     techniques: serializeTechniques(character.techniques),
-    spells: character.spells,
+    spells: serializeSpells(character.spells),
     powers: character.powers,
     equipment: serializeEquipment(character.equipment),
     attacks: character.attacks,
