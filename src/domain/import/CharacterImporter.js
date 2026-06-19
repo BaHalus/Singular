@@ -1,5 +1,6 @@
 import { createCharacter } from "../character/Character.js";
 import { linkAlternateForms } from "../character/AlternateFormsLinker.js";
+import { applyResolvedFormStatePolicies } from "../character/FormStatePolicyResolver.js";
 import { createImportSnapshot } from "./ImportSnapshot.js";
 import { importIdentity } from "./importers/IdentityImporter.js";
 import {
@@ -90,11 +91,11 @@ export function createSnapshotFromGcs(source = {}) {
   });
 }
 
-export function importCharacter(source = {}) {
-  return importCharacterWithDiagnostics(source).character;
+export function importCharacter(source = {}, options = {}) {
+  return importCharacterWithDiagnostics(source, options).character;
 }
 
-export function importCharacterWithDiagnostics(source = {}) {
+export function importCharacterWithDiagnostics(source = {}, options = {}) {
   const snapshot = createSnapshotFromGcs(source);
   const character = createCharacter({
     identity: snapshot.identity,
@@ -114,12 +115,28 @@ export function importCharacterWithDiagnostics(source = {}) {
     equipment: snapshot.equipment,
     templates: snapshot.templates,
   });
-  const linked = linkAlternateForms(character);
+  const linked = linkAlternateForms(
+    character,
+    options.alternateFormsLinker,
+  );
+  const resolverOptions = {
+    ...(options.formStatePolicyResolver ?? {}),
+  };
+
+  if (options.now !== undefined) {
+    resolverOptions.now = options.now;
+  }
+
+  const resolved = applyResolvedFormStatePolicies(
+    linked.character,
+    resolverOptions,
+  );
 
   return {
-    character: linked.character,
+    character: resolved.character,
     snapshot,
     alternateFormLinkReport: linked.report,
+    formStatePolicyResolutions: resolved.resolutions,
   };
 }
 
