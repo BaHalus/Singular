@@ -96,6 +96,7 @@ export function recordFormRuntimeAdvance(character, input) {
         "return_requested",
         runtimeId,
         observedAt,
+        returnRequest,
       ),
       type: "return-requested",
       occurredAt: observedAt,
@@ -121,7 +122,7 @@ function appendHistory(character, entry, updatedAt) {
   return createCharacter({
     ...character,
     formTransitionHistory: appendFormTransitionHistory(
-      character.formTransitionHistory,
+      character.formTransitionHistory ?? [],
       entry,
     ),
     metadata: {
@@ -150,13 +151,30 @@ function validateReceipt(receipt) {
   }
 }
 
-function createRuntimeEventId(type, runtimeId, observedAt) {
-  return [
+function createRuntimeEventId(type, runtimeId, observedAt, discriminator = null) {
+  const parts = [
     "form_history",
     type,
     sanitizeId(runtimeId),
     sanitizeId(observedAt),
-  ].join("_");
+  ];
+
+  if (discriminator !== null) {
+    parts.push(stableHash(JSON.stringify(discriminator)));
+  }
+
+  return parts.join("_");
+}
+
+function stableHash(value) {
+  let hash = 2166136261;
+
+  for (let index = 0; index < value.length; index += 1) {
+    hash ^= value.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+
+  return (hash >>> 0).toString(36);
 }
 
 function sanitizeId(value) {
