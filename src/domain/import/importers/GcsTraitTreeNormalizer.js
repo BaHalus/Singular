@@ -28,8 +28,10 @@ export function normalizeGcsTraitNode(source = {}) {
   }
 
   const children = readChildTraitRows(source).map(normalizeGcsTraitNode);
-  const tags = normalizeArray(source.tags);
-  const points = normalizePoints(source.points ?? source.base_points ?? source.cost);
+  const tags = mergeStringArrays(source.tags, source.categories);
+  const points = normalizePoints(
+    source.points ?? source.calc?.points ?? source.base_points ?? source.cost,
+  );
   const nodeKind = inferNodeKind(source, children, tags, points);
   const containerType = nodeKind === "container"
     ? inferContainerType(source, tags)
@@ -46,6 +48,8 @@ export function normalizeGcsTraitNode(source = {}) {
     containerType,
 
     name: source.name ?? source.description ?? "",
+    reference: source.reference ?? null,
+    notes: normalizeNotes(source.notes ?? source.local_notes),
     points,
     levels: source.levels ?? null,
 
@@ -56,6 +60,7 @@ export function normalizeGcsTraitNode(source = {}) {
     weapons: normalizeArray(source.weapons),
     prereqs: source.prereqs ?? null,
     tags,
+    calc: normalizeNullablePlainObject(source.calc),
 
     children,
     raw: source,
@@ -142,7 +147,7 @@ function inferSemanticContainerType(source, tags) {
   const text = [source.name, source.description, ...tags]
     .filter(Boolean)
     .join(" ")
-    .toLowerCase();
+    .toLocaleLowerCase("pt-BR");
 
   if (text.includes("habilidades alternativas") || text.includes("alternative abilities")) {
     return "alternativeAbilities";
@@ -177,15 +182,29 @@ function normalizeContainerType(value) {
 }
 
 function inferRole(source, tags, points) {
-  const normalizedTags = tags.map(tag => tag.toLowerCase());
+  const normalizedTags = tags.map(tag => String(tag).toLocaleLowerCase("pt-BR"));
   const explicitRole = normalizeRole(source.role ?? source.traitRole ?? source.trait_role);
 
   if (explicitRole !== "unknown") return explicitRole;
 
-  if (normalizedTags.includes("vantagem")) return "advantage";
-  if (normalizedTags.includes("qualidade")) return "perk";
-  if (normalizedTags.includes("desvantagem")) return "disadvantage";
-  if (normalizedTags.includes("peculiaridade")) return "quirk";
+  if (normalizedTags.includes("vantagem") || normalizedTags.includes("advantage")) {
+    return "advantage";
+  }
+
+  if (normalizedTags.includes("qualidade") || normalizedTags.includes("perk")) {
+    return "perk";
+  }
+
+  if (
+    normalizedTags.includes("desvantagem") ||
+    normalizedTags.includes("disadvantage")
+  ) {
+    return "disadvantage";
+  }
+
+  if (normalizedTags.includes("peculiaridade") || normalizedTags.includes("quirk")) {
+    return "quirk";
+  }
 
   if (points === -1) return "quirk";
   if (points !== null && points < 0) return "disadvantage";
@@ -211,7 +230,7 @@ function normalizePoints(value) {
   }
 
   if (typeof value === "number") {
-    return value;
+    return Number.isNaN(value) ? null : value;
   }
 
   if (typeof value === "string") {
@@ -223,6 +242,24 @@ function normalizePoints(value) {
   return null;
 }
 
+function mergeStringArrays(...values) {
+  const merged = [];
+  const seen = new Set();
+
+  for (const value of values) {
+    for (const item of normalizeArray(value)) {
+      const text = String(item);
+      const key = text.toLocaleLowerCase("pt-BR");
+
+      if (seen.has(key)) continue;
+      seen.add(key);
+      merged.push(text);
+    }
+  }
+
+  return merged;
+}
+
 function normalizeArray(value) {
   if (value === undefined || value === null) return [];
 
@@ -231,6 +268,24 @@ function normalizeArray(value) {
   }
 
   return [...value];
+}
+
+function normalizeNotes(value) {
+  if (value === undefined || value === null) return "";
+  if (typeof value === "string") return value;
+  if (Array.isArray(value)) return value.map(String).join("\n");
+
+  return String(value);
+}
+
+function normalizeNullablePlainObject(value) {
+  if (value === undefined || value === null) return null;
+
+  if (typeof value !== "object" || Array.isArray(value)) {
+    throw new Error("GCS trait calc must be object or null");
+  }
+
+  return value;
 }
 
 function createExternalIds(source) {
