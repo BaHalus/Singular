@@ -1,6 +1,6 @@
 # CharacterImporter
 
-**Código:** DOM-IMP-1.6
+**Código:** DOM-IMP-1.7
 **Status:** Aprovado
 **Camada:** Domain / Import
 **Tipo:** Import Pipeline
@@ -20,7 +20,8 @@ Ele apenas:
 - lê a entrada;
 - normaliza campos conhecidos;
 - preserva dados desconhecidos;
-- cria um Character válido.
+- cria agregados válidos;
+- evita aplicar pacotes quando a fonte representa apenas um template.
 
 Cálculos continuam nos serviços de domínio.
 
@@ -85,13 +86,16 @@ Estrutura atual:
   equipment: [],
   unknownEquipmentNodes: [],
 
+  templates: [],
+  unknownTemplateNodes: [],
+
   raw: {}
 }
 ```
 
 ---
 
-## DOM-IMP-1.6
+## DOM-IMP-1.7
 
 A entrega atual importa:
 
@@ -107,9 +111,12 @@ A entrega atual importa:
 - mágicas;
 - idiomas;
 - familiaridades culturais;
-- equipamentos.
+- equipamentos;
+- templates `.gct`.
 
-### Perícias
+---
+
+## Perícias
 
 ```text
 GCS skills
@@ -119,7 +126,9 @@ SkillsImporter
 Character.skills
 ```
 
-### Técnicas
+---
+
+## Técnicas
 
 ```text
 GCS technique nodes
@@ -131,7 +140,9 @@ resolução da perícia-mãe
 Character.techniques
 ```
 
-### Mágicas
+---
+
+## Mágicas
 
 ```text
 GCS spells / spell_list.rows
@@ -146,40 +157,23 @@ Character.spells
 O `SpellsImporter` preserva:
 
 - mágica padrão ou ritualística;
-- nome;
-- nível tecnológico;
 - atributo-base e dificuldade;
 - pontos;
-- NH informado pelo GCS;
-- NH relativo numérico ou textual;
+- NH e NH relativo importados;
 - escolas;
 - fonte de poder;
-- classe;
-- resistência;
-- custo de operação;
-- custo de manutenção;
-- tempo de operação;
-- duração;
-- item de encantamento;
-- perícia-base ritualística;
-- contagem de pré-requisitos quando fornecida;
-- referência, notas, tags e categorias;
+- classe e resistência;
+- custos, tempos e duração como texto;
 - ataques embutidos;
-- features e modificadores;
-- pré-requisitos;
+- features, modificadores e pré-requisitos;
 - dados de estudo;
-- campos de terceiros;
 - `calc`, `importMeta` e `raw`.
 
-Expressões como `Varia`, `Metade`, `1-Aptidão Mágica`, `1 por 10 CP` e `min=custo` permanecem textuais. O importador não tenta interpretá-las.
+---
 
-Containers de mágicas ficam em `spellContainers`, e suas descendentes recebem a ancestralidade em `importMeta.containerIds`.
+## Idiomas e familiaridades culturais
 
-Nós não reconhecidos ficam em `unknownSpellNodes`.
-
-### Idiomas e familiaridades culturais
-
-No GCS, idiomas e familiaridades culturais podem chegar como traits especiais. O `TraitsImporter` os separa antes de preencher as vantagens comuns:
+Idiomas e familiaridades culturais que chegam como traits especiais são separados antes de preencher as vantagens comuns:
 
 ```text
 GCS traits
@@ -195,44 +189,9 @@ Character.languages / Character.familiarities
 
 Também são aceitas coleções diretas em `languages`, `familiarities` e `cultural_familiarities`.
 
-O `LanguagesImporter` preserva, sem recalcular:
+---
 
-- nome do idioma;
-- nível falado;
-- nível escrito;
-- marcador de idioma nativo;
-- custo informado;
-- referência;
-- modificadores;
-- pré-requisitos;
-- notas, tags, metadados e dados brutos.
-
-Os níveis canônicos internos são:
-
-```text
-none
-broken
-accented
-native
-```
-
-Os rótulos portugueses `Nenhum`, `Rudimentar`, `Com Sotaque` e `Materna`/`Nativo` são normalizados para esses valores.
-
-Linguagens de sinais são preservadas com `mode:signed`; o nível de sinais ocupa provisoriamente `spokenLevel`, enquanto `writtenLevel` permanece `none`. O nó bruto continua disponível para evolução futura do schema.
-
-O `FamiliaritiesImporter` preserva:
-
-- nome da cultura;
-- marcador de cultura nativa;
-- custo informado;
-- referência;
-- modificadores;
-- pré-requisitos;
-- notas, tags, metadados e dados brutos.
-
-Idiomas e familiaridades culturais retirados da árvore de traits não são duplicados em `Character.advantages`.
-
-### Equipamentos
+## Equipamentos
 
 ```text
 GCS equipment / other_equipment / equipment_list.rows
@@ -244,31 +203,99 @@ normalização métrica e estrutural
 Character.equipment
 ```
 
-O `EquipmentImporter`:
+O `EquipmentImporter` preserva hierarquia, estados, usos, armas, features, modificadores, pré-requisitos, `calc`, metadados e dados brutos.
 
-- converte peso de libras para quilogramas usando `2 lb = 1 kg`;
-- converte custo e quantidade para números;
-- preserva hierarquia de recipientes;
-- distingue recipientes físicos de agrupamentos semânticos;
-- mapeia itens equipados, carregados e armazenados;
-- preserva usos, máximo de usos, categorias, armas embutidas, features, modificadores, pré-requisitos e `calc`;
-- mantém nós desconhecidos em `unknownEquipmentNodes`.
+---
 
-Itens de `other_equipment` entram como `stored` por padrão.
+## Templates GCT
 
-O importador não calcula carga, custo total, RD, ataques, NH, custos de mágicas ou custos de idiomas e familiaridades.
+A extensão original dos templates GCS suportados é:
+
+```text
+.gct
+```
+
+Arquivos renomeados temporariamente para `.txt` durante análise continuam sendo tratados como documentos GCT.
+
+```text
+GCT template
+  ↓
+TemplatesImporter
+  ├─ traits
+  ├─ skills e techniques
+  ├─ spells
+  ├─ languages e familiarities
+  ├─ equipment
+  └─ diagnósticos desconhecidos
+       ↓
+Character.templates
+```
+
+O importador reconhece:
+
+- `race`;
+- `meta_trait`;
+- template genérico;
+- forma explicitamente declarada;
+- tipo desconhecido preservado.
+
+São preservados:
+
+- versão GCS;
+- ID do documento e IDs externos;
+- nome;
+- ancestralidade;
+- referência;
+- custo informado em `calc.points`;
+- containers estruturais;
+- vantagens, qualidades, desvantagens e peculiaridades;
+- níveis, modificadores, features e pré-requisitos;
+- bônus de atributos;
+- ataques naturais em `weapons`;
+- perícias do pacote;
+- Forma Alternativa como trait do pacote;
+- dados desconhecidos;
+- documento integral em `raw`.
+
+As categorias portuguesas e inglesas do GCS são aceitas na classificação de traits.
+
+O custo do pacote não é recalculado. O valor fornecido pelo GCS entra em `importedPoints`.
+
+### Isolamento de um GCT standalone
+
+Quando a fonte inteira tem:
+
+```js
+type: "template"
+```
+
+ela é importada como um pacote em `Character.templates`.
+
+Seus componentes não são duplicados em:
+
+- `Character.advantages`;
+- `Character.disadvantages`;
+- `Character.skills`;
+- `Character.spells`;
+- `Character.equipment`.
+
+A aplicação futura do pacote deverá ser uma operação explícita de domínio.
 
 ---
 
 ## Fora de escopo atual
 
-DOM-IMP-1.6 ainda não importa:
+DOM-IMP-1.7 ainda não executa:
 
-- templates como agregados finais;
-- ataques derivados;
+- aplicação ou remoção de templates;
+- incorporação destrutiva de componentes;
+- cálculo do custo do pacote;
+- cálculo de atributos resultantes;
+- ligação automática de Forma Alternativa a outro template sem ID explícito;
+- cálculo de Morfo;
+- ataques derivados finais;
 - cálculo de NH;
 - cálculo de carga durante a importação;
-- cálculo de custo de traits;
 - cálculo de poderes;
 - cálculo de habilidades alternativas;
 - interpretação mecânica de custos, tempos e durações de mágicas.
@@ -277,31 +304,23 @@ DOM-IMP-1.6 ainda não importa:
 
 ## Checklist
 
-- [x] Criar CharacterImporter.md
 - [x] Criar ImportSnapshot.js
 - [x] Criar IdentityImporter.js
 - [x] Criar AttributesImporter.js
-- [x] Criar CharacterImporter.js
-- [x] Criar CharacterImporter.test.js
-- [x] Criar GcsTraitTreeNormalizer.js
 - [x] Criar TraitsImporter.js
-- [x] Integrar TraitsImporter ao CharacterImporter
-- [x] Refatorar Skills para preservar campos ricos
 - [x] Criar SkillsImporter.js
-- [x] Integrar SkillsImporter ao CharacterImporter
-- [x] Refatorar Techniques para preservar campos ricos
 - [x] Criar TechniquesImporter.js
-- [x] Integrar TechniquesImporter ao CharacterImporter
-- [x] Criar Spells.js
 - [x] Criar SpellsImporter.js
-- [x] Integrar Spells ao Character
-- [x] Integrar SpellsImporter ao CharacterImporter
-- [x] Preservar containers e nós desconhecidos de mágicas
-- [x] Refatorar Languages e Familiarities para preservar campos ricos
 - [x] Criar LanguagesImporter.js
 - [x] Criar FamiliaritiesImporter.js
-- [x] Separar idiomas e familiaridades da lista comum de vantagens
-- [x] Integrar idiomas e familiaridades ao CharacterImporter
-- [x] Refatorar Equipment para preservar usos e metadados
 - [x] Criar EquipmentImporter.js
-- [x] Integrar EquipmentImporter ao CharacterImporter
+- [x] Criar Templates.js
+- [x] Criar TemplatesImporter.js
+- [x] Integrar Templates ao Character
+- [x] Integrar TemplatesImporter ao CharacterImporter
+- [x] Preservar extensão original `.gct`
+- [x] Preservar raças e metacaracterísticas
+- [x] Preservar skills incluídas no template
+- [x] Preservar ataques naturais e bônus de atributos
+- [x] Evitar aplicação automática de template standalone
+- [x] Preservar containers e nós desconhecidos
