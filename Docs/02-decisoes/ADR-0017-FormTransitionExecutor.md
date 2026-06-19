@@ -10,6 +10,7 @@
 A execução precisa:
 
 - recusar planos pendentes ou bloqueados;
+- impedir que um plano de outro personagem seja usado;
 - confirmar que a forma de origem ainda está ativa;
 - revalidar recursos, testes e condições;
 - detectar mudanças nas regras depois do planejamento;
@@ -27,12 +28,14 @@ executeFormTransition(character, plan, options)
 
 A operação é funcional e atômica: nenhum objeto recebido é mutado.
 
+O plano registra `characterId` e só pode ser executado no Character que o originou.
+
 O fluxo é:
 
 ```text
 validar contrato do plano
 ↓
-confirmar forma de origem
+confirmar identidade e forma de origem
 ↓
 replanejar contra o Character atual
 ↓
@@ -145,6 +148,7 @@ O executor usa `FormTransitionExecutionError` com códigos:
 
 ```text
 PLAN_NOT_READY
+PLAN_CHARACTER_MISMATCH
 FORM_SET_NOT_FOUND
 PLAN_STALE
 REVALIDATION_FAILED
