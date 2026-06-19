@@ -16,6 +16,11 @@ import {
   validateFormTransitionRuntime,
   serializeFormTransitionRuntime,
 } from "./FormTransitionRuntime.js";
+import {
+  createMorphProfile,
+  validateMorphProfile,
+  serializeMorphProfile,
+} from "./MorphProfile.js";
 
 const FORM_MECHANISMS = ["alternateForm", "morph"];
 
@@ -33,12 +38,16 @@ export function createAlternateFormSet(input = {}) {
   const forms = normalizeForms(input.forms);
   const baseFormId = input.baseFormId ?? forms[0]?.id ?? null;
   const activeFormId = input.activeFormId ?? baseFormId;
+  const mechanism = input.mechanism ?? "alternateForm";
 
   return {
     id: input.id ?? generateFormSetId(),
     name: input.name ?? "",
-    mechanism: input.mechanism ?? "alternateForm",
+    mechanism,
     sourceTraitId: input.sourceTraitId ?? null,
+    morphProfile: mechanism === "morph"
+      ? createMorphProfile(input.morphProfile)
+      : null,
     baseFormId,
     activeFormId,
     activeActivationId: input.activeActivationId ?? null,
@@ -96,6 +105,14 @@ export function validateAlternateFormSet(set) {
   if (typeof set.name !== "string") throw new Error("Alternate form set name must be string");
   if (!FORM_MECHANISMS.includes(set.mechanism)) throw new Error("Alternate form set mechanism is invalid");
   validateNullableString(set.sourceTraitId, "Alternate form set sourceTraitId must be string or null");
+
+  if (set.mechanism === "morph") {
+    if (set.morphProfile === null) throw new Error("Morfose form set must have morphProfile");
+    validateMorphProfile(set.morphProfile);
+  } else if (set.morphProfile !== null) {
+    throw new Error("Only Morfose form sets may have morphProfile");
+  }
+
   validateAlternateFormStatePolicy(set.statePolicy);
   validateNullableObject(set.statePolicyOverride, "Alternate form statePolicyOverride must be object or null");
   validateNullableObject(set.statePolicyResolution, "Alternate form statePolicyResolution must be object or null");
@@ -166,6 +183,9 @@ export function serializeAlternateFormSets(sets) {
     name: set.name,
     mechanism: set.mechanism,
     sourceTraitId: set.sourceTraitId,
+    morphProfile: set.morphProfile === null
+      ? null
+      : serializeMorphProfile(set.morphProfile),
     baseFormId: set.baseFormId,
     activeFormId: set.activeFormId,
     activeActivationId: set.activeActivationId,
