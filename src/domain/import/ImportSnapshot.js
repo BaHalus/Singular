@@ -15,7 +15,9 @@ export function createImportSnapshot(input = {}) {
 
     languages: input.languages ?? [],
     familiarities: input.familiarities ?? [],
+
     equipment: input.equipment ?? [],
+    unknownEquipmentNodes: input.unknownEquipmentNodes ?? [],
 
     raw: input.raw ?? {},
   };
