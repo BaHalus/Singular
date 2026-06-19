@@ -1,13 +1,13 @@
 # AlternateForms
 
-**Código:** DOM-FORM-1.6  
+**Código:** DOM-FORM-1.7  
 **Status:** Aprovado  
 **Camada:** Domain  
-**Tipo:** Agregado, linker, resolvers, planner e executor
+**Tipo:** Agregado, linker, resolvers, planner, executor e runtime
 
 AlternateForms controla transformações reversíveis entre formas vinculadas a templates.
 
-A arquitetura segue ADR-0011 a ADR-0017.
+A arquitetura segue ADR-0011 a ADR-0018.
 
 ## Conceitos separados
 
@@ -16,65 +16,73 @@ template importado
 template permanentemente incorporado
 vínculo entre vantagem e template
 forma temporariamente ativa
-estado transitório da forma
+snapshot transitório de cada forma
 política derivada de continuidade
 regras declarativas por forma
 plano de transição
 execução atômica
+runtime da sessão ativa
 ```
 
-Essa separação permite combinações como Elfo Vampiro, Orc Lich e Anão Lobisomem sem confundir templates permanentes com formas corporais momentâneas.
+Templates permanentes podem coexistir. Somente formas do mesmo conjunto são mutuamente exclusivas.
 
 ## AlternateFormSet
 
 ```js
 {
-  id: "set-body",
-  name: "Formas Vampíricas",
-  mechanism: "alternateForm",
-  sourceTraitId: null,
+  id,
+  name,
+  mechanism,
+  sourceTraitId,
 
-  baseFormId: "form-humanoid",
-  activeFormId: "form-bat",
-  activeActivationId: "activation-bat",
-  activeSince: "2026-06-19T12:00:00.000Z",
+  baseFormId,
+  activeFormId,
+  activeActivationId,
+  activeSince,
+  transitionRuntime,
 
   statePolicy,
   statePolicyOverride,
   statePolicyResolution,
 
   transitionRules,
-  forms: []
+  forms,
+
+  notes,
+  tags,
+  importMeta,
+  raw
 }
 ```
 
-Somente uma forma fica ativa dentro de cada conjunto.
+`transitionRuntime` acompanha apenas a sessão da forma ativa. Ele é nulo na forma-base e é substituído quando a forma muda.
 
-Conjuntos independentes podem coexistir, por exemplo Corpo e Revestimento.
-
-`transitionRules` no conjunto contém somente padrões compartilhados.
+Conjuntos independentes, como Corpo e Revestimento, mantêm runtimes independentes.
 
 ## AlternateForm
 
 ```js
 {
-  id: "form-bat",
-  name: "Morcego",
-  templateId: "template-bat",
-  sourceTraitId: "adv-forma-morcego",
+  id,
+  name,
+  templateId,
+  sourceTraitId,
 
-  state: {},
-  runtimeState: {},
+  state,
+  runtimeState,
 
   transitionRules,
   transitionRulesOverride,
-  transitionRulesResolution
+  transitionRulesResolution,
+
+  notes,
+  tags,
+  importMeta,
+  raw
 }
 ```
 
-A forma-base normalmente usa `templateId: null`.
-
-Cada forma alternativa conserva suas próprias regras de entrada, permanência e retorno.
+`runtimeState` é o snapshot persistente da forma quando ela fica inativa. Não deve ser confundido com `AlternateFormSet.transitionRuntime`, que acompanha relógio, manutenção e retorno da sessão atualmente ativa.
 
 ## Linker
 
@@ -93,46 +101,21 @@ Casos ambíguos permanecem sem vínculo automático.
 
 ## Continuidade de estado
 
-Cada campo de `statePolicy` aceita:
+`statePolicy` declara `shared` ou `perForm` para:
 
-```text
-shared
-perForm
-```
-
-`shared` mantém o valor atual no Character.
-
-`perForm` captura o estado da forma de saída e restaura o estado salvo quando ela volta a ser ativada.
-
-A política pode controlar:
-
-- PV atuais;
-- PF atuais;
-- Reserva de Energia atual;
+- PV;
+- PF;
+- Reserva de Energia;
 - ferimentos;
 - condições;
 - efeitos;
-- estado, usos e quantidade de equipamentos.
+- equipamento.
 
-## FormStatePolicyResolver
+`FormStatePolicyResolver` deriva a política de traits, modificadores, features, templates, regras de campanha e overrides.
 
-`FormStatePolicyResolver` deriva a política a partir de traits, modificadores, features, templates, regras de campanha e overrides.
+## Regras de transição
 
-Precedência:
-
-```text
-política-base
-regras internas
-regras de campanha
-diretivas explícitas
-override manual
-```
-
-A primeira regra interna reconhece `Dano Não-Recíproco` e deriva PV e ferimentos próprios de cada forma.
-
-## FormTransitionRules
-
-As regras de transição descrevem:
+As regras de cada forma podem declarar:
 
 - tempo-base;
 - passos relativos de tempo;
@@ -142,59 +125,23 @@ As regras de transição descrevem:
 - requisitos;
 - gatilhos;
 - ativação involuntária;
-- possibilidade de interrupção;
+- interrupção;
 - duração;
 - retorno;
 - impedimentos.
 
 O conjunto fornece defaults. A forma armazena as regras efetivas.
 
-Isso evita vazamento entre formas:
+`FormTransitionRulesResolver` resolve cada forma separadamente, evitando vazamento entre construções diferentes.
 
-```text
-Lobo: Custa Fadiga 2
-Morcego: Gatilho — Escuridão total
-```
-
-## FormTransitionRulesResolver
-
-A resolução é feita para uma forma de destino específica:
-
-```js
-analyzeFormTransitionRules(character, setId, formId, options)
-resolveFormTransitionRules(character, setId, formId, options)
-applyResolvedFormTransitionRules(character, setId, formId, options)
-applyResolvedFormTransitionRulesToAll(character, options)
-```
-
-O resolver analisa apenas o trait e o template daquela forma.
-
-A forma-base não herda automaticamente os modificadores de outra forma.
-
-Regras internas iniciais:
-
-```text
-Custa Fadiga
-Gasto Adicional de Tempo
-Tempo Reduzido
-Gatilho
-Preparação Necessária
-Impedimento
-Incontrolável
-```
-
-Modificadores desabilitados não produzem regras.
-
-## FormTransitionPlanner
-
-O planner responde se a transição pode ocorrer agora, sem alterar o Character:
+## Planner
 
 ```js
 planFormTransition(character, setId, targetFormId, context)
 planFormReturn(character, setId, context)
 ```
 
-Status possíveis:
+Status:
 
 ```text
 ready
@@ -203,7 +150,7 @@ blocked
 already-active
 ```
 
-Uma troca entre formas alternativas é planejada como:
+Uma troca entre formas alternativas possui duas fases:
 
 ```text
 desativação da forma atual
@@ -211,131 +158,132 @@ desativação da forma atual
 ativação da forma de destino
 ```
 
-Custos da mesma reserva são agregados antes da verificação.
+O planner não modifica o Character.
 
-Informação desconhecida produz `pending`. Falha confirmada produz `blocked`.
-
-## FormTransitionExecutor
-
-O executor recebe apenas um plano `ready`:
+## Executor
 
 ```js
 executeFormTransition(character, plan, options)
 ```
 
-Antes de modificar qualquer estado ele:
+O executor:
 
-1. valida o contrato do plano;
-2. confirma que a forma de origem ainda está ativa;
-3. replaneja com o Character e contexto atuais;
-4. compara a impressão digital das regras;
-5. prepara o consumo dos recursos;
-6. chama `activateAlternateForm`.
+1. aceita somente plano `ready`;
+2. confirma `characterId` e forma de origem;
+3. replaneja com o estado atual;
+4. compara a impressão digital;
+5. consome custos atomicamente;
+6. chama `activateAlternateForm`;
+7. inicializa o runtime da forma de destino;
+8. devolve Character novo, plano revalidado e recibo.
 
-A operação é atômica e imutável.
+Ao retornar à forma-base, o runtime fica nulo.
 
-Se a ativação falhar, o Character original permanece intacto e nenhum débito parcial é retornado.
+## FormTransitionRuntime
 
-Uma execução bem-sucedida retorna:
+O runtime mantém:
 
 ```js
 {
-  character,
-  plan,
-  receipt
+  activationId,
+  formId,
+  startedAt,
+  observedAt,
+  elapsedSeconds,
+  status,
+  maintenance,
+  duration,
+  returnRequest
 }
 ```
 
-O recibo registra recursos consumidos, IDs dos custos, formas, tempo, intenção e impressão digital.
+Operações:
 
-## Resoluções explicáveis
-
-Políticas e regras preservam:
-
-```text
-base original
-resultado
-fonte de cada decisão
-evidências
-conflitos
-override manual
-momento da resolução
+```js
+initializeFormTransitionRuntime(character, setId, options)
+clearFormTransitionRuntime(character, setId, options)
+evaluateFormTransitionRuntime(character, setId, context)
+advanceFormTransitionRuntime(character, setId, context)
+advanceAllFormTransitionRuntimes(character, context)
 ```
 
-Recomposições partem da base preservada. Remover ou desabilitar um modificador desfaz sua contribuição anterior.
+### Duração
 
-## Regras de campanha
+O runtime calcula tempo decorrido e registra se a duração mínima ou máxima foi atingida.
 
-Regras declarativas podem filtrar por:
+A duração máxima prepara retorno automático ou involuntário, sem executá-lo.
+
+### Manutenção
+
+Custos periódicos registram intervalo, quantidade já cobrada e próxima cobrança.
+
+Todos os intervalos vencidos são cobrados atomicamente. Repetir o avanço no mesmo instante não cobra novamente.
+
+Quando a manutenção não pode ser paga:
+
+- nenhum débito parcial é aplicado;
+- os contadores permanecem inalterados;
+- o runtime entra em `maintenance-unpaid`;
+- um pedido de retorno é preparado.
+
+### Gatilhos e retorno
+
+Gatilhos ativos em modos `automatic` ou `involuntary` produzem `returnRequest`.
+
+O pedido persiste até a forma mudar.
+
+O runtime chama apenas `planFormReturn`. A transição continua dependendo do executor.
+
+Retornos forçados por duração máxima ou manutenção não paga não dependem de um gatilho adicional configurado.
+
+## Fluxo completo
 
 ```text
-setIds
-formIds
-mechanisms
-modifierNames
-featureTypes
-traitNames
-templateIds
+linker vincula trait e template
+↓
+resolvers produzem política e regras
+↓
+planner verifica a tentativa
+↓
+executor consome e troca atomicamente
+↓
+runtime acompanha duração e manutenção
+↓
+runtime detecta retorno
+↓
+planner prepara retorno
+↓
+executor realiza retorno
 ```
-
-As comparações são exatas após normalização de caixa e acentos.
 
 ## Operação estrutural
 
-`activateAlternateForm` continua responsável pela troca estrutural:
+`activateAlternateForm` continua responsável por:
 
 ```text
 capturar estado da forma atual
-↓
-remover seus componentes temporários
-↓
+remover componentes temporários
 adicionar componentes da nova forma
-↓
-restaurar o estado salvo
-↓
-atualizar a forma ativa
-```
-
-O executor prepara custos e revalida o plano antes de chamar essa operação.
-
-## Operações principais
-
-```js
-analyzeAlternateFormLinks(character)
-linkAlternateForms(character)
-
-analyzeFormStatePolicy(character, setId, options)
-resolveFormStatePolicy(character, setId, options)
-applyResolvedFormStatePolicy(character, setId, options)
-
-analyzeFormTransitionRules(character, setId, formId, options)
-resolveFormTransitionRules(character, setId, formId, options)
-applyResolvedFormTransitionRules(character, setId, formId, options)
-
-planFormTransition(character, setId, targetFormId, context)
-planFormReturn(character, setId, context)
-executeFormTransition(character, plan, options)
-
-activateAlternateForm(character, setId, formId)
-switchAlternateForm(character, setId, formId)
-deactivateAlternateForm(character, setId)
+restaurar snapshot da forma de destino
+atualizar forma ativa
+limpar runtime da sessão anterior
 ```
 
 ## Morfo
 
 `mechanism` aceita `alternateForm` e `morph`.
 
-A estrutura está preparada para Morfo, mas aquisição dinâmica, limites de pontos e improvisação permanecem fora do escopo.
+A infraestrutura de forma, estado, transição e runtime será reutilizada por Morfo. Aquisição dinâmica, catálogo conhecido, limites de pontos e improvisação permanecem fora deste módulo.
 
 ## Não responsabilidades
 
-O conjunto de serviços atual não:
+O subsistema atual não:
 
 - realiza rolagens;
 - decide fatos ausentes do mundo;
-- avança o relógio da campanha;
-- agenda retorno automático;
-- consome custos de manutenção;
-- persiste recibos em histórico;
+- avança o relógio global da campanha;
+- executa silenciosamente retornos preparados;
+- agenda tarefas externas;
+- persiste histórico definitivo de recibos;
 - calcula atributos, secundárias, NH, RD, carga ou ataques;
-- implementa limites de Morfo.
+- implementa os limites de Morfo.
