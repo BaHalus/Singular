@@ -1,4 +1,5 @@
 import { createCharacter } from "../character/Character.js";
+import { linkAlternateForms } from "../character/AlternateFormsLinker.js";
 import { createImportSnapshot } from "./ImportSnapshot.js";
 import { importIdentity } from "./importers/IdentityImporter.js";
 import {
@@ -90,9 +91,12 @@ export function createSnapshotFromGcs(source = {}) {
 }
 
 export function importCharacter(source = {}) {
-  const snapshot = createSnapshotFromGcs(source);
+  return importCharacterWithDiagnostics(source).character;
+}
 
-  return createCharacter({
+export function importCharacterWithDiagnostics(source = {}) {
+  const snapshot = createSnapshotFromGcs(source);
+  const character = createCharacter({
     identity: snapshot.identity,
     attributes: snapshot.attributes,
     secondaryCharacteristics: snapshot.secondaryCharacteristics,
@@ -110,6 +114,13 @@ export function importCharacter(source = {}) {
     equipment: snapshot.equipment,
     templates: snapshot.templates,
   });
+  const linked = linkAlternateForms(character);
+
+  return {
+    character: linked.character,
+    snapshot,
+    alternateFormLinkReport: linked.report,
+  };
 }
 
 function readSkillsSource(source) {
