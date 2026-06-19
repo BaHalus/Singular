@@ -34,7 +34,7 @@ A forma ativa não muda automaticamente.
 }
 ```
 
-ou, para todos os conjuntos:
+Para todos os conjuntos:
 
 ```js
 {
@@ -45,6 +45,31 @@ ou, para todos os conjuntos:
 Somente planos `ready` são executados.
 
 Planos `pending` ou `blocked` permanecem preparados e são devolvidos ao chamador.
+
+## Resolução explícita de pendências
+
+O contexto inicial observa o runtime. Resultados adicionais podem ser fornecidos especificamente à execução:
+
+```js
+{
+  executeReadyReturn: true,
+  executionOptions: {
+    context: {
+      testResults: {
+        "test-return": "passed"
+      },
+      requirementResults,
+      triggerResults,
+      impedimentResults,
+      resources
+    }
+  }
+}
+```
+
+Antes de executar, o ciclo cria um novo plano com esse contexto combinado.
+
+Assim, um teste antes `pending` pode tornar-se `passed`, mas o ciclo nunca escolhe ou inventa o resultado.
 
 ## Resultado de um conjunto
 
@@ -80,16 +105,19 @@ executed
 
 Conjuntos são processados sequencialmente. Cada transição executada continua atomicamente protegida pelo executor.
 
-## Contexto
+## Contexto por conjunto
 
-O mesmo contexto usado para observar o runtime é reaproveitado na revalidação do executor.
-
-Opções específicas podem ser fornecidas por conjunto:
+Opções específicas podem ser fornecidas:
 
 ```js
 executionOptionsBySet: {
   "set-body": {
-    executionId: "return-body-001"
+    executionId: "return-body-001",
+    context: {
+      testResults: {
+        "test-return": "passed"
+      }
+    }
   }
 }
 ```
@@ -117,7 +145,7 @@ A execução só ocorre quando o chamador declara explicitamente `executeReadyRe
 
 FormLifecycle não:
 
-- resolve testes pendentes;
+- escolhe resultados de testes;
 - inventa fatos do contexto;
 - executa planos bloqueados;
 - transforma todos os conjuntos como uma transação global única;
