@@ -82,6 +82,12 @@ import {
   serializeEquipment,
 } from "./Equipment.js";
 
+import {
+  createTemplates,
+  validateTemplates,
+  serializeTemplates,
+} from "./Templates.js";
+
 export function createCharacter(input = {}) {
   const character = {
     identity: input.identity ?? createDefaultIdentity(),
@@ -105,7 +111,7 @@ export function createCharacter(input = {}) {
     attacks: input.attacks ?? [],
     languages: createLanguages(input.languages),
     familiarities: createFamiliarities(input.familiarities),
-    templates: input.templates ?? [],
+    templates: createTemplates(input.templates),
 
     metadata: input.metadata ?? createDefaultMetadata(),
   };
@@ -144,6 +150,7 @@ export function validateCharacter(character) {
   validateLanguages(character.languages);
   validateFamiliarities(character.familiarities);
   validateEquipment(character.equipment);
+  validateTemplates(character.templates);
 
   if (!character.metadata) {
     throw new Error("Character must have metadata");
@@ -177,7 +184,7 @@ export function serializeCharacter(character) {
     attacks: character.attacks,
     languages: serializeLanguages(character.languages),
     familiarities: serializeFamiliarities(character.familiarities),
-    templates: character.templates,
+    templates: serializeTemplates(character.templates),
 
     metadata: character.metadata,
   };
