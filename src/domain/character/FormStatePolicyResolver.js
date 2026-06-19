@@ -16,7 +16,7 @@ const SOURCE_PRIORITIES = {
   builtin: 100,
   campaign: 200,
   explicit: 300,
-  manual: 400,
+  manual: 10000,
 };
 
 const BUILTIN_RULES = [
@@ -44,7 +44,9 @@ export function analyzeFormStatePolicy(character, formSetId, options = {}) {
   const diagnostics = [];
 
   for (const item of evidence) {
-    if (item.kind === "modifier" && item.enabled) {
+    if (!item.enabled) continue;
+
+    if (item.kind === "modifier") {
       for (const rule of BUILTIN_RULES) {
         if (rule.names.some(name => normalizeText(name) === normalizeText(item.name))) {
           signals.push(...policyToSignals(rule.policy, {
@@ -68,8 +70,8 @@ export function analyzeFormStatePolicy(character, formSetId, options = {}) {
   }
 
   for (const rule of normalizeRules([
-    ...(options.rules ?? []),
-    ...(options.campaignRules ?? []),
+    ...readOptionalRules(options.rules),
+    ...readOptionalRules(options.campaignRules),
   ])) {
     if (!rule.enabled) continue;
     if (!matchesRule(rule, evidence, set)) continue;
@@ -81,32 +83,48 @@ export function analyzeFormStatePolicy(character, formSetId, options = {}) {
         kind: "campaignRule",
         id: rule.id,
         name: rule.name,
+        type: null,
+        location: "campaign",
+        sourceTraitId: null,
+        templateId: null,
+        enabled: true,
         ruleId: rule.id,
       }],
     }));
   }
 
-  if (options.manualOverride !== undefined) {
-    signals.push(...policyToSignals(options.manualOverride, {
+  const manualOverride = options.manualOverride ?? set.statePolicyOverride;
+
+  if (manualOverride !== undefined && manualOverride !== null) {
+    signals.push(...policyToSignals(manualOverride, {
       source: "manual",
       priority: SOURCE_PRIORITIES.manual,
       derivedFrom: [{
         kind: "manualOverride",
         id: options.overrideId ?? "manual",
         name: options.overrideName ?? "Manual override",
+        type: null,
+        location: "character",
+        sourceTraitId: null,
+        templateId: null,
+        enabled: true,
         ruleId: null,
       }],
     }));
   }
 
-  const result = resolveSignals(set.statePolicy, signals, diagnostics);
+  const basePolicy = createAlternateFormStatePolicy(
+    set.statePolicyResolution?.basePolicy ?? set.statePolicy,
+  );
+  const result = resolveSignals(basePolicy, signals, diagnostics);
 
   return {
     setId: set.id,
+    basePolicy,
     policy: result.policy,
     decisions: result.decisions,
     diagnostics,
-    evidence: evidence.map(summarizeEvidence),
+    evidence: evidence.map(item => summarizeEvidence(item)),
   };
 }
 
@@ -120,15 +138,25 @@ export function resolveFormStatePolicy(character, formSetId, options = {}) {
 }
 
 export function applyResolvedFormStatePolicy(character, formSetId, options = {}) {
+  const set = findFormSet(character, formSetId);
+
+  if (!set) {
+    throw new Error("Alternate form set not found");
+  }
+
   const resolution = resolveFormStatePolicy(character, formSetId, options);
-  const nextSets = character.alternateFormSets.map(set => (
-    set.id === formSetId
+  const persistedOverride = options.manualOverride !== undefined
+    ? cloneValue(options.manualOverride)
+    : set.statePolicyOverride;
+  const nextSets = character.alternateFormSets.map(candidate => (
+    candidate.id === formSetId
       ? {
-        ...set,
+        ...candidate,
         statePolicy: resolution.policy,
+        statePolicyOverride: persistedOverride ?? null,
         statePolicyResolution: resolution,
       }
-      : set
+      : candidate
   ));
 
   return {
@@ -149,9 +177,10 @@ export function applyResolvedFormStatePolicies(character, options = {}) {
   const resolutions = [];
 
   for (const set of character.alternateFormSets) {
+    const perSetOverride = options.manualOverrides?.[set.id];
     const perSetOptions = {
       ...options,
-      manualOverride: options.manualOverrides?.[set.id],
+      manualOverride: perSetOverride ?? options.manualOverride,
     };
     const applied = applyResolvedFormStatePolicy(current, set.id, perSetOptions);
     current = applied.character;
@@ -195,17 +224,19 @@ export function collectFormStateEvidence(character, set) {
   for (const template of character.templates) {
     if (!templateIds.has(template.id)) continue;
 
-    evidence.push({
-      kind: "template",
-      id: template.id,
-      name: template.name,
-      type: template.templateType,
-      enabled: true,
+    const templateContext = {
       location: "template",
       sourceTraitId: null,
       templateId: template.id,
-      value: template,
-    });
+    };
+
+    evidence.push(createEvidence(
+      "template",
+      template,
+      templateContext,
+      true,
+    ));
+    pushExplicitRawEvidence(evidence, template, templateContext);
 
     const templateTraits = [
       ...(template.traits?.advantages ?? []),
@@ -227,43 +258,64 @@ export function collectFormStateEvidence(character, set) {
 }
 
 function pushTraitEvidence(evidence, trait, context) {
-  evidence.push({
-    kind: "trait",
-    id: trait.id,
-    name: trait.name,
-    type: trait.raw?.type ?? null,
-    enabled: true,
-    ...context,
-    value: trait,
-  });
+  evidence.push(createEvidence("trait", trait, context, true));
+  pushExplicitRawEvidence(evidence, trait, context);
 
   for (const modifier of trait.modifiers ?? []) {
-    evidence.push({
-      kind: "modifier",
-      id: modifier.id ?? null,
-      name: modifier.name ?? "",
-      type: modifier.type ?? null,
-      enabled: modifier.disabled !== true && modifier.enabled !== false,
-      ...context,
-      value: modifier,
-    });
+    pushNestedEvidence(evidence, "modifier", modifier, context);
   }
 
   for (const feature of trait.features ?? []) {
-    evidence.push({
-      kind: "feature",
-      id: feature.id ?? null,
-      name: feature.name ?? feature.type ?? "",
-      type: feature.type ?? null,
-      enabled: feature.disabled !== true && feature.enabled !== false,
-      ...context,
-      value: feature,
-    });
+    pushNestedEvidence(evidence, "feature", feature, context);
   }
 }
 
-function resolveSignals(existingPolicy, signals, diagnostics) {
-  const policy = createAlternateFormStatePolicy(existingPolicy);
+function pushNestedEvidence(evidence, kind, value, context) {
+  const enabled = value?.disabled !== true && value?.enabled !== false;
+  evidence.push(createEvidence(kind, value, context, enabled));
+  pushExplicitRawEvidence(evidence, value, context, kind, enabled);
+
+  for (const modifier of value?.modifiers ?? []) {
+    pushNestedEvidence(evidence, "modifier", modifier, context);
+  }
+
+  for (const feature of value?.features ?? []) {
+    pushNestedEvidence(evidence, "feature", feature, context);
+  }
+}
+
+function pushExplicitRawEvidence(
+  evidence,
+  value,
+  context,
+  parentKind = "raw",
+  enabled = true,
+) {
+  if (!isPlainObject(value?.raw)) return;
+  if (readExplicitPolicy(value.raw) === null) return;
+
+  evidence.push(createEvidence(
+    `${parentKind}Raw`,
+    value.raw,
+    context,
+    enabled,
+  ));
+}
+
+function createEvidence(kind, value, context, enabled) {
+  return {
+    kind,
+    id: value?.id ?? null,
+    name: value?.name ?? value?.type ?? "",
+    type: value?.type ?? value?.templateType ?? null,
+    enabled,
+    ...context,
+    value,
+  };
+}
+
+function resolveSignals(basePolicy, signals, diagnostics) {
+  const policy = createAlternateFormStatePolicy(basePolicy);
   const decisions = createBaselineDecisions(policy);
 
   for (const signal of signals) {
@@ -313,9 +365,7 @@ function resolveSignals(existingPolicy, signals, diagnostics) {
 }
 
 function createBaselineDecisions(policy) {
-  const decisions = {
-    pools: {},
-  };
+  const decisions = { pools: {} };
 
   for (const path of POLICY_PATHS) {
     setPath(decisions, path, {
@@ -364,7 +414,7 @@ function normalizePartialPolicy(input) {
 
     const mode = isPlainObject(value) ? value.mode : value;
 
-    if (!['shared', 'perForm'].includes(mode)) {
+    if (!["shared", "perForm"].includes(mode)) {
       throw new Error(`Form state policy mode is invalid for ${path}`);
     }
 
@@ -398,11 +448,17 @@ function readExplicitPolicy(value) {
   return null;
 }
 
-function normalizeRules(rules) {
-  if (!Array.isArray(rules)) {
+function readOptionalRules(value) {
+  if (value === undefined || value === null) return [];
+
+  if (!Array.isArray(value)) {
     throw new Error("Form state policy rules must be an array");
   }
 
+  return value;
+}
+
+function normalizeRules(rules) {
   return rules.map((rule, index) => {
     if (!isPlainObject(rule)) {
       throw new Error("Form state policy rule must be object");
@@ -426,24 +482,37 @@ function matchesRule(rule, evidence, set) {
     return false;
   }
 
-  if (when.mechanisms && !normalizeStringArray(when.mechanisms).includes(set.mechanism)) {
+  if (
+    when.mechanisms &&
+    !normalizeStringArray(when.mechanisms).includes(set.mechanism)
+  ) {
     return false;
   }
 
-  if (when.modifierNames && !matchesEvidenceNames(evidence, "modifier", when.modifierNames)) {
+  if (
+    when.modifierNames &&
+    !matchesEvidenceNames(evidence, "modifier", when.modifierNames)
+  ) {
     return false;
   }
 
-  if (when.featureTypes && !matchesEvidenceTypes(evidence, "feature", when.featureTypes)) {
+  if (
+    when.featureTypes &&
+    !matchesEvidenceTypes(evidence, "feature", when.featureTypes)
+  ) {
     return false;
   }
 
-  if (when.traitNames && !matchesEvidenceNames(evidence, "trait", when.traitNames)) {
+  if (
+    when.traitNames &&
+    !matchesEvidenceNames(evidence, "trait", when.traitNames)
+  ) {
     return false;
   }
 
   if (when.templateIds) {
     const templateIds = new Set(evidence.map(item => item.templateId).filter(Boolean));
+
     if (!normalizeStringArray(when.templateIds).some(id => templateIds.has(id))) {
       return false;
     }
@@ -548,8 +617,13 @@ function setPath(object, path, value) {
 
 function normalizePriority(value) {
   if (value === undefined || value === null) return SOURCE_PRIORITIES.campaign;
-  if (typeof value !== "number" || Number.isNaN(value)) {
-    throw new Error("Form state policy rule priority must be number");
+
+  if (
+    typeof value !== "number" ||
+    Number.isNaN(value) ||
+    value >= SOURCE_PRIORITIES.manual
+  ) {
+    throw new Error("Form state policy rule priority must be number below manual priority");
   }
 
   return value;
@@ -566,6 +640,7 @@ function normalizeStringArray(value) {
 function normalizeTimestamp(value) {
   if (value === undefined || value === null) return new Date().toISOString();
   if (value instanceof Date) return value.toISOString();
+
   if (typeof value !== "string" || value === "") {
     throw new Error("Form state policy resolution timestamp must be string, Date or null");
   }
@@ -579,6 +654,18 @@ function normalizeText(value) {
     .replace(/[\u0300-\u036f]/g, "")
     .trim()
     .toLowerCase();
+}
+
+function cloneValue(value) {
+  if (Array.isArray(value)) return value.map(cloneValue);
+
+  if (value && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, item]) => [key, cloneValue(item)]),
+    );
+  }
+
+  return value;
 }
 
 function isPlainObject(value) {
