@@ -141,10 +141,16 @@ export function setMorphPointLimit(
   options = {},
 ) {
   const set = requireMorphSet(character, formSetId);
+  const pointLimitMode = pointLimit === null || pointLimit === undefined || pointLimit === ""
+    ? "undeclared"
+    : "limited";
   const profile = createMorphProfile({
     ...set.morphProfile,
-    pointLimit,
-    pointLimitSource,
+    pointLimitMode,
+    pointLimit: pointLimitMode === "limited" ? pointLimit : null,
+    pointLimitSource: pointLimitMode === "limited"
+      ? pointLimitSource
+      : "undeclared",
   });
 
   return updateMorphProfile(character, set.id, profile, options.now);
