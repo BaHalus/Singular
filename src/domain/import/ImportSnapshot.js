@@ -28,6 +28,9 @@ export function createImportSnapshot(input = {}) {
     equipment: input.equipment ?? [],
     unknownEquipmentNodes: input.unknownEquipmentNodes ?? [],
 
+    templates: input.templates ?? [],
+    unknownTemplateNodes: input.unknownTemplateNodes ?? [],
+
     raw: input.raw ?? {},
   };
 }
