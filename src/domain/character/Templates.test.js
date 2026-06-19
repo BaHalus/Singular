@@ -152,8 +152,8 @@ test("rejects invalid template fields", () => {
     createTemplates([
       {
         id: "template-001",
+        sourceVersion: -1,
         templateType: "race",
-        importedPoints: "invalid",
       },
     ]);
   });
