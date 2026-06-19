@@ -1,39 +1,28 @@
 # AlternateForms
 
-**Código:** DOM-FORM-1.2  
+**Código:** DOM-FORM-1.3  
 **Status:** Aprovado  
 **Camada:** Domain  
-**Tipo:** Agregado, operações, linker e continuidade de estado
+**Tipo:** Agregado, operações, linker e resolução de estado
 
 AlternateForms controla transformações reversíveis entre formas vinculadas a templates.
 
-A arquitetura segue ADR-0011, ADR-0012 e ADR-0013.
+A arquitetura segue ADR-0011, ADR-0012, ADR-0013 e ADR-0014.
 
----
-
-## Objetivo
-
-Separar cinco conceitos:
+## Conceitos separados
 
 ```text
-Template importado
-Template permanentemente incorporado
-Vínculo entre vantagem e template de forma
-Forma temporariamente ativa
-Estado próprio ou compartilhado de cada forma
+template importado
+template permanentemente incorporado
+vínculo entre vantagem e template
+forma temporariamente ativa
+estado transitório da forma
+política derivada de continuidade
 ```
 
-Essa separação permite personagens como:
+Essa separação permite combinações como Elfo Vampiro, Orc Lich e Anão Lobisomem sem confundir templates permanentes com formas corporais momentâneas.
 
-- elfo vampiro;
-- orc lich;
-- anão lobisomem;
-
-com múltiplos templates permanentes e formas corporais reversíveis.
-
----
-
-## Estrutura canônica
+## AlternateFormSet
 
 ```js
 {
@@ -59,460 +48,222 @@ com múltiplos templates permanentes e formas corporais reversíveis.
     equipment: "shared"
   },
 
-  forms: [
-    {
-      id: "form-humanoid",
-      name: "Elfo Vampiro Humanoide",
-      templateId: null,
-      sourceTraitId: null,
-      notes: "",
-      tags: [],
-      state: {},
-      runtimeState: {
-        initialized: false,
-        capturedAt: null,
-        pools: {},
-        injuries: [],
-        conditions: [],
-        effects: [],
-        equipment: []
-      },
-      importMeta: null,
-      raw: null
-    },
-    {
-      id: "form-bat",
-      name: "Morcego",
-      templateId: "template-bat",
-      sourceTraitId: "adv-forma-morcego",
-      notes: "",
-      tags: [],
-      state: {},
-      runtimeState: {
-        initialized: false,
-        capturedAt: null,
-        pools: {},
-        injuries: [],
-        conditions: [],
-        effects: [],
-        equipment: []
-      },
-      importMeta: null,
-      raw: null
-    }
-  ],
+  statePolicyOverride: null,
+  statePolicyResolution: null,
 
-  notes: "",
-  tags: [],
-  importMeta: null,
-  raw: null
+  forms: []
 }
 ```
 
----
+Somente uma forma fica ativa dentro de cada conjunto.
 
-## Conjunto de formas
+Conjuntos independentes podem coexistir, por exemplo Corpo e Revestimento.
 
-Um conjunto representa formas incompatíveis entre si.
-
-Somente um `activeFormId` existe por conjunto.
-
-Ativar uma forma substitui automaticamente a forma anterior daquele conjunto.
-
-Conjuntos independentes podem estar ativos ao mesmo tempo:
-
-```text
-Corpo: Lobo
-Revestimento: Blindado
-```
-
----
-
-## Forma-base
-
-`baseFormId` identifica o estado de retorno.
-
-A forma-base normalmente usa:
-
-```js
-templateId: null
-```
-
-Ela representa o personagem formado por:
-
-- dados próprios;
-- raça incorporada;
-- condição sobrenatural incorporada;
-- outros templates permanentes.
-
----
-
-## Linker automático
-
-`AlternateFormsLinker` procura vantagens reconhecidas como:
-
-```text
-Forma Alternativa
-Alternate Form
-```
-
-A análise utiliza apenas relações determinísticas.
-
-Prioridade:
-
-1. ID explícito do template;
-2. nome explícito do template;
-3. nome entre parênteses;
-4. nome após dois-pontos;
-5. notas da vantagem;
-6. comparação canônica exata.
-
-Exemplo:
-
-```text
-Vantagem: Forma Alternativa
-Notas: Morcego
-Template: Forma de Morcego
-```
-
-O linker não usa aproximação textual nem escolhe o primeiro resultado.
-
----
-
-## Relatório de vinculação
+## AlternateForm
 
 ```js
 {
-  candidates: [],
-  resolved: [],
-  ambiguous: [],
-  unresolved: [],
-  alreadyLinked: [],
-  createdSetIds: [],
-  updatedSetIds: []
+  id: "form-bat",
+  name: "Morcego",
+  templateId: "template-bat",
+  sourceTraitId: "adv-forma-morcego",
+
+  state: {},
+
+  runtimeState: {
+    initialized: false,
+    capturedAt: null,
+    pools: {},
+    injuries: [],
+    conditions: [],
+    effects: [],
+    equipment: []
+  }
 }
 ```
 
-Motivos possíveis:
+A forma-base normalmente usa `templateId: null`.
 
-```text
-missing-target-name
-template-name-not-found
-explicit-template-not-found
-ambiguous-template-name
-multiple-existing-links
-existing-link-conflict
-```
+## Linker
 
-Casos ambíguos ou não resolvidos permanecem intactos para revisão.
+`AlternateFormsLinker` vincula vantagens Forma Alternativa a templates somente quando a relação é determinística.
 
----
+Prioridade:
 
-## Agrupamento automático
+1. ID explícito;
+2. nome explícito;
+3. nome entre parênteses;
+4. nome após dois-pontos;
+5. notas;
+6. equivalência canônica exata.
 
-O linker respeita grupos explícitos:
+Casos ambíguos permanecem sem vínculo automático.
 
-```text
-alternateGroupId
-alternate_group_id
-formSetId
-form_set_id
-```
+## Continuidade de estado
 
-Sem grupo explícito, Forma Alternativa entra no grupo corporal padrão:
-
-```text
-body
-```
-
-Esse grupo reúne formas corporais mutuamente exclusivas, como humanoide, morcego, lobo e névoa.
-
----
-
-## Idempotência
-
-Executar o linker repetidamente não duplica conjuntos ou formas.
-
-Vínculos manuais não são sobrescritos.
-
-Novas vantagens compatíveis podem acrescentar formas a um conjunto automático já existente.
-
----
-
-## Política de estado
-
-Cada conjunto possui `statePolicy`.
-
-Cada campo aceita:
+Cada campo de `statePolicy` aceita:
 
 ```text
 shared
 perForm
 ```
 
-### shared
+`shared` mantém o valor atual no Character.
 
-O valor atual permanece no Character durante a transformação.
+`perForm` captura o estado da forma de saída e restaura o estado salvo quando ela volta a ser ativada.
 
-### perForm
+A política pode controlar:
 
-O valor da forma de saída é capturado e restaurado quando essa forma voltar a ser ativada.
-
-A política cobre:
-
-- HP/PV atuais;
-- FP/PF atuais;
+- PV atuais;
+- PF atuais;
 - Reserva de Energia atual;
 - ferimentos;
 - condições;
 - efeitos;
 - estado, usos e quantidade de equipamentos.
 
-A política padrão é totalmente `shared`.
+## FormStatePolicyResolver
 
----
+`FormStatePolicyResolver` deriva a política a partir de:
 
-## runtimeState
+- traits de origem;
+- modificadores habilitados;
+- features habilitadas;
+- templates vinculados;
+- regras de campanha;
+- override manual.
 
-`runtimeState` pertence a cada forma e armazena apenas estado transitório preservável.
+Precedência:
+
+```text
+política-base
+regras internas
+regras de campanha
+diretivas explícitas
+override manual
+```
+
+A primeira regra interna reconhece o modificador habilitado:
+
+```text
+Dano Não-Recíproco
+Non-Reciprocal Damage
+```
+
+e deriva:
 
 ```js
 {
-  initialized: true,
-  capturedAt: "2026-06-19T12:00:00.000Z",
-
-  pools: {
-    HP: 7,
-    FP: 4,
-    EnergyReserve: 2
-  },
-
-  injuries: [],
-  conditions: [],
-  effects: [],
-
-  equipment: [
-    {
-      key: "equipment:eq-001",
-      state: "equipped",
-      uses: 3,
-      quantity: 1
-    }
-  ]
+  pools: { HP: "perForm" },
+  injuries: "perForm"
 }
 ```
 
-A forma ainda não usada começa com:
+Modificadores desabilitados não produzem decisões.
+
+## Resolução explicável
 
 ```js
-initialized: false
+statePolicyResolution: {
+  setId,
+  resolvedAt,
+  basePolicy,
+  policy,
+  decisions,
+  diagnostics,
+  evidence
+}
 ```
 
-Na primeira entrada, ela mantém o estado atual por continuidade.
+Cada decisão informa:
 
-Seu snapshot próprio é criado quando a forma é abandonada pela primeira vez.
-
----
-
-## Pools
-
-Somente `current` é salvo por forma.
-
-`maximum` continua pertencendo ao resultado calculado pelo motor.
-
-AlternateForms não calcula:
-
-- novos máximos;
-- proporção de dano;
-- cura;
-- limites;
-- conversão entre máximos diferentes.
-
----
-
-## Ferimentos, condições e efeitos
-
-`State.injuries`, `State.conditions` e `State.effects` podem ser compartilhados ou próprios da forma.
-
-Isso permite representar campanhas em que:
-
-- um veneno acompanha todas as formas;
-- um ferimento corporal pertence a uma forma;
-- um efeito mágico é compartilhado;
-- uma condição derivada da forma é isolada.
-
-A política apenas declara continuidade. Ela não interpreta regras.
-
----
-
-## Equipamento
-
-Com política `shared`, o estado de equipamentos permanece global.
-
-Com política `perForm`, cada forma preserva:
-
-- `state`;
-- `uses`;
-- `quantity`.
-
-Equipamentos permanentes usam seu ID como chave estável.
-
-Equipamentos gerados pelo template da forma usam:
-
-```text
-templateId + templateSourceComponentId
+```js
+{
+  mode: "perForm",
+  source: "builtin",
+  priority: 100,
+  derivedFrom: [],
+  overridden: false,
+  conflict: false
+}
 ```
 
-Assim, recuperam o estado mesmo recebendo novo ID numa ativação posterior.
+O `basePolicy` preservado permite recomputar a política quando modificadores ou regras mudarem.
 
-Equipamentos de outro conjunto independente não são capturados nem restaurados pelo conjunto atual.
+## Override manual
 
----
-
-## Ordem da transição
+Overrides são persistidos em:
 
 ```text
-capturar estado da forma de saída
+statePolicyOverride
+```
+
+Eles têm precedência reservada e permanecem aplicáveis em novas resoluções.
+
+## Regras de campanha
+
+Regras declarativas podem filtrar por:
+
+```text
+setIds
+mechanisms
+modifierNames
+featureTypes
+traitNames
+templateIds
+```
+
+As comparações são exatas após normalização de caixa e acentos.
+
+## Transição
+
+```text
+capturar estado da forma atual
 ↓
-remover componentes estruturais anteriores
+remover seus componentes temporários
 ↓
 adicionar componentes da nova forma
 ↓
-restaurar o estado salvo da forma de entrada
+restaurar o estado salvo
 ↓
-atualizar forma ativa
+atualizar a forma ativa
 ```
-
----
 
 ## Operações
 
-### analyzeAlternateFormLinks
-
 ```js
 analyzeAlternateFormLinks(character)
-```
-
-Produz diagnóstico sem modificar o Character.
-
-### linkAlternateForms
-
-```js
 linkAlternateForms(character)
+
+analyzeFormStatePolicy(character, setId, options)
+resolveFormStatePolicy(character, setId, options)
+applyResolvedFormStatePolicy(character, setId, options)
+applyResolvedFormStatePolicies(character, options)
+
+activateAlternateForm(character, setId, formId)
+switchAlternateForm(character, setId, formId)
+deactivateAlternateForm(character, setId)
 ```
-
-Retorna:
-
-```js
-{
-  character,
-  report
-}
-```
-
-### activateAlternateForm
-
-```js
-activateAlternateForm(character, formSetId, formId)
-```
-
-Ativa uma forma, troca seus componentes e processa continuidade de estado.
-
-### switchAlternateForm
-
-```js
-switchAlternateForm(character, formSetId, formId)
-```
-
-Alias semântico de ativação.
-
-### deactivateAlternateForm
-
-```js
-deactivateAlternateForm(character, formSetId)
-```
-
-Retorna à forma-base e restaura o estado configurado.
-
----
-
-## Proveniência do vínculo
-
-Conjuntos e formas criados automaticamente recebem:
-
-```js
-{
-  source: "alternateFormsLinker",
-  linkerGroupKey,
-  linkerSourceTraitId,
-  linkerTemplateId,
-  matchMethod
-}
-```
-
----
-
-## Proveniência da ativação
-
-Componentes temporários recebem:
-
-```js
-{
-  alternateFormSetId,
-  alternateFormId,
-  alternateFormActivationId,
-  templateId,
-  templateName,
-  templateComponentType,
-  templateSourceComponentId
-}
-```
-
-Essa proveniência permite remover apenas os componentes corretos.
-
----
-
-## Relação com TemplateApplication
-
-`TemplateApplication` representa incorporação permanente e histórica.
-
-`AlternateFormSet` representa o estado operacional atual.
-
-Trocas de forma:
-
-- não criam TemplateApplication;
-- não encerram TemplateApplication;
-- não removem raça ou condição permanente;
-- não acumulam histórico estrutural a cada transformação.
-
----
 
 ## Morfo
 
-`mechanism` aceita:
+`mechanism` aceita `alternateForm` e `morph`.
 
-- `alternateForm`;
-- `morph`.
-
-`morph` prepara o schema, mas a mecânica completa permanece fora de escopo.
-
----
+A estrutura está preparada para Morfo, mas aquisição dinâmica, limites de pontos e improvisação permanecem fora do escopo.
 
 ## Não responsabilidades
 
 AlternateForms não calcula:
 
-- custo da vantagem Forma Alternativa;
-- diferença de custo entre formas;
+- custo da vantagem;
+- diferença de custo;
 - tempo ou teste de transformação;
-- duração;
-- atributos finais;
-- secundárias finais;
 - máximos de pools;
 - proporção de dano;
+- atributos finais;
+- secundárias;
 - NH;
 - RD;
 - carga;
 - ataques finais;
-- conflitos mecânicos entre conjuntos;
 - limites de Morfo.
