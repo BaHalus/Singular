@@ -147,3 +147,30 @@ test("adds import tags", () => {
   assert.ok(result.advantages[0].tags.includes("node:trait"));
   assert.ok(result.advantages[0].tags.includes("role:advantage"));
 });
+
+test("routes language and cultural familiarity traits out of advantages", () => {
+  const result = importTraits({
+    rows: [
+      {
+        id: "lang-001",
+        name: "Idioma: Élfico",
+        tags: ["Idioma", "Mental", "Vantagem"],
+        modifiers: [],
+        calc: { points: 4 },
+      },
+      {
+        id: "fam-001",
+        name: "Familiaridade Cultural (Elfos)",
+        tags: ["Mental", "Vantagem"],
+        base_points: 1,
+        calc: { points: 1 },
+      },
+    ],
+  });
+
+  assert.equal(result.advantages.length, 0);
+  assert.equal(result.languageNodes.length, 1);
+  assert.equal(result.familiarityNodes.length, 1);
+  assert.equal(result.languageNodes[0].specialKind, "language");
+  assert.equal(result.familiarityNodes[0].specialKind, "familiarity");
+});
