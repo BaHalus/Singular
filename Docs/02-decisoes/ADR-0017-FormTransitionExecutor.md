@@ -1,150 +1,70 @@
 # ADR-0017 — Execução atômica de transições de forma
 
 **Status:** Aprovado  
-**Data:** 2026-06-19
+**Data:** 2026-06-19  
+**Complementado por:** ADR-0019
 
 ## Contexto
 
-`FormTransitionPlanner` produz um plano puro e explicável, mas não altera o personagem.
-
-A execução precisa:
-
-- recusar planos pendentes ou bloqueados;
-- impedir que um plano de outro personagem seja usado;
-- confirmar que a forma de origem ainda está ativa;
-- revalidar recursos, testes e condições;
-- detectar mudanças nas regras depois do planejamento;
-- consumir os custos uma única vez;
-- trocar a forma;
-- não deixar estado parcial quando qualquer etapa falhar.
+O planner produz um plano puro. A execução precisa revalidar o estado atual, consumir custos uma única vez, trocar a forma e não expor estado parcial.
 
 ## Decisão
-
-`FormTransitionExecutor` recebe um Character e um plano `ready`:
 
 ```js
 executeFormTransition(character, plan, options)
 ```
 
-A operação é funcional e atômica: nenhum objeto recebido é mutado.
+O executor:
 
-O plano registra `characterId` e só pode ser executado no Character que o originou.
-
-O fluxo é:
-
-```text
-validar contrato do plano
-↓
-confirmar identidade e forma de origem
-↓
-replanejar contra o Character atual
-↓
-comparar impressão digital do plano
-↓
-preparar consumo dos recursos
-↓
-executar activateAlternateForm
-↓
-retornar Character novo + recibo
-```
+1. aceita somente plano `ready`;
+2. confirma `characterId` e forma de origem;
+3. replaneja com o Character atual;
+4. compara a impressão digital;
+5. prepara o consumo dos recursos;
+6. chama `activateAlternateForm`;
+7. inicializa ou limpa o runtime;
+8. cria recibo;
+9. persiste o recibo em `formTransitionHistory`;
+10. devolve Character novo, plano e recibo.
 
 ## Revalidação
 
-O executor reconstrói o contexto resolvido do plano e chama novamente `planFormTransition`.
+Mudanças bloqueadoras produzem `REVALIDATION_FAILED`. Mudanças nas regras produzem `PLAN_STALE`.
 
-O chamador pode fornecer um contexto mais recente:
+## Recursos
 
-```js
-{
-  context: {
-    triggerResults,
-    impedimentResults,
-    requirementResults,
-    testResults,
-    resources
-  }
-}
-```
-
-Se a nova avaliação não for `ready`, a execução falha com `REVALIDATION_FAILED`.
-
-## Plano obsoleto
-
-Uma impressão digital canônica preserva apenas os elementos relevantes à execução:
-
-- formas de origem e destino;
-- fases;
-- manobras;
-- tempo;
-- custos;
-- testes;
-- requisitos;
-- gatilhos;
-- impedimentos;
-- duração;
-- retorno.
-
-Valores momentâneos como `available` e `payable` não fazem parte da impressão digital, pois são reavaliados separadamente.
-
-Se as regras mudaram, a execução falha com `PLAN_STALE`.
-
-## Consumo de recursos
-
-Custos da mesma reserva são agregados e consumidos uma única vez.
-
-Exemplo:
-
-```text
-1 PF para sair do Lobo
-2 PF para entrar no Morcego
-Total debitado: 3 PF
-```
-
-O débito ocorre sobre os pools atuais antes da troca estrutural da forma. Isso corresponde ao mesmo estado usado pelo planner para verificar disponibilidade.
-
-Custos de manutenção não são consumidos pelo executor de transição.
+Custos da mesma reserva são agregados e consumidos uma vez. Custos de manutenção pertencem ao runtime.
 
 ## Atomicidade
 
-O consumo é preparado em uma cópia dos pools.
-
-Depois, `activateAlternateForm` recebe um Character intermediário imutável.
-
-Se a ativação falhar por template ausente, colisão de ID ou outra invariante, o Character original permanece intacto e nenhum débito parcial é exposto.
+Pools são descontados numa cópia. Se ativação, runtime ou histórico falhar, nenhum Character parcial é devolvido e o objeto original permanece intacto.
 
 ## Recibo
 
-Uma execução bem-sucedida retorna:
-
 ```js
 {
-  character,
-  plan,
-  receipt: {
-    id,
-    executedAt,
-    characterId,
-    formSetId,
-    fromFormId,
-    targetFormId,
-    transitionKind,
-    intent,
-    planFingerprint,
-    activationId,
-    maneuvers,
-    timeSeconds,
-    timeKnown,
-    consumedResources,
-    consumedCostIds
-  }
+  id,
+  executedAt,
+  characterId,
+  formSetId,
+  fromFormId,
+  targetFormId,
+  transitionKind,
+  intent,
+  planFingerprint,
+  activationId,
+  runtimeId,
+  maneuvers,
+  timeSeconds,
+  timeKnown,
+  consumedResources,
+  consumedCostIds
 }
 ```
 
-O recibo é devolvido ao chamador, mas ainda não é incorporado a um histórico persistente do Character.
+O recibo é devolvido ao chamador e persistido como evento `transition-executed`.
 
-## Erros tipados
-
-O executor usa `FormTransitionExecutionError` com códigos:
+## Erros principais
 
 ```text
 PLAN_NOT_READY
@@ -161,19 +81,8 @@ INVALID_TIMESTAMP
 
 ## Idempotência
 
-O mesmo plano não pode ser executado duas vezes.
+O mesmo plano não pode ser executado duas vezes. A primeira execução altera a forma ativa e torna a segunda tentativa obsoleta.
 
-Depois da primeira execução, a forma de origem planejada já não está ativa e a segunda tentativa falha como plano obsoleto.
+## Limites
 
-## Não responsabilidades
-
-O executor não:
-
-- realiza rolagens;
-- escolhe resultados de testes;
-- resolve fatos desconhecidos do mundo;
-- consome custos de manutenção;
-- avança o relógio da campanha;
-- agenda retorno automático;
-- persiste recibos em histórico;
-- calcula máximos de pools.
+O executor não realiza rolagens, não decide fatos do mundo, não cobra manutenção e não agenda chamadas futuras.
