@@ -126,7 +126,10 @@ export function linkAlternateForms(character, options = {}) {
         existingSet.forms.push(createLinkedForm(resolution));
         existingSet.sourceTraitId = existingSet.sourceTraitId ?? resolution.traitId;
 
-        if (!updatedSetIds.includes(existingSet.id)) {
+        if (
+          !createdSetIds.includes(existingSet.id) &&
+          !updatedSetIds.includes(existingSet.id)
+        ) {
           updatedSetIds.push(existingSet.id);
         }
       }
