@@ -92,6 +92,10 @@ export function advanceFormTransitionRuntime(character, formSetId, context = {})
     : planFormReturn(updated, formSetId, {
       ...context,
       intent: returnRequest.intent,
+      activeTriggers: unique([
+        ...(context.activeTriggers ?? []),
+        ...returnRequest.triggerIds,
+      ]),
     });
 
   return {
