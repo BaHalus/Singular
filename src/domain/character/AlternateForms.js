@@ -55,16 +55,6 @@ export function createAlternateFormSet(input = {}) {
     ),
 
     transitionRules: createFormTransitionRules(input.transitionRules),
-    transitionRulesOverride: normalizePlainObject(
-      input.transitionRulesOverride,
-      "Alternate form transitionRulesOverride must be object or null",
-      null,
-    ),
-    transitionRulesResolution: normalizePlainObject(
-      input.transitionRulesResolution,
-      "Alternate form transitionRulesResolution must be object or null",
-      null,
-    ),
 
     forms,
 
@@ -93,6 +83,21 @@ export function createAlternateForm(input = {}) {
       {},
     ),
     runtimeState: createAlternateFormRuntimeState(input.runtimeState),
+
+    transitionRules: input.transitionRules === undefined || input.transitionRules === null
+      ? null
+      : createFormTransitionRules(input.transitionRules),
+    transitionRulesOverride: normalizePlainObject(
+      input.transitionRulesOverride,
+      "Alternate form transitionRulesOverride must be object or null",
+      null,
+    ),
+    transitionRulesResolution: normalizePlainObject(
+      input.transitionRulesResolution,
+      "Alternate form transitionRulesResolution must be object or null",
+      null,
+    ),
+
     importMeta: normalizePlainObject(
       input.importMeta,
       "Alternate form importMeta must be object or null",
@@ -155,14 +160,6 @@ export function validateAlternateFormSet(set) {
   );
 
   validateFormTransitionRules(set.transitionRules);
-  validateNullableObject(
-    set.transitionRulesOverride,
-    "Alternate form transitionRulesOverride must be object or null",
-  );
-  validateNullableObject(
-    set.transitionRulesResolution,
-    "Alternate form transitionRulesResolution must be object or null",
-  );
 
   if (!Array.isArray(set.forms) || set.forms.length === 0) {
     throw new Error("Alternate form set must have at least one form");
@@ -196,6 +193,21 @@ export function validateAlternateFormSet(set) {
     set.activeSince,
     "Alternate form set activeSince must be string or null",
   );
+
+  if (
+    set.transitionRules.return.targetFormId !== null &&
+    !formIds.has(set.transitionRules.return.targetFormId)
+  ) {
+    throw new Error("Alternate form set return targetFormId must reference a form");
+  }
+
+  for (const form of set.forms) {
+    const targetFormId = form.transitionRules?.return.targetFormId ?? null;
+
+    if (targetFormId !== null && !formIds.has(targetFormId)) {
+      throw new Error("Alternate form return targetFormId must reference a form");
+    }
+  }
 
   if (typeof set.notes !== "string") {
     throw new Error("Alternate form set notes must be string");
@@ -243,6 +255,19 @@ export function validateAlternateForm(form) {
   }
 
   validateAlternateFormRuntimeState(form.runtimeState);
+
+  if (form.transitionRules !== null) {
+    validateFormTransitionRules(form.transitionRules);
+  }
+
+  validateNullableObject(
+    form.transitionRulesOverride,
+    "Alternate form transitionRulesOverride must be object or null",
+  );
+  validateNullableObject(
+    form.transitionRulesResolution,
+    "Alternate form transitionRulesResolution must be object or null",
+  );
   validateNullableObject(
     form.importMeta,
     "Alternate form importMeta must be object or null",
@@ -270,8 +295,6 @@ export function serializeAlternateFormSets(sets) {
     statePolicyResolution: cloneValue(set.statePolicyResolution),
 
     transitionRules: serializeFormTransitionRules(set.transitionRules),
-    transitionRulesOverride: cloneValue(set.transitionRulesOverride),
-    transitionRulesResolution: cloneValue(set.transitionRulesResolution),
 
     forms: set.forms.map(form => ({
       id: form.id,
@@ -282,6 +305,11 @@ export function serializeAlternateFormSets(sets) {
       tags: [...form.tags],
       state: { ...form.state },
       runtimeState: serializeAlternateFormRuntimeState(form.runtimeState),
+      transitionRules: form.transitionRules === null
+        ? null
+        : serializeFormTransitionRules(form.transitionRules),
+      transitionRulesOverride: cloneValue(form.transitionRulesOverride),
+      transitionRulesResolution: cloneValue(form.transitionRulesResolution),
       importMeta: form.importMeta,
       raw: form.raw,
     })),
