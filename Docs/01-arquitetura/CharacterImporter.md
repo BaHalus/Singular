@@ -1,6 +1,6 @@
 # CharacterImporter
 
-**Código:** DOM-IMP-1.1
+**Código:** DOM-IMP-1.2
 **Status:** Aprovado
 **Camada:** Domain / Import
 **Tipo:** Import Pipeline
@@ -63,6 +63,10 @@ Estrutura atual:
 
   skills: [],
   techniques: [],
+  skillContainers: [],
+  techniqueNodes: [],
+  unknownSkillNodes: [],
+
   languages: [],
   familiarities: [],
   equipment: [],
@@ -72,7 +76,7 @@ Estrutura atual:
 
 ---
 
-## DOM-IMP-1.1
+## DOM-IMP-1.2
 
 A entrega atual importa:
 
@@ -82,32 +86,52 @@ A entrega atual importa:
 - vantagens;
 - qualidades;
 - desvantagens;
-- peculiaridades.
+- peculiaridades;
+- perícias.
 
-Traits passam por:
+Perícias passam por:
 
 ```text
-GcsTraitTreeNormalizer
+GCS skills
   ↓
-TraitsImporter
+SkillsImporter
   ↓
-Character.advantages / perks / disadvantages / quirks
+Character.skills
 ```
 
-Containers e nós desconhecidos são preservados no `ImportSnapshot`, mas ainda não são incorporados como agregados próprios do `Character`.
+O importador preserva, sem recalcular:
+
+- atributo-base;
+- dificuldade;
+- pontos;
+- NH informado pelo GCS;
+- NH relativo informado pelo GCS;
+- especialização;
+- nível tecnológico;
+- defaults;
+- features;
+- weapons;
+- pré-requisitos;
+- notas;
+- tags;
+- dados brutos.
+
+Containers de perícias, nós de técnicas e nós desconhecidos são preservados no `ImportSnapshot`.
+
+Técnicas ainda não são incorporadas a `Character.techniques`; isso será responsabilidade do próximo importador específico.
 
 ---
 
 ## Fora de escopo atual
 
-DOM-IMP-1.1 ainda não importa:
+DOM-IMP-1.2 ainda não importa:
 
-- perícias;
-- técnicas;
+- técnicas para o agregado final;
 - equipamentos;
 - magias;
 - templates como agregados finais;
 - ataques derivados;
+- cálculo de NH;
 - cálculo de custo de traits;
 - cálculo de poderes;
 - cálculo de habilidades alternativas.
@@ -125,3 +149,6 @@ DOM-IMP-1.1 ainda não importa:
 - [x] Criar GcsTraitTreeNormalizer.js
 - [x] Criar TraitsImporter.js
 - [x] Integrar TraitsImporter ao CharacterImporter
+- [x] Refatorar Skills para preservar campos ricos
+- [x] Criar SkillsImporter.js
+- [x] Integrar SkillsImporter ao CharacterImporter
