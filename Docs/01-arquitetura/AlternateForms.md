@@ -16,7 +16,8 @@ Character
 │   ├── forma ativa
 │   ├── política de continuidade
 │   ├── regras de transição
-│   └── runtime da sessão ativa
+│   ├── runtime da sessão ativa
+│   └── perfil de Morfose, somente em mechanism: "morph"
 └── FormTransitionHistory
 ```
 
@@ -114,14 +115,24 @@ Por padrão apenas prepara retornos. Execução exige `executeReadyReturn: true`
 - histórico pertence ao Character;
 - recibos sobrevivem à serialização.
 
-## Morfo
+## Morfose
 
-A infraestrutura será reutilizada por Morfo. Aquisição dinâmica, catálogo conhecido, limites de pontos e improvisação permanecem numa frente própria.
+A vantagem **Morfose** reutiliza esta infraestrutura por meio de:
+
+```js
+mechanism: "morph"
+```
+
+O nome visível e documental é Morfose. O identificador técnico permanece `morph`.
+
+Aquisição dinâmica, catálogo conhecido, memorização, improvisação e limites declarados pertencem à frente DOM-MORPH e não reabrem o subsistema já fechado de Forma Alternativa.
+
+`Metamorfose` é uma entrada distinta e não é tratada como sinônimo automático.
 
 ## Status final
 
 ```text
 DOM-FORM-1.0 a DOM-FORM-1.8: concluídos
 Forma Alternativa: fechada
-Morfo: fora deste fechamento
+Morfose: infraestrutura compartilhada pronta; domínio próprio iniciado em DOM-MORPH-1.0
 ```
