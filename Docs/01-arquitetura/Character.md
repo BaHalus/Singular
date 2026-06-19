@@ -1,6 +1,6 @@
 # Character
 
-**Código:** DOM-CHAR-1.9  
+**Código:** DOM-CHAR-1.10  
 **Status:** Aprovado  
 **Camada:** Domain  
 **Tipo:** Aggregate Root
@@ -21,7 +21,7 @@ Character mantém:
 - templates importados;
 - histórico de incorporações permanentes;
 - conjuntos de formas;
-- perfis e catálogos de Morfose;
+- perfis, catálogos, overrides e resoluções de Morfose;
 - snapshots das formas inativas;
 - políticas de continuidade;
 - regras declarativas por forma;
@@ -55,7 +55,8 @@ Character
 ├── Templates
 ├── TemplateApplications
 ├── AlternateFormSets
-│   └── MorphProfile, somente quando mechanism: "morph"
+│   └── MorphProfile, MorphProfileOverride e MorphProfileResolution
+│       somente quando mechanism: "morph"
 ├── FormTransitionHistory
 └── Metadata
 ```
@@ -104,11 +105,23 @@ Um conjunto com:
 mechanism: "morph"
 ```
 
-possui obrigatoriamente `morphProfile`.
+possui obrigatoriamente:
+
+```text
+morphProfile
+```
+
+E pode persistir:
+
+```text
+morphProfileOverride
+morphProfileResolution
+```
 
 O perfil mantém:
 
-- limite declarado de pontos e sua fonte;
+- modo do limite de pontos: `undeclared`, `limited` ou `unlimited`;
+- limite declarado e sua fonte;
 - política de catálogo;
 - política de memorização;
 - política de improvisação;
@@ -116,11 +129,44 @@ O perfil mantém:
 - referências externas não resolvidas;
 - metadados de importação.
 
-Conjuntos de Forma Alternativa mantêm `morphProfile: null`.
+A resolução mantém:
+
+- vínculo com a vantagem Morfose;
+- método de vínculo;
+- perfil-base;
+- perfil resolvido;
+- decisões por campo;
+- evidências;
+- modifiers reconhecidos, ignorados e não resolvidos;
+- conflitos e diagnósticos;
+- instante da resolução.
+
+Conjuntos de Forma Alternativa mantêm os três campos de Morfose como `null`.
 
 `templateId` de uma forma conhecida, quando informado, deve apontar para `Character.templates`. Referências importadas ainda não resolvidas permanecem com `templateId: null` e `externalIds` preservados.
 
 O nome visível é **Morfose**; `morph` permanece apenas como identificador técnico. `Metamorfose` é uma entrada distinta.
+
+## Resolução de Morfose
+
+O resolver possui precedência:
+
+```text
+perfil-base
+→ valor importado
+→ builtin
+→ campanha
+→ explícito
+→ manual
+```
+
+Um `sourceTraitId` explícito e válido é usado primeiro.
+
+Na ausência dele, o resolver só vincula automaticamente quando existe exatamente uma vantagem chamada Morfose.
+
+Ambiguidades permanecem sem vínculo.
+
+Toda nova resolução parte de `morphProfileResolution.baseProfile`, permitindo retirar contribuições antigas quando modifiers são removidos ou desabilitados.
 
 ## Continuidade de estado
 
@@ -219,7 +265,8 @@ Incluem:
 - templates;
 - aplicações;
 - definição dos conjuntos;
-- perfis e catálogos de Morfose;
+- perfis, overrides e resoluções de Morfose;
+- catálogos e proveniência de formas conhecidas;
 - políticas e regras;
 - histórico de transições;
 - metadados.
@@ -267,6 +314,8 @@ Cada conjunto deve possuir:
 Cada conjunto de Morfose deve possuir:
 
 - `morphProfile` válido;
+- override e resolution como objetos ou nulos;
+- modo e valor de limite coerentes;
 - IDs únicos no catálogo;
 - `templateId` único quando resolvido;
 - referências resolvidas apontando para `Character.templates`.
@@ -277,9 +326,9 @@ A serialização inclui:
 
 - templates e aplicações;
 - conjuntos de formas;
-- perfis e catálogos de Morfose;
+- perfis, overrides e resoluções de Morfose;
 - forma ativa;
-- políticas, regras, overrides e resoluções;
+- políticas, regras, overrides e resoluções de forma;
 - snapshots;
 - runtime;
 - histórico de transições;
@@ -298,6 +347,7 @@ Character não:
 - agenda tarefas externas;
 - executa retornos automaticamente por conta própria;
 - calcula o custo ou o limite oficial de Morfose;
+- inventa efeitos para modifiers não resolvidos;
 - aprende, observa ou improvisa formas automaticamente.
 
 ## Checklist
@@ -315,4 +365,6 @@ Character não:
 - [x] Orquestração explícita do ciclo
 - [x] Regressão completa de Forma Alternativa
 - [x] Perfil e catálogo estrutural de Morfose
-- [x] Aprovar Character v1.9
+- [x] Resolver da vantagem e dos modifiers de Morfose
+- [x] Recomposição sem contribuições legadas
+- [x] Aprovar Character v1.10
