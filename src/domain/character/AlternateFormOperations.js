@@ -93,6 +93,7 @@ export function activateAlternateForm(character, formSetId, formId, options = {}
       activeFormId: form.id,
       activeActivationId: activationId,
       activeSince: changedAt,
+      transitionRuntime: null,
       forms: candidate.forms.map(candidateForm => (
         candidateForm.id === set.activeFormId
           ? {
