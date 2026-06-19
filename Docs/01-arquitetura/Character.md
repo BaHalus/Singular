@@ -1,6 +1,6 @@
 # Character
 
-**Código:** DOM-CHAR-1.4  
+**Código:** DOM-CHAR-1.6  
 **Status:** Aprovado  
 **Camada:** Domain  
 **Tipo:** Aggregate Root
@@ -41,14 +41,15 @@ Character não:
 - interpreta pré-requisitos;
 - calcula máximos de pools;
 - converte dano entre formas;
-- consome custos de transformação;
+- planeja transições;
 - executa testes;
 - verifica requisitos, gatilhos ou impedimentos;
 - avança tempo;
-- ativa automaticamente uma transformação;
+- agenda transformações automáticas;
+- persiste recibos de execução por conta própria;
 - implementa limites de Morfo.
 
-Essas responsabilidades pertencem a Rules e aos serviços operacionais apropriados.
+Essas responsabilidades pertencem a Rules, planners e executores apropriados.
 
 ## Composição
 
@@ -164,6 +165,28 @@ Essas regras podem declarar:
 
 Character armazena essas declarações, mas não as executa.
 
+## Planejamento e execução
+
+`FormTransitionPlanner` lê o Character e produz um plano sem modificá-lo.
+
+`FormTransitionExecutor` recebe um plano pronto, revalida o Character atual, prepara o consumo dos pools e chama `activateAlternateForm` atomicamente.
+
+O Character retornado pelo executor é uma nova instância válida.
+
+O Character original permanece intacto em qualquer falha.
+
+O recibo de execução é devolvido separadamente:
+
+```js
+{
+  character,
+  plan,
+  receipt
+}
+```
+
+O recibo não integra o Aggregate Root nesta versão.
+
 ## Dados permanentes
 
 São permanentes estruturalmente:
@@ -240,6 +263,8 @@ A serialização inclui:
 - overrides manuais;
 - snapshots de estado.
 
+Planos e recibos de transição não são armazenados automaticamente no Character.
+
 Ela não inclui métodos, referências circulares, estado de interface ou dependências externas.
 
 ## Direção de implementação
@@ -249,10 +274,10 @@ A implementação privilegia:
 - composição;
 - objetos simples;
 - funções puras;
-- imutabilidade quando viável;
+- imutabilidade;
 - operações reversíveis;
 - proveniência explícita;
-- separação entre dados, regras e apresentação.
+- separação entre dados, regras, planejamento, execução e apresentação.
 
 ## Checklist
 
@@ -267,4 +292,6 @@ A implementação privilegia:
 - [x] Integrar snapshots por forma
 - [x] Integrar regras de transição por forma
 - [x] Integrar overrides e resoluções explicáveis
-- [x] Aprovar Character v1.4
+- [x] Integrar planejamento puro de transições
+- [x] Integrar execução atômica externa ao agregado
+- [x] Aprovar Character v1.6
