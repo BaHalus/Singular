@@ -11,6 +11,7 @@ import {
 test("creates an undeclared Morfose profile by default", () => {
   const profile = createMorphProfile();
 
+  assert.equal(profile.pointLimitMode, "undeclared");
   assert.equal(profile.pointLimit, null);
   assert.equal(profile.pointLimitSource, "undeclared");
   assert.deepEqual(profile.catalog, {
@@ -26,6 +27,29 @@ test("creates an undeclared Morfose profile by default", () => {
     pointLimit: null,
   });
   assert.deepEqual(profile.knownForms, []);
+});
+
+test("infers limited mode when a point limit is declared", () => {
+  const profile = createMorphProfile({
+    pointLimit: 75,
+    pointLimitSource: "modifier",
+  });
+
+  assert.equal(profile.pointLimitMode, "limited");
+  assert.equal(profile.pointLimit, 75);
+  assert.equal(profile.pointLimitSource, "modifier");
+});
+
+test("represents unlimited Morfose without overloading null", () => {
+  const profile = createMorphProfile({
+    pointLimitMode: "unlimited",
+    pointLimit: null,
+    pointLimitSource: "modifier",
+  });
+
+  assert.equal(profile.pointLimitMode, "unlimited");
+  assert.equal(profile.pointLimit, null);
+  assert.equal(profile.pointLimitSource, "modifier");
 });
 
 test("preserves known forms and declarative policies", () => {
@@ -56,6 +80,7 @@ test("preserves known forms and declarative policies", () => {
     ],
   });
 
+  assert.equal(profile.pointLimitMode, "limited");
   assert.equal(profile.pointLimit, 75);
   assert.equal(profile.catalog.capacity, 12);
   assert.equal(profile.memorization.capacity, 5);
@@ -104,8 +129,17 @@ test("rejects duplicate ids and duplicate template references", () => {
   }));
 });
 
-test("rejects invalid policies and limits", () => {
+test("rejects invalid policies and incoherent point limits", () => {
   assert.throws(() => createMorphProfile({ pointLimit: -1 }));
+  assert.throws(() => createMorphProfile({ pointLimitMode: "approximate" }));
+  assert.throws(() => createMorphProfile({
+    pointLimitMode: "limited",
+    pointLimit: null,
+  }));
+  assert.throws(() => createMorphProfile({
+    pointLimitMode: "unlimited",
+    pointLimit: 50,
+  }));
   assert.throws(() => createMorphProfile({ pointLimitSource: "calculated-locally" }));
   assert.throws(() => createMorphProfile({ catalog: { mode: "approximate" } }));
   assert.throws(() => createMorphProfile({ memorization: { capacity: -1 } }));
@@ -115,6 +149,7 @@ test("rejects invalid policies and limits", () => {
 test("exports stable enum vocabulary", () => {
   const enums = getMorphProfileEnums();
 
+  assert.equal(enums.pointLimitModes.includes("unlimited"), true);
   assert.equal(enums.catalogModes.includes("knownOnly"), true);
   assert.equal(enums.improvisationModes.includes("conditional"), true);
   assert.equal(enums.acquisitionMethods.includes("observed"), true);
