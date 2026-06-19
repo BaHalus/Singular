@@ -1,6 +1,11 @@
 import { createCharacter } from "./Character.js";
+import {
+  createMorphMaterialization,
+  createMorphTemplateFingerprint,
+} from "./MorphMaterialization.js";
 
 const HARD_SELECTION_REASONS = new Set([
+  "morph-known-form-not-found",
   "morph-known-form-unavailable",
   "morph-known-form-forgotten",
   "morph-known-form-template-missing",
@@ -121,10 +126,7 @@ export function materializeMorphKnownForm(
     }
   }
 
-  const set = analysis.set;
-  const knownForm = analysis.knownForm;
-  const template = analysis.template;
-  const existing = analysis.materializedForm;
+  const { set, knownForm, template, materializedForm: existing } = analysis;
   const materializedAt = normalizeTimestamp(options.now);
 
   if (template === null) {
@@ -135,10 +137,7 @@ export function materializeMorphKnownForm(
     );
   }
 
-  if (
-    existing !== null &&
-    analysis.reasons.length === 0
-  ) {
+  if (existing !== null && analysis.reasons.length === 0) {
     return {
       character,
       formId: existing.id,
@@ -178,13 +177,12 @@ export function materializeMorphKnownForm(
       updatedAt: materializedAt,
     },
   });
+  const storedSet = nextCharacter.alternateFormSets.find(candidate => candidate.id === set.id);
 
   return {
     character: nextCharacter,
     formId: form.id,
-    form: nextCharacter.alternateFormSets
-      .find(candidate => candidate.id === set.id)
-      .forms.find(candidate => candidate.id === form.id),
+    form: storedSet.forms.find(candidate => candidate.id === form.id),
     knownForm,
     template,
     status: existing === null ? "materialized" : "refreshed",
@@ -221,9 +219,7 @@ export function evaluateMaterializedMorphTarget(character, set, targetForm) {
       reasons.push("morph-known-form-template-unresolved");
     } else {
       template = character.templates.find(item => item.id === knownForm.templateId) ?? null;
-      if (template === null) {
-        reasons.push("morph-known-form-template-missing");
-      }
+      if (template === null) reasons.push("morph-known-form-template-missing");
     }
 
     if (
@@ -242,58 +238,17 @@ export function evaluateMaterializedMorphTarget(character, set, targetForm) {
     }
   }
 
+  const uniqueReasons = unique(reasons);
   return {
     knownFormId: targetForm.morphKnownFormId,
     knownFormState: knownForm?.state ?? null,
     templateId: knownForm?.templateId ?? null,
     templateImportedPoints: template?.importedPoints ?? null,
     materialization: clone(targetForm.morphMaterialization),
-    status: determineSelectionStatus(reasons),
-    reasons: unique(reasons),
+    status: determineSelectionStatus(uniqueReasons),
+    reasons: uniqueReasons,
     pointLimitEvaluation: createPointLimitEvaluation(set.morphProfile, template),
   };
-}
-
-export function createMorphTemplateFingerprint(template) {
-  if (!template || typeof template !== "object" || Array.isArray(template)) {
-    throw new Error("Morfose template fingerprint requires template object");
-  }
-  return canonicalStringify(template);
-}
-
-export function createMorphMaterialization(input = {}) {
-  const materialization = {
-    knownFormId: requiredString(
-      input.knownFormId,
-      "Morfose materialization knownFormId must be non-empty string",
-    ),
-    templateId: requiredString(
-      input.templateId,
-      "Morfose materialization templateId must be non-empty string",
-    ),
-    templateFingerprint: requiredString(
-      input.templateFingerprint,
-      "Morfose materialization templateFingerprint must be non-empty string",
-    ),
-    materializedAt: normalizeTimestamp(input.materializedAt),
-    sourceName: typeof input.sourceName === "string" ? input.sourceName : "",
-    acquisitionMethod: typeof input.acquisitionMethod === "string"
-      ? input.acquisitionMethod
-      : "unknown",
-    externalIds: plain(input.externalIds) ? clone(input.externalIds) : {},
-  };
-  return materialization;
-}
-
-export function validateMorphMaterialization(value) {
-  if (!plain(value)) throw new Error("Morfose materialization must be object");
-  createMorphMaterialization(value);
-  return true;
-}
-
-export function serializeMorphMaterialization(value) {
-  validateMorphMaterialization(value);
-  return clone(value);
 }
 
 function createAnalysis({ set, knownForm, template, materializedForm, reasons }) {
@@ -375,7 +330,6 @@ function refreshMaterializedForm(existing, knownForm, template, materializedAt) 
   return {
     ...existing,
     templateId: template.id,
-    sourceTraitId: existing.sourceTraitId,
     morphKnownFormId: knownForm.id,
     morphMaterialization: createMorphMaterialization({
       knownFormId: knownForm.id,
@@ -417,25 +371,6 @@ function normalizeTimestamp(value) {
   if (value instanceof Date) return value.toISOString();
   if (typeof value !== "string" || value === "" || Number.isNaN(Date.parse(value))) {
     throw new Error("Morfose materialization timestamp must be valid");
-  }
-  return value;
-}
-
-function requiredString(value, message) {
-  if (typeof value !== "string" || value === "") throw new Error(message);
-  return value;
-}
-
-function canonicalStringify(value) {
-  return JSON.stringify(canonicalize(value));
-}
-
-function canonicalize(value) {
-  if (Array.isArray(value)) return value.map(canonicalize);
-  if (value && typeof value === "object") {
-    return Object.fromEntries(
-      Object.keys(value).sort().map(key => [key, canonicalize(value[key])]),
-    );
   }
   return value;
 }
