@@ -10,6 +10,7 @@ export function createImportSnapshot(input = {}) {
     techniques: input.techniques ?? [],
     skillContainers: input.skillContainers ?? [],
     techniqueNodes: input.techniqueNodes ?? [],
+    unresolvedTechniqueLinks: input.unresolvedTechniqueLinks ?? [],
     unknownSkillNodes: input.unknownSkillNodes ?? [],
 
     languages: input.languages ?? [],
