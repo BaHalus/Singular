@@ -3,10 +3,12 @@ import { validateTransitionContext } from "./FormTransitionPlannerContext.js";
 import {
   buildTransitionPhases,
   evaluateTransitionPhase,
-  evaluateReturnTransition,
   summarizeTransitionTime,
   getEffectiveTransitionRules,
 } from "./FormTransitionPlannerEvaluation.js";
+import {
+  evaluatePlannedReturnTransition,
+} from "./FormTransitionPlannerReturnEvaluation.js";
 
 const HARD_REASONS = new Set([
   "insufficient-resource",
@@ -44,7 +46,7 @@ export function planFormTransition(
 
   const phases = buildTransitionPhases(set, fromForm, targetForm)
     .map(phase => evaluateTransitionPhase(phase, context));
-  const returnEvaluation = evaluateReturnTransition(
+  const returnEvaluation = evaluatePlannedReturnTransition(
     set,
     fromForm,
     targetForm,
