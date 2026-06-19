@@ -14,7 +14,12 @@ export function createImportSnapshot(input = {}) {
     unknownSkillNodes: input.unknownSkillNodes ?? [],
 
     languages: input.languages ?? [],
+    languageNodes: input.languageNodes ?? [],
+    unknownLanguageNodes: input.unknownLanguageNodes ?? [],
+
     familiarities: input.familiarities ?? [],
+    familiarityNodes: input.familiarityNodes ?? [],
+    unknownFamiliarityNodes: input.unknownFamiliarityNodes ?? [],
 
     equipment: input.equipment ?? [],
     unknownEquipmentNodes: input.unknownEquipmentNodes ?? [],
@@ -29,6 +34,8 @@ function createEmptyImportedTraits() {
     perks: [],
     disadvantages: [],
     quirks: [],
+    languageNodes: [],
+    familiarityNodes: [],
     containers: [],
     unknownNodes: [],
   };
