@@ -11,6 +11,9 @@ import {
 import {
   processFormTransitionMaintenance,
 } from "./FormTransitionRuntimeMaintenance.js";
+import {
+  recordFormRuntimeAdvance,
+} from "./FormTransitionHistoryOperations.js";
 
 export function advanceFormTransitionRuntime(character, formSetId, context = {}) {
   let current = character;
@@ -87,12 +90,24 @@ export function advanceFormTransitionRuntime(character, formSetId, context = {})
       updatedAt: evaluation.observedAt,
     },
   });
+  const recorded = recordFormRuntimeAdvance(updated, {
+    formSetId,
+    formId: set.activeFormId,
+    runtimeId: runtime.activationId,
+    activationId: set.activeActivationId,
+    observedAt: evaluation.observedAt,
+    consumedResources: maintenance.consumedResources,
+    dueMaintenance: evaluation.dueMaintenance,
+    maintenanceError: maintenance.error,
+    previousReturnRequest: existingRequest,
+    returnRequest,
+  });
   const forcedReturn = returnRequest !== null && returnRequest.reasons.some(
     reason => ["maximum-duration-reached", "maintenance-unpaid"].includes(reason),
   );
   const returnPlan = returnRequest === null
     ? null
-    : planFormReturn(updated, formSetId, {
+    : planFormReturn(recorded, formSetId, {
       ...context,
       intent: returnRequest.intent,
       bypassReturnTriggers: forcedReturn,
@@ -103,7 +118,7 @@ export function advanceFormTransitionRuntime(character, formSetId, context = {})
     });
 
   return {
-    character: updated,
+    character: recorded,
     report: {
       ...evaluation,
       status,
