@@ -1,4 +1,8 @@
 export function importTechniques(source = [], skills = []) {
+  if (!Array.isArray(skills)) {
+    throw new Error("Skills used by TechniquesImporter must be array");
+  }
+
   const nodes = readTechniqueNodes(source);
   const result = {
     techniques: [],
@@ -138,10 +142,6 @@ function mapTechnique(node, link) {
 }
 
 function resolveParentSkill(node, skills) {
-  if (!Array.isArray(skills)) {
-    throw new Error("Skills used by TechniquesImporter must be array");
-  }
-
   const raw = node.raw ?? node;
   const defaults = normalizeArray(
     node.defaults ?? raw.defaults,
