@@ -14,6 +14,22 @@ export function validateExecutableFormTransitionPlan(plan) {
     }
   }
 
+  if (
+    plan.targetTemplateId !== null &&
+    plan.targetTemplateId !== undefined &&
+    (typeof plan.targetTemplateId !== "string" || plan.targetTemplateId === "")
+  ) {
+    throw new Error("Form transition plan targetTemplateId must be non-empty string or null");
+  }
+
+  if (
+    plan.morphSelection !== null &&
+    plan.morphSelection !== undefined &&
+    !isPlainObject(plan.morphSelection)
+  ) {
+    throw new Error("Form transition plan morphSelection must be object or null");
+  }
+
   if (typeof plan.bypassReturnTriggers !== "boolean") {
     throw new Error("Form transition plan bypassReturnTriggers must be boolean");
   }
@@ -94,6 +110,8 @@ function projectExecutionPlan(plan) {
     formSetId: plan.formSetId,
     fromFormId: plan.fromFormId,
     targetFormId: plan.targetFormId,
+    targetTemplateId: plan.targetTemplateId ?? null,
+    morphSelection: projectMorphSelection(plan.morphSelection),
     maneuver: plan.maneuver,
     maneuvers: cloneValue(plan.maneuvers ?? []),
     timeSeconds: plan.timeSeconds,
@@ -104,6 +122,20 @@ function projectExecutionPlan(plan) {
     requiredTests: (plan.requiredTests ?? []).map(projectTest),
     duration: cloneValue(plan.duration),
     return: projectReturn(plan.return),
+  };
+}
+
+function projectMorphSelection(value) {
+  if (!isPlainObject(value)) return null;
+  return {
+    knownFormId: value.knownFormId ?? null,
+    knownFormState: value.knownFormState ?? null,
+    templateId: value.templateId ?? null,
+    templateImportedPoints: value.templateImportedPoints ?? null,
+    materialization: cloneValue(value.materialization ?? null),
+    status: value.status ?? null,
+    reasons: cloneValue(value.reasons ?? []),
+    pointLimitEvaluation: cloneValue(value.pointLimitEvaluation ?? null),
   };
 }
 
