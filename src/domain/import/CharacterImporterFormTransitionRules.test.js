@@ -35,7 +35,13 @@ function createSource(modifiers) {
   };
 }
 
-test("derives transition rules from imported enabled modifiers", () => {
+function findWolfForm(character) {
+  return character.alternateFormSets[0].forms.find(
+    form => form.templateId === "template-wolf",
+  );
+}
+
+test("derives target-form transition rules from imported modifiers", () => {
   const result = importCharacterWithDiagnostics(
     createSource([
       {
@@ -80,24 +86,30 @@ test("derives transition rules from imported enabled modifiers", () => {
   );
 
   const set = result.character.alternateFormSets[0];
+  const base = set.forms.find(form => form.id === set.baseFormId);
+  const wolf = findWolfForm(result.character);
+  const wolfResolution = result.formTransitionRulesResolutions.find(
+    resolution => resolution.formId === wolf.id,
+  );
 
-  assert.equal(result.formTransitionRulesResolutions.length, 1);
-  assert.equal(set.transitionRules.activation.costs[0].resource, "FP");
-  assert.equal(set.transitionRules.activation.costs[0].amount, 2);
-  assert.equal(set.transitionRules.activation.timeStepsDelta, 1);
-  assert.equal(set.transitionRules.activation.triggers[0].description, "Lua cheia");
-  assert.equal(set.transitionRules.activation.involuntary, false);
+  assert.equal(result.formTransitionRulesResolutions.length, 2);
+  assert.equal(base.transitionRules.activation.costs.length, 0);
+  assert.equal(wolf.transitionRules.activation.costs[0].resource, "FP");
+  assert.equal(wolf.transitionRules.activation.costs[0].amount, 2);
+  assert.equal(wolf.transitionRules.activation.timeStepsDelta, 1);
+  assert.equal(wolf.transitionRules.activation.triggers[0].description, "Lua cheia");
+  assert.equal(wolf.transitionRules.activation.involuntary, false);
   assert.equal(
-    set.transitionRulesResolution.decisions.collections.activation.costs.source,
+    wolfResolution.decisions.collections.activation.costs.source,
     "builtin",
   );
   assert.equal(
-    set.transitionRulesResolution.decisions.scalars.activation.involuntary.source,
+    wolfResolution.decisions.scalars.activation.involuntary.source,
     "existing",
   );
 });
 
-test("accepts transition campaign rules and manual override during import", () => {
+test("accepts campaign rules and per-form override during import", () => {
   const result = importCharacterWithDiagnostics(
     createSource([
       {
@@ -132,10 +144,12 @@ test("accepts transition campaign rules and manual override during import", () =
             },
           },
         ],
-        manualOverride: {
-          activation: {
-            maneuver: "Ready",
-            triggers: [],
+        manualOverrides: {
+          "form_linked_body_adv-form-wolf_template-wolf": {
+            activation: {
+              maneuver: "Ready",
+              triggers: [],
+            },
           },
         },
         overrideId: "master-ruling-001",
@@ -143,20 +157,20 @@ test("accepts transition campaign rules and manual override during import", () =
     },
   );
 
-  const set = result.character.alternateFormSets[0];
+  const wolf = findWolfForm(result.character);
 
-  assert.equal(set.transitionRules.activation.maneuver, "Ready");
-  assert.deepEqual(set.transitionRules.activation.triggers, []);
-  assert.equal(set.transitionRules.activation.tests[0].target, "Will");
-  assert.equal(set.transitionRules.activation.tests[0].modifier, -2);
-  assert.equal(set.transitionRulesOverride.activation.maneuver, "Ready");
+  assert.equal(wolf.transitionRules.activation.maneuver, "Ready");
+  assert.deepEqual(wolf.transitionRules.activation.triggers, []);
+  assert.equal(wolf.transitionRules.activation.tests[0].target, "Will");
+  assert.equal(wolf.transitionRules.activation.tests[0].modifier, -2);
+  assert.equal(wolf.transitionRulesOverride.activation.maneuver, "Ready");
   assert.equal(
-    set.transitionRulesResolution.decisions.scalars.activation.maneuver.source,
+    wolf.transitionRulesResolution.decisions.scalars.activation.maneuver.source,
     "manual",
   );
 });
 
-test("importCharacter returns character with resolved transition rules", () => {
+test("importCharacter returns character with resolved form transition rules", () => {
   const character = importCharacter(
     createSource([
       {
@@ -169,8 +183,10 @@ test("importCharacter returns character with resolved transition rules", () => {
     ]),
   );
 
+  const wolf = findWolfForm(character);
+
   assert.equal(
-    character.alternateFormSets[0].transitionRules.activation.requirements[0].description,
+    wolf.transitionRules.activation.requirements[0].description,
     "Ritual de 10 minutos",
   );
 });
