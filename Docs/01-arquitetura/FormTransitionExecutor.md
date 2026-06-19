@@ -20,6 +20,8 @@ plano ready
 ↓
 validação estrutural
 ↓
+plano pertence a este Character?
+↓
 forma de origem ainda ativa?
 ↓
 replanejamento com contexto atual
@@ -45,6 +47,22 @@ Character novo + recibo
 ```
 
 `context` pode atualizar fatos do mundo e recursos antes da execução.
+
+## Vínculo com o Character
+
+Todo plano produzido pelo planner contém:
+
+```js
+characterId
+```
+
+O executor compara esse valor com `character.identity.id`.
+
+Um plano de outro personagem falha com:
+
+```text
+PLAN_CHARACTER_MISMATCH
+```
 
 ## Revalidação
 
@@ -156,6 +174,7 @@ Códigos principais:
 
 ```text
 PLAN_NOT_READY
+PLAN_CHARACTER_MISMATCH
 PLAN_STALE
 REVALIDATION_FAILED
 RESOURCE_CONSUMPTION_FAILED
@@ -166,6 +185,7 @@ TRANSITION_FAILED
 
 - plano pendente não é executado;
 - plano bloqueado não é executado;
+- plano de outro personagem não é executado;
 - plano de origem antiga não é executado;
 - regras alteradas invalidam o plano;
 - recursos atuais são rechecados;
