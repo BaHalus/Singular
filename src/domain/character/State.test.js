@@ -10,6 +10,7 @@ import {
 test("creates default state", () => {
   const state = createState();
 
+  assert.deepEqual(state.injuries, []);
   assert.deepEqual(state.conditions, []);
   assert.deepEqual(state.effects, []);
   assert.equal(state.combat.engaged, false);
@@ -17,6 +18,7 @@ test("creates default state", () => {
 
 test("creates state from input", () => {
   const state = createState({
+    injuries: [{ id: "injury-001", location: "Braço" }],
     conditions: [{ name: "Stunned" }],
     effects: [{ source: "Bless" }],
     combat: {
@@ -24,6 +26,7 @@ test("creates state from input", () => {
     },
   });
 
+  assert.equal(state.injuries.length, 1);
   assert.equal(state.conditions.length, 1);
   assert.equal(state.effects.length, 1);
   assert.equal(state.combat.engaged, true);
@@ -37,6 +40,7 @@ test("validates valid state", () => {
 
 test("serializes state", () => {
   const state = createState({
+    injuries: [{ id: "injury-001", description: "Corte" }],
     conditions: [{ name: "Prone" }],
     effects: [{ source: "Haste" }],
     combat: {
@@ -46,9 +50,18 @@ test("serializes state", () => {
 
   const json = serializeState(state);
 
+  assert.equal(json.injuries.length, 1);
   assert.equal(json.conditions.length, 1);
   assert.equal(json.effects.length, 1);
   assert.equal(json.combat.engaged, true);
+});
+
+test("throws when injuries is not array", () => {
+  assert.throws(() => {
+    createState({
+      injuries: "Corte",
+    });
+  });
 });
 
 test("throws when conditions is not array", () => {
