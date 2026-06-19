@@ -39,7 +39,7 @@ export function evaluatePlannedReturnTransition(
       targetForm.id === rules.return.targetFormId
     ),
     locked: applicable && rules.return.mode === "locked",
-    triggers: applicable
+    triggers: applicable && context.bypassReturnTriggers !== true
       ? evaluateTransitionConditions(
         rules.return.triggers,
         "trigger",
