@@ -2,6 +2,9 @@ import {
   advanceFormTransitionRuntime,
 } from "./FormTransitionRuntimeEngine.js";
 import {
+  planFormTransition,
+} from "./FormTransitionPlanner.js";
+import {
   executeFormTransition,
 } from "./FormTransitionExecutor.js";
 
@@ -35,9 +38,26 @@ export function advanceFormLifecycle(
     };
   }
 
-  if (!advanced.returnPlan.allowed || advanced.returnPlan.status !== "ready") {
+  const executionContext = mergeContext(
+    {
+      ...context,
+      intent: advanced.returnPlan.intent,
+      bypassReturnTriggers: advanced.returnPlan.bypassReturnTriggers,
+    },
+    options.executionOptions?.context,
+  );
+  const executablePlan = planFormTransition(
+    advanced.character,
+    advanced.returnPlan.formSetId,
+    advanced.returnPlan.targetFormId,
+    executionContext,
+  );
+
+  if (!executablePlan.allowed || executablePlan.status !== "ready") {
     return {
-      ...advanced,
+      character: advanced.character,
+      report: advanced.report,
+      returnPlan: executablePlan,
       execution: null,
       executionStatus: "not-ready",
     };
@@ -46,21 +66,18 @@ export function advanceFormLifecycle(
   const executionOptions = {
     ...(options.executionOptions ?? {}),
     now: options.executionOptions?.now ?? context.now,
-    context: mergeContext(
-      context,
-      options.executionOptions?.context,
-    ),
+    context: executionContext,
   };
   const execution = executeFormTransition(
     advanced.character,
-    advanced.returnPlan,
+    executablePlan,
     executionOptions,
   );
 
   return {
     character: execution.character,
     report: advanced.report,
-    returnPlan: advanced.returnPlan,
+    returnPlan: executablePlan,
     execution,
     executionStatus: "executed",
   };
