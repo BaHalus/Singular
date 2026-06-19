@@ -12,8 +12,10 @@ export function evaluateFormTransitionRuntime(character, setId, context = {}) {
   if (runtime.formId !== form.id) throw new Error("Form transition runtime is stale");
 
   const observedAt = validTime(context.now);
+  if (Date.parse(observedAt) < Date.parse(runtime.observedAt)) {
+    throw new Error("Form transition runtime clock cannot move backwards");
+  }
   const elapsedSeconds = (Date.parse(observedAt) - Date.parse(runtime.startedAt)) / 1000;
-  if (elapsedSeconds < 0) throw new Error("Form transition runtime clock cannot move backwards");
 
   const dueMaintenance = [];
   const unscheduledMaintenance = [];
