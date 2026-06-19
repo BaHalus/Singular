@@ -1,6 +1,6 @@
 Character
 
-Código: DOM-CHAR-1.1
+Código: DOM-CHAR-1.2
 Status: Aprovado
 Camada: Domain
 Tipo: Aggregate Root
@@ -27,6 +27,7 @@ O Character é responsável por:
 - preservar estados transitórios;
 - preservar pacotes importados;
 - preservar o histórico de aplicação de templates;
+- preservar conjuntos de formas e a forma ativa de cada conjunto;
 - garantir invariantes estruturais mínimas;
 - fornecer serialização consistente.
 
@@ -44,6 +45,7 @@ O Character não é responsável por:
 - NH;
 - pré-requisitos;
 - aplicação mecânica de modificadores e features;
+- cálculo de transformação;
 - renderização;
 - persistência;
 - importação;
@@ -78,6 +80,7 @@ Character
 ├── Familiarities
 ├── Templates
 ├── TemplateApplications
+├── AlternateFormSets
 ├── State
 └── Metadata
 
@@ -104,6 +107,7 @@ Character
   familiarities,
   templates,
   templateApplications,
+  alternateFormSets,
   state,
   metadata
 }
@@ -131,7 +135,10 @@ São considerados permanentes:
 - familiarities;
 - templates;
 - templateApplications;
+- alternateFormSets;
 - metadata.
+
+Os componentes temporários produzidos pela forma ativa permanecem serializados enquanto estiverem ativos, com proveniência explícita.
 
 ---
 
@@ -139,7 +146,7 @@ São considerados permanentes:
 
 `templates` contém pacotes importados e ainda independentes.
 
-`templateApplications` registra incorporações estruturais desses pacotes ao personagem.
+`templateApplications` registra incorporações estruturais permanentes desses pacotes ao personagem.
 
 Importar e incorporar são operações distintas.
 
@@ -151,7 +158,29 @@ O Character apenas armazena o resultado estrutural dessas operações. Ele não 
 
 ---
 
-8. Dados Transitórios
+8. Formas Alternativas
+
+`alternateFormSets` contém conjuntos de formas mutuamente exclusivas.
+
+Cada conjunto possui:
+
+- forma-base;
+- forma ativa;
+- formas disponíveis;
+- mecanismo de transformação;
+- proveniência da ativação atual.
+
+Somente uma forma fica ativa dentro de cada conjunto.
+
+Conjuntos independentes podem coexistir. Assim, uma forma corporal pode coexistir com um revestimento ou outro mecanismo separado.
+
+Templates permanentes, como Elfo e Vampiro, permanecem ativos durante a troca entre formas como Humanoide, Morcego ou Lobo.
+
+Trocas de forma não criam novas entradas em `templateApplications`.
+
+---
+
+9. Dados Transitórios
 
 São considerados transitórios:
 
@@ -163,13 +192,14 @@ São considerados transitórios:
 - buffs;
 - debuffs;
 - estado de combate;
-- recursos consumidos durante a sessão.
+- recursos consumidos durante a sessão;
+- estado operacional da transformação atual.
 
-Esses dados pertencem ao State ou aos agregados operacionais apropriados.
+O estado operacional da transformação é registrado em `alternateFormSets`, enquanto efeitos mecânicos temporários continuam pertencendo ao State ou aos agregados operacionais apropriados.
 
 ---
 
-9. GURPS First
+10. GURPS First
 
 A SINGULAR é construída inicialmente para GURPS 4e.
 
@@ -179,7 +209,7 @@ Abstrações genéricas somente devem ser introduzidas quando resolverem um prob
 
 ---
 
-10. Composição sobre Herança
+11. Composição sobre Herança
 
 O domínio deverá privilegiar:
 
@@ -192,7 +222,7 @@ Hierarquias profundas de herança devem ser evitadas.
 
 ---
 
-11. Separação de Responsabilidades
+12. Separação de Responsabilidades
 
 O Character armazena dados.
 
@@ -206,7 +236,7 @@ Esses elementos devem permanecer desacoplados.
 
 ---
 
-12. Invariantes Estruturais
+13. Invariantes Estruturais
 
 O Character deve sempre garantir apenas invariantes estruturais mínimas.
 
@@ -216,7 +246,8 @@ Um Character válido deve possuir:
 - Attributes;
 - State;
 - coleções estruturais válidas;
-- histórico de aplicações de template válido.
+- histórico de aplicações de template válido;
+- conjuntos de formas válidos.
 
 Identity deve conter:
 
@@ -232,6 +263,13 @@ Attributes deve conter:
 
 State deve existir mesmo que esteja vazio.
 
+Cada conjunto de formas deve possuir:
+
+- pelo menos uma forma;
+- uma forma-base existente;
+- uma forma ativa existente;
+- IDs de forma únicos dentro do conjunto.
+
 Estas invariantes não executam regras de GURPS.
 
 Validações como:
@@ -242,6 +280,8 @@ Validações como:
 - consistência de carga;
 - cálculos de atributos secundários;
 - efeitos de templates;
+- custo ou tempo de transformação;
+- limites de Morfo;
 
 não pertencem ao Character.
 
@@ -249,11 +289,18 @@ Essas validações pertencem ao módulo Rules.
 
 ---
 
-13. Serialização
+14. Serialização
 
 O Character deve ser serializável para JSON sem perda estrutural.
 
-A serialização inclui pacotes de template e seu histórico de aplicação, mas não deve conter:
+A serialização inclui:
+
+- pacotes de template;
+- histórico de aplicações;
+- conjuntos de formas;
+- forma ativa e ativação corrente.
+
+Ela não deve conter:
 
 - métodos;
 - referências circulares;
@@ -262,7 +309,7 @@ A serialização inclui pacotes de template e seu histórico de aplicação, mas
 
 ---
 
-14. Direção de Implementação
+15. Direção de Implementação
 
 A implementação deve evoluir para:
 
@@ -270,13 +317,14 @@ A implementação deve evoluir para:
 - imutabilidade quando viável;
 - funções puras;
 - separação clara entre dados e regras;
-- operações reversíveis com proveniência explícita.
+- operações reversíveis com proveniência explícita;
+- suporte progressivo a Forma Alternativa e Morfo.
 
 O Aggregate Root deve permanecer simples e previsível.
 
 ---
 
-15. Checklist de Implementação
+16. Checklist de Implementação
 
 - [x] Criar Character.md
 - [x] Criar Character.js
@@ -286,4 +334,6 @@ O Aggregate Root deve permanecer simples e previsível.
 - [x] Refatorar Character.js para arquitetura funcional
 - [x] Integrar templates
 - [x] Integrar histórico de aplicações de template
-- [x] Aprovar Character v1.1
+- [x] Integrar conjuntos de formas alternativas
+- [x] Integrar estado ativo de cada conjunto
+- [x] Aprovar Character v1.2
