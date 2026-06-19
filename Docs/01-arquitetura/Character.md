@@ -1,6 +1,6 @@
 Character
 
-Código: DOM-CHAR-1.0
+Código: DOM-CHAR-1.1
 Status: Aprovado
 Camada: Domain
 Tipo: Aggregate Root
@@ -25,6 +25,8 @@ O Character é responsável por:
 - manter a composição estrutural dos agregados;
 - preservar dados permanentes;
 - preservar estados transitórios;
+- preservar pacotes importados;
+- preservar o histórico de aplicação de templates;
 - garantir invariantes estruturais mínimas;
 - fornecer serialização consistente.
 
@@ -41,7 +43,7 @@ O Character não é responsável por:
 - movimento;
 - NH;
 - pré-requisitos;
-- aplicação de modificadores;
+- aplicação mecânica de modificadores e features;
 - renderização;
 - persistência;
 - importação;
@@ -63,6 +65,7 @@ Character
 ├── SecondaryCharacteristics
 ├── Pools
 ├── Advantages
+├── Perks
 ├── Disadvantages
 ├── Quirks
 ├── Skills
@@ -74,6 +77,7 @@ Character
 ├── Languages
 ├── Familiarities
 ├── Templates
+├── TemplateApplications
 ├── State
 └── Metadata
 
@@ -87,6 +91,7 @@ Character
   secondaryCharacteristics,
   pools,
   advantages,
+  perks,
   disadvantages,
   quirks,
   skills,
@@ -98,6 +103,7 @@ Character
   languages,
   familiarities,
   templates,
+  templateApplications,
   state,
   metadata
 }
@@ -112,6 +118,7 @@ São considerados permanentes:
 - attributes;
 - secondaryCharacteristics;
 - advantages;
+- perks;
 - disadvantages;
 - quirks;
 - skills;
@@ -123,11 +130,28 @@ São considerados permanentes:
 - languages;
 - familiarities;
 - templates;
+- templateApplications;
 - metadata.
 
 ---
 
-7. Dados Transitórios
+7. Templates e aplicações
+
+`templates` contém pacotes importados e ainda independentes.
+
+`templateApplications` registra incorporações estruturais desses pacotes ao personagem.
+
+Importar e incorporar são operações distintas.
+
+Uma aplicação ativa contém o ID do pacote, os IDs dos componentes copiados e a data de aplicação.
+
+Quando uma incorporação é removida, seu registro permanece com status `removed` para preservar o histórico.
+
+O Character apenas armazena o resultado estrutural dessas operações. Ele não calcula os efeitos das features incorporadas.
+
+---
+
+8. Dados Transitórios
 
 São considerados transitórios:
 
@@ -145,7 +169,7 @@ Esses dados pertencem ao State ou aos agregados operacionais apropriados.
 
 ---
 
-8. GURPS First
+9. GURPS First
 
 A SINGULAR é construída inicialmente para GURPS 4e.
 
@@ -155,7 +179,7 @@ Abstrações genéricas somente devem ser introduzidas quando resolverem um prob
 
 ---
 
-9. Composição sobre Herança
+10. Composição sobre Herança
 
 O domínio deverá privilegiar:
 
@@ -168,7 +192,7 @@ Hierarquias profundas de herança devem ser evitadas.
 
 ---
 
-10. Separação de Responsabilidades
+11. Separação de Responsabilidades
 
 O Character armazena dados.
 
@@ -182,7 +206,7 @@ Esses elementos devem permanecer desacoplados.
 
 ---
 
-11. Invariantes Estruturais
+12. Invariantes Estruturais
 
 O Character deve sempre garantir apenas invariantes estruturais mínimas.
 
@@ -190,7 +214,9 @@ Um Character válido deve possuir:
 
 - Identity;
 - Attributes;
-- State.
+- State;
+- coleções estruturais válidas;
+- histórico de aplicações de template válido.
 
 Identity deve conter:
 
@@ -208,8 +234,6 @@ State deve existir mesmo que esteja vazio.
 
 Estas invariantes não executam regras de GURPS.
 
-Elas apenas garantem a integridade estrutural mínima do agregado.
-
 Validações como:
 
 - HP derivado de ST;
@@ -217,6 +241,7 @@ Validações como:
 - pré-requisitos de perícias;
 - consistência de carga;
 - cálculos de atributos secundários;
+- efeitos de templates;
 
 não pertencem ao Character.
 
@@ -224,11 +249,11 @@ Essas validações pertencem ao módulo Rules.
 
 ---
 
-12. Serialização
+13. Serialização
 
 O Character deve ser serializável para JSON sem perda estrutural.
 
-A serialização não deve conter:
+A serialização inclui pacotes de template e seu histórico de aplicação, mas não deve conter:
 
 - métodos;
 - referências circulares;
@@ -237,25 +262,28 @@ A serialização não deve conter:
 
 ---
 
-13. Direção de Implementação
+14. Direção de Implementação
 
 A implementação deve evoluir para:
 
 - composição;
 - imutabilidade quando viável;
 - funções puras;
-- separação clara entre dados e regras.
+- separação clara entre dados e regras;
+- operações reversíveis com proveniência explícita.
 
 O Aggregate Root deve permanecer simples e previsível.
 
 ---
 
-14. Checklist de Implementação
+15. Checklist de Implementação
 
 - [x] Criar Character.md
 - [x] Criar Character.js
-- [ ] Criar Character.test.js
-- [ ] Validar invariantes estruturais
-- [ ] Validar serialização
-- [ ] Refatorar Character.js para arquitetura funcional
-- [ ] Aprovar Character v1.0
+- [x] Criar Character.test.js
+- [x] Validar invariantes estruturais
+- [x] Validar serialização
+- [x] Refatorar Character.js para arquitetura funcional
+- [x] Integrar templates
+- [x] Integrar histórico de aplicações de template
+- [x] Aprovar Character v1.1
