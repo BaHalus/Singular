@@ -258,7 +258,9 @@ export function applyResolvedFormTransitionRulesToAll(character, options = {}) {
 
 export function collectFormTransitionEvidence(character, set, form) {
   const evidence = [];
-  const sourceTraitId = form.sourceTraitId ?? set.sourceTraitId ?? null;
+  const sourceTraitId = form.sourceTraitId ?? (
+    form.id === set.baseFormId ? null : set.sourceTraitId ?? null
+  );
 
   if (sourceTraitId !== null) {
     for (const collection of [
