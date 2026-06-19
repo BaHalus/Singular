@@ -11,6 +11,9 @@ import {
 import {
   initializeFormTransitionRuntime,
 } from "./FormTransitionRuntimeOperations.js";
+import {
+  recordFormTransitionExecution,
+} from "./FormTransitionHistoryOperations.js";
 
 export class FormTransitionExecutionError extends Error {
   constructor(code, message, details = null, options = {}) {
@@ -180,9 +183,13 @@ export function executeFormTransition(character, plan, options = {}) {
     consumedResources: consumed.consumedResources,
     consumedCostIds: currentPlan.costs.map(cost => cost.id ?? null),
   };
+  const recordedCharacter = recordFormTransitionExecution(
+    transitionedCharacter,
+    receipt,
+  );
 
   return {
-    character: transitionedCharacter,
+    character: recordedCharacter,
     receipt,
     plan: currentPlan,
   };
