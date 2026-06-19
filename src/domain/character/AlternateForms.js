@@ -25,10 +25,7 @@ import {
 const FORM_MECHANISMS = ["alternateForm", "morph"];
 
 export function createAlternateFormSets(input = []) {
-  if (!Array.isArray(input)) {
-    throw new Error("Alternate form sets must be an array");
-  }
-
+  if (!Array.isArray(input)) throw new Error("Alternate form sets must be an array");
   const sets = input.map(createAlternateFormSet);
   validateAlternateFormSets(sets);
   return sets;
@@ -48,19 +45,45 @@ export function createAlternateFormSet(input = {}) {
     morphProfile: mechanism === "morph"
       ? createMorphProfile(input.morphProfile)
       : null,
+    morphProfileOverride: mechanism === "morph"
+      ? normalizePlainObject(
+        input.morphProfileOverride,
+        "Morfose profile override must be object or null",
+        null,
+      )
+      : null,
+    morphProfileResolution: mechanism === "morph"
+      ? normalizePlainObject(
+        input.morphProfileResolution,
+        "Morfose profile resolution must be object or null",
+        null,
+      )
+      : null,
     baseFormId,
     activeFormId,
     activeActivationId: input.activeActivationId ?? null,
     activeSince: input.activeSince ?? null,
     transitionRuntime: createFormTransitionRuntime(input.transitionRuntime),
     statePolicy: createAlternateFormStatePolicy(input.statePolicy),
-    statePolicyOverride: normalizePlainObject(input.statePolicyOverride, "Alternate form statePolicyOverride must be object or null", null),
-    statePolicyResolution: normalizePlainObject(input.statePolicyResolution, "Alternate form statePolicyResolution must be object or null", null),
+    statePolicyOverride: normalizePlainObject(
+      input.statePolicyOverride,
+      "Alternate form statePolicyOverride must be object or null",
+      null,
+    ),
+    statePolicyResolution: normalizePlainObject(
+      input.statePolicyResolution,
+      "Alternate form statePolicyResolution must be object or null",
+      null,
+    ),
     transitionRules: createFormTransitionRules(input.transitionRules),
     forms,
     notes: input.notes ?? "",
     tags: normalizeStringArray(input.tags, "Alternate form set tags must be array"),
-    importMeta: normalizePlainObject(input.importMeta, "Alternate form set importMeta must be object or null", null),
+    importMeta: normalizePlainObject(
+      input.importMeta,
+      "Alternate form set importMeta must be object or null",
+      null,
+    ),
     raw: input.raw ?? null,
   };
 }
@@ -78,18 +101,27 @@ export function createAlternateForm(input = {}) {
     transitionRules: input.transitionRules === undefined || input.transitionRules === null
       ? null
       : createFormTransitionRules(input.transitionRules),
-    transitionRulesOverride: normalizePlainObject(input.transitionRulesOverride, "Alternate form transitionRulesOverride must be object or null", null),
-    transitionRulesResolution: normalizePlainObject(input.transitionRulesResolution, "Alternate form transitionRulesResolution must be object or null", null),
-    importMeta: normalizePlainObject(input.importMeta, "Alternate form importMeta must be object or null", null),
+    transitionRulesOverride: normalizePlainObject(
+      input.transitionRulesOverride,
+      "Alternate form transitionRulesOverride must be object or null",
+      null,
+    ),
+    transitionRulesResolution: normalizePlainObject(
+      input.transitionRulesResolution,
+      "Alternate form transitionRulesResolution must be object or null",
+      null,
+    ),
+    importMeta: normalizePlainObject(
+      input.importMeta,
+      "Alternate form importMeta must be object or null",
+      null,
+    ),
     raw: input.raw ?? null,
   };
 }
 
 export function validateAlternateFormSets(sets) {
-  if (!Array.isArray(sets)) {
-    throw new Error("Alternate form sets must be an array");
-  }
-
+  if (!Array.isArray(sets)) throw new Error("Alternate form sets must be an array");
   const ids = new Set();
   for (const set of sets) {
     validateAlternateFormSet(set);
@@ -100,17 +132,27 @@ export function validateAlternateFormSets(sets) {
 }
 
 export function validateAlternateFormSet(set) {
-  if (!set || typeof set !== "object" || Array.isArray(set)) throw new Error("Alternate form set must be an object");
+  if (!set || typeof set !== "object" || Array.isArray(set)) {
+    throw new Error("Alternate form set must be an object");
+  }
   if (!set.id) throw new Error("Alternate form set must have id");
   if (typeof set.name !== "string") throw new Error("Alternate form set name must be string");
-  if (!FORM_MECHANISMS.includes(set.mechanism)) throw new Error("Alternate form set mechanism is invalid");
+  if (!FORM_MECHANISMS.includes(set.mechanism)) {
+    throw new Error("Alternate form set mechanism is invalid");
+  }
   validateNullableString(set.sourceTraitId, "Alternate form set sourceTraitId must be string or null");
 
   if (set.mechanism === "morph") {
     if (set.morphProfile === null) throw new Error("Morfose form set must have morphProfile");
     validateMorphProfile(set.morphProfile);
-  } else if (set.morphProfile !== null) {
-    throw new Error("Only Morfose form sets may have morphProfile");
+    validateNullableObject(set.morphProfileOverride, "Morfose profile override must be object or null");
+    validateNullableObject(set.morphProfileResolution, "Morfose profile resolution must be object or null");
+  } else if (
+    set.morphProfile !== null ||
+    set.morphProfileOverride !== null ||
+    set.morphProfileResolution !== null
+  ) {
+    throw new Error("Only Morfose form sets may have Morfose profile data");
   }
 
   validateAlternateFormStatePolicy(set.statePolicy);
@@ -119,7 +161,9 @@ export function validateAlternateFormSet(set) {
   validateFormTransitionRules(set.transitionRules);
   validateFormTransitionRuntime(set.transitionRuntime);
 
-  if (!Array.isArray(set.forms) || set.forms.length === 0) throw new Error("Alternate form set must have at least one form");
+  if (!Array.isArray(set.forms) || set.forms.length === 0) {
+    throw new Error("Alternate form set must have at least one form");
+  }
 
   const formIds = new Set();
   for (const form of set.forms) {
@@ -128,29 +172,41 @@ export function validateAlternateFormSet(set) {
     formIds.add(form.id);
   }
 
-  if (typeof set.baseFormId !== "string" || !formIds.has(set.baseFormId)) throw new Error("Alternate form set baseFormId must reference a form");
-  if (typeof set.activeFormId !== "string" || !formIds.has(set.activeFormId)) throw new Error("Alternate form set activeFormId must reference a form");
+  if (typeof set.baseFormId !== "string" || !formIds.has(set.baseFormId)) {
+    throw new Error("Alternate form set baseFormId must reference a form");
+  }
+  if (typeof set.activeFormId !== "string" || !formIds.has(set.activeFormId)) {
+    throw new Error("Alternate form set activeFormId must reference a form");
+  }
   validateNullableString(set.activeActivationId, "Alternate form set activeActivationId must be string or null");
   validateNullableString(set.activeSince, "Alternate form set activeSince must be string or null");
 
   if (set.activeFormId === set.baseFormId && set.transitionRuntime !== null) {
     throw new Error("Alternate form base form cannot have transitionRuntime");
   }
-
   if (set.transitionRuntime !== null) {
-    if (set.transitionRuntime.formId !== set.activeFormId) throw new Error("Alternate form transitionRuntime must reference active form");
-    if (set.activeActivationId !== null && set.transitionRuntime.activationId !== set.activeActivationId) {
+    if (set.transitionRuntime.formId !== set.activeFormId) {
+      throw new Error("Alternate form transitionRuntime must reference active form");
+    }
+    if (
+      set.activeActivationId !== null &&
+      set.transitionRuntime.activationId !== set.activeActivationId
+    ) {
       throw new Error("Alternate form transitionRuntime activationId must match active activation");
     }
   }
 
-  if (set.transitionRules.return.targetFormId !== null && !formIds.has(set.transitionRules.return.targetFormId)) {
+  if (
+    set.transitionRules.return.targetFormId !== null &&
+    !formIds.has(set.transitionRules.return.targetFormId)
+  ) {
     throw new Error("Alternate form set return targetFormId must reference a form");
   }
-
   for (const form of set.forms) {
     const targetFormId = form.transitionRules?.return.targetFormId ?? null;
-    if (targetFormId !== null && !formIds.has(targetFormId)) throw new Error("Alternate form return targetFormId must reference a form");
+    if (targetFormId !== null && !formIds.has(targetFormId)) {
+      throw new Error("Alternate form return targetFormId must reference a form");
+    }
   }
 
   if (typeof set.notes !== "string") throw new Error("Alternate form set notes must be string");
@@ -160,7 +216,9 @@ export function validateAlternateFormSet(set) {
 }
 
 export function validateAlternateForm(form) {
-  if (!form || typeof form !== "object" || Array.isArray(form)) throw new Error("Alternate form must be an object");
+  if (!form || typeof form !== "object" || Array.isArray(form)) {
+    throw new Error("Alternate form must be an object");
+  }
   if (!form.id) throw new Error("Alternate form must have id");
   if (typeof form.name !== "string") throw new Error("Alternate form name must be string");
   validateNullableString(form.templateId, "Alternate form templateId must be string or null");
@@ -186,6 +244,8 @@ export function serializeAlternateFormSets(sets) {
     morphProfile: set.morphProfile === null
       ? null
       : serializeMorphProfile(set.morphProfile),
+    morphProfileOverride: cloneValue(set.morphProfileOverride),
+    morphProfileResolution: cloneValue(set.morphProfileResolution),
     baseFormId: set.baseFormId,
     activeFormId: set.activeFormId,
     activeActivationId: set.activeActivationId,
@@ -204,7 +264,9 @@ export function serializeAlternateFormSets(sets) {
       tags: [...form.tags],
       state: { ...form.state },
       runtimeState: serializeAlternateFormRuntimeState(form.runtimeState),
-      transitionRules: form.transitionRules === null ? null : serializeFormTransitionRules(form.transitionRules),
+      transitionRules: form.transitionRules === null
+        ? null
+        : serializeFormTransitionRules(form.transitionRules),
       transitionRulesOverride: cloneValue(form.transitionRulesOverride),
       transitionRulesResolution: cloneValue(form.transitionRulesResolution),
       importMeta: form.importMeta,
@@ -225,12 +287,16 @@ function normalizeForms(value) {
 
 function normalizeStringArray(value, errorMessage) {
   if (value === undefined || value === null) return [];
-  if (!Array.isArray(value) || value.some(item => typeof item !== "string")) throw new Error(errorMessage);
+  if (!Array.isArray(value) || value.some(item => typeof item !== "string")) {
+    throw new Error(errorMessage);
+  }
   return [...value];
 }
 
 function validateStringArray(value, errorMessage) {
-  if (!Array.isArray(value) || value.some(item => typeof item !== "string")) throw new Error(errorMessage);
+  if (!Array.isArray(value) || value.some(item => typeof item !== "string")) {
+    throw new Error(errorMessage);
+  }
 }
 
 function normalizePlainObject(value, errorMessage, fallback) {
@@ -250,7 +316,9 @@ function validateNullableString(value, errorMessage) {
 function cloneValue(value) {
   if (Array.isArray(value)) return value.map(cloneValue);
   if (value && typeof value === "object") {
-    return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, cloneValue(item)]));
+    return Object.fromEntries(
+      Object.entries(value).map(([key, item]) => [key, cloneValue(item)]),
+    );
   }
   return value;
 }
