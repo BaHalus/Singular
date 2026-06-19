@@ -1,13 +1,13 @@
 # FormTransitionRuntime
 
-**Código:** DOM-FORM-1.7  
+**Código:** DOM-FORM-1.8  
 **Status:** Aprovado  
 **Camada:** Domain / Application boundary  
 **Tipo:** Runtime persistente e motor de avanço
 
-FormTransitionRuntime acompanha uma forma ativa depois da execução da transição.
+FormTransitionRuntime acompanha a sessão da forma ativa.
 
-## Estrutura
+## Estado persistido
 
 ```js
 {
@@ -17,144 +17,47 @@ FormTransitionRuntime acompanha uma forma ativa depois da execução da transiç
   observedAt,
   elapsedSeconds,
   status,
-
-  maintenance: [
-    {
-      costId,
-      resource,
-      resourceKey,
-      amount,
-      intervalSeconds,
-      chargedIntervals,
-      lastChargedAt,
-      nextDueAt,
-      notes
-    }
-  ],
-
-  duration: {
-    minimumSeconds,
-    maximumSeconds,
-    minimumReached,
-    maximumReached
-  },
-
+  maintenance,
+  duration,
   returnRequest
 }
 ```
 
-## Localização
+Ele fica em `AlternateFormSet.transitionRuntime`. A forma-base deve mantê-lo nulo.
 
-```text
-AlternateFormSet.transitionRuntime
-```
-
-Existe no máximo um runtime por conjunto, sempre vinculado à forma ativa.
-
-Quando a forma muda, `AlternateFormOperations` limpa o runtime anterior.
-
-`FormTransitionExecutor` inicializa o runtime da nova forma. Ao retornar à forma-base, o runtime fica nulo.
-
-## Inicialização
+## Operações
 
 ```js
 initializeFormTransitionRuntime(character, formSetId, options)
 clearFormTransitionRuntime(character, formSetId, options)
-```
-
-A inicialização usa:
-
-- `activeSince` como início;
-- `activeActivationId`, quando existir;
-- regras efetivas da forma ativa;
-- custos com `timing: "maintenance"`;
-- duração mínima e máxima.
-
-IDs de custos são preservados quando únicos. Quando fases diferentes reutilizam o mesmo ID, o runtime cria IDs determinísticos com fase e posição, evitando colisão sem descartar nenhuma cobrança.
-
-## Avaliação pura
-
-```js
 evaluateFormTransitionRuntime(character, formSetId, context)
-```
-
-Produz:
-
-```js
-{
-  status,
-  observedAt,
-  elapsedSeconds,
-  dueMaintenance,
-  unscheduledMaintenance,
-  duration,
-  returnMode,
-  returnTargetFormId,
-  returnTriggers,
-  activeTriggerIds,
-  returnReasons
-}
-```
-
-A avaliação não altera o Character.
-
-## Avanço
-
-```js
 advanceFormTransitionRuntime(character, formSetId, context)
 advanceAllFormTransitionRuntimes(character, context)
 ```
 
-O avanço:
+## Avanço
 
-1. inicializa runtime ausente de forma ativa;
-2. calcula tempo decorrido;
-3. calcula intervalos de manutenção vencidos;
-4. tenta cobrar todos atomicamente;
-5. atualiza contadores;
-6. verifica duração e gatilhos;
-7. registra pedido de retorno;
-8. chama o planner para preparar o retorno;
-9. devolve Character novo, relatório e plano eventual.
+O avanço calcula tempo, intervalos vencidos, manutenção, duração e pedidos de retorno.
 
-## Cobrança de manutenção
+Custos vencidos são cobrados atomicamente. Falha de pagamento não altera parcialmente os pools nem os contadores.
+
+Repetir a mesma observação não cobra novamente.
+
+## Histórico
+
+Eventos significativos são persistidos em `Character.formTransitionHistory`:
 
 ```text
-totalIntervals = floor(elapsedSeconds / intervalSeconds)
-dueIntervals = totalIntervals - chargedIntervals
-dueAmount = amount × dueIntervals
+maintenance-charged
+maintenance-unpaid
+return-requested
 ```
 
-Custos da mesma reserva são agregados pelo consumidor de recursos já usado pelo executor.
-
-Em falha:
-
-```js
-{
-  status: "maintenance-unpaid",
-  maintenancePaid: false,
-  maintenanceError,
-  returnRequest
-}
-```
-
-Nenhum contador ou pool é parcialmente alterado.
-
-## Duração
-
-A duração mínima é informativa.
-
-A duração máxima produz:
-
-```text
-maximum-duration-reached
-```
-
-O runtime entra em `expired` e prepara retorno.
+Observações sem efeito não geram eventos.
 
 ## Retorno
 
-Motivos iniciais:
+O runtime prepara um plano de retorno para:
 
 ```text
 maximum-duration-reached
@@ -162,41 +65,12 @@ return-trigger-active
 maintenance-unpaid
 ```
 
-O runtime escolhe intenção:
-
-```text
-involuntary, quando o modo é involuntary
-automatic, nos demais retornos preparados pelo runtime
-```
-
-O plano retornado ainda pode estar `ready`, `pending` ou `blocked`.
-
-## Isolamento entre conjuntos
-
-Cada conjunto possui seu relógio, manutenção e pedido de retorno.
-
-`advanceAllFormTransitionRuntimes` processa os conjuntos sequencialmente sem fundir seus estados.
+O retorno não ocorre silenciosamente. A execução depende de chamada explícita ao ciclo ou ao executor.
 
 ## Serialização
 
-`transitionRuntime` integra a serialização de AlternateForms.
+Runtime, manutenção processada e pedido de retorno sobrevivem ao salvamento e carregamento do Character.
 
-Isso permite salvar e restaurar:
+## Limites
 
-- instante inicial;
-- tempo observado;
-- intervalos já cobrados;
-- próxima cobrança;
-- duração atingida;
-- pedido de retorno pendente.
-
-## Não responsabilidades
-
-O runtime não:
-
-- executa o plano de retorno;
-- resolve testes;
-- cria fatos de contexto;
-- avança tempo global;
-- agenda tarefas externas;
-- mantém histórico definitivo de execuções.
+O runtime não resolve testes, não cria fatos do mundo, não avança o relógio global e não agenda tarefas externas.
