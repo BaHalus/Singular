@@ -160,6 +160,9 @@ export function executeFormTransition(character, plan, options = {}) {
   const transitionedSet = transitionedCharacter.alternateFormSets.find(
     candidate => candidate.id === currentPlan.formSetId,
   );
+  const targetForm = transitionedSet?.forms.find(
+    candidate => candidate.id === currentPlan.targetFormId,
+  ) ?? null;
   const executionId = options.executionId ?? generateExecutionId();
   const receipt = {
     id: executionId,
@@ -169,6 +172,8 @@ export function executeFormTransition(character, plan, options = {}) {
     formSetId: currentPlan.formSetId,
     fromFormId: currentPlan.fromFormId,
     targetFormId: currentPlan.targetFormId,
+    targetTemplateId: targetForm?.templateId ?? null,
+    morphKnownFormId: targetForm?.morphKnownFormId ?? null,
     transitionKind: currentPlan.transitionKind,
     intent: currentPlan.intent,
 
