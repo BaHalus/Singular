@@ -8,6 +8,7 @@ import {
 import { importTraits } from "./importers/TraitsImporter.js";
 import { importSkills } from "./importers/SkillsImporter.js";
 import { importTechniques } from "./importers/TechniquesImporter.js";
+import { importSpells } from "./importers/SpellsImporter.js";
 import { importLanguages } from "./importers/LanguagesImporter.js";
 import { importFamiliarities } from "./importers/FamiliaritiesImporter.js";
 import { importEquipment } from "./importers/EquipmentImporter.js";
@@ -23,6 +24,7 @@ export function createSnapshotFromGcs(source = {}) {
     techniqueNodes,
     importedSkills.skills,
   );
+  const importedSpells = importSpells(readSpellsSource(source));
   const languageNodes = mergeImportedNodes(
     importedTraits.languageNodes,
     readLanguagesSource(source),
@@ -47,6 +49,10 @@ export function createSnapshotFromGcs(source = {}) {
     techniqueNodes,
     unresolvedTechniqueLinks: importedTechniques.unresolvedLinks,
     unknownSkillNodes: importedSkills.unknownNodes,
+
+    spells: importedSpells.spells,
+    spellContainers: importedSpells.containers,
+    unknownSpellNodes: importedSpells.unknownNodes,
 
     languages: importedLanguages.languages,
     languageNodes,
@@ -78,6 +84,7 @@ export function importCharacter(source = {}) {
 
     skills: snapshot.skills,
     techniques: snapshot.techniques,
+    spells: snapshot.spells,
     languages: snapshot.languages,
     familiarities: snapshot.familiarities,
     equipment: snapshot.equipment,
@@ -96,6 +103,18 @@ function readTechniquesSource(source) {
   if (Array.isArray(source.techniques)) return source.techniques;
   if (Array.isArray(source.techniqueRows)) return source.techniqueRows;
   if (Array.isArray(source.technique_rows)) return source.technique_rows;
+
+  return [];
+}
+
+function readSpellsSource(source) {
+  if (Array.isArray(source.spells)) return source.spells;
+  if (Array.isArray(source.spellRows)) return source.spellRows;
+  if (Array.isArray(source.spell_rows)) return source.spell_rows;
+
+  if (source.type === "spell_list" && Array.isArray(source.rows)) {
+    return source.rows;
+  }
 
   return [];
 }
