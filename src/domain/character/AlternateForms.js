@@ -11,6 +11,11 @@ import {
   validateFormTransitionRules,
   serializeFormTransitionRules,
 } from "./FormTransitionRules.js";
+import {
+  createFormTransitionRuntime,
+  validateFormTransitionRuntime,
+  serializeFormTransitionRuntime,
+} from "./FormTransitionRuntime.js";
 
 const FORM_MECHANISMS = ["alternateForm", "morph"];
 
@@ -41,6 +46,7 @@ export function createAlternateFormSet(input = {}) {
     activeFormId,
     activeActivationId: input.activeActivationId ?? null,
     activeSince: input.activeSince ?? null,
+    transitionRuntime: createFormTransitionRuntime(input.transitionRuntime),
 
     statePolicy: createAlternateFormStatePolicy(input.statePolicy),
     statePolicyOverride: normalizePlainObject(
@@ -160,6 +166,7 @@ export function validateAlternateFormSet(set) {
   );
 
   validateFormTransitionRules(set.transitionRules);
+  validateFormTransitionRuntime(set.transitionRuntime);
 
   if (!Array.isArray(set.forms) || set.forms.length === 0) {
     throw new Error("Alternate form set must have at least one form");
@@ -193,6 +200,18 @@ export function validateAlternateFormSet(set) {
     set.activeSince,
     "Alternate form set activeSince must be string or null",
   );
+
+  if (set.transitionRuntime !== null) {
+    if (set.transitionRuntime.formId !== set.activeFormId) {
+      throw new Error("Alternate form transitionRuntime must reference active form");
+    }
+    if (
+      set.activeActivationId !== null &&
+      set.transitionRuntime.activationId !== set.activeActivationId
+    ) {
+      throw new Error("Alternate form transitionRuntime activationId must match active activation");
+    }
+  }
 
   if (
     set.transitionRules.return.targetFormId !== null &&
@@ -289,6 +308,7 @@ export function serializeAlternateFormSets(sets) {
     activeFormId: set.activeFormId,
     activeActivationId: set.activeActivationId,
     activeSince: set.activeSince,
+    transitionRuntime: serializeFormTransitionRuntime(set.transitionRuntime),
 
     statePolicy: serializeAlternateFormStatePolicy(set.statePolicy),
     statePolicyOverride: cloneValue(set.statePolicyOverride),
