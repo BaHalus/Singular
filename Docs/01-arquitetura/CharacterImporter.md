@@ -1,6 +1,6 @@
 # CharacterImporter
 
-**Código:** DOM-IMP-1.2
+**Código:** DOM-IMP-1.3
 **Status:** Aprovado
 **Camada:** Domain / Import
 **Tipo:** Import Pipeline
@@ -65,6 +65,7 @@ Estrutura atual:
   techniques: [],
   skillContainers: [],
   techniqueNodes: [],
+  unresolvedTechniqueLinks: [],
   unknownSkillNodes: [],
 
   languages: [],
@@ -76,7 +77,7 @@ Estrutura atual:
 
 ---
 
-## DOM-IMP-1.2
+## DOM-IMP-1.3
 
 A entrega atual importa:
 
@@ -87,7 +88,8 @@ A entrega atual importa:
 - qualidades;
 - desvantagens;
 - peculiaridades;
-- perícias.
+- perícias;
+- técnicas.
 
 Perícias passam por:
 
@@ -99,34 +101,51 @@ SkillsImporter
 Character.skills
 ```
 
+Técnicas passam por:
+
+```text
+GCS technique nodes
+  ↓
+TechniquesImporter
+  ↓
+resolução da perícia-mãe
+  ↓
+Character.techniques
+```
+
+O `TechniquesImporter` tenta vincular a técnica à perícia-mãe nesta ordem:
+
+1. ID interno ou ID externo do GCS;
+2. nome e especialização;
+3. preservação como vínculo não resolvido.
+
+Quando houver mais de uma perícia compatível, o vínculo fica ambíguo e não é escolhido automaticamente.
+
 O importador preserva, sem recalcular:
 
-- atributo-base;
 - dificuldade;
 - pontos;
 - NH informado pelo GCS;
 - NH relativo informado pelo GCS;
+- penalidade do default;
+- limite relativo máximo;
 - especialização;
-- nível tecnológico;
 - defaults;
 - features;
-- weapons;
 - pré-requisitos;
 - notas;
 - tags;
-- dados brutos.
+- dados brutos;
+- diagnóstico do vínculo com a perícia-mãe.
 
-Containers de perícias, nós de técnicas e nós desconhecidos são preservados no `ImportSnapshot`.
-
-Técnicas ainda não são incorporadas a `Character.techniques`; isso será responsabilidade do próximo importador específico.
+Containers de perícias, nós intermediários, nós desconhecidos e vínculos de técnica não resolvidos permanecem no `ImportSnapshot`.
 
 ---
 
 ## Fora de escopo atual
 
-DOM-IMP-1.2 ainda não importa:
+DOM-IMP-1.3 ainda não importa:
 
-- técnicas para o agregado final;
 - equipamentos;
 - magias;
 - templates como agregados finais;
@@ -152,3 +171,6 @@ DOM-IMP-1.2 ainda não importa:
 - [x] Refatorar Skills para preservar campos ricos
 - [x] Criar SkillsImporter.js
 - [x] Integrar SkillsImporter ao CharacterImporter
+- [x] Refatorar Techniques para preservar campos ricos
+- [x] Criar TechniquesImporter.js
+- [x] Integrar TechniquesImporter ao CharacterImporter
