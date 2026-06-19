@@ -1,11 +1,12 @@
 # Morfose
 
-**Código:** DOM-MORPH-1.1  
-**Status:** Resolução da vantagem implementada  
+**Código:** DOM-MORPH-1.2  
+**Status:** Seleção e materialização de forma conhecida implementadas  
 **Camada:** Domain  
-**Tipo:** Perfil declarativo, catálogo conhecido e resolução explicável
+**Tipo:** Perfil, catálogo, resolução e projeção transitória  
+**Decisões:** ADR-0020, ADR-0021 e ADR-0022
 
-Morfose reutiliza o subsistema de formas temporárias e acrescenta catálogo, aquisição, memorização, improvisação, limites declarados e resolução da vantagem de origem.
+Morfose reutiliza integralmente o subsistema de formas temporárias e acrescenta catálogo, aquisição, memorização, improvisação, limites declarados, resolução da vantagem e materialização de formas conhecidas.
 
 ## Terminologia
 
@@ -23,7 +24,7 @@ morph
 
 `Metamorfose` permanece uma entrada distinta.
 
-## Localização
+## Estrutura no agregado
 
 ```text
 AlternateFormSet
@@ -31,17 +32,14 @@ AlternateFormSet
     ├── sourceTraitId
     ├── morphProfile
     ├── morphProfileOverride
-    └── morphProfileResolution
+    ├── morphProfileResolution
+    └── forms
+        └── AlternateForm materializada
+            ├── morphKnownFormId
+            └── morphMaterialization
 ```
 
-Forma Alternativa usa o mesmo agregado de conjunto, mas mantém:
-
-```js
-mechanism: "alternateForm"
-morphProfile: null
-morphProfileOverride: null
-morphProfileResolution: null
-```
+Conjuntos de Forma Alternativa mantêm os campos exclusivos de Morfose como nulos.
 
 ## Perfil
 
@@ -67,7 +65,6 @@ morphProfileResolution: null
   },
 
   knownForms: [],
-
   notes: "",
   tags: [],
   importMeta: null,
@@ -115,7 +112,9 @@ modifier
 campaign
 ```
 
-O perfil não calcula esse limite. Ele registra valor, modo e proveniência.
+O perfil registra valor, modo e proveniência. Não calcula o limite.
+
+A aplicação mecânica do limite permanece reservada ao DOM-MORPH-1.5.
 
 ## Catálogo
 
@@ -127,11 +126,11 @@ knownOnly
 open
 ```
 
-`unknown` significa que a política ainda não foi resolvida.
+`unknown` significa política ainda não resolvida.
 
-`knownOnly` declara que a seleção deve vir do catálogo conhecido.
+`knownOnly` exige seleção do catálogo conhecido.
 
-`open` declara que o catálogo não é a única fonte, sem autorizar por si só improvisação irrestrita.
+`open` declara que o catálogo não é a única fonte, sem autorizar improvisação irrestrita por si só.
 
 ## Memorização
 
@@ -144,7 +143,7 @@ permanent
 limited
 ```
 
-`capacity` permanece declarativa e não é derivada localmente.
+`capacity` é declarativa e não é derivada localmente.
 
 ## Improvisação
 
@@ -157,7 +156,7 @@ allowed
 conditional
 ```
 
-`pointLimit` é independente do limite geral e pode permanecer nulo.
+`pointLimit` de improvisação é independente do limite geral.
 
 ## Forma conhecida
 
@@ -195,6 +194,8 @@ unavailable
 forgotten
 ```
 
+Uma forma esquecida permanece registrada para preservar proveniência.
+
 ## Referências resolvidas e não resolvidas
 
 Forma resolvida:
@@ -216,7 +217,7 @@ Forma importada ainda não vinculada:
 }
 ```
 
-O domínio preserva a referência externa e não inventa associação por nome aproximado.
+Nenhum template é inferido por semelhança de nome.
 
 ## Resolução da vantagem
 
@@ -229,16 +230,15 @@ applyResolvedMorphProfiles(character, options)
 
 O resolver:
 
-1. usa `sourceTraitId` válido;
-2. na ausência dele, aceita somente uma vantagem chamada `Morfose`;
-3. não escolhe quando há múltiplas candidatas;
-4. coleta modifiers, features e dados explícitos preservados;
+1. usa `sourceTraitId` explícito válido;
+2. aceita vínculo automático apenas com uma única vantagem Morfose;
+3. preserva ambiguidades sem escolha arbitrária;
+4. coleta modifiers, features e dados explícitos;
 5. ignora mecanicamente evidências desabilitadas;
-6. aplica regras builtin conhecidas;
-7. aplica regras de campanha;
-8. aplica diretivas explícitas;
-9. aplica override manual por último;
-10. persiste perfil, decisões, evidências e diagnósticos.
+6. preserva modifiers desconhecidos;
+7. aplica precedência explicável;
+8. persiste decisões e diagnósticos;
+9. recompõe o perfil a partir do perfil-base.
 
 ## Precedência
 
@@ -251,17 +251,7 @@ perfil-base
 → manual
 ```
 
-Conflitos de mesma prioridade são registrados, não sobrescritos silenciosamente.
-
-## Recomposição
-
-A resolução preserva:
-
-```text
-morphProfileResolution.baseProfile
-```
-
-Toda nova resolução recomeça desse perfil-base. Remover ou desabilitar um modificador remove também sua contribuição anterior.
+Conflitos de mesma prioridade são diagnosticados, não sobrescritos silenciosamente.
 
 ## Modificadores reconhecidos
 
@@ -275,7 +265,7 @@ Não Exige Memorização
 Incapaz de Memorizar Formas
 ```
 
-Reconhecidos sem inventar consequências ainda não modeladas:
+Reconhecidos como evidência, sem inventar consequências ainda não modeladas:
 
 ```text
 Cosmética
@@ -286,71 +276,170 @@ Imperfeita
 Somente Formas Não-Vivas
 ```
 
-Modificadores desabilitados aparecem em `ignoredModifiers`.
+## Materialização de forma conhecida
 
-Modificadores ativos ainda desconhecidos aparecem em `unresolvedModifiers`.
+```js
+analyzeMorphKnownFormMaterialization(character, setId, knownFormId)
+materializeMorphKnownForm(character, setId, knownFormId, options)
+```
 
-## Diretivas explícitas
+Pré-condições:
 
-Dados importados ou autorais podem fornecer:
+- entrada existente;
+- estado `available`;
+- `templateId` resolvido;
+- template presente em `Character.templates`.
+
+A materialização cria uma projeção transitória em `AlternateFormSet.forms`:
 
 ```js
 {
-  morphProfile: {
-    catalog: {
-      mode: "knownOnly",
-      capacity: 8
-    },
-    improvisation: {
-      mode: "conditional",
-      pointLimit: 30
-    }
+  id: "morph:<setId>:<knownFormId>",
+  name,
+  templateId,
+  sourceTraitId,
+  morphKnownFormId,
+  morphMaterialization,
+  runtimeState
+}
+```
+
+Ela não incorpora o template permanentemente e não ativa a forma.
+
+## Proveniência
+
+```js
+{
+  knownFormId,
+  templateId,
+  templateFingerprint,
+  materializedAt,
+  sourceName,
+  acquisitionMethod,
+  externalIds
+}
+```
+
+Esses dados sobrevivem à serialização.
+
+## Idempotência e atualização
+
+Materializar novamente sem alterações reutiliza a forma existente.
+
+Quando o template muda, a materialização fica obsoleta e precisa de atualização explícita:
+
+```js
+{
+  refresh: true
+}
+```
+
+Uma forma materializada ativa não pode ser atualizada no meio da sessão.
+
+## Preparação da transição
+
+```js
+prepareMorphKnownFormTransition(
+  character,
+  setId,
+  knownFormId,
+  context,
+  options
+)
+```
+
+Fluxo:
+
+```text
+entrada conhecida
+→ materialização ou reutilização
+→ planFormTransition
+→ plano retornado ao chamador
+```
+
+A operação não executa a transformação.
+
+## Planner
+
+O plano inclui:
+
+```js
+{
+  targetTemplateId,
+  morphSelection: {
+    knownFormId,
+    knownFormState,
+    templateId,
+    templateImportedPoints,
+    materialization,
+    status,
+    reasons,
+    pointLimitEvaluation
   }
 }
 ```
 
-A forma `morph_profile` também é aceita.
+A seleção participa do fingerprint do plano.
 
-## Regras de campanha
+O planner bloqueia quando a forma conhecida:
 
-Uma regra pode selecionar por:
+- está indisponível;
+- foi esquecida;
+- perdeu o template;
+- possui materialização inconsistente;
+- possui materialização obsoleta.
+
+## Executor
+
+A execução continua usando `FormTransitionExecutor`.
+
+Ele revalida:
+
+- catálogo;
+- estado da entrada;
+- template;
+- fingerprint da materialização;
+- regras e recursos da transição.
+
+O recibo e o histórico registram:
 
 ```text
-setId
-sourceTraitId
-traitName
-modifierName
+targetTemplateId
+morphKnownFormId
 ```
 
-E declarar um perfil parcial com precedência superior às regras builtin.
+Nenhuma falha altera o Character original.
 
-## Override manual
+## Runtime e continuidade
+
+A forma recém-materializada recebe `AlternateForm.runtimeState` válido e não inicializado.
+
+Depois da ativação, reutiliza:
+
+- políticas de continuidade;
+- runtime da forma ativa;
+- custos e duração;
+- retorno;
+- histórico persistente.
+
+## Motivos de análise
+
+Pendente:
 
 ```text
-AlternateFormSet.morphProfileOverride
+morph-known-form-template-unresolved
 ```
 
-Tem precedência final e permanece serializado.
-
-## Explicação persistente
+Bloqueantes:
 
 ```text
-AlternateFormSet.morphProfileResolution
+morph-known-form-not-found
+morph-known-form-unavailable
+morph-known-form-forgotten
+morph-known-form-template-missing
+morph-materialization-invalid
+morph-materialization-stale
 ```
-
-Contém:
-
-- vantagem vinculada;
-- método de vínculo;
-- perfil-base;
-- perfil resolvido;
-- decisão por campo;
-- evidências;
-- modifiers reconhecidos;
-- modifiers ignorados;
-- modifiers não resolvidos;
-- conflitos e diagnósticos;
-- instante de resolução.
 
 ## Operações do catálogo
 
@@ -365,55 +454,54 @@ findMorphKnownFormByTemplate(set, templateId)
 listAvailableMorphKnownForms(character, setId)
 ```
 
-As operações não alteram Forma Alternativa e não ativam formas.
-
 ## Validação no Character
 
-Para cada conjunto `morph`:
+Para conjuntos `morph`:
 
 - `morphProfile` é obrigatório;
-- override e resolution devem ser objetos ou nulos;
+- override e resolution são objetos ou nulos;
 - IDs do catálogo são únicos;
-- `templateId`, quando presente, referencia `Character.templates`;
-- um template não aparece duas vezes no mesmo catálogo;
-- limite, modo e fonte devem ser coerentes.
+- templates resolvidos apontam para `Character.templates`;
+- uma entrada conhecida possui no máximo uma forma materializada;
+- a forma materializada referencia entrada e template coerentes;
+- a forma-base não pode ser uma materialização conhecida;
+- proveniência é obrigatória para formas materializadas.
 
 Para conjuntos `alternateForm`:
 
-- perfil, override e resolution de Morfose devem ser nulos.
+- dados exclusivos de Morfose são nulos;
+- formas não podem carregar materialização de Morfose.
 
 ## Serialização
 
 Sobrevivem ao save/load:
 
-- perfil-base e perfil resolvido;
-- vínculo com a vantagem;
+- perfil-base e resolvido;
+- vínculo da vantagem;
 - override;
-- decisões;
-- evidências;
-- diagnósticos;
-- catálogo e referências externas.
+- decisões e diagnósticos;
+- catálogo;
+- referências externas;
+- formas materializadas;
+- fingerprints e proveniência;
+- runtime state da forma.
 
 ## Próximos blocos
 
 ```text
-DOM-MORPH-1.2 — seleção e materialização de forma conhecida
 DOM-MORPH-1.3 — aquisição e memorização
 DOM-MORPH-1.4 — improvisação
 DOM-MORPH-1.5 — limites e fechamento
 ```
 
-A divisão poderá ser refinada conforme os formatos reais importados, sem criar caminhos paralelos.
-
 ## Não responsabilidades
 
-DOM-MORPH-1.1 não:
+DOM-MORPH-1.2 não:
 
-- seleciona forma;
-- ativa template;
-- calcula custo da vantagem;
-- inventa efeito para modifiers desconhecidos;
 - aprende formas;
 - observa criaturas;
+- resolve memorização;
 - improvisa templates;
-- executa testes de transformação.
+- aplica limite de pontos;
+- calcula custo da vantagem;
+- atualiza silenciosamente uma forma ativa.
