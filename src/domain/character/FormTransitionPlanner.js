@@ -39,9 +39,16 @@ export function planFormTransition(
   if (!targetForm) throw new Error("Alternate form target not found");
 
   const intent = context.intent ?? "voluntary";
+  const bypassReturnTriggers = context.bypassReturnTriggers === true;
 
   if (fromForm.id === targetForm.id) {
-    return createAlreadyActivePlan(character, set, fromForm, intent);
+    return createAlreadyActivePlan(
+      character,
+      set,
+      fromForm,
+      intent,
+      bypassReturnTriggers,
+    );
   }
 
   const phases = buildTransitionPhases(set, fromForm, targetForm)
@@ -86,6 +93,7 @@ export function planFormTransition(
     allowed: status === "ready",
     status,
     intent,
+    bypassReturnTriggers,
     transitionKind: determineTransitionKind(set, fromForm, targetForm),
 
     formSetId: set.id,
@@ -203,7 +211,13 @@ function determineTransitionKind(set, fromForm, targetForm) {
   return "switch";
 }
 
-function createAlreadyActivePlan(character, set, form, intent) {
+function createAlreadyActivePlan(
+  character,
+  set,
+  form,
+  intent,
+  bypassReturnTriggers,
+) {
   const rules = getEffectiveTransitionRules(set, form);
 
   return {
@@ -211,6 +225,7 @@ function createAlreadyActivePlan(character, set, form, intent) {
     allowed: false,
     status: "already-active",
     intent,
+    bypassReturnTriggers,
     transitionKind: "none",
     formSetId: set.id,
     fromFormId: form.id,
