@@ -70,6 +70,8 @@ A inicialização usa:
 - custos com `timing: "maintenance"`;
 - duração mínima e máxima.
 
+IDs de custos são preservados quando únicos. Quando fases diferentes reutilizam o mesmo ID, o runtime cria IDs determinísticos com fase e posição, evitando colisão sem descartar nenhuma cobrança.
+
 ## Avaliação pura
 
 ```js
