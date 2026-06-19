@@ -87,11 +87,15 @@ export function advanceFormTransitionRuntime(character, formSetId, context = {})
       updatedAt: evaluation.observedAt,
     },
   });
+  const forcedReturn = returnRequest !== null && returnRequest.reasons.some(
+    reason => ["maximum-duration-reached", "maintenance-unpaid"].includes(reason),
+  );
   const returnPlan = returnRequest === null
     ? null
     : planFormReturn(updated, formSetId, {
       ...context,
       intent: returnRequest.intent,
+      bypassReturnTriggers: forcedReturn,
       activeTriggers: unique([
         ...(context.activeTriggers ?? []),
         ...returnRequest.triggerIds,
