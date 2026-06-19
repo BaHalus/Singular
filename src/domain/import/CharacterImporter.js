@@ -1,6 +1,9 @@
 import { createCharacter } from "../character/Character.js";
 import { linkAlternateForms } from "../character/AlternateFormsLinker.js";
 import { applyResolvedFormStatePolicies } from "../character/FormStatePolicyResolver.js";
+import {
+  applyResolvedFormTransitionRulesToAll,
+} from "../character/FormTransitionRulesResolver.js";
 import { createImportSnapshot } from "./ImportSnapshot.js";
 import { importIdentity } from "./importers/IdentityImporter.js";
 import {
@@ -119,24 +122,39 @@ export function importCharacterWithDiagnostics(source = {}, options = {}) {
     character,
     options.alternateFormsLinker,
   );
-  const resolverOptions = {
+
+  const stateResolverOptions = {
     ...(options.formStatePolicyResolver ?? {}),
   };
 
   if (options.now !== undefined) {
-    resolverOptions.now = options.now;
+    stateResolverOptions.now = options.now;
   }
 
-  const resolved = applyResolvedFormStatePolicies(
+  const stateResolved = applyResolvedFormStatePolicies(
     linked.character,
-    resolverOptions,
+    stateResolverOptions,
+  );
+
+  const transitionResolverOptions = {
+    ...(options.formTransitionRulesResolver ?? {}),
+  };
+
+  if (options.now !== undefined) {
+    transitionResolverOptions.now = options.now;
+  }
+
+  const transitionResolved = applyResolvedFormTransitionRulesToAll(
+    stateResolved.character,
+    transitionResolverOptions,
   );
 
   return {
-    character: resolved.character,
+    character: transitionResolved.character,
     snapshot,
     alternateFormLinkReport: linked.report,
-    formStatePolicyResolutions: resolved.resolutions,
+    formStatePolicyResolutions: stateResolved.resolutions,
+    formTransitionRulesResolutions: transitionResolved.resolutions,
   };
 }
 
