@@ -1,6 +1,6 @@
 # CharacterImporter
 
-**Código:** DOM-IMP-1.4
+**Código:** DOM-IMP-1.5
 **Status:** Aprovado
 **Camada:** Domain / Import
 **Tipo:** Import Pipeline
@@ -57,6 +57,8 @@ Estrutura atual:
     perks: [],
     disadvantages: [],
     quirks: [],
+    languageNodes: [],
+    familiarityNodes: [],
     containers: [],
     unknownNodes: []
   },
@@ -69,7 +71,12 @@ Estrutura atual:
   unknownSkillNodes: [],
 
   languages: [],
+  languageNodes: [],
+  unknownLanguageNodes: [],
+
   familiarities: [],
+  familiarityNodes: [],
+  unknownFamiliarityNodes: [],
 
   equipment: [],
   unknownEquipmentNodes: [],
@@ -80,7 +87,7 @@ Estrutura atual:
 
 ---
 
-## DOM-IMP-1.4
+## DOM-IMP-1.5
 
 A entrega atual importa:
 
@@ -93,9 +100,11 @@ A entrega atual importa:
 - peculiaridades;
 - perícias;
 - técnicas;
+- idiomas;
+- familiaridades culturais;
 - equipamentos.
 
-Perícias passam por:
+### Perícias
 
 ```text
 GCS skills
@@ -105,7 +114,7 @@ SkillsImporter
 Character.skills
 ```
 
-Técnicas passam por:
+### Técnicas
 
 ```text
 GCS technique nodes
@@ -117,7 +126,62 @@ resolução da perícia-mãe
 Character.techniques
 ```
 
-Equipamentos passam por:
+### Idiomas e familiaridades culturais
+
+No GCS, idiomas e familiaridades culturais podem chegar como traits especiais. O `TraitsImporter` os separa antes de preencher as vantagens comuns:
+
+```text
+GCS traits
+  ↓
+TraitsImporter
+  ├─ languageNodes
+  └─ familiarityNodes
+       ↓
+LanguagesImporter / FamiliaritiesImporter
+       ↓
+Character.languages / Character.familiarities
+```
+
+Também são aceitas coleções diretas em `languages`, `familiarities` e `cultural_familiarities`.
+
+O `LanguagesImporter` preserva, sem recalcular:
+
+- nome do idioma;
+- nível falado;
+- nível escrito;
+- marcador de idioma nativo;
+- custo informado;
+- referência;
+- modificadores;
+- pré-requisitos;
+- notas, tags, metadados e dados brutos.
+
+Os níveis canônicos internos são:
+
+```text
+none
+broken
+accented
+native
+```
+
+Os rótulos portugueses `Nenhum`, `Rudimentar`, `Com Sotaque` e `Materna`/`Nativo` são normalizados para esses valores.
+
+Linguagens de sinais são preservadas com `mode:signed`; o nível de sinais ocupa provisoriamente `spokenLevel`, enquanto `writtenLevel` permanece `none`. O nó bruto continua disponível para evolução futura do schema.
+
+O `FamiliaritiesImporter` preserva:
+
+- nome da cultura;
+- marcador de cultura nativa;
+- custo informado;
+- referência;
+- modificadores;
+- pré-requisitos;
+- notas, tags, metadados e dados brutos.
+
+Idiomas e familiaridades culturais retirados da árvore de traits não são duplicados em `Character.advantages`.
+
+### Equipamentos
 
 ```text
 GCS equipment / other_equipment / equipment_list.rows
@@ -141,18 +205,14 @@ O `EquipmentImporter`:
 
 Itens de `other_equipment` entram como `stored` por padrão.
 
-Recipientes físicos com capacidade, peso ou custo próprio entram como `physical`. Agrupamentos sem peso e custo próprios entram como `group` e ficam em `ignored`, sem apagar o estado dos itens internos.
-
-O importador não calcula carga, custo total, RD ou ataques. Esses cálculos continuam em serviços de domínio.
+O importador não calcula carga, custo total, RD, ataques, NH ou custos de idiomas e familiaridades.
 
 ---
 
 ## Fora de escopo atual
 
-DOM-IMP-1.4 ainda não importa:
+DOM-IMP-1.5 ainda não importa:
 
-- idiomas;
-- familiaridades culturais;
 - magias;
 - templates como agregados finais;
 - ataques derivados;
@@ -181,6 +241,11 @@ DOM-IMP-1.4 ainda não importa:
 - [x] Refatorar Techniques para preservar campos ricos
 - [x] Criar TechniquesImporter.js
 - [x] Integrar TechniquesImporter ao CharacterImporter
+- [x] Refatorar Languages e Familiarities para preservar campos ricos
+- [x] Criar LanguagesImporter.js
+- [x] Criar FamiliaritiesImporter.js
+- [x] Separar idiomas e familiaridades da lista comum de vantagens
+- [x] Integrar idiomas e familiaridades ao CharacterImporter
 - [x] Refatorar Equipment para preservar usos e metadados
 - [x] Criar EquipmentImporter.js
 - [x] Integrar EquipmentImporter ao CharacterImporter
