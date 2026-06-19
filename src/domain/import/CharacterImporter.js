@@ -8,6 +8,7 @@ import {
 import { importTraits } from "./importers/TraitsImporter.js";
 import { importSkills } from "./importers/SkillsImporter.js";
 import { importTechniques } from "./importers/TechniquesImporter.js";
+import { importEquipment } from "./importers/EquipmentImporter.js";
 
 export function createSnapshotFromGcs(source = {}) {
   const importedSkills = importSkills(readSkillsSource(source));
@@ -19,6 +20,7 @@ export function createSnapshotFromGcs(source = {}) {
     techniqueNodes,
     importedSkills.skills,
   );
+  const importedEquipment = importEquipment(readEquipmentSource(source));
 
   return createImportSnapshot({
     identity: importIdentity(source),
@@ -32,6 +34,9 @@ export function createSnapshotFromGcs(source = {}) {
     techniqueNodes,
     unresolvedTechniqueLinks: importedTechniques.unresolvedLinks,
     unknownSkillNodes: importedSkills.unknownNodes,
+
+    equipment: importedEquipment.equipment,
+    unknownEquipmentNodes: importedEquipment.unknownNodes,
 
     raw: source,
   });
@@ -52,6 +57,7 @@ export function importCharacter(source = {}) {
 
     skills: snapshot.skills,
     techniques: snapshot.techniques,
+    equipment: snapshot.equipment,
   });
 }
 
@@ -69,6 +75,22 @@ function readTechniquesSource(source) {
   if (Array.isArray(source.technique_rows)) return source.technique_rows;
 
   return [];
+}
+
+function readEquipmentSource(source) {
+  const result = {};
+
+  if (Array.isArray(source.equipment)) {
+    result.equipment = source.equipment;
+  }
+
+  const otherEquipment = source.otherEquipment ?? source.other_equipment;
+
+  if (Array.isArray(otherEquipment)) {
+    result.otherEquipment = otherEquipment;
+  }
+
+  return result;
 }
 
 function mergeTechniqueNodes(fromSkills, directTechniques) {
