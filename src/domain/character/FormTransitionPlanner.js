@@ -9,6 +9,9 @@ import {
 import {
   evaluatePlannedReturnTransition,
 } from "./FormTransitionPlannerReturnEvaluation.js";
+import {
+  evaluateMaterializedMorphTarget,
+} from "./MorphKnownFormMaterialization.js";
 
 const HARD_REASONS = new Set([
   "insufficient-resource",
@@ -18,6 +21,12 @@ const HARD_REASONS = new Set([
   "inactive-trigger",
   "return-locked",
   "invalid-return-target",
+  "morph-known-form-not-found",
+  "morph-known-form-unavailable",
+  "morph-known-form-forgotten",
+  "morph-known-form-template-missing",
+  "morph-materialization-stale",
+  "morph-materialization-invalid",
 ]);
 
 export function planFormTransition(
@@ -40,6 +49,11 @@ export function planFormTransition(
 
   const intent = context.intent ?? "voluntary";
   const bypassReturnTriggers = context.bypassReturnTriggers === true;
+  const morphSelection = evaluateMaterializedMorphTarget(
+    character,
+    set,
+    targetForm,
+  );
 
   if (fromForm.id === targetForm.id) {
     return createAlreadyActivePlan(
@@ -48,6 +62,7 @@ export function planFormTransition(
       fromForm,
       intent,
       bypassReturnTriggers,
+      morphSelection,
     );
   }
 
@@ -79,6 +94,7 @@ export function planFormTransition(
     impediments,
     triggers,
     returnEvaluation,
+    morphSelection,
     timeKnown: time.known,
     requireKnownTime: context.requireKnownTime === true,
   });
@@ -99,6 +115,8 @@ export function planFormTransition(
     formSetId: set.id,
     fromFormId: fromForm.id,
     targetFormId: targetForm.id,
+    targetTemplateId: targetForm.templateId,
+    morphSelection: cloneValue(morphSelection),
 
     maneuver: maneuvers.length === 1 ? maneuvers[0] : null,
     maneuvers,
@@ -151,21 +169,13 @@ export function planFormReturn(character, formSetId, context = {}) {
 function collectReasons(input) {
   const reasons = [];
 
-  if (input.costs.some(cost => cost.payable === false)) {
-    reasons.push("insufficient-resource");
-  }
-  if (input.costs.some(cost => cost.amount === null)) {
-    reasons.push("unknown-cost");
-  }
+  if (input.costs.some(cost => cost.payable === false)) reasons.push("insufficient-resource");
+  if (input.costs.some(cost => cost.amount === null)) reasons.push("unknown-cost");
   if (input.costs.some(cost => cost.resourceKey === null || cost.available === null)) {
     reasons.push("unknown-resource");
   }
-  if (input.tests.some(test => test.status === "failed")) {
-    reasons.push("failed-test");
-  }
-  if (input.tests.some(test => test.status === "pending")) {
-    reasons.push("pending-test");
-  }
+  if (input.tests.some(test => test.status === "failed")) reasons.push("failed-test");
+  if (input.tests.some(test => test.status === "pending")) reasons.push("pending-test");
   if (input.requirements.some(item => item.status === "unsatisfied")) {
     reasons.push("unmet-requirement");
   }
@@ -184,24 +194,18 @@ function collectReasons(input) {
   if (input.triggers.some(item => item.status === "unknown")) {
     reasons.push("unknown-trigger");
   }
-  if (input.returnEvaluation.locked) {
-    reasons.push("return-locked");
-  }
-  if (!input.returnEvaluation.targetMatches) {
-    reasons.push("invalid-return-target");
-  }
-  if (input.requireKnownTime && !input.timeKnown) {
-    reasons.push("unknown-time");
+  if (input.returnEvaluation.locked) reasons.push("return-locked");
+  if (!input.returnEvaluation.targetMatches) reasons.push("invalid-return-target");
+  if (input.requireKnownTime && !input.timeKnown) reasons.push("unknown-time");
+  if (input.morphSelection !== null) {
+    reasons.push(...input.morphSelection.reasons);
   }
 
   return [...new Set(reasons)];
 }
 
 function determineStatus(reasons) {
-  if (reasons.some(reason => HARD_REASONS.has(reason))) {
-    return "blocked";
-  }
-
+  if (reasons.some(reason => HARD_REASONS.has(reason))) return "blocked";
   return reasons.length > 0 ? "pending" : "ready";
 }
 
@@ -217,6 +221,7 @@ function createAlreadyActivePlan(
   form,
   intent,
   bypassReturnTriggers,
+  morphSelection,
 ) {
   const rules = getEffectiveTransitionRules(set, form);
 
@@ -230,6 +235,8 @@ function createAlreadyActivePlan(
     formSetId: set.id,
     fromFormId: form.id,
     targetFormId: form.id,
+    targetTemplateId: form.templateId,
+    morphSelection: cloneValue(morphSelection),
     maneuver: null,
     maneuvers: [],
     timeSeconds: 0,
@@ -279,6 +286,9 @@ function validateCharacter(character) {
   if (!Array.isArray(character.alternateFormSets)) {
     throw new Error("Character alternateFormSets must be array");
   }
+  if (!Array.isArray(character.templates)) {
+    throw new Error("Character templates must be array");
+  }
   if (!character.pools || typeof character.pools !== "object") {
     throw new Error("Character pools must be object");
   }
@@ -290,12 +300,10 @@ function uniqueStrings(values) {
 
 function cloneValue(value) {
   if (Array.isArray(value)) return value.map(cloneValue);
-
   if (value && typeof value === "object") {
     return Object.fromEntries(
       Object.entries(value).map(([key, item]) => [key, cloneValue(item)]),
     );
   }
-
   return value;
 }
