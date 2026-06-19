@@ -1,6 +1,6 @@
 # CharacterImporter
 
-**Código:** DOM-IMP-1.5
+**Código:** DOM-IMP-1.6
 **Status:** Aprovado
 **Camada:** Domain / Import
 **Tipo:** Import Pipeline
@@ -70,6 +70,10 @@ Estrutura atual:
   unresolvedTechniqueLinks: [],
   unknownSkillNodes: [],
 
+  spells: [],
+  spellContainers: [],
+  unknownSpellNodes: [],
+
   languages: [],
   languageNodes: [],
   unknownLanguageNodes: [],
@@ -87,7 +91,7 @@ Estrutura atual:
 
 ---
 
-## DOM-IMP-1.5
+## DOM-IMP-1.6
 
 A entrega atual importa:
 
@@ -100,6 +104,7 @@ A entrega atual importa:
 - peculiaridades;
 - perícias;
 - técnicas;
+- mágicas;
 - idiomas;
 - familiaridades culturais;
 - equipamentos.
@@ -125,6 +130,52 @@ resolução da perícia-mãe
   ↓
 Character.techniques
 ```
+
+### Mágicas
+
+```text
+GCS spells / spell_list.rows
+  ↓
+SpellsImporter
+  ↓
+normalização estrutural sem cálculo
+  ↓
+Character.spells
+```
+
+O `SpellsImporter` preserva:
+
+- mágica padrão ou ritualística;
+- nome;
+- nível tecnológico;
+- atributo-base e dificuldade;
+- pontos;
+- NH informado pelo GCS;
+- NH relativo numérico ou textual;
+- escolas;
+- fonte de poder;
+- classe;
+- resistência;
+- custo de operação;
+- custo de manutenção;
+- tempo de operação;
+- duração;
+- item de encantamento;
+- perícia-base ritualística;
+- contagem de pré-requisitos quando fornecida;
+- referência, notas, tags e categorias;
+- ataques embutidos;
+- features e modificadores;
+- pré-requisitos;
+- dados de estudo;
+- campos de terceiros;
+- `calc`, `importMeta` e `raw`.
+
+Expressões como `Varia`, `Metade`, `1-Aptidão Mágica`, `1 por 10 CP` e `min=custo` permanecem textuais. O importador não tenta interpretá-las.
+
+Containers de mágicas ficam em `spellContainers`, e suas descendentes recebem a ancestralidade em `importMeta.containerIds`.
+
+Nós não reconhecidos ficam em `unknownSpellNodes`.
 
 ### Idiomas e familiaridades culturais
 
@@ -205,22 +256,22 @@ O `EquipmentImporter`:
 
 Itens de `other_equipment` entram como `stored` por padrão.
 
-O importador não calcula carga, custo total, RD, ataques, NH ou custos de idiomas e familiaridades.
+O importador não calcula carga, custo total, RD, ataques, NH, custos de mágicas ou custos de idiomas e familiaridades.
 
 ---
 
 ## Fora de escopo atual
 
-DOM-IMP-1.5 ainda não importa:
+DOM-IMP-1.6 ainda não importa:
 
-- magias;
 - templates como agregados finais;
 - ataques derivados;
 - cálculo de NH;
 - cálculo de carga durante a importação;
 - cálculo de custo de traits;
 - cálculo de poderes;
-- cálculo de habilidades alternativas.
+- cálculo de habilidades alternativas;
+- interpretação mecânica de custos, tempos e durações de mágicas.
 
 ---
 
@@ -241,6 +292,11 @@ DOM-IMP-1.5 ainda não importa:
 - [x] Refatorar Techniques para preservar campos ricos
 - [x] Criar TechniquesImporter.js
 - [x] Integrar TechniquesImporter ao CharacterImporter
+- [x] Criar Spells.js
+- [x] Criar SpellsImporter.js
+- [x] Integrar Spells ao Character
+- [x] Integrar SpellsImporter ao CharacterImporter
+- [x] Preservar containers e nós desconhecidos de mágicas
 - [x] Refatorar Languages e Familiarities para preservar campos ricos
 - [x] Criar LanguagesImporter.js
 - [x] Criar FamiliaritiesImporter.js
