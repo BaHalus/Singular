@@ -38,6 +38,11 @@ export function createAlternateFormSet(input = {}) {
     activeSince: input.activeSince ?? null,
 
     statePolicy: createAlternateFormStatePolicy(input.statePolicy),
+    statePolicyResolution: normalizePlainObject(
+      input.statePolicyResolution,
+      "Alternate form statePolicyResolution must be object or null",
+      null,
+    ),
     forms,
 
     notes: input.notes ?? "",
@@ -117,6 +122,13 @@ export function validateAlternateFormSet(set) {
   );
 
   validateAlternateFormStatePolicy(set.statePolicy);
+
+  if (
+    set.statePolicyResolution !== null &&
+    !isPlainObject(set.statePolicyResolution)
+  ) {
+    throw new Error("Alternate form statePolicyResolution must be object or null");
+  }
 
   if (!Array.isArray(set.forms) || set.forms.length === 0) {
     throw new Error("Alternate form set must have at least one form");
@@ -220,6 +232,7 @@ export function serializeAlternateFormSets(sets) {
     activeSince: set.activeSince,
 
     statePolicy: serializeAlternateFormStatePolicy(set.statePolicy),
+    statePolicyResolution: cloneValue(set.statePolicyResolution),
     forms: set.forms.map(form => ({
       id: form.id,
       name: form.name,
@@ -273,13 +286,25 @@ function normalizePlainObject(value, errorMessage, fallback) {
     throw new Error(errorMessage);
   }
 
-  return { ...value };
+  return cloneValue(value);
 }
 
 function validateNullableString(value, errorMessage) {
   if (value !== null && typeof value !== "string") {
     throw new Error(errorMessage);
   }
+}
+
+function cloneValue(value) {
+  if (Array.isArray(value)) return value.map(cloneValue);
+
+  if (value && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, item]) => [key, cloneValue(item)]),
+    );
+  }
+
+  return value;
 }
 
 function isPlainObject(value) {
