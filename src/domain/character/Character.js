@@ -3,102 +3,91 @@ import {
   validateAttributes,
   serializeAttributes,
 } from "./Attributes.js";
-
 import {
   createSecondaryCharacteristics,
   validateSecondaryCharacteristics,
   serializeSecondaryCharacteristics,
 } from "./SecondaryCharacteristics.js";
-
 import {
   createPools,
   validatePools,
   serializePools,
 } from "./Pools.js";
-
 import {
   createState,
   validateState,
   serializeState,
 } from "./State.js";
-
 import {
   createAdvantages,
   validateAdvantages,
   serializeAdvantages,
 } from "./Advantages.js";
-
 import {
   createPerks,
   validatePerks,
   serializePerks,
 } from "./Perks.js";
-
 import {
   createDisadvantages,
   validateDisadvantages,
   serializeDisadvantages,
 } from "./Disadvantages.js";
-
 import {
   createQuirks,
   validateQuirks,
   serializeQuirks,
 } from "./Quirks.js";
-
 import {
   createSkills,
   validateSkills,
   serializeSkills,
 } from "./Skills.js";
-
 import {
   createTechniques,
   validateTechniques,
   serializeTechniques,
 } from "./Techniques.js";
-
 import {
   createSpells,
   validateSpells,
   serializeSpells,
 } from "./Spells.js";
-
 import {
   createLanguages,
   validateLanguages,
   serializeLanguages,
 } from "./Languages.js";
-
 import {
   createFamiliarities,
   validateFamiliarities,
   serializeFamiliarities,
 } from "./Familiarities.js";
-
 import {
   createEquipment,
   validateEquipment,
   serializeEquipment,
 } from "./Equipment.js";
-
 import {
   createTemplates,
   validateTemplates,
   serializeTemplates,
 } from "./Templates.js";
-
 import {
   createTemplateApplications,
   validateTemplateApplications,
   serializeTemplateApplications,
 } from "./TemplateApplications.js";
-
 import {
   createAlternateFormSets,
   validateAlternateFormSets,
   serializeAlternateFormSets,
 } from "./AlternateForms.js";
+import {
+  createFormTransitionHistory,
+  validateFormTransitionHistoryForCharacter,
+  serializeFormTransitionHistory,
+} from "./FormTransitionHistory.js";
 
 export function createCharacter(input = {}) {
   const character = {
@@ -126,12 +115,12 @@ export function createCharacter(input = {}) {
     templates: createTemplates(input.templates),
     templateApplications: createTemplateApplications(input.templateApplications),
     alternateFormSets: createAlternateFormSets(input.alternateFormSets),
+    formTransitionHistory: createFormTransitionHistory(input.formTransitionHistory),
 
     metadata: input.metadata ?? createDefaultMetadata(),
   };
 
   validateCharacter(character);
-
   return character;
 }
 
@@ -167,6 +156,10 @@ export function validateCharacter(character) {
   validateTemplates(character.templates);
   validateTemplateApplications(character.templateApplications);
   validateAlternateFormSets(character.alternateFormSets);
+  validateFormTransitionHistoryForCharacter(
+    character.formTransitionHistory,
+    character.identity.id,
+  );
 
   if (!character.metadata) {
     throw new Error("Character must have metadata");
@@ -204,6 +197,8 @@ export function serializeCharacter(character) {
     templateApplications:
       serializeTemplateApplications(character.templateApplications),
     alternateFormSets: serializeAlternateFormSets(character.alternateFormSets),
+    formTransitionHistory:
+      serializeFormTransitionHistory(character.formTransitionHistory),
 
     metadata: character.metadata,
   };
