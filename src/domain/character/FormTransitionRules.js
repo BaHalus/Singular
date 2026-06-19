@@ -218,7 +218,7 @@ function normalizeTests(value) {
     id: test.id ?? `transition-test-${index + 1}`,
     kind: test.kind ?? "other",
     target: test.target ?? "",
-    modifier: normalizeNumber(
+    modifier: normalizeSignedNumber(
       test.modifier,
       0,
       "Form transition test modifier must be number",
@@ -301,6 +301,15 @@ function normalizeNumber(value, fallback, errorMessage) {
   if (value === undefined || value === null) return fallback;
   const number = typeof value === "number" ? value : Number(value);
   if (!Number.isFinite(number) || number < 0) {
+    throw new Error(errorMessage);
+  }
+  return number;
+}
+
+function normalizeSignedNumber(value, fallback, errorMessage) {
+  if (value === undefined || value === null) return fallback;
+  const number = typeof value === "number" ? value : Number(value);
+  if (!Number.isFinite(number)) {
     throw new Error(errorMessage);
   }
   return number;
