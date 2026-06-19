@@ -1,23 +1,24 @@
 # AlternateForms
 
-**Código:** DOM-FORM-1.0
+**Código:** DOM-FORM-1.1
 **Status:** Aprovado
 **Camada:** Domain
-**Tipo:** Agregado e operações
+**Tipo:** Agregado, operações e linker
 
 AlternateForms controla transformações reversíveis entre formas vinculadas a templates.
 
-A arquitetura segue ADR-0011.
+A arquitetura segue ADR-0011 e ADR-0012.
 
 ---
 
 ## Objetivo
 
-Separar três conceitos distintos:
+Separar quatro conceitos distintos:
 
 ```text
 Template importado
 Template permanentemente incorporado
+Vínculo entre vantagem e template de forma
 Forma temporariamente ativa
 ```
 
@@ -117,7 +118,126 @@ Assim, ela representa o personagem formado por:
 
 ---
 
+## Linker automático
+
+`AlternateFormsLinker` procura vantagens reconhecidas como:
+
+```text
+Forma Alternativa
+Alternate Form
+```
+
+A análise usa apenas relações determinísticas.
+
+Prioridade:
+
+1. ID explícito do template;
+2. nome explícito do template;
+3. nome entre parênteses;
+4. nome após dois-pontos;
+5. notas da vantagem;
+6. comparação canônica exata.
+
+Exemplo seguro:
+
+```text
+Vantagem: Forma Alternativa
+Notas: Morcego
+Template: Forma de Morcego
+```
+
+O nome canônico `Morcego` é único e o vínculo é criado.
+
+O linker não usa aproximação textual nem escolhe o primeiro resultado.
+
+---
+
+## Relatório de vinculação
+
+```js
+{
+  candidates: [],
+  resolved: [],
+  ambiguous: [],
+  unresolved: [],
+  alreadyLinked: [],
+  createdSetIds: [],
+  updatedSetIds: []
+}
+```
+
+Motivos importantes incluem:
+
+```text
+missing-target-name
+template-name-not-found
+explicit-template-not-found
+ambiguous-template-name
+multiple-existing-links
+existing-link-conflict
+```
+
+Casos ambíguos ou não resolvidos permanecem intactos para revisão manual.
+
+---
+
+## Agrupamento automático
+
+O linker respeita primeiro grupos explícitos declarados pela vantagem:
+
+```text
+alternateGroupId
+alternate_group_id
+formSetId
+form_set_id
+```
+
+Sem grupo explícito, vantagens `Forma Alternativa` entram no grupo corporal padrão:
+
+```text
+body
+```
+
+Esse padrão reúne formas corporais mutuamente exclusivas, como humanoide, morcego, lobo e névoa.
+
+Mecanismos independentes devem declarar grupos distintos.
+
+---
+
+## Idempotência
+
+Executar o linker mais de uma vez não duplica conjuntos ou formas.
+
+Vínculos manuais existentes não são sobrescritos.
+
+Se uma nova vantagem for acrescentada posteriormente, o linker pode adicionar a nova forma ao conjunto automático existente.
+
+---
+
 ## Operações
+
+### analyzeAlternateFormLinks
+
+```js
+analyzeAlternateFormLinks(character)
+```
+
+Produz diagnóstico sem modificar o Character.
+
+### linkAlternateForms
+
+```js
+linkAlternateForms(character)
+```
+
+Retorna:
+
+```js
+{
+  character,
+  report
+}
+```
 
 ### activateAlternateForm
 
@@ -145,7 +265,23 @@ Retorna à forma-base.
 
 ---
 
-## Proveniência
+## Proveniência do vínculo
+
+Conjuntos e formas criados automaticamente recebem:
+
+```js
+{
+  source: "alternateFormsLinker",
+  linkerGroupKey,
+  linkerSourceTraitId,
+  linkerTemplateId,
+  matchMethod
+}
+```
+
+---
+
+## Proveniência da ativação
 
 Componentes temporários clonados recebem:
 
@@ -192,7 +328,7 @@ Equipamentos da forma recebem IDs novos recursivamente.
 
 Cada forma possui um objeto `state` reservado para estado específico futuro.
 
-DOM-FORM-1.0 apenas preserva esse objeto. Ele ainda não sincroniza automaticamente HP, FP, recursos, ferimentos ou equipamentos entre formas.
+DOM-FORM-1.1 apenas preserva esse objeto. Ele ainda não sincroniza automaticamente HP, FP, recursos, ferimentos ou equipamentos entre formas.
 
 ---
 
