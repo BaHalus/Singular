@@ -4,6 +4,10 @@ import {
   appendTemplateComponents,
   removeTemplateComponents,
 } from "./TemplateComponentOperations.js";
+import {
+  captureAlternateFormRuntimeState,
+  restoreAlternateFormRuntimeState,
+} from "./AlternateFormState.js";
 
 export function activateAlternateForm(character, formSetId, formId, options = {}) {
   const set = findAlternateFormSet(character, formSetId);
@@ -37,6 +41,11 @@ export function activateAlternateForm(character, formSetId, formId, options = {}
     throw new Error("Alternate form activation id already exists");
   }
 
+  const outgoingState = captureAlternateFormRuntimeState(
+    character,
+    set,
+    changedAt,
+  );
   const stripped = removeTemplateComponents(
     character,
     record => record?.importMeta?.alternateFormSetId === formSetId,
@@ -68,20 +77,37 @@ export function activateAlternateForm(character, formSetId, formId, options = {}
     );
   }
 
-  const nextSets = character.alternateFormSets.map(candidate => (
-    candidate.id === formSetId
-      ? {
-        ...candidate,
-        activeFormId: form.id,
-        activeActivationId: activationId,
-        activeSince: changedAt,
-      }
-      : candidate
-  ));
+  const restored = restoreAlternateFormRuntimeState(
+    {
+      ...character,
+      ...nextCollections,
+    },
+    set,
+    form.runtimeState,
+  );
+  const nextSets = character.alternateFormSets.map(candidate => {
+    if (candidate.id !== formSetId) return candidate;
+
+    return {
+      ...candidate,
+      activeFormId: form.id,
+      activeActivationId: activationId,
+      activeSince: changedAt,
+      forms: candidate.forms.map(candidateForm => (
+        candidateForm.id === set.activeFormId
+          ? {
+            ...candidateForm,
+            runtimeState: outgoingState,
+          }
+          : candidateForm
+      )),
+    };
+  });
 
   return createCharacter({
     ...character,
     ...nextCollections,
+    ...restored,
     alternateFormSets: nextSets,
     metadata: touchMetadata(character.metadata, changedAt),
   });
