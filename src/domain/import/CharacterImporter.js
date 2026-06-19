@@ -8,11 +8,14 @@ import {
 import { importTraits } from "./importers/TraitsImporter.js";
 import { importSkills } from "./importers/SkillsImporter.js";
 import { importTechniques } from "./importers/TechniquesImporter.js";
+import { importLanguages } from "./importers/LanguagesImporter.js";
+import { importFamiliarities } from "./importers/FamiliaritiesImporter.js";
 import { importEquipment } from "./importers/EquipmentImporter.js";
 
 export function createSnapshotFromGcs(source = {}) {
+  const importedTraits = importTraits(source);
   const importedSkills = importSkills(readSkillsSource(source));
-  const techniqueNodes = mergeTechniqueNodes(
+  const techniqueNodes = mergeImportedNodes(
     importedSkills.techniqueNodes,
     readTechniquesSource(source),
   );
@@ -20,13 +23,23 @@ export function createSnapshotFromGcs(source = {}) {
     techniqueNodes,
     importedSkills.skills,
   );
+  const languageNodes = mergeImportedNodes(
+    importedTraits.languageNodes,
+    readLanguagesSource(source),
+  );
+  const familiarityNodes = mergeImportedNodes(
+    importedTraits.familiarityNodes,
+    readFamiliaritiesSource(source),
+  );
+  const importedLanguages = importLanguages(languageNodes);
+  const importedFamiliarities = importFamiliarities(familiarityNodes);
   const importedEquipment = importEquipment(readEquipmentSource(source));
 
   return createImportSnapshot({
     identity: importIdentity(source),
     attributes: importAttributes(source),
     secondaryCharacteristics: importSecondaryCharacteristics(source),
-    traits: importTraits(source),
+    traits: importedTraits,
 
     skills: importedSkills.skills,
     techniques: importedTechniques.techniques,
@@ -34,6 +47,14 @@ export function createSnapshotFromGcs(source = {}) {
     techniqueNodes,
     unresolvedTechniqueLinks: importedTechniques.unresolvedLinks,
     unknownSkillNodes: importedSkills.unknownNodes,
+
+    languages: importedLanguages.languages,
+    languageNodes,
+    unknownLanguageNodes: importedLanguages.unknownNodes,
+
+    familiarities: importedFamiliarities.familiarities,
+    familiarityNodes,
+    unknownFamiliarityNodes: importedFamiliarities.unknownNodes,
 
     equipment: importedEquipment.equipment,
     unknownEquipmentNodes: importedEquipment.unknownNodes,
@@ -57,6 +78,8 @@ export function importCharacter(source = {}) {
 
     skills: snapshot.skills,
     techniques: snapshot.techniques,
+    languages: snapshot.languages,
+    familiarities: snapshot.familiarities,
     equipment: snapshot.equipment,
   });
 }
@@ -77,6 +100,27 @@ function readTechniquesSource(source) {
   return [];
 }
 
+function readLanguagesSource(source) {
+  if (Array.isArray(source.languages)) return source.languages;
+  if (Array.isArray(source.languageRows)) return source.languageRows;
+  if (Array.isArray(source.language_rows)) return source.language_rows;
+  if (Array.isArray(source.profile?.languages)) return source.profile.languages;
+
+  return [];
+}
+
+function readFamiliaritiesSource(source) {
+  if (Array.isArray(source.familiarities)) return source.familiarities;
+  if (Array.isArray(source.culturalFamiliarities)) return source.culturalFamiliarities;
+  if (Array.isArray(source.cultural_familiarities)) return source.cultural_familiarities;
+  if (Array.isArray(source.profile?.familiarities)) return source.profile.familiarities;
+  if (Array.isArray(source.profile?.cultural_familiarities)) {
+    return source.profile.cultural_familiarities;
+  }
+
+  return [];
+}
+
 function readEquipmentSource(source) {
   const result = {};
 
@@ -93,11 +137,11 @@ function readEquipmentSource(source) {
   return result;
 }
 
-function mergeTechniqueNodes(fromSkills, directTechniques) {
+function mergeImportedNodes(first, second) {
   const result = [];
   const seen = new Set();
 
-  for (const node of [...fromSkills, ...directTechniques]) {
+  for (const node of [...first, ...second]) {
     const raw = node?.raw ?? node;
     const key = raw?.id ?? raw?.uuid ?? node?.id ?? null;
 
