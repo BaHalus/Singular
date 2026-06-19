@@ -18,6 +18,7 @@ planFormReturn(character, formSetId, context)
 
 ```js
 {
+  characterId,
   allowed,
   status,
   intent,
@@ -50,6 +51,8 @@ planFormReturn(character, formSetId, context)
   reasons
 }
 ```
+
+`characterId` vincula o plano ao personagem que o originou.
 
 ## Tipos de transição
 
@@ -115,15 +118,13 @@ Uma troca direta preserva as duas fases, em vez de reduzi-las a uma operação o
 
 ## Resultados de testes
 
-O contexto aceita:
-
 ```js
 testResults: {
   "test-will": "passed"
 }
 ```
 
-Também aceita booleanos:
+Booleanos também são aceitos:
 
 ```js
 true  // passed
@@ -235,8 +236,6 @@ O planner não:
 
 ## Relação com o executor
 
-Fluxo previsto:
-
 ```text
 FormTransitionRules
 ↓
@@ -244,9 +243,9 @@ FormTransitionPlanner
 ↓
 resultados pendentes são resolvidos
 ↓
-plano ready
+plano ready vinculado ao Character
 ↓
 FormTransitionExecutor
 ```
 
-O executor deverá revalidar o plano contra o Character atual, consumir os recursos e efetuar a troca de forma atomicamente.
+O executor revalida o plano contra o Character atual, confirma `characterId`, consome os recursos e efetua a troca de forma atomicamente.
