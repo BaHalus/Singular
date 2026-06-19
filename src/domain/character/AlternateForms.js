@@ -21,6 +21,11 @@ import {
   validateMorphProfile,
   serializeMorphProfile,
 } from "./MorphProfile.js";
+import {
+  createMorphMaterialization,
+  validateMorphMaterialization,
+  serializeMorphMaterialization,
+} from "./MorphMaterialization.js";
 
 const FORM_MECHANISMS = ["alternateForm", "morph"];
 
@@ -94,6 +99,11 @@ export function createAlternateForm(input = {}) {
     name: input.name ?? "",
     templateId: input.templateId ?? null,
     sourceTraitId: input.sourceTraitId ?? null,
+    morphKnownFormId: input.morphKnownFormId ?? null,
+    morphMaterialization: input.morphMaterialization === undefined ||
+      input.morphMaterialization === null
+      ? null
+      : createMorphMaterialization(input.morphMaterialization),
     notes: input.notes ?? "",
     tags: normalizeStringArray(input.tags, "Alternate form tags must be array"),
     state: normalizePlainObject(input.state, "Alternate form state must be object", {}),
@@ -181,6 +191,8 @@ export function validateAlternateFormSet(set) {
   validateNullableString(set.activeActivationId, "Alternate form set activeActivationId must be string or null");
   validateNullableString(set.activeSince, "Alternate form set activeSince must be string or null");
 
+  validateMorphFormLinks(set);
+
   if (set.activeFormId === set.baseFormId && set.transitionRuntime !== null) {
     throw new Error("Alternate form base form cannot have transitionRuntime");
   }
@@ -223,6 +235,10 @@ export function validateAlternateForm(form) {
   if (typeof form.name !== "string") throw new Error("Alternate form name must be string");
   validateNullableString(form.templateId, "Alternate form templateId must be string or null");
   validateNullableString(form.sourceTraitId, "Alternate form sourceTraitId must be string or null");
+  validateNullableString(form.morphKnownFormId, "Morfose known form id must be string or null");
+  if (form.morphMaterialization !== null) {
+    validateMorphMaterialization(form.morphMaterialization);
+  }
   if (typeof form.notes !== "string") throw new Error("Alternate form notes must be string");
   validateStringArray(form.tags, "Alternate form tags must be string array");
   if (!isPlainObject(form.state)) throw new Error("Alternate form state must be object");
@@ -260,6 +276,10 @@ export function serializeAlternateFormSets(sets) {
       name: form.name,
       templateId: form.templateId,
       sourceTraitId: form.sourceTraitId,
+      morphKnownFormId: form.morphKnownFormId,
+      morphMaterialization: form.morphMaterialization === null
+        ? null
+        : serializeMorphMaterialization(form.morphMaterialization),
       notes: form.notes,
       tags: [...form.tags],
       state: { ...form.state },
@@ -277,6 +297,63 @@ export function serializeAlternateFormSets(sets) {
     importMeta: set.importMeta,
     raw: set.raw,
   }));
+}
+
+function validateMorphFormLinks(set) {
+  if (set.mechanism !== "morph") {
+    if (set.forms.some(form => (
+      form.morphKnownFormId !== null || form.morphMaterialization !== null
+    ))) {
+      throw new Error("Only Morfose sets may contain materialized known forms");
+    }
+    return;
+  }
+
+  const knownForms = new Map(
+    set.morphProfile.knownForms.map(form => [form.id, form]),
+  );
+  const materializedIds = new Set();
+
+  for (const form of set.forms) {
+    if (form.id === set.baseFormId) {
+      if (form.morphKnownFormId !== null || form.morphMaterialization !== null) {
+        throw new Error("Morfose base form cannot be a materialized known form");
+      }
+      continue;
+    }
+
+    if (form.morphKnownFormId === null) {
+      if (form.morphMaterialization !== null) {
+        throw new Error("Morfose materialization requires morphKnownFormId");
+      }
+      continue;
+    }
+
+    if (materializedIds.has(form.morphKnownFormId)) {
+      throw new Error("Morfose known form can be materialized only once per set");
+    }
+    materializedIds.add(form.morphKnownFormId);
+
+    const knownForm = knownForms.get(form.morphKnownFormId);
+    if (!knownForm) {
+      throw new Error("Materialized Morfose form must reference known form");
+    }
+    if (knownForm.templateId === null) {
+      throw new Error("Materialized Morfose form requires resolved template");
+    }
+    if (form.templateId !== knownForm.templateId) {
+      throw new Error("Materialized Morfose form template must match known form");
+    }
+    if (form.morphMaterialization === null) {
+      throw new Error("Materialized Morfose form requires provenance");
+    }
+    if (
+      form.morphMaterialization.knownFormId !== knownForm.id ||
+      form.morphMaterialization.templateId !== knownForm.templateId
+    ) {
+      throw new Error("Morfose materialization provenance is inconsistent");
+    }
+  }
 }
 
 function normalizeForms(value) {
