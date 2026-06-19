@@ -10,14 +10,28 @@ export function createSkill(input = {}) {
   return {
     id: input.id ?? generateSkillId(),
     externalIds: normalizeExternalIds(input.externalIds),
+
     name: input.name ?? "",
     specialization: input.specialization ?? "",
+    techLevel: input.techLevel ?? null,
+
     attribute: input.attribute ?? null,
     difficulty: input.difficulty ?? null,
     points: input.points ?? 0,
+
     importedLevel: input.importedLevel ?? null,
+    importedRelativeLevel: input.importedRelativeLevel ?? null,
+
+    defaults: normalizeArray(input.defaults, "Skill defaults must be array"),
+    features: normalizeArray(input.features, "Skill features must be array"),
+    weapons: normalizeArray(input.weapons, "Skill weapons must be array"),
+    prereqs: input.prereqs ?? null,
+
     notes: input.notes ?? "",
-    tags: normalizeTags(input.tags),
+    tags: normalizeArray(input.tags, "Skill tags must be array"),
+
+    importMeta: input.importMeta ?? null,
+    raw: input.raw ?? null,
   };
 }
 
@@ -54,6 +68,10 @@ export function validateSkill(skill) {
     throw new Error("Skill specialization must be string");
   }
 
+  if (skill.techLevel !== null && typeof skill.techLevel !== "string") {
+    throw new Error("Skill techLevel must be string or null");
+  }
+
   if (skill.attribute !== null && typeof skill.attribute !== "string") {
     throw new Error("Skill attribute must be string or null");
   }
@@ -66,8 +84,37 @@ export function validateSkill(skill) {
     throw new Error("Skill points must be non-negative number");
   }
 
-  if (skill.importedLevel !== null && typeof skill.importedLevel !== "number") {
+  if (
+    skill.importedLevel !== null &&
+    (typeof skill.importedLevel !== "number" || Number.isNaN(skill.importedLevel))
+  ) {
     throw new Error("Skill importedLevel must be number or null");
+  }
+
+  if (
+    skill.importedRelativeLevel !== null &&
+    (
+      typeof skill.importedRelativeLevel !== "number" ||
+      Number.isNaN(skill.importedRelativeLevel)
+    )
+  ) {
+    throw new Error("Skill importedRelativeLevel must be number or null");
+  }
+
+  if (!Array.isArray(skill.defaults)) {
+    throw new Error("Skill defaults must be array");
+  }
+
+  if (!Array.isArray(skill.features)) {
+    throw new Error("Skill features must be array");
+  }
+
+  if (!Array.isArray(skill.weapons)) {
+    throw new Error("Skill weapons must be array");
+  }
+
+  if (skill.prereqs !== null && !isPlainObject(skill.prereqs)) {
+    throw new Error("Skill prereqs must be object or null");
   }
 
   if (typeof skill.notes !== "string") {
@@ -76,6 +123,10 @@ export function validateSkill(skill) {
 
   if (!Array.isArray(skill.tags)) {
     throw new Error("Skill tags must be array");
+  }
+
+  if (skill.importMeta !== null && !isPlainObject(skill.importMeta)) {
+    throw new Error("Skill importMeta must be object or null");
   }
 
   return true;
@@ -87,14 +138,28 @@ export function serializeSkills(skills) {
   return skills.map(skill => ({
     id: skill.id,
     externalIds: { ...skill.externalIds },
+
     name: skill.name,
     specialization: skill.specialization,
+    techLevel: skill.techLevel,
+
     attribute: skill.attribute,
     difficulty: skill.difficulty,
     points: skill.points,
+
     importedLevel: skill.importedLevel,
+    importedRelativeLevel: skill.importedRelativeLevel,
+
+    defaults: [...skill.defaults],
+    features: [...skill.features],
+    weapons: [...skill.weapons],
+    prereqs: skill.prereqs,
+
     notes: skill.notes,
     tags: [...skill.tags],
+
+    importMeta: skill.importMeta,
+    raw: skill.raw,
   }));
 }
 
@@ -110,16 +175,16 @@ function normalizeExternalIds(externalIds) {
   return { ...externalIds };
 }
 
-function normalizeTags(tags) {
-  if (tags === undefined || tags === null) {
+function normalizeArray(value, errorMessage) {
+  if (value === undefined || value === null) {
     return [];
   }
 
-  if (!Array.isArray(tags)) {
-    throw new Error("Skill tags must be array");
+  if (!Array.isArray(value)) {
+    throw new Error(errorMessage);
   }
 
-  return [...tags];
+  return [...value];
 }
 
 function isPlainObject(value) {
