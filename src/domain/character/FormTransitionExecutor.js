@@ -32,6 +32,17 @@ export function executeFormTransition(character, plan, options = {}) {
     );
   }
 
+  if (plan.characterId !== character.identity.id) {
+    throw new FormTransitionExecutionError(
+      "PLAN_CHARACTER_MISMATCH",
+      "Form transition plan belongs to another character",
+      {
+        planCharacterId: plan.characterId ?? null,
+        characterId: character.identity.id,
+      },
+    );
+  }
+
   const set = character.alternateFormSets.find(
     candidate => candidate.id === plan.formSetId,
   );
@@ -208,6 +219,13 @@ function validateCharacter(character) {
     throw new FormTransitionExecutionError(
       "INVALID_CHARACTER",
       "Character must be object",
+    );
+  }
+
+  if (!character.identity || typeof character.identity.id !== "string") {
+    throw new FormTransitionExecutionError(
+      "INVALID_CHARACTER",
+      "Character identity.id must be string",
     );
   }
 
