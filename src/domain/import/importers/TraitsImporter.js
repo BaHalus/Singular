@@ -112,7 +112,7 @@ function mapTraitNode(node, context) {
     id: node.id,
     externalIds: { ...node.externalIds },
     name: node.name,
-    notes: "",
+    notes: node.notes ?? normalizeNotes(node.raw?.notes ?? node.raw?.local_notes),
     tags: buildTraitTags(node),
 
     points: node.points,
@@ -126,6 +126,8 @@ function mapTraitNode(node, context) {
     importMeta: {
       source: "gcs",
       role: node.role,
+      reference: node.reference ?? node.raw?.reference ?? null,
+      calc: node.calc ?? node.raw?.calc ?? null,
       containerIds: [...context.containerIds],
     },
 
@@ -151,6 +153,8 @@ function mapSpecialNode(node, context, specialKind) {
       source: "gcs",
       role: node.role,
       specialKind,
+      reference: node.reference ?? node.raw?.reference ?? null,
+      calc: node.calc ?? node.raw?.calc ?? null,
       containerIds: [...context.containerIds],
     },
     raw: node.raw,
@@ -163,7 +167,10 @@ function mapContainerNode(node, context) {
     externalIds: { ...node.externalIds },
     name: node.name,
     containerType: node.containerType,
+    ancestry: node.raw?.ancestry ?? null,
+    reference: node.reference ?? node.raw?.reference ?? null,
     points: node.points,
+    calc: node.calc ?? node.raw?.calc ?? null,
     tags: buildTraitTags(node),
 
     importMeta: {
@@ -184,7 +191,9 @@ function mapUnknownNode(node, context) {
     nodeKind: node.nodeKind,
     containerType: node.containerType,
     role: node.role,
+    reference: node.reference ?? node.raw?.reference ?? null,
     points: node.points,
+    calc: node.calc ?? node.raw?.calc ?? null,
     tags: buildTraitTags(node),
 
     importMeta: {
@@ -203,6 +212,14 @@ function buildTraitTags(node) {
     `node:${node.nodeKind}`,
     `role:${node.role}`,
   ];
+}
+
+function normalizeNotes(value) {
+  if (value === undefined || value === null) return "";
+  if (typeof value === "string") return value;
+  if (Array.isArray(value)) return value.map(String).join("\n");
+
+  return String(value);
 }
 
 function normalizeForComparison(value) {
