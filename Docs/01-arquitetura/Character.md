@@ -1,67 +1,65 @@
-Character
+# Character
 
-Código: DOM-CHAR-1.2
-Status: Aprovado
-Camada: Domain
-Tipo: Aggregate Root
+**Código:** DOM-CHAR-1.3  
+**Status:** Aprovado  
+**Camada:** Domain  
+**Tipo:** Aggregate Root
 
----
+Character é o Aggregate Root da SINGULAR.
 
-1. Objetivo
-
-O Character é o Aggregate Root da SINGULAR.
-
-Ele representa um personagem completo e constitui a unidade fundamental de persistência, carregamento, serialização e manipulação do domínio.
-
-Todo dado pertencente a um personagem deve estar contido direta ou indiretamente em um Character.
+Ele representa a unidade fundamental de persistência, serialização e manipulação de um personagem.
 
 ---
 
-2. Responsabilidades
+## Responsabilidades
 
-O Character é responsável por:
+Character mantém:
 
-- manter a identidade do personagem;
-- manter a composição estrutural dos agregados;
-- preservar dados permanentes;
-- preservar estados transitórios;
-- preservar pacotes importados;
-- preservar o histórico de aplicação de templates;
-- preservar conjuntos de formas e a forma ativa de cada conjunto;
-- garantir invariantes estruturais mínimas;
-- fornecer serialização consistente.
+- identidade;
+- atributos;
+- secundárias;
+- pools;
+- traits;
+- perícias e técnicas;
+- mágicas e poderes;
+- equipamentos e ataques;
+- idiomas e familiaridades;
+- templates importados;
+- histórico de incorporação;
+- conjuntos de formas;
+- estado transitório atual;
+- snapshots de estado das formas inativas;
+- metadados.
+
+Character garante apenas invariantes estruturais.
 
 ---
 
-3. Não Responsabilidades
+## Não responsabilidades
 
-O Character não é responsável por:
+Character não calcula:
 
-- cálculos de GURPS;
-- custos em pontos;
-- dano;
+- regras de GURPS;
+- custos;
+- dano ou cura;
 - carga;
 - movimento;
 - NH;
 - pré-requisitos;
-- aplicação mecânica de modificadores e features;
-- cálculo de transformação;
-- renderização;
-- persistência;
-- importação;
-- exportação;
-- lógica de interface.
+- efeitos de features;
+- máximos de pools;
+- proporção de dano entre formas;
+- tempo ou custo de transformação;
+- limites de Morfo.
 
-Essas responsabilidades pertencem a outros módulos.
+Essas responsabilidades pertencem a Rules e aos serviços de domínio apropriados.
 
 ---
 
-4. Composição
+## Composição
 
-Um Character é composto pelos seguintes agregados:
-
+```text
 Character
-│
 ├── Identity
 ├── Attributes
 ├── SecondaryCharacteristics
@@ -83,82 +81,58 @@ Character
 ├── AlternateFormSets
 ├── State
 └── Metadata
+```
 
 ---
 
-5. Estrutura Canônica
+## Estrutura canônica
 
+```js
 {
   identity,
   attributes,
   secondaryCharacteristics,
   pools,
+
   advantages,
   perks,
   disadvantages,
   quirks,
+
   skills,
   techniques,
   spells,
   powers,
+
   equipment,
   attacks,
   languages,
   familiarities,
+
   templates,
   templateApplications,
   alternateFormSets,
+
   state,
   metadata
 }
+```
 
 ---
 
-6. Dados Permanentes
+## Templates
 
-São considerados permanentes:
+`templates` contém pacotes importados e independentes.
 
-- identity;
-- attributes;
-- secondaryCharacteristics;
-- advantages;
-- perks;
-- disadvantages;
-- quirks;
-- skills;
-- techniques;
-- spells;
-- powers;
-- equipment;
-- attacks;
-- languages;
-- familiarities;
-- templates;
-- templateApplications;
-- alternateFormSets;
-- metadata.
-
-Os componentes temporários produzidos pela forma ativa permanecem serializados enquanto estiverem ativos, com proveniência explícita.
-
----
-
-7. Templates e aplicações
-
-`templates` contém pacotes importados e ainda independentes.
-
-`templateApplications` registra incorporações estruturais permanentes desses pacotes ao personagem.
+`templateApplications` registra incorporações permanentes.
 
 Importar e incorporar são operações distintas.
 
-Uma aplicação ativa contém o ID do pacote, os IDs dos componentes copiados e a data de aplicação.
-
-Quando uma incorporação é removida, seu registro permanece com status `removed` para preservar o histórico.
-
-O Character apenas armazena o resultado estrutural dessas operações. Ele não calcula os efeitos das features incorporadas.
+Uma aplicação removida permanece no histórico com status `removed`.
 
 ---
 
-8. Formas Alternativas
+## Formas Alternativas
 
 `alternateFormSets` contém conjuntos de formas mutuamente exclusivas.
 
@@ -167,173 +141,161 @@ Cada conjunto possui:
 - forma-base;
 - forma ativa;
 - formas disponíveis;
-- mecanismo de transformação;
+- mecanismo;
+- política de continuidade de estado;
 - proveniência da ativação atual.
 
 Somente uma forma fica ativa dentro de cada conjunto.
 
-Conjuntos independentes podem coexistir. Assim, uma forma corporal pode coexistir com um revestimento ou outro mecanismo separado.
+Conjuntos independentes podem coexistir.
 
-Templates permanentes, como Elfo e Vampiro, permanecem ativos durante a troca entre formas como Humanoide, Morcego ou Lobo.
-
-Trocas de forma não criam novas entradas em `templateApplications`.
+Templates permanentes como Elfo, Vampiro, Orc, Lich, Anão ou Licantropo não são removidos quando uma forma temporária muda.
 
 ---
 
-9. Dados Transitórios
+## Estado atual e estado das formas
 
-São considerados transitórios:
+O estado atualmente ativo permanece nos agregados normais:
 
-- HP atual;
-- FP atual;
-- ER atual;
+```text
+Pools
+State
+Equipment
+```
+
+Formas inativas preservam snapshots em:
+
+```text
+AlternateForm.runtimeState
+```
+
+`AlternateFormSet.statePolicy` define se cada categoria é:
+
+```text
+shared
+perForm
+```
+
+A política pode controlar:
+
+- PV atuais;
+- PF atuais;
+- Reserva de Energia atual;
+- ferimentos;
 - condições;
-- efeitos temporários;
-- buffs;
-- debuffs;
+- efeitos;
+- estado, usos e quantidade de equipamentos.
+
+O Character armazena esses dados, mas não decide a regra mecânica correta para uma campanha.
+
+---
+
+## Dados permanentes
+
+São permanentes estruturalmente:
+
+- identidade;
+- atributos e secundárias;
+- traits;
+- perícias, técnicas e mágicas;
+- equipamentos cadastrados;
+- idiomas e familiaridades;
+- templates;
+- histórico de aplicações;
+- definição dos conjuntos de formas;
+- metadados.
+
+Componentes temporários da forma ativa permanecem serializados enquanto estiverem ativos, com proveniência explícita.
+
+---
+
+## Dados transitórios
+
+Incluem:
+
+- valores atuais de pools;
+- ferimentos;
+- condições;
+- efeitos;
 - estado de combate;
-- recursos consumidos durante a sessão;
-- estado operacional da transformação atual.
-
-O estado operacional da transformação é registrado em `alternateFormSets`, enquanto efeitos mecânicos temporários continuam pertencendo ao State ou aos agregados operacionais apropriados.
-
----
-
-10. GURPS First
-
-A SINGULAR é construída inicialmente para GURPS 4e.
-
-O Character deve utilizar conceitos compatíveis com GURPS sempre que isso produzir um modelo mais claro.
-
-Abstrações genéricas somente devem ser introduzidas quando resolverem um problema real da arquitetura.
+- estado e usos de equipamentos;
+- forma ativa;
+- snapshots das formas inativas.
 
 ---
 
-11. Composição sobre Herança
-
-O domínio deverá privilegiar:
-
-- composição;
-- objetos simples;
-- serialização direta;
-- funções puras.
-
-Hierarquias profundas de herança devem ser evitadas.
-
----
-
-12. Separação de Responsabilidades
-
-O Character armazena dados.
-
-Ele não contém:
-
-- Schema;
-- Rules;
-- Presentation.
-
-Esses elementos devem permanecer desacoplados.
-
----
-
-13. Invariantes Estruturais
-
-O Character deve sempre garantir apenas invariantes estruturais mínimas.
+## Invariantes
 
 Um Character válido deve possuir:
 
-- Identity;
-- Attributes;
-- State;
+- Identity com `id` e `name`;
+- Attributes com ST, DX, IQ e HT;
+- Pools válidos;
+- State válido;
 - coleções estruturais válidas;
-- histórico de aplicações de template válido;
+- templates válidos;
+- histórico de aplicações válido;
 - conjuntos de formas válidos.
-
-Identity deve conter:
-
-- id;
-- name.
-
-Attributes deve conter:
-
-- ST;
-- DX;
-- IQ;
-- HT.
-
-State deve existir mesmo que esteja vazio.
 
 Cada conjunto de formas deve possuir:
 
 - pelo menos uma forma;
-- uma forma-base existente;
-- uma forma ativa existente;
-- IDs de forma únicos dentro do conjunto.
+- forma-base existente;
+- forma ativa existente;
+- IDs únicos;
+- política de estado válida.
 
-Estas invariantes não executam regras de GURPS.
+Cada forma deve possuir `runtimeState` válido.
 
-Validações como:
-
-- HP derivado de ST;
-- limites de Pools;
-- pré-requisitos de perícias;
-- consistência de carga;
-- cálculos de atributos secundários;
-- efeitos de templates;
-- custo ou tempo de transformação;
-- limites de Morfo;
-
-não pertencem ao Character.
-
-Essas validações pertencem ao módulo Rules.
+Essas invariantes não executam regras de GURPS.
 
 ---
 
-14. Serialização
+## Serialização
 
-O Character deve ser serializável para JSON sem perda estrutural.
+Character deve ser serializável para JSON sem perda estrutural.
 
 A serialização inclui:
 
-- pacotes de template;
-- histórico de aplicações;
+- templates;
+- aplicações;
 - conjuntos de formas;
-- forma ativa e ativação corrente.
+- forma ativa;
+- política de continuidade;
+- snapshots de estado.
 
-Ela não deve conter:
+Ela não inclui:
 
 - métodos;
 - referências circulares;
-- estado de UI;
+- estado de interface;
 - dependências externas.
 
 ---
 
-15. Direção de Implementação
+## Direção de implementação
 
-A implementação deve evoluir para:
+A implementação privilegia:
 
 - composição;
-- imutabilidade quando viável;
+- objetos simples;
 - funções puras;
-- separação clara entre dados e regras;
-- operações reversíveis com proveniência explícita;
-- suporte progressivo a Forma Alternativa e Morfo.
-
-O Aggregate Root deve permanecer simples e previsível.
+- imutabilidade quando viável;
+- operações reversíveis;
+- proveniência explícita;
+- separação entre dados, regras e apresentação.
 
 ---
 
-16. Checklist de Implementação
+## Checklist
 
-- [x] Criar Character.md
 - [x] Criar Character.js
-- [x] Criar Character.test.js
-- [x] Validar invariantes estruturais
+- [x] Validar invariantes
 - [x] Validar serialização
-- [x] Refatorar Character.js para arquitetura funcional
 - [x] Integrar templates
-- [x] Integrar histórico de aplicações de template
-- [x] Integrar conjuntos de formas alternativas
-- [x] Integrar estado ativo de cada conjunto
-- [x] Aprovar Character v1.2
+- [x] Integrar histórico de aplicações
+- [x] Integrar conjuntos de formas
+- [x] Integrar linker seguro
+- [x] Integrar política de continuidade
+- [x] Integrar snapshots por forma
+- [x] Aprovar Character v1.3
