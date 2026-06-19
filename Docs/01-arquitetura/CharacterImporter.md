@@ -1,6 +1,6 @@
 # CharacterImporter
 
-**Código:** DOM-IMP-1.0
+**Código:** DOM-IMP-1.1
 **Status:** Aprovado
 **Camada:** Domain / Import
 **Tipo:** Import Pipeline
@@ -44,14 +44,23 @@ Domain Services
 
 ImportSnapshot é a fronteira anti-acoplamento entre formato externo e domínio.
 
-Estrutura inicial:
+Estrutura atual:
 
 ```js
 {
   identity: {},
   attributes: {},
   secondaryCharacteristics: {},
-  traits: [],
+
+  traits: {
+    advantages: [],
+    perks: [],
+    disadvantages: [],
+    quirks: [],
+    containers: [],
+    unknownNodes: []
+  },
+
   skills: [],
   techniques: [],
   languages: [],
@@ -63,36 +72,56 @@ Estrutura inicial:
 
 ---
 
-## DOM-IMP-1.0
+## DOM-IMP-1.1
 
-A primeira entrega importa:
+A entrega atual importa:
 
 - identidade;
 - ST, DX, IQ, HT;
-- secundárias quando presentes.
+- secundárias quando presentes;
+- vantagens;
+- qualidades;
+- desvantagens;
+- peculiaridades.
+
+Traits passam por:
+
+```text
+GcsTraitTreeNormalizer
+  ↓
+TraitsImporter
+  ↓
+Character.advantages / perks / disadvantages / quirks
+```
+
+Containers e nós desconhecidos são preservados no `ImportSnapshot`, mas ainda não são incorporados como agregados próprios do `Character`.
 
 ---
 
-## Fora de escopo inicial
+## Fora de escopo atual
 
-DOM-IMP-1.0 ainda não importa:
+DOM-IMP-1.1 ainda não importa:
 
-- traits;
 - perícias;
 - técnicas;
 - equipamentos;
 - magias;
-- poderes;
-- templates;
-- ataques derivados.
+- templates como agregados finais;
+- ataques derivados;
+- cálculo de custo de traits;
+- cálculo de poderes;
+- cálculo de habilidades alternativas.
 
 ---
 
 ## Checklist
 
 - [x] Criar CharacterImporter.md
-- [ ] Criar ImportSnapshot.js
-- [ ] Criar IdentityImporter.js
-- [ ] Criar AttributesImporter.js
-- [ ] Criar CharacterImporter.js
-- [ ] Criar CharacterImporter.test.js
+- [x] Criar ImportSnapshot.js
+- [x] Criar IdentityImporter.js
+- [x] Criar AttributesImporter.js
+- [x] Criar CharacterImporter.js
+- [x] Criar CharacterImporter.test.js
+- [x] Criar GcsTraitTreeNormalizer.js
+- [x] Criar TraitsImporter.js
+- [x] Integrar TraitsImporter ao CharacterImporter
