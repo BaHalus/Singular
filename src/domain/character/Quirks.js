@@ -1,3 +1,9 @@
+import {
+  createTraitRecord,
+  validateTraitRecord,
+  serializeTraitRecord,
+} from "./TraitFields.js";
+
 export function createQuirks(input = []) {
   const quirks = input.map(createQuirk);
 
@@ -7,13 +13,7 @@ export function createQuirks(input = []) {
 }
 
 export function createQuirk(input = {}) {
-  return {
-    id: input.id ?? generateQuirkId(),
-    externalIds: normalizeExternalIds(input.externalIds),
-    name: input.name ?? "",
-    notes: input.notes ?? "",
-    tags: normalizeTags(input.tags),
-  };
+  return createTraitRecord(input, generateQuirkId);
 }
 
 export function validateQuirks(quirks) {
@@ -29,75 +29,13 @@ export function validateQuirks(quirks) {
 }
 
 export function validateQuirk(quirk) {
-  if (!quirk || typeof quirk !== "object") {
-    throw new Error("Quirk must be an object");
-  }
-
-  if (!quirk.id) {
-    throw new Error("Quirk must have id");
-  }
-
-  if (!isPlainObject(quirk.externalIds)) {
-    throw new Error("Quirk externalIds must be object");
-  }
-
-  if (typeof quirk.name !== "string") {
-    throw new Error("Quirk name must be string");
-  }
-
-  if (typeof quirk.notes !== "string") {
-    throw new Error("Quirk notes must be string");
-  }
-
-  if (!Array.isArray(quirk.tags)) {
-    throw new Error("Quirk tags must be array");
-  }
-
-  return true;
+  return validateTraitRecord(quirk, "Quirk");
 }
 
 export function serializeQuirks(quirks) {
   validateQuirks(quirks);
 
-  return quirks.map(quirk => ({
-    id: quirk.id,
-    externalIds: { ...quirk.externalIds },
-    name: quirk.name,
-    notes: quirk.notes,
-    tags: [...quirk.tags],
-  }));
-}
-
-function normalizeExternalIds(externalIds) {
-  if (externalIds === undefined || externalIds === null) {
-    return {};
-  }
-
-  if (!isPlainObject(externalIds)) {
-    throw new Error("Quirk externalIds must be object");
-  }
-
-  return { ...externalIds };
-}
-
-function normalizeTags(tags) {
-  if (tags === undefined || tags === null) {
-    return [];
-  }
-
-  if (!Array.isArray(tags)) {
-    throw new Error("Quirk tags must be array");
-  }
-
-  return [...tags];
-}
-
-function isPlainObject(value) {
-  return (
-    value !== null &&
-    typeof value === "object" &&
-    !Array.isArray(value)
-  );
+  return quirks.map(item => serializeTraitRecord(item, "Quirk"));
 }
 
 function generateQuirkId() {
