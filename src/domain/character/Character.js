@@ -88,6 +88,9 @@ import {
   validateFormTransitionHistoryForCharacter,
   serializeFormTransitionHistory,
 } from "./FormTransitionHistory.js";
+import {
+  validateMorphProfilesForCharacter,
+} from "./MorphProfile.js";
 
 export function createCharacter(input = {}) {
   const character = {
@@ -156,6 +159,7 @@ export function validateCharacter(character) {
   validateTemplates(character.templates);
   validateTemplateApplications(character.templateApplications);
   validateAlternateFormSets(character.alternateFormSets);
+  validateMorphProfilesForCharacter(character);
   validateFormTransitionHistoryForCharacter(
     character.formTransitionHistory,
     character.identity.id,
