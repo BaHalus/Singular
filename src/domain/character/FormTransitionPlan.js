@@ -3,10 +3,19 @@ export function validateExecutableFormTransitionPlan(plan) {
     throw new Error("Form transition plan must be object");
   }
 
-  for (const key of ["formSetId", "fromFormId", "targetFormId"]) {
+  for (const key of [
+    "characterId",
+    "formSetId",
+    "fromFormId",
+    "targetFormId",
+  ]) {
     if (typeof plan[key] !== "string" || plan[key] === "") {
       throw new Error(`Form transition plan ${key} must be non-empty string`);
     }
+  }
+
+  if (typeof plan.bypassReturnTriggers !== "boolean") {
+    throw new Error("Form transition plan bypassReturnTriggers must be boolean");
   }
 
   if (plan.allowed !== true || plan.status !== "ready") {
@@ -43,6 +52,7 @@ export function createExecutionContextFromPlan(plan) {
 
   const context = {
     intent: plan.intent ?? "voluntary",
+    bypassReturnTriggers: plan.bypassReturnTriggers === true,
     testResults: {},
     requirementResults: {},
     triggerResults: {},
@@ -77,7 +87,9 @@ export function createExecutionContextFromPlan(plan) {
 
 function projectExecutionPlan(plan) {
   return {
+    characterId: plan.characterId,
     intent: plan.intent,
+    bypassReturnTriggers: plan.bypassReturnTriggers === true,
     transitionKind: plan.transitionKind,
     formSetId: plan.formSetId,
     fromFormId: plan.fromFormId,
