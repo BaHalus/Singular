@@ -1,6 +1,6 @@
 # Character
 
-**Código:** DOM-CHAR-1.8  
+**Código:** DOM-CHAR-1.9  
 **Status:** Aprovado  
 **Camada:** Domain  
 **Tipo:** Aggregate Root
@@ -21,6 +21,7 @@ Character mantém:
 - templates importados;
 - histórico de incorporações permanentes;
 - conjuntos de formas;
+- perfis e catálogos de Morfose;
 - snapshots das formas inativas;
 - políticas de continuidade;
 - regras declarativas por forma;
@@ -54,6 +55,7 @@ Character
 ├── Templates
 ├── TemplateApplications
 ├── AlternateFormSets
+│   └── MorphProfile, somente quando mechanism: "morph"
 ├── FormTransitionHistory
 └── Metadata
 ```
@@ -93,6 +95,32 @@ Cada forma pode possuir:
 Somente uma forma fica ativa dentro de cada conjunto. Conjuntos independentes podem coexistir.
 
 Templates permanentes não são removidos quando uma forma temporária muda.
+
+## Morfose
+
+Um conjunto com:
+
+```js
+mechanism: "morph"
+```
+
+possui obrigatoriamente `morphProfile`.
+
+O perfil mantém:
+
+- limite declarado de pontos e sua fonte;
+- política de catálogo;
+- política de memorização;
+- política de improvisação;
+- formas conhecidas;
+- referências externas não resolvidas;
+- metadados de importação.
+
+Conjuntos de Forma Alternativa mantêm `morphProfile: null`.
+
+`templateId` de uma forma conhecida, quando informado, deve apontar para `Character.templates`. Referências importadas ainda não resolvidas permanecem com `templateId: null` e `externalIds` preservados.
+
+O nome visível é **Morfose**; `morph` permanece apenas como identificador técnico. `Metamorfose` é uma entrada distinta.
 
 ## Continuidade de estado
 
@@ -191,6 +219,7 @@ Incluem:
 - templates;
 - aplicações;
 - definição dos conjuntos;
+- perfis e catálogos de Morfose;
 - políticas e regras;
 - histórico de transições;
 - metadados.
@@ -207,7 +236,8 @@ Incluem:
 - snapshots por forma;
 - runtime da sessão ativa;
 - manutenção já cobrada;
-- pedido de retorno pendente.
+- pedido de retorno pendente;
+- disponibilidade temporária de formas conhecidas de Morfose.
 
 ## Invariantes
 
@@ -218,6 +248,8 @@ Um Character válido deve possuir:
 - coleções estruturais válidas;
 - templates e aplicações válidos;
 - conjuntos de formas válidos;
+- perfis de Morfose coerentes com seus mecanismos;
+- referências de templates conhecidas válidas;
 - histórico de formas válido e pertencente ao Character;
 - metadados.
 
@@ -232,12 +264,20 @@ Cada conjunto deve possuir:
 - runtime nulo ou vinculado à forma ativa;
 - runtime nulo quando a forma-base está ativa.
 
+Cada conjunto de Morfose deve possuir:
+
+- `morphProfile` válido;
+- IDs únicos no catálogo;
+- `templateId` único quando resolvido;
+- referências resolvidas apontando para `Character.templates`.
+
 ## Serialização
 
 A serialização inclui:
 
 - templates e aplicações;
 - conjuntos de formas;
+- perfis e catálogos de Morfose;
 - forma ativa;
 - políticas, regras, overrides e resoluções;
 - snapshots;
@@ -257,7 +297,8 @@ Character não:
 - avança o relógio global;
 - agenda tarefas externas;
 - executa retornos automaticamente por conta própria;
-- implementa limites de Morfo.
+- calcula o custo ou o limite oficial de Morfose;
+- aprende, observa ou improvisa formas automaticamente.
 
 ## Checklist
 
@@ -272,5 +313,6 @@ Character não:
 - [x] Runtime persistente
 - [x] Histórico persistente
 - [x] Orquestração explícita do ciclo
-- [x] Regressão completa
-- [x] Aprovar Character v1.8
+- [x] Regressão completa de Forma Alternativa
+- [x] Perfil e catálogo estrutural de Morfose
+- [x] Aprovar Character v1.9
