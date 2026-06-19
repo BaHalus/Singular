@@ -1,3 +1,9 @@
+import {
+  createTraitRecord,
+  validateTraitRecord,
+  serializeTraitRecord,
+} from "./TraitFields.js";
+
 export function createDisadvantages(input = []) {
   const disadvantages = input.map(createDisadvantage);
 
@@ -7,13 +13,7 @@ export function createDisadvantages(input = []) {
 }
 
 export function createDisadvantage(input = {}) {
-  return {
-    id: input.id ?? generateDisadvantageId(),
-    externalIds: normalizeExternalIds(input.externalIds),
-    name: input.name ?? "",
-    notes: input.notes ?? "",
-    tags: normalizeTags(input.tags),
-  };
+  return createTraitRecord(input, generateDisadvantageId);
 }
 
 export function validateDisadvantages(disadvantages) {
@@ -29,75 +29,13 @@ export function validateDisadvantages(disadvantages) {
 }
 
 export function validateDisadvantage(disadvantage) {
-  if (!disadvantage || typeof disadvantage !== "object") {
-    throw new Error("Disadvantage must be an object");
-  }
-
-  if (!disadvantage.id) {
-    throw new Error("Disadvantage must have id");
-  }
-
-  if (!isPlainObject(disadvantage.externalIds)) {
-    throw new Error("Disadvantage externalIds must be object");
-  }
-
-  if (typeof disadvantage.name !== "string") {
-    throw new Error("Disadvantage name must be string");
-  }
-
-  if (typeof disadvantage.notes !== "string") {
-    throw new Error("Disadvantage notes must be string");
-  }
-
-  if (!Array.isArray(disadvantage.tags)) {
-    throw new Error("Disadvantage tags must be array");
-  }
-
-  return true;
+  return validateTraitRecord(disadvantage, "Disadvantage");
 }
 
 export function serializeDisadvantages(disadvantages) {
   validateDisadvantages(disadvantages);
 
-  return disadvantages.map(disadvantage => ({
-    id: disadvantage.id,
-    externalIds: { ...disadvantage.externalIds },
-    name: disadvantage.name,
-    notes: disadvantage.notes,
-    tags: [...disadvantage.tags],
-  }));
-}
-
-function normalizeExternalIds(externalIds) {
-  if (externalIds === undefined || externalIds === null) {
-    return {};
-  }
-
-  if (!isPlainObject(externalIds)) {
-    throw new Error("Disadvantage externalIds must be object");
-  }
-
-  return { ...externalIds };
-}
-
-function normalizeTags(tags) {
-  if (tags === undefined || tags === null) {
-    return [];
-  }
-
-  if (!Array.isArray(tags)) {
-    throw new Error("Disadvantage tags must be array");
-  }
-
-  return [...tags];
-}
-
-function isPlainObject(value) {
-  return (
-    value !== null &&
-    typeof value === "object" &&
-    !Array.isArray(value)
-  );
+  return disadvantages.map(disadvantage => serializeTraitRecord(disadvantage, "Disadvantage"));
 }
 
 function generateDisadvantageId() {
