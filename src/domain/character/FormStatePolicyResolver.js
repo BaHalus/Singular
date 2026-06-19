@@ -93,7 +93,9 @@ export function analyzeFormStatePolicy(character, formSetId, options = {}) {
     }));
   }
 
-  const manualOverride = options.manualOverride ?? set.statePolicyOverride;
+  const manualOverride = Object.hasOwn(options, "manualOverride")
+    ? options.manualOverride
+    : set.statePolicyOverride;
 
   if (manualOverride !== undefined && manualOverride !== null) {
     signals.push(...policyToSignals(manualOverride, {
@@ -145,7 +147,7 @@ export function applyResolvedFormStatePolicy(character, formSetId, options = {})
   }
 
   const resolution = resolveFormStatePolicy(character, formSetId, options);
-  const persistedOverride = options.manualOverride !== undefined
+  const persistedOverride = Object.hasOwn(options, "manualOverride")
     ? cloneValue(options.manualOverride)
     : set.statePolicyOverride;
   const nextSets = character.alternateFormSets.map(candidate => (
@@ -177,11 +179,21 @@ export function applyResolvedFormStatePolicies(character, options = {}) {
   const resolutions = [];
 
   for (const set of character.alternateFormSets) {
-    const perSetOverride = options.manualOverrides?.[set.id];
-    const perSetOptions = {
-      ...options,
-      manualOverride: perSetOverride ?? options.manualOverride,
-    };
+    const perSetOptions = { ...options };
+    const hasPerSetOverride = (
+      options.manualOverrides !== undefined &&
+      options.manualOverrides !== null &&
+      Object.hasOwn(options.manualOverrides, set.id)
+    );
+
+    if (hasPerSetOverride) {
+      perSetOptions.manualOverride = options.manualOverrides[set.id];
+    } else if (Object.hasOwn(options, "manualOverride")) {
+      perSetOptions.manualOverride = options.manualOverride;
+    } else {
+      delete perSetOptions.manualOverride;
+    }
+
     const applied = applyResolvedFormStatePolicy(current, set.id, perSetOptions);
     current = applied.character;
     resolutions.push(applied.resolution);
