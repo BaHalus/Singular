@@ -1,6 +1,6 @@
 # Character
 
-**Código:** DOM-CHAR-1.10  
+**Código:** DOM-CHAR-1.11  
 **Status:** Aprovado  
 **Camada:** Domain  
 **Tipo:** Aggregate Root
@@ -22,6 +22,7 @@ Character mantém:
 - histórico de incorporações permanentes;
 - conjuntos de formas;
 - perfis, catálogos, overrides e resoluções de Morfose;
+- formas conhecidas materializadas e sua proveniência;
 - snapshots das formas inativas;
 - políticas de continuidade;
 - regras declarativas por forma;
@@ -55,8 +56,13 @@ Character
 ├── Templates
 ├── TemplateApplications
 ├── AlternateFormSets
-│   └── MorphProfile, MorphProfileOverride e MorphProfileResolution
-│       somente quando mechanism: "morph"
+│   └── quando mechanism: "morph"
+│       ├── MorphProfile
+│       ├── MorphProfileOverride
+│       ├── MorphProfileResolution
+│       └── AlternateForms materializadas
+│           ├── morphKnownFormId
+│           └── morphMaterialization
 ├── FormTransitionHistory
 └── Metadata
 ```
@@ -67,7 +73,7 @@ Character
 
 `templateApplications` registra incorporações permanentes.
 
-Importar, incorporar e ativar uma forma são operações distintas.
+Importar, incorporar, materializar uma forma conhecida e ativá-la são operações distintas.
 
 ## Formas Alternativas
 
@@ -88,6 +94,8 @@ Cada forma pode possuir:
 
 - template vinculado;
 - trait de origem;
+- vínculo com uma forma conhecida de Morfose;
+- proveniência da materialização;
 - snapshot transitório;
 - regras efetivas;
 - override;
@@ -141,7 +149,7 @@ A resolução mantém:
 - conflitos e diagnósticos;
 - instante da resolução.
 
-Conjuntos de Forma Alternativa mantêm os três campos de Morfose como `null`.
+Conjuntos de Forma Alternativa mantêm os campos exclusivos de Morfose como `null`.
 
 `templateId` de uma forma conhecida, quando informado, deve apontar para `Character.templates`. Referências importadas ainda não resolvidas permanecem com `templateId: null` e `externalIds` preservados.
 
@@ -168,6 +176,42 @@ Ambiguidades permanecem sem vínculo.
 
 Toda nova resolução parte de `morphProfileResolution.baseProfile`, permitindo retirar contribuições antigas quando modifiers são removidos ou desabilitados.
 
+## Materialização de forma conhecida
+
+Uma entrada disponível do catálogo pode ser projetada em `AlternateFormSet.forms` quando possui template resolvido.
+
+A forma materializada mantém:
+
+```js
+{
+  morphKnownFormId,
+  templateId,
+  morphMaterialization: {
+    knownFormId,
+    templateId,
+    templateFingerprint,
+    materializedAt,
+    sourceName,
+    acquisitionMethod,
+    externalIds
+  }
+}
+```
+
+A materialização:
+
+- não incorpora o template permanentemente;
+- não ativa a forma;
+- é idempotente;
+- exige atualização explícita quando o template muda;
+- não pode ser atualizada enquanto estiver ativa;
+- participa do fingerprint do plano de transição;
+- é revalidada antes da execução.
+
+A forma-base não pode representar uma entrada materializada.
+
+Uma forma conhecida só pode possuir uma materialização por conjunto.
+
 ## Continuidade de estado
 
 O estado ativo permanece em:
@@ -184,6 +228,8 @@ Formas inativas preservam snapshots em:
 AlternateForm.runtimeState
 ```
 
+Uma forma recém-materializada recebe runtime state válido e não inicializado.
+
 `AlternateFormSet.statePolicy` define `shared` ou `perForm` para PV, PF, Reserva de Energia, ferimentos, condições, efeitos e equipamento.
 
 ## Regras, planejamento e execução
@@ -194,7 +240,23 @@ AlternateForm.runtimeState
 
 `FormTransitionPlanner` cria um plano sem modificar o Character.
 
+Para alvos materializados de Morfose, o plano também contém:
+
+```text
+targetTemplateId
+morphSelection
+```
+
+O planner bloqueia formas conhecidas indisponíveis, esquecidas, não resolvidas, inconsistentes ou obsoletas.
+
 `FormTransitionExecutor` recebe um plano `ready`, revalida o estado atual, consome custos atomicamente, troca a forma e registra o recibo.
+
+O recibo de Morfose registra:
+
+```text
+targetTemplateId
+morphKnownFormId
+```
 
 Falhas não alteram o Character original.
 
@@ -267,6 +329,7 @@ Incluem:
 - definição dos conjuntos;
 - perfis, overrides e resoluções de Morfose;
 - catálogos e proveniência de formas conhecidas;
+- vínculos e fingerprints de materializações;
 - políticas e regras;
 - histórico de transições;
 - metadados.
@@ -284,7 +347,8 @@ Incluem:
 - runtime da sessão ativa;
 - manutenção já cobrada;
 - pedido de retorno pendente;
-- disponibilidade temporária de formas conhecidas de Morfose.
+- disponibilidade temporária de formas conhecidas de Morfose;
+- formas conhecidas já materializadas.
 
 ## Invariantes
 
@@ -297,6 +361,7 @@ Um Character válido deve possuir:
 - conjuntos de formas válidos;
 - perfis de Morfose coerentes com seus mecanismos;
 - referências de templates conhecidas válidas;
+- materializações de Morfose coerentes;
 - histórico de formas válido e pertencente ao Character;
 - metadados.
 
@@ -318,7 +383,10 @@ Cada conjunto de Morfose deve possuir:
 - modo e valor de limite coerentes;
 - IDs únicos no catálogo;
 - `templateId` único quando resolvido;
-- referências resolvidas apontando para `Character.templates`.
+- referências resolvidas apontando para `Character.templates`;
+- no máximo uma materialização por entrada conhecida;
+- proveniência consistente com entrada e template;
+- forma-base sem materialização.
 
 ## Serialização
 
@@ -327,6 +395,8 @@ A serialização inclui:
 - templates e aplicações;
 - conjuntos de formas;
 - perfis, overrides e resoluções de Morfose;
+- catálogo de formas conhecidas;
+- formas materializadas e sua proveniência;
 - forma ativa;
 - políticas, regras, overrides e resoluções de forma;
 - snapshots;
@@ -348,7 +418,8 @@ Character não:
 - executa retornos automaticamente por conta própria;
 - calcula o custo ou o limite oficial de Morfose;
 - inventa efeitos para modifiers não resolvidos;
-- aprende, observa ou improvisa formas automaticamente.
+- aprende, observa ou improvisa formas automaticamente;
+- incorpora templates durante a materialização.
 
 ## Checklist
 
@@ -367,4 +438,7 @@ Character não:
 - [x] Perfil e catálogo estrutural de Morfose
 - [x] Resolver da vantagem e dos modifiers de Morfose
 - [x] Recomposição sem contribuições legadas
-- [x] Aprovar Character v1.10
+- [x] Seleção e materialização de forma conhecida
+- [x] Revalidação de catálogo e template
+- [x] Proveniência persistente no recibo e histórico
+- [x] Aprovar Character v1.11
