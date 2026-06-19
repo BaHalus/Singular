@@ -1,231 +1,222 @@
-State
+# State
 
-Código: DOM-STATE-1.0
-Status: Aprovado
-Camada: Domain
-Tipo: Agregado
-
----
-
-1. Objetivo
+**Código:** DOM-STATE-1.1  
+**Status:** Aprovado  
+**Camada:** Domain  
+**Tipo:** Agregado
 
 State representa o estado temporário atual do personagem.
 
-Diferentemente de Attributes, SecondaryCharacteristics e grande parte dos demais agregados, State representa informações transitórias que mudam constantemente durante o jogo.
+---
+
+## Escopo
+
+```js
+{
+  injuries: [],
+  conditions: [],
+  effects: [],
+  combat: {
+    engaged: false
+  }
+}
+```
+
+Recursos consumíveis atuais não pertencem a State. Eles permanecem em `Pools`.
 
 ---
 
-2. Escopo Inicial
+## Responsabilidades
 
-A implementação inicial considera apenas:
+State armazena:
 
-- Conditions
-- Effects
-- Combat
+- ferimentos registrados;
+- condições ativas;
+- efeitos temporários;
+- estado básico de participação em combate;
+- dados transitórios serializáveis.
 
----
-
-3. Responsabilidades
-
-State é responsável por:
-
-- armazenar condições ativas;
-- armazenar efeitos temporários;
-- armazenar estado básico de combate;
-- fornecer serialização consistente;
-- garantir integridade estrutural mínima.
+State garante apenas integridade estrutural.
 
 ---
 
-4. Não Responsabilidades
+## Não responsabilidades
 
-State não é responsável por:
+State não:
 
-- calcular modificadores;
-- aplicar bônus;
-- aplicar penalidades;
-- aplicar dano;
-- aplicar cura;
-- determinar morte;
-- determinar inconsciência;
-- validar regras de combate;
-- validar regras de condições.
+- aplica dano;
+- aplica cura;
+- interpreta ferimentos;
+- calcula modificadores;
+- aplica bônus ou penalidades;
+- determina morte ou inconsciência;
+- resolve condições;
+- resolve efeitos;
+- valida regras de combate.
 
 Essas responsabilidades pertencem ao módulo Rules.
 
 ---
 
-5. Estrutura
+## Injuries
 
-A estrutura canônica é:
-
-{
-  conditions: [],
-
-  effects: [],
-
-  combat: {
-    engaged: false
-  }
-}
-
----
-
-6. Conditions
-
-Representa estados ativos do personagem.
-
-Exemplos:
-
-- Stunned
-- Prone
-- Grappled
-- Unconscious
-- Frightened
-
-Estrutura sugerida:
-
-{
-  id: "condition-id",
-  name: "Stunned"
-}
-
-State não interpreta o significado da condição.
-
----
-
-7. Effects
-
-Representa efeitos temporários ativos.
-
-Exemplos:
-
-- Bless
-- Haste
-- Curse
-- Poison
-
-Estrutura sugerida:
-
-{
-  id: "effect-id",
-  source: "Bless",
-  description: "+1 DX"
-}
-
-State não interpreta o efeito.
-
----
-
-8. Combat
-
-Representa apenas o estado mais básico de participação em combate.
-
-Estrutura inicial:
-
-{
-  engaged: false
-}
-
-Não inclui:
-
-- postura;
-- manobra atual;
-- alvo;
-- iniciativa;
-- defesa escolhida.
-
-Esses conceitos poderão ser modelados futuramente.
-
----
-
-9. Invariantes Estruturais
-
-State válido deve possuir:
-
-- conditions
-- effects
-- combat
-
-conditions deve ser um array.
-
-effects deve ser um array.
-
-combat deve ser um objeto.
-
-combat.engaged deve ser booleano.
-
----
-
-10. Compatibilidade GCS
-
-Informações adicionais de estado encontradas em arquivos GCS devem ser preservadas conforme ADR-0003.
-
-A implementação inicial da SINGULAR não precisa compreender todos os estados possíveis.
-
----
-
-11. Serialização
-
-State deve ser serializável para JSON sem perda estrutural.
-
-Não deve conter:
-
-- métodos;
-- referências circulares;
-- dependências externas.
-
----
-
-12. Relação com Pools
-
-State não representa recursos atuais.
-
-Exemplos:
-
-- HP atual
-- FP atual
-- Energy Reserve atual
-
-pertencem ao agregado Pools.
-
----
-
-13. Relação com Character
-
-State pertence ao Character.
+`injuries` contém registros descritivos de ferimentos.
 
 Exemplo:
 
-Character
-└── State
-├── Conditions
-├── Effects
-└── Combat
+```js
+{
+  id: "injury-001",
+  location: "Braço direito",
+  description: "Corte profundo",
+  notes: ""
+}
+```
 
-Character continua sendo o Aggregate Root.
+O agregado não impõe schema mecânico interno nesta fase e não interpreta:
+
+- gravidade;
+- localização;
+- sangramento;
+- incapacidade;
+- recuperação;
+- relação automática com PV atuais.
 
 ---
 
-14. Direção de Implementação
+## Conditions
 
-A implementação deverá utilizar:
+`conditions` representa estados ativos.
+
+Exemplos:
+
+- Atordoado;
+- Caído;
+- Agarrado;
+- Inconsciente;
+- Amedrontado.
+
+```js
+{
+  id: "condition-001",
+  name: "Atordoado"
+}
+```
+
+---
+
+## Effects
+
+`effects` representa efeitos temporários.
+
+Exemplos:
+
+- bênção;
+- aceleração;
+- maldição;
+- veneno.
+
+```js
+{
+  id: "effect-001",
+  source: "Bênção",
+  description: "+1 em testes"
+}
+```
+
+---
+
+## Combat
+
+O estado inicial de combate contém apenas:
+
+```js
+{
+  engaged: false
+}
+```
+
+Postura, manobra, alvo, iniciativa e defesa escolhida permanecem fora do escopo atual.
+
+---
+
+## Relação com Pools
+
+Valores atuais de recursos pertencem a `Pools`:
+
+- HP/PV;
+- FP/PF;
+- Energy Reserve/Reserva de Energia.
+
+State não duplica esses valores.
+
+---
+
+## Relação com Formas Alternativas
+
+`AlternateFormSet.statePolicy` declara se partes de State são:
+
+```text
+shared
+perForm
+```
+
+Com política `perForm`, a operação de transformação captura e restaura:
+
+- `injuries`;
+- `conditions`;
+- `effects`.
+
+O State continua sendo o estado atualmente ativo do Character.
+
+Os snapshots das formas inativas ficam em:
+
+```text
+AlternateForm.runtimeState
+```
+
+---
+
+## Invariantes
+
+Um State válido deve possuir:
+
+- `injuries` como array;
+- `conditions` como array;
+- `effects` como array;
+- `combat` como objeto;
+- `combat.engaged` como booleano.
+
+---
+
+## Serialização
+
+State deve ser serializável para JSON sem:
+
+- métodos;
+- referências circulares;
+- dependências externas;
+- estado de interface.
+
+---
+
+## Direção de implementação
+
+A implementação utiliza:
 
 - objetos simples;
 - composição;
 - funções puras;
 - serialização direta.
 
-A implementação não deverá utilizar classes.
-
 ---
 
-15. Checklist de Implementação
+## Checklist
 
 - [x] Criar State.md
-- [ ] Criar State.js
-- [ ] Criar State.test.js
-- [ ] Criar StateOperations.js
-- [ ] Criar StateOperations.test.js
-- [ ] Integrar com Character
-- [ ] Aprovar State v1.0
+- [x] Criar State.js
+- [x] Criar State.test.js
+- [x] Integrar com Character
+- [x] Adicionar injuries
+- [x] Integrar continuidade de estado das formas
+- [x] Aprovar State v1.1
