@@ -26,6 +26,17 @@ export function activateAlternateForm(character, formSetId, formId, options = {}
   const activationId = form.templateId === null
     ? null
     : options.activationId ?? generateFormActivationId();
+
+  if (
+    activationId !== null &&
+    character.alternateFormSets.some(candidate => (
+      candidate.id !== formSetId &&
+      candidate.activeActivationId === activationId
+    ))
+  ) {
+    throw new Error("Alternate form activation id already exists");
+  }
+
   const stripped = removeTemplateComponents(
     character,
     record => record?.importMeta?.alternateFormSetId === formSetId,
