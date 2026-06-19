@@ -27,6 +27,11 @@ export function createEquipmentItem(input = {}) {
     cost: normalizeCost(input.cost ?? input.value ?? 0),
     weightKg: normalizeWeightKg(input.weightKg ?? input.weight ?? 0),
     state: input.state ?? inferState(kind, containerKind),
+    uses: normalizeNullableNonNegativeNumber(input.uses, "Equipment uses must be non-negative number or null"),
+    maxUses: normalizeNullableNonNegativeNumber(
+      input.maxUses ?? input.max_uses,
+      "Equipment maxUses must be non-negative number or null",
+    ),
     categories: normalizeArray(input.categories, "Equipment categories must be array"),
     notes: input.notes ?? "",
     tags: normalizeArray(input.tags, "Equipment tags must be array"),
@@ -35,6 +40,7 @@ export function createEquipmentItem(input = {}) {
     modifiers: normalizeArray(input.modifiers, "Equipment modifiers must be array"),
     prereqs: input.prereqs ?? null,
     calc: input.calc ?? null,
+    importMeta: input.importMeta ?? null,
     children: createEquipment(input.children ?? []),
     raw: input.raw ?? null,
   };
@@ -109,6 +115,15 @@ export function validateEquipmentItem(item) {
     throw new Error("Equipment state is invalid");
   }
 
+  validateNullableNonNegativeNumber(
+    item.uses,
+    "Equipment uses must be non-negative number or null",
+  );
+  validateNullableNonNegativeNumber(
+    item.maxUses,
+    "Equipment maxUses must be non-negative number or null",
+  );
+
   if (!Array.isArray(item.categories)) {
     throw new Error("Equipment categories must be array");
   }
@@ -133,6 +148,10 @@ export function validateEquipmentItem(item) {
     throw new Error("Equipment modifiers must be array");
   }
 
+  if (item.importMeta !== null && !isPlainObject(item.importMeta)) {
+    throw new Error("Equipment importMeta must be object or null");
+  }
+
   validateEquipment(item.children);
 
   return true;
@@ -154,6 +173,8 @@ export function serializeEquipment(equipment) {
     cost: item.cost,
     weightKg: item.weightKg,
     state: item.state,
+    uses: item.uses,
+    maxUses: item.maxUses,
     categories: [...item.categories],
     notes: item.notes,
     tags: [...item.tags],
@@ -162,6 +183,7 @@ export function serializeEquipment(equipment) {
     modifiers: [...item.modifiers],
     prereqs: item.prereqs,
     calc: item.calc,
+    importMeta: item.importMeta,
     children: serializeEquipment(item.children),
     raw: item.raw,
   }));
@@ -266,6 +288,33 @@ function normalizeWeightKg(weight) {
   const unit = match[2] ?? "kg";
 
   return unit === "kg" ? value : value / 2;
+}
+
+function normalizeNullableNonNegativeNumber(value, errorMessage) {
+  if (value === undefined || value === null || value === "") {
+    return null;
+  }
+
+  const parsed = typeof value === "number"
+    ? value
+    : typeof value === "string"
+      ? Number(value.trim())
+      : Number.NaN;
+
+  if (Number.isNaN(parsed) || parsed < 0) {
+    throw new Error(errorMessage);
+  }
+
+  return parsed;
+}
+
+function validateNullableNonNegativeNumber(value, errorMessage) {
+  if (
+    value !== null &&
+    (typeof value !== "number" || Number.isNaN(value) || value < 0)
+  ) {
+    throw new Error(errorMessage);
+  }
 }
 
 function isPlainObject(value) {
