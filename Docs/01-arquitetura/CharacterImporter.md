@@ -1,6 +1,6 @@
 # CharacterImporter
 
-**Código:** DOM-IMP-1.3
+**Código:** DOM-IMP-1.4
 **Status:** Aprovado
 **Camada:** Domain / Import
 **Tipo:** Import Pipeline
@@ -70,14 +70,17 @@ Estrutura atual:
 
   languages: [],
   familiarities: [],
+
   equipment: [],
+  unknownEquipmentNodes: [],
+
   raw: {}
 }
 ```
 
 ---
 
-## DOM-IMP-1.3
+## DOM-IMP-1.4
 
 A entrega atual importa:
 
@@ -89,7 +92,8 @@ A entrega atual importa:
 - desvantagens;
 - peculiaridades;
 - perícias;
-- técnicas.
+- técnicas;
+- equipamentos.
 
 Perícias passam por:
 
@@ -113,44 +117,47 @@ resolução da perícia-mãe
 Character.techniques
 ```
 
-O `TechniquesImporter` tenta vincular a técnica à perícia-mãe nesta ordem:
+Equipamentos passam por:
 
-1. ID interno ou ID externo do GCS;
-2. nome e especialização;
-3. preservação como vínculo não resolvido.
+```text
+GCS equipment / other_equipment / equipment_list.rows
+  ↓
+EquipmentImporter
+  ↓
+normalização métrica e estrutural
+  ↓
+Character.equipment
+```
 
-Quando houver mais de uma perícia compatível, o vínculo fica ambíguo e não é escolhido automaticamente.
+O `EquipmentImporter`:
 
-O importador preserva, sem recalcular:
+- converte peso de libras para quilogramas usando `2 lb = 1 kg`;
+- converte custo e quantidade para números;
+- preserva hierarquia de recipientes;
+- distingue recipientes físicos de agrupamentos semânticos;
+- mapeia itens equipados, carregados e armazenados;
+- preserva usos, máximo de usos, categorias, armas embutidas, features, modificadores, pré-requisitos e `calc`;
+- mantém nós desconhecidos em `unknownEquipmentNodes`.
 
-- dificuldade;
-- pontos;
-- NH informado pelo GCS;
-- NH relativo informado pelo GCS;
-- penalidade do default;
-- limite relativo máximo;
-- especialização;
-- defaults;
-- features;
-- pré-requisitos;
-- notas;
-- tags;
-- dados brutos;
-- diagnóstico do vínculo com a perícia-mãe.
+Itens de `other_equipment` entram como `stored` por padrão.
 
-Containers de perícias, nós intermediários, nós desconhecidos e vínculos de técnica não resolvidos permanecem no `ImportSnapshot`.
+Recipientes físicos com capacidade, peso ou custo próprio entram como `physical`. Agrupamentos sem peso e custo próprios entram como `group` e ficam em `ignored`, sem apagar o estado dos itens internos.
+
+O importador não calcula carga, custo total, RD ou ataques. Esses cálculos continuam em serviços de domínio.
 
 ---
 
 ## Fora de escopo atual
 
-DOM-IMP-1.3 ainda não importa:
+DOM-IMP-1.4 ainda não importa:
 
-- equipamentos;
+- idiomas;
+- familiaridades culturais;
 - magias;
 - templates como agregados finais;
 - ataques derivados;
 - cálculo de NH;
+- cálculo de carga durante a importação;
 - cálculo de custo de traits;
 - cálculo de poderes;
 - cálculo de habilidades alternativas.
@@ -174,3 +181,6 @@ DOM-IMP-1.3 ainda não importa:
 - [x] Refatorar Techniques para preservar campos ricos
 - [x] Criar TechniquesImporter.js
 - [x] Integrar TechniquesImporter ao CharacterImporter
+- [x] Refatorar Equipment para preservar usos e metadados
+- [x] Criar EquipmentImporter.js
+- [x] Integrar EquipmentImporter ao CharacterImporter
