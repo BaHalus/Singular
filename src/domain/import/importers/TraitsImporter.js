@@ -20,6 +20,8 @@ function createEmptyTraitsImport() {
     perks: [],
     disadvantages: [],
     quirks: [],
+    languageNodes: [],
+    familiarityNodes: [],
     containers: [],
     unknownNodes: [],
   };
@@ -43,6 +45,18 @@ function importTraitNode(node, result, context) {
   }
 
   if (node.nodeKind === "trait") {
+    const specialKind = inferSpecialTraitKind(node);
+
+    if (specialKind === "language") {
+      result.languageNodes.push(mapSpecialNode(node, context, specialKind));
+      return;
+    }
+
+    if (specialKind === "familiarity") {
+      result.familiarityNodes.push(mapSpecialNode(node, context, specialKind));
+      return;
+    }
+
     const importedTrait = mapTraitNode(node, context);
 
     switch (node.role) {
@@ -69,6 +83,30 @@ function importTraitNode(node, result, context) {
   result.unknownNodes.push(mapUnknownNode(node, context));
 }
 
+function inferSpecialTraitKind(node) {
+  const normalizedTags = node.tags.map(tag => normalizeForComparison(tag));
+  const name = normalizeForComparison(node.name);
+
+  if (
+    normalizedTags.includes("idioma") ||
+    name.startsWith("idioma:") ||
+    name.startsWith("language:") ||
+    name.startsWith("linguagem de sinais:") ||
+    name.startsWith("sign language:")
+  ) {
+    return "language";
+  }
+
+  if (
+    name.startsWith("familiaridade cultural") ||
+    name.startsWith("cultural familiarity")
+  ) {
+    return "familiarity";
+  }
+
+  return null;
+}
+
 function mapTraitNode(node, context) {
   return {
     id: node.id,
@@ -91,6 +129,30 @@ function mapTraitNode(node, context) {
       containerIds: [...context.containerIds],
     },
 
+    raw: node.raw,
+  };
+}
+
+function mapSpecialNode(node, context, specialKind) {
+  return {
+    id: node.id,
+    externalIds: { ...node.externalIds },
+    nodeKind: node.nodeKind,
+    specialKind,
+    name: node.name,
+    points: node.points,
+    levels: node.levels,
+    modifiers: [...node.modifiers],
+    features: [...node.features],
+    weapons: [...node.weapons],
+    prereqs: node.prereqs,
+    tags: buildTraitTags(node),
+    importMeta: {
+      source: "gcs",
+      role: node.role,
+      specialKind,
+      containerIds: [...context.containerIds],
+    },
     raw: node.raw,
   };
 }
@@ -141,6 +203,10 @@ function buildTraitTags(node) {
     `node:${node.nodeKind}`,
     `role:${node.role}`,
   ];
+}
+
+function normalizeForComparison(value) {
+  return String(value ?? "").trim().toLocaleLowerCase("pt-BR");
 }
 
 function isNormalizedTraitTree(source) {
