@@ -16,28 +16,25 @@ export function initializeFormTransitionRuntime(character, formSetId, options = 
 
   const startedAt = normalizeTimestamp(set.activeSince ?? options.now);
   const rules = getEffectiveTransitionRules(set, activeForm);
-  const maintenanceCosts = [
-    ...rules.activation.costs,
-    ...rules.deactivation.costs,
-  ].filter(cost => cost.timing === "maintenance");
+  const maintenanceCosts = collectMaintenanceCosts(rules);
   const runtime = createFormTransitionRuntime({
     activationId: set.activeActivationId ?? options.activationId ?? generateRuntimeId(),
     formId: activeForm.id,
     startedAt,
     observedAt: startedAt,
     duration: rules.duration,
-    maintenance: maintenanceCosts.map(cost => ({
-      costId: cost.id,
-      resource: cost.resource,
-      resourceKey: normalizeResourceKey(cost.resource),
-      amount: cost.amount,
-      intervalSeconds: cost.intervalSeconds,
+    maintenance: maintenanceCosts.map(entry => ({
+      costId: entry.runtimeCostId,
+      resource: entry.cost.resource,
+      resourceKey: normalizeResourceKey(entry.cost.resource),
+      amount: entry.cost.amount,
+      intervalSeconds: entry.cost.intervalSeconds,
       chargedIntervals: 0,
       lastChargedAt: null,
-      nextDueAt: cost.intervalSeconds == null
+      nextDueAt: entry.cost.intervalSeconds == null
         ? null
-        : addSeconds(startedAt, cost.intervalSeconds),
-      notes: cost.notes,
+        : addSeconds(startedAt, entry.cost.intervalSeconds),
+      notes: entry.cost.notes,
     })),
   });
 
@@ -48,6 +45,36 @@ export function clearFormTransitionRuntime(character, formSetId, options = {}) {
   const set = findSet(character, formSetId);
   if (!set) throw new Error("Alternate form set not found");
   return updateRuntime(character, set.id, null, options.now);
+}
+
+function collectMaintenanceCosts(rules) {
+  const entries = [
+    ...rules.activation.costs.map((cost, index) => ({
+      cost,
+      phase: "activation",
+      index,
+    })),
+    ...rules.deactivation.costs.map((cost, index) => ({
+      cost,
+      phase: "deactivation",
+      index,
+    })),
+  ].filter(entry => entry.cost.timing === "maintenance");
+  const frequencies = new Map();
+
+  for (const entry of entries) {
+    frequencies.set(
+      entry.cost.id,
+      (frequencies.get(entry.cost.id) ?? 0) + 1,
+    );
+  }
+
+  return entries.map(entry => ({
+    ...entry,
+    runtimeCostId: frequencies.get(entry.cost.id) === 1
+      ? entry.cost.id
+      : `${entry.phase}:${entry.cost.id}:${entry.index + 1}`,
+  }));
 }
 
 function updateRuntime(character, setId, runtime, now) {
