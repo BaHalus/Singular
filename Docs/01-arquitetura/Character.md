@@ -1,6 +1,6 @@
 # Character
 
-**Código:** DOM-CHAR-1.3  
+**Código:** DOM-CHAR-1.4  
 **Status:** Aprovado  
 **Camada:** Domain  
 **Tipo:** Aggregate Root
@@ -9,52 +9,46 @@ Character é o Aggregate Root da SINGULAR.
 
 Ele representa a unidade fundamental de persistência, serialização e manipulação de um personagem.
 
----
-
 ## Responsabilidades
 
 Character mantém:
 
 - identidade;
-- atributos;
-- secundárias;
+- atributos e secundárias;
 - pools;
 - traits;
-- perícias e técnicas;
-- mágicas e poderes;
+- perícias, técnicas, mágicas e poderes;
 - equipamentos e ataques;
 - idiomas e familiaridades;
 - templates importados;
 - histórico de incorporação;
 - conjuntos de formas;
+- forma ativa;
 - estado transitório atual;
-- snapshots de estado das formas inativas;
+- snapshots das formas inativas;
+- políticas de continuidade;
+- regras declarativas de transição por forma;
 - metadados.
 
 Character garante apenas invariantes estruturais.
 
----
-
 ## Não responsabilidades
 
-Character não calcula:
+Character não:
 
-- regras de GURPS;
-- custos;
-- dano ou cura;
-- carga;
-- movimento;
-- NH;
-- pré-requisitos;
-- efeitos de features;
-- máximos de pools;
-- proporção de dano entre formas;
-- tempo ou custo de transformação;
-- limites de Morfo.
+- calcula regras de GURPS;
+- calcula custos, dano, cura, carga, movimento ou NH;
+- interpreta pré-requisitos;
+- calcula máximos de pools;
+- converte dano entre formas;
+- consome custos de transformação;
+- executa testes;
+- verifica requisitos, gatilhos ou impedimentos;
+- avança tempo;
+- ativa automaticamente uma transformação;
+- implementa limites de Morfo.
 
-Essas responsabilidades pertencem a Rules e aos serviços de domínio apropriados.
-
----
+Essas responsabilidades pertencem a Rules e aos serviços operacionais apropriados.
 
 ## Composição
 
@@ -83,43 +77,6 @@ Character
 └── Metadata
 ```
 
----
-
-## Estrutura canônica
-
-```js
-{
-  identity,
-  attributes,
-  secondaryCharacteristics,
-  pools,
-
-  advantages,
-  perks,
-  disadvantages,
-  quirks,
-
-  skills,
-  techniques,
-  spells,
-  powers,
-
-  equipment,
-  attacks,
-  languages,
-  familiarities,
-
-  templates,
-  templateApplications,
-  alternateFormSets,
-
-  state,
-  metadata
-}
-```
-
----
-
 ## Templates
 
 `templates` contém pacotes importados e independentes.
@@ -129,8 +86,6 @@ Character
 Importar e incorporar são operações distintas.
 
 Uma aplicação removida permanece no histórico com status `removed`.
-
----
 
 ## Formas Alternativas
 
@@ -142,8 +97,18 @@ Cada conjunto possui:
 - forma ativa;
 - formas disponíveis;
 - mecanismo;
-- política de continuidade de estado;
+- política de continuidade;
+- regras de transição compartilhadas como defaults;
 - proveniência da ativação atual.
+
+Cada forma pode possuir:
+
+- template vinculado;
+- trait de origem;
+- snapshot transitório;
+- regras de transição efetivas;
+- override de transição;
+- resolução explicável das regras.
 
 Somente uma forma fica ativa dentro de cada conjunto.
 
@@ -151,11 +116,9 @@ Conjuntos independentes podem coexistir.
 
 Templates permanentes como Elfo, Vampiro, Orc, Lich, Anão ou Licantropo não são removidos quando uma forma temporária muda.
 
----
+## Continuidade de estado
 
-## Estado atual e estado das formas
-
-O estado atualmente ativo permanece nos agregados normais:
+O estado atualmente ativo permanece em:
 
 ```text
 Pools
@@ -176,19 +139,30 @@ shared
 perForm
 ```
 
-A política pode controlar:
+A política pode controlar PV, PF, Reserva de Energia, ferimentos, condições, efeitos e equipamento.
 
-- PV atuais;
-- PF atuais;
-- Reserva de Energia atual;
-- ferimentos;
-- condições;
-- efeitos;
-- estado, usos e quantidade de equipamentos.
+## Regras de transição
 
-O Character armazena esses dados, mas não decide a regra mecânica correta para uma campanha.
+`AlternateFormSet.transitionRules` contém padrões compartilhados.
 
----
+`AlternateForm.transitionRules` contém as regras efetivas daquela forma.
+
+Essas regras podem declarar:
+
+- tempo-base;
+- passos relativos de tempo;
+- manobra;
+- custos;
+- testes;
+- requisitos;
+- gatilhos;
+- ativação involuntária;
+- possibilidade de interrupção;
+- duração;
+- retorno;
+- impedimentos.
+
+Character armazena essas declarações, mas não as executa.
 
 ## Dados permanentes
 
@@ -203,11 +177,10 @@ São permanentes estruturalmente:
 - templates;
 - histórico de aplicações;
 - definição dos conjuntos de formas;
+- políticas e regras declaradas;
 - metadados.
 
 Componentes temporários da forma ativa permanecem serializados enquanto estiverem ativos, com proveniência explícita.
-
----
 
 ## Dados transitórios
 
@@ -221,8 +194,6 @@ Incluem:
 - estado e usos de equipamentos;
 - forma ativa;
 - snapshots das formas inativas.
-
----
 
 ## Invariantes
 
@@ -243,13 +214,16 @@ Cada conjunto de formas deve possuir:
 - forma-base existente;
 - forma ativa existente;
 - IDs únicos;
-- política de estado válida.
+- política de estado válida;
+- regras de transição default válidas.
 
-Cada forma deve possuir `runtimeState` válido.
+Cada forma deve possuir:
+
+- `runtimeState` válido;
+- regras de transição nulas ou válidas;
+- `return.targetFormId`, quando informado, apontando para uma forma do mesmo conjunto.
 
 Essas invariantes não executam regras de GURPS.
-
----
 
 ## Serialização
 
@@ -261,17 +235,12 @@ A serialização inclui:
 - aplicações;
 - conjuntos de formas;
 - forma ativa;
-- política de continuidade;
+- políticas e suas resoluções;
+- regras de transição e suas resoluções;
+- overrides manuais;
 - snapshots de estado.
 
-Ela não inclui:
-
-- métodos;
-- referências circulares;
-- estado de interface;
-- dependências externas.
-
----
+Ela não inclui métodos, referências circulares, estado de interface ou dependências externas.
 
 ## Direção de implementação
 
@@ -285,8 +254,6 @@ A implementação privilegia:
 - proveniência explícita;
 - separação entre dados, regras e apresentação.
 
----
-
 ## Checklist
 
 - [x] Criar Character.js
@@ -298,4 +265,6 @@ A implementação privilegia:
 - [x] Integrar linker seguro
 - [x] Integrar política de continuidade
 - [x] Integrar snapshots por forma
-- [x] Aprovar Character v1.3
+- [x] Integrar regras de transição por forma
+- [x] Integrar overrides e resoluções explicáveis
+- [x] Aprovar Character v1.4
