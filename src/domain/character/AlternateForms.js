@@ -6,6 +6,11 @@ import {
   validateAlternateFormRuntimeState,
   serializeAlternateFormRuntimeState,
 } from "./AlternateFormState.js";
+import {
+  createFormTransitionRules,
+  validateFormTransitionRules,
+  serializeFormTransitionRules,
+} from "./FormTransitionRules.js";
 
 const FORM_MECHANISMS = ["alternateForm", "morph"];
 
@@ -48,6 +53,19 @@ export function createAlternateFormSet(input = {}) {
       "Alternate form statePolicyResolution must be object or null",
       null,
     ),
+
+    transitionRules: createFormTransitionRules(input.transitionRules),
+    transitionRulesOverride: normalizePlainObject(
+      input.transitionRulesOverride,
+      "Alternate form transitionRulesOverride must be object or null",
+      null,
+    ),
+    transitionRulesResolution: normalizePlainObject(
+      input.transitionRulesResolution,
+      "Alternate form transitionRulesResolution must be object or null",
+      null,
+    ),
+
     forms,
 
     notes: input.notes ?? "",
@@ -127,20 +145,24 @@ export function validateAlternateFormSet(set) {
   );
 
   validateAlternateFormStatePolicy(set.statePolicy);
+  validateNullableObject(
+    set.statePolicyOverride,
+    "Alternate form statePolicyOverride must be object or null",
+  );
+  validateNullableObject(
+    set.statePolicyResolution,
+    "Alternate form statePolicyResolution must be object or null",
+  );
 
-  if (
-    set.statePolicyOverride !== null &&
-    !isPlainObject(set.statePolicyOverride)
-  ) {
-    throw new Error("Alternate form statePolicyOverride must be object or null");
-  }
-
-  if (
-    set.statePolicyResolution !== null &&
-    !isPlainObject(set.statePolicyResolution)
-  ) {
-    throw new Error("Alternate form statePolicyResolution must be object or null");
-  }
+  validateFormTransitionRules(set.transitionRules);
+  validateNullableObject(
+    set.transitionRulesOverride,
+    "Alternate form transitionRulesOverride must be object or null",
+  );
+  validateNullableObject(
+    set.transitionRulesResolution,
+    "Alternate form transitionRulesResolution must be object or null",
+  );
 
   if (!Array.isArray(set.forms) || set.forms.length === 0) {
     throw new Error("Alternate form set must have at least one form");
@@ -180,10 +202,10 @@ export function validateAlternateFormSet(set) {
   }
 
   validateStringArray(set.tags, "Alternate form set tags must be string array");
-
-  if (set.importMeta !== null && !isPlainObject(set.importMeta)) {
-    throw new Error("Alternate form set importMeta must be object or null");
-  }
+  validateNullableObject(
+    set.importMeta,
+    "Alternate form set importMeta must be object or null",
+  );
 
   return true;
 }
@@ -221,10 +243,10 @@ export function validateAlternateForm(form) {
   }
 
   validateAlternateFormRuntimeState(form.runtimeState);
-
-  if (form.importMeta !== null && !isPlainObject(form.importMeta)) {
-    throw new Error("Alternate form importMeta must be object or null");
-  }
+  validateNullableObject(
+    form.importMeta,
+    "Alternate form importMeta must be object or null",
+  );
 
   return true;
 }
@@ -246,6 +268,11 @@ export function serializeAlternateFormSets(sets) {
     statePolicy: serializeAlternateFormStatePolicy(set.statePolicy),
     statePolicyOverride: cloneValue(set.statePolicyOverride),
     statePolicyResolution: cloneValue(set.statePolicyResolution),
+
+    transitionRules: serializeFormTransitionRules(set.transitionRules),
+    transitionRulesOverride: cloneValue(set.transitionRulesOverride),
+    transitionRulesResolution: cloneValue(set.transitionRulesResolution),
+
     forms: set.forms.map(form => ({
       id: form.id,
       name: form.name,
@@ -300,6 +327,12 @@ function normalizePlainObject(value, errorMessage, fallback) {
   }
 
   return cloneValue(value);
+}
+
+function validateNullableObject(value, errorMessage) {
+  if (value !== null && !isPlainObject(value)) {
+    throw new Error(errorMessage);
+  }
 }
 
 function validateNullableString(value, errorMessage) {
