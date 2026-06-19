@@ -15,9 +15,15 @@ export function createLanguage(input = {}) {
     name: input.name ?? "",
     spokenLevel: input.spokenLevel ?? "none",
     writtenLevel: input.writtenLevel ?? "none",
+    isNative: input.isNative ?? false,
     importedCost: input.importedCost ?? null,
+    reference: input.reference ?? null,
+    modifiers: normalizeArray(input.modifiers, "Language modifiers must be array"),
+    prereqs: input.prereqs ?? null,
     notes: input.notes ?? "",
-    tags: normalizeTags(input.tags),
+    tags: normalizeArray(input.tags, "Language tags must be array"),
+    importMeta: input.importMeta ?? null,
+    raw: input.raw ?? null,
   };
 }
 
@@ -58,8 +64,27 @@ export function validateLanguage(language) {
     throw new Error("Language writtenLevel is invalid");
   }
 
-  if (language.importedCost !== null && typeof language.importedCost !== "number") {
+  if (typeof language.isNative !== "boolean") {
+    throw new Error("Language isNative must be boolean");
+  }
+
+  if (
+    language.importedCost !== null &&
+    (typeof language.importedCost !== "number" || Number.isNaN(language.importedCost))
+  ) {
     throw new Error("Language importedCost must be number or null");
+  }
+
+  if (language.reference !== null && typeof language.reference !== "string") {
+    throw new Error("Language reference must be string or null");
+  }
+
+  if (!Array.isArray(language.modifiers)) {
+    throw new Error("Language modifiers must be array");
+  }
+
+  if (language.prereqs !== null && !isPlainObject(language.prereqs)) {
+    throw new Error("Language prereqs must be object or null");
   }
 
   if (typeof language.notes !== "string") {
@@ -68,6 +93,10 @@ export function validateLanguage(language) {
 
   if (!Array.isArray(language.tags)) {
     throw new Error("Language tags must be array");
+  }
+
+  if (language.importMeta !== null && !isPlainObject(language.importMeta)) {
+    throw new Error("Language importMeta must be object or null");
   }
 
   return true;
@@ -82,9 +111,15 @@ export function serializeLanguages(languages) {
     name: language.name,
     spokenLevel: language.spokenLevel,
     writtenLevel: language.writtenLevel,
+    isNative: language.isNative,
     importedCost: language.importedCost,
+    reference: language.reference,
+    modifiers: [...language.modifiers],
+    prereqs: language.prereqs,
     notes: language.notes,
     tags: [...language.tags],
+    importMeta: language.importMeta,
+    raw: language.raw,
   }));
 }
 
@@ -100,16 +135,16 @@ function normalizeExternalIds(externalIds) {
   return { ...externalIds };
 }
 
-function normalizeTags(tags) {
-  if (tags === undefined || tags === null) {
+function normalizeArray(value, errorMessage) {
+  if (value === undefined || value === null) {
     return [];
   }
 
-  if (!Array.isArray(tags)) {
-    throw new Error("Language tags must be array");
+  if (!Array.isArray(value)) {
+    throw new Error(errorMessage);
   }
 
-  return [...tags];
+  return [...value];
 }
 
 function isPlainObject(value) {
