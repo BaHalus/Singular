@@ -1,13 +1,13 @@
 # AlternateForms
 
-**Código:** DOM-FORM-1.3  
+**Código:** DOM-FORM-1.4  
 **Status:** Aprovado  
 **Camada:** Domain  
-**Tipo:** Agregado, operações, linker e resolução de estado
+**Tipo:** Agregado, operações, linker e resolvers
 
 AlternateForms controla transformações reversíveis entre formas vinculadas a templates.
 
-A arquitetura segue ADR-0011, ADR-0012, ADR-0013 e ADR-0014.
+A arquitetura segue ADR-0011 a ADR-0015.
 
 ## Conceitos separados
 
@@ -18,6 +18,7 @@ vínculo entre vantagem e template
 forma temporariamente ativa
 estado transitório da forma
 política derivada de continuidade
+regras declarativas de transição por forma
 ```
 
 Essa separação permite combinações como Elfo Vampiro, Orc Lich e Anão Lobisomem sem confundir templates permanentes com formas corporais momentâneas.
@@ -29,27 +30,18 @@ Essa separação permite combinações como Elfo Vampiro, Orc Lich e Anão Lobis
   id: "set-body",
   name: "Formas Vampíricas",
   mechanism: "alternateForm",
-  sourceTraitId: "adv-forma-alternativa",
+  sourceTraitId: null,
 
   baseFormId: "form-humanoid",
   activeFormId: "form-bat",
   activeActivationId: "activation-bat",
   activeSince: "2026-06-19T12:00:00.000Z",
 
-  statePolicy: {
-    pools: {
-      HP: "shared",
-      FP: "shared",
-      EnergyReserve: "shared"
-    },
-    injuries: "shared",
-    conditions: "shared",
-    effects: "shared",
-    equipment: "shared"
-  },
+  statePolicy,
+  statePolicyOverride,
+  statePolicyResolution,
 
-  statePolicyOverride: null,
-  statePolicyResolution: null,
+  transitionRules,
 
   forms: []
 }
@@ -58,6 +50,8 @@ Essa separação permite combinações como Elfo Vampiro, Orc Lich e Anão Lobis
 Somente uma forma fica ativa dentro de cada conjunto.
 
 Conjuntos independentes podem coexistir, por exemplo Corpo e Revestimento.
+
+`transitionRules` no conjunto contém somente padrões compartilhados.
 
 ## AlternateForm
 
@@ -69,20 +63,17 @@ Conjuntos independentes podem coexistir, por exemplo Corpo e Revestimento.
   sourceTraitId: "adv-forma-morcego",
 
   state: {},
+  runtimeState: {},
 
-  runtimeState: {
-    initialized: false,
-    capturedAt: null,
-    pools: {},
-    injuries: [],
-    conditions: [],
-    effects: [],
-    equipment: []
-  }
+  transitionRules,
+  transitionRulesOverride,
+  transitionRulesResolution
 }
 ```
 
 A forma-base normalmente usa `templateId: null`.
+
+Cada forma alternativa conserva suas próprias regras de entrada, permanência e retorno.
 
 ## Linker
 
@@ -143,62 +134,78 @@ diretivas explícitas
 override manual
 ```
 
-A primeira regra interna reconhece o modificador habilitado:
+A primeira regra interna reconhece `Dano Não-Recíproco` e deriva PV e ferimentos próprios de cada forma.
+
+## FormTransitionRules
+
+As regras de transição descrevem:
+
+- tempo-base;
+- passos relativos de tempo;
+- manobra;
+- custos;
+- testes;
+- requisitos;
+- gatilhos;
+- ativação involuntária;
+- possibilidade de interrupção;
+- duração;
+- retorno;
+- impedimentos.
+
+O conjunto fornece defaults. A forma armazena as regras efetivas.
+
+Isso evita vazamento entre formas:
 
 ```text
-Dano Não-Recíproco
-Non-Reciprocal Damage
+Lobo: Custa Fadiga 2
+Morcego: Gatilho — Escuridão total
 ```
 
-e deriva:
+## FormTransitionRulesResolver
+
+A resolução é feita para uma forma de destino específica:
 
 ```js
-{
-  pools: { HP: "perForm" },
-  injuries: "perForm"
-}
+analyzeFormTransitionRules(character, setId, formId, options)
+resolveFormTransitionRules(character, setId, formId, options)
+applyResolvedFormTransitionRules(character, setId, formId, options)
+applyResolvedFormTransitionRulesToAll(character, options)
 ```
 
-Modificadores desabilitados não produzem decisões.
+O resolver analisa apenas o trait e o template daquela forma.
 
-## Resolução explicável
+A forma-base não herda automaticamente os modificadores de outra forma.
 
-```js
-statePolicyResolution: {
-  setId,
-  resolvedAt,
-  basePolicy,
-  policy,
-  decisions,
-  diagnostics,
-  evidence
-}
-```
-
-Cada decisão informa:
-
-```js
-{
-  mode: "perForm",
-  source: "builtin",
-  priority: 100,
-  derivedFrom: [],
-  overridden: false,
-  conflict: false
-}
-```
-
-O `basePolicy` preservado permite recomputar a política quando modificadores ou regras mudarem.
-
-## Override manual
-
-Overrides são persistidos em:
+Regras internas iniciais:
 
 ```text
-statePolicyOverride
+Custa Fadiga
+Gasto Adicional de Tempo
+Tempo Reduzido
+Gatilho
+Preparação Necessária
+Impedimento
+Incontrolável
 ```
 
-Eles têm precedência reservada e permanecem aplicáveis em novas resoluções.
+Modificadores desabilitados não produzem regras.
+
+## Resoluções explicáveis
+
+Tanto a política de estado quanto as regras de transição preservam:
+
+```text
+base original
+resultado
+fonte de cada decisão
+evidências
+conflitos
+override manual
+momento da resolução
+```
+
+Recomposições partem da base preservada. Remover ou desabilitar um modificador desfaz sua contribuição anterior.
 
 ## Regras de campanha
 
@@ -206,6 +213,7 @@ Regras declarativas podem filtrar por:
 
 ```text
 setIds
+formIds
 mechanisms
 modifierNames
 featureTypes
@@ -215,7 +223,7 @@ templateIds
 
 As comparações são exatas após normalização de caixa e acentos.
 
-## Transição
+## Transição estrutural
 
 ```text
 capturar estado da forma atual
@@ -229,7 +237,9 @@ restaurar o estado salvo
 atualizar a forma ativa
 ```
 
-## Operações
+As condições declaradas em FormTransitionRules ainda não são executadas por essa operação estrutural.
+
+## Operações principais
 
 ```js
 analyzeAlternateFormLinks(character)
@@ -239,6 +249,11 @@ analyzeFormStatePolicy(character, setId, options)
 resolveFormStatePolicy(character, setId, options)
 applyResolvedFormStatePolicy(character, setId, options)
 applyResolvedFormStatePolicies(character, options)
+
+analyzeFormTransitionRules(character, setId, formId, options)
+resolveFormTransitionRules(character, setId, formId, options)
+applyResolvedFormTransitionRules(character, setId, formId, options)
+applyResolvedFormTransitionRulesToAll(character, options)
 
 activateAlternateForm(character, setId, formId)
 switchAlternateForm(character, setId, formId)
@@ -253,17 +268,14 @@ A estrutura está preparada para Morfo, mas aquisição dinâmica, limites de po
 
 ## Não responsabilidades
 
-AlternateForms não calcula:
+AlternateForms não:
 
-- custo da vantagem;
-- diferença de custo;
-- tempo ou teste de transformação;
-- máximos de pools;
-- proporção de dano;
-- atributos finais;
-- secundárias;
-- NH;
-- RD;
-- carga;
-- ataques finais;
-- limites de Morfo.
+- consome custos de transformação;
+- executa testes;
+- verifica ambiente;
+- avança tempo;
+- dispara transformações involuntárias;
+- calcula custo da vantagem;
+- calcula máximos ou proporção de dano;
+- calcula atributos, secundárias, NH, RD, carga ou ataques;
+- implementa os limites de Morfo.
