@@ -126,7 +126,8 @@ export function materializeMorphKnownForm(
     }
   }
 
-  const { set, knownForm, template, materializedForm: existing } = analysis;
+  const set = requireMorphSet(character, formSetId);
+  const { knownForm, template, materializedForm: existing } = analysis;
   const materializedAt = normalizeTimestamp(options.now);
 
   if (template === null) {
