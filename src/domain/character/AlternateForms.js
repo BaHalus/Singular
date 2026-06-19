@@ -38,6 +38,11 @@ export function createAlternateFormSet(input = {}) {
     activeSince: input.activeSince ?? null,
 
     statePolicy: createAlternateFormStatePolicy(input.statePolicy),
+    statePolicyOverride: normalizePlainObject(
+      input.statePolicyOverride,
+      "Alternate form statePolicyOverride must be object or null",
+      null,
+    ),
     statePolicyResolution: normalizePlainObject(
       input.statePolicyResolution,
       "Alternate form statePolicyResolution must be object or null",
@@ -122,6 +127,13 @@ export function validateAlternateFormSet(set) {
   );
 
   validateAlternateFormStatePolicy(set.statePolicy);
+
+  if (
+    set.statePolicyOverride !== null &&
+    !isPlainObject(set.statePolicyOverride)
+  ) {
+    throw new Error("Alternate form statePolicyOverride must be object or null");
+  }
 
   if (
     set.statePolicyResolution !== null &&
@@ -232,6 +244,7 @@ export function serializeAlternateFormSets(sets) {
     activeSince: set.activeSince,
 
     statePolicy: serializeAlternateFormStatePolicy(set.statePolicy),
+    statePolicyOverride: cloneValue(set.statePolicyOverride),
     statePolicyResolution: cloneValue(set.statePolicyResolution),
     forms: set.forms.map(form => ({
       id: form.id,
