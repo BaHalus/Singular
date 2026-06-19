@@ -1,3 +1,12 @@
+import {
+  createAlternateFormStatePolicy,
+  validateAlternateFormStatePolicy,
+  serializeAlternateFormStatePolicy,
+  createAlternateFormRuntimeState,
+  validateAlternateFormRuntimeState,
+  serializeAlternateFormRuntimeState,
+} from "./AlternateFormState.js";
+
 const FORM_MECHANISMS = ["alternateForm", "morph"];
 
 export function createAlternateFormSets(input = []) {
@@ -28,6 +37,7 @@ export function createAlternateFormSet(input = {}) {
     activeActivationId: input.activeActivationId ?? null,
     activeSince: input.activeSince ?? null,
 
+    statePolicy: createAlternateFormStatePolicy(input.statePolicy),
     forms,
 
     notes: input.notes ?? "",
@@ -54,6 +64,7 @@ export function createAlternateForm(input = {}) {
       "Alternate form state must be object",
       {},
     ),
+    runtimeState: createAlternateFormRuntimeState(input.runtimeState),
     importMeta: normalizePlainObject(
       input.importMeta,
       "Alternate form importMeta must be object or null",
@@ -104,6 +115,8 @@ export function validateAlternateFormSet(set) {
     set.sourceTraitId,
     "Alternate form set sourceTraitId must be string or null",
   );
+
+  validateAlternateFormStatePolicy(set.statePolicy);
 
   if (!Array.isArray(set.forms) || set.forms.length === 0) {
     throw new Error("Alternate form set must have at least one form");
@@ -183,6 +196,8 @@ export function validateAlternateForm(form) {
     throw new Error("Alternate form state must be object");
   }
 
+  validateAlternateFormRuntimeState(form.runtimeState);
+
   if (form.importMeta !== null && !isPlainObject(form.importMeta)) {
     throw new Error("Alternate form importMeta must be object or null");
   }
@@ -204,6 +219,7 @@ export function serializeAlternateFormSets(sets) {
     activeActivationId: set.activeActivationId,
     activeSince: set.activeSince,
 
+    statePolicy: serializeAlternateFormStatePolicy(set.statePolicy),
     forms: set.forms.map(form => ({
       id: form.id,
       name: form.name,
@@ -212,6 +228,7 @@ export function serializeAlternateFormSets(sets) {
       notes: form.notes,
       tags: [...form.tags],
       state: { ...form.state },
+      runtimeState: serializeAlternateFormRuntimeState(form.runtimeState),
       importMeta: form.importMeta,
       raw: form.raw,
     })),
