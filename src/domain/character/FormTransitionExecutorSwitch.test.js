@@ -122,7 +122,6 @@ test("revalidation can reject a changed world condition", () => {
                 ...form.transitionRules,
                 activation: {
                   ...form.transitionRules.activation,
-                  impediments: [],
                   triggers: [
                     {
                       id: "trigger-darkness",
@@ -177,10 +176,28 @@ test("revalidation can reject a changed world condition", () => {
 
 test("invalid activation id collision leaves character unchanged", () => {
   const base = createSwitchCharacter(5);
+  const bodySet = {
+    ...base.alternateFormSets[0],
+    forms: base.alternateFormSets[0].forms.map(form => (
+      form.id === "form-bat"
+        ? {
+          ...form,
+          templateId: "template-bat",
+        }
+        : form
+    )),
+  };
   const character = createCharacter({
     ...base,
+    templates: [
+      {
+        id: "template-bat",
+        templateType: "form",
+        name: "Forma de Morcego",
+      },
+    ],
     alternateFormSets: [
-      base.alternateFormSets[0],
+      bodySet,
       {
         id: "set-armor",
         name: "Revestimento",
