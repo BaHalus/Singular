@@ -1,6 +1,5 @@
 import { createCharacter } from "./Character.js";
 import { createFormTransitionRules } from "./FormTransitionRules.js";
-import { collectFormStateEvidence } from "./FormStatePolicyResolver.js";
 
 const SCALAR_PATHS = [
   "activation.baseTimeSeconds",
@@ -40,16 +39,21 @@ const SOURCE_PRIORITIES = {
   manual: 10000,
 };
 
-export function analyzeFormTransitionRules(character, formSetId, options = {}) {
+export function analyzeFormTransitionRules(
+  character,
+  formSetId,
+  formId,
+  options = {},
+) {
   validateCharacterShape(character);
 
   const set = findFormSet(character, formSetId);
+  if (!set) throw new Error("Alternate form set not found");
 
-  if (!set) {
-    throw new Error("Alternate form set not found");
-  }
+  const form = findForm(set, formId);
+  if (!form) throw new Error("Alternate form not found");
 
-  const evidence = collectFormStateEvidence(character, set);
+  const evidence = collectFormTransitionEvidence(character, set, form);
   const scalarSignals = [];
   const collectionSignals = [];
   const diagnostics = [];
@@ -79,7 +83,7 @@ export function analyzeFormTransitionRules(character, formSetId, options = {}) {
     ...readOptionalRules(options.campaignRules),
   ])) {
     if (!rule.enabled) continue;
-    if (!matchesRule(rule, evidence, set)) continue;
+    if (!matchesRule(rule, evidence, set, form)) continue;
 
     pushPartialSignals(rule.transitionRules, {
       source: "campaign",
@@ -92,7 +96,8 @@ export function analyzeFormTransitionRules(character, formSetId, options = {}) {
         type: null,
         location: "campaign",
         sourceTraitId: null,
-        templateId: null,
+        templateId: form.templateId,
+        formId: form.id,
         enabled: true,
         ruleId: rule.id,
       }],
@@ -101,7 +106,7 @@ export function analyzeFormTransitionRules(character, formSetId, options = {}) {
 
   const manualOverride = Object.hasOwn(options, "manualOverride")
     ? options.manualOverride
-    : set.transitionRulesOverride;
+    : form.transitionRulesOverride;
 
   if (manualOverride !== undefined && manualOverride !== null) {
     pushPartialSignals(manualOverride, {
@@ -114,8 +119,9 @@ export function analyzeFormTransitionRules(character, formSetId, options = {}) {
         name: options.overrideName ?? "Manual override",
         type: null,
         location: "character",
-        sourceTraitId: null,
-        templateId: null,
+        sourceTraitId: form.sourceTraitId,
+        templateId: form.templateId,
+        formId: form.id,
         enabled: true,
         ruleId: null,
       }],
@@ -123,7 +129,9 @@ export function analyzeFormTransitionRules(character, formSetId, options = {}) {
   }
 
   const baseRules = createFormTransitionRules(
-    set.transitionRulesResolution?.baseRules ?? set.transitionRules,
+    form.transitionRulesResolution?.baseRules ??
+      form.transitionRules ??
+      set.transitionRules,
   );
   const result = resolveSignals(
     baseRules,
@@ -134,6 +142,7 @@ export function analyzeFormTransitionRules(character, formSetId, options = {}) {
 
   return {
     setId: set.id,
+    formId: form.id,
     baseRules,
     transitionRules: result.transitionRules,
     decisions: result.decisions,
@@ -142,8 +151,18 @@ export function analyzeFormTransitionRules(character, formSetId, options = {}) {
   };
 }
 
-export function resolveFormTransitionRules(character, formSetId, options = {}) {
-  const analysis = analyzeFormTransitionRules(character, formSetId, options);
+export function resolveFormTransitionRules(
+  character,
+  formSetId,
+  formId,
+  options = {},
+) {
+  const analysis = analyzeFormTransitionRules(
+    character,
+    formSetId,
+    formId,
+    options,
+  );
 
   return {
     ...analysis,
@@ -151,26 +170,43 @@ export function resolveFormTransitionRules(character, formSetId, options = {}) {
   };
 }
 
-export function applyResolvedFormTransitionRules(character, formSetId, options = {}) {
+export function applyResolvedFormTransitionRules(
+  character,
+  formSetId,
+  formId,
+  options = {},
+) {
   const set = findFormSet(character, formSetId);
+  if (!set) throw new Error("Alternate form set not found");
 
-  if (!set) {
-    throw new Error("Alternate form set not found");
-  }
+  const form = findForm(set, formId);
+  if (!form) throw new Error("Alternate form not found");
 
-  const resolution = resolveFormTransitionRules(character, formSetId, options);
+  const resolution = resolveFormTransitionRules(
+    character,
+    formSetId,
+    formId,
+    options,
+  );
   const persistedOverride = Object.hasOwn(options, "manualOverride")
     ? cloneValue(options.manualOverride)
-    : set.transitionRulesOverride;
-  const nextSets = character.alternateFormSets.map(candidate => (
-    candidate.id === formSetId
+    : form.transitionRulesOverride;
+  const nextSets = character.alternateFormSets.map(candidateSet => (
+    candidateSet.id === formSetId
       ? {
-        ...candidate,
-        transitionRules: resolution.transitionRules,
-        transitionRulesOverride: persistedOverride ?? null,
-        transitionRulesResolution: resolution,
+        ...candidateSet,
+        forms: candidateSet.forms.map(candidateForm => (
+          candidateForm.id === formId
+            ? {
+              ...candidateForm,
+              transitionRules: resolution.transitionRules,
+              transitionRulesOverride: persistedOverride ?? null,
+              transitionRulesResolution: resolution,
+            }
+            : candidateForm
+        )),
       }
-      : candidate
+      : candidateSet
   ));
 
   return {
@@ -191,33 +227,121 @@ export function applyResolvedFormTransitionRulesToAll(character, options = {}) {
   const resolutions = [];
 
   for (const set of character.alternateFormSets) {
-    const perSetOptions = { ...options };
-    const hasPerSetOverride = (
-      options.manualOverrides !== undefined &&
-      options.manualOverrides !== null &&
-      Object.hasOwn(options.manualOverrides, set.id)
-    );
+    for (const form of set.forms) {
+      const perFormOptions = { ...options };
+      const override = readPerFormOverride(options.manualOverrides, set.id, form.id);
 
-    if (hasPerSetOverride) {
-      perSetOptions.manualOverride = options.manualOverrides[set.id];
-    } else if (Object.hasOwn(options, "manualOverride")) {
-      perSetOptions.manualOverride = options.manualOverride;
-    } else {
-      delete perSetOptions.manualOverride;
+      if (override.found) {
+        perFormOptions.manualOverride = override.value;
+      } else if (Object.hasOwn(options, "manualOverride")) {
+        perFormOptions.manualOverride = options.manualOverride;
+      } else {
+        delete perFormOptions.manualOverride;
+      }
+
+      const applied = applyResolvedFormTransitionRules(
+        current,
+        set.id,
+        form.id,
+        perFormOptions,
+      );
+      current = applied.character;
+      resolutions.push(applied.resolution);
     }
-
-    const applied = applyResolvedFormTransitionRules(
-      current,
-      set.id,
-      perSetOptions,
-    );
-    current = applied.character;
-    resolutions.push(applied.resolution);
   }
 
   return {
     character: current,
     resolutions,
+  };
+}
+
+export function collectFormTransitionEvidence(character, set, form) {
+  const evidence = [];
+  const sourceTraitId = form.sourceTraitId ?? set.sourceTraitId ?? null;
+
+  if (sourceTraitId !== null) {
+    for (const collection of [
+      character.advantages,
+      character.perks,
+      character.disadvantages,
+      character.quirks,
+    ]) {
+      const trait = collection.find(item => item.id === sourceTraitId);
+      if (trait) {
+        pushTraitEvidence(evidence, trait, {
+          location: "character",
+          sourceTraitId,
+          templateId: null,
+          formId: form.id,
+        });
+      }
+    }
+  }
+
+  if (form.templateId !== null) {
+    const template = character.templates.find(item => item.id === form.templateId);
+
+    if (template) {
+      const context = {
+        location: "template",
+        sourceTraitId: null,
+        templateId: template.id,
+        formId: form.id,
+      };
+      evidence.push(createEvidence("template", template, context, true));
+
+      for (const trait of [
+        ...(template.traits?.advantages ?? []),
+        ...(template.traits?.perks ?? []),
+        ...(template.traits?.disadvantages ?? []),
+        ...(template.traits?.quirks ?? []),
+      ]) {
+        pushTraitEvidence(evidence, trait, {
+          ...context,
+          sourceTraitId: trait.id,
+        });
+      }
+    }
+  }
+
+  return evidence;
+}
+
+function pushTraitEvidence(evidence, trait, context) {
+  evidence.push(createEvidence("trait", trait, context, true));
+
+  for (const modifier of trait.modifiers ?? []) {
+    pushNestedEvidence(evidence, "modifier", modifier, context);
+  }
+
+  for (const feature of trait.features ?? []) {
+    pushNestedEvidence(evidence, "feature", feature, context);
+  }
+}
+
+function pushNestedEvidence(evidence, kind, value, context) {
+  const enabled = value?.disabled !== true && value?.enabled !== false;
+  evidence.push(createEvidence(kind, value, context, enabled));
+
+  for (const modifier of value?.modifiers ?? []) {
+    pushNestedEvidence(evidence, "modifier", modifier, context);
+  }
+
+  for (const feature of value?.features ?? []) {
+    pushNestedEvidence(evidence, "feature", feature, context);
+  }
+}
+
+function createEvidence(kind, value, context, enabled) {
+  return {
+    kind,
+    id: value?.id ?? null,
+    name: value?.name ?? value?.type ?? "",
+    type: value?.type ?? value?.templateType ?? null,
+    enabled,
+    ...context,
+    value,
   };
 }
 
@@ -240,39 +364,26 @@ function pushBuiltinSignals(item, scalarSignals, collectionSignals) {
       source: "builtin",
       priority: SOURCE_PRIORITIES.builtin,
       strategy: "merge",
-      derivedFrom: evidence.map(entry => ({
-        ...entry,
-        ruleId: "gurps.costs-fatigue",
-      })),
+      derivedFrom: withRuleId(evidence, "gurps.costs-fatigue"),
     });
   }
 
   if (["gasto adicional de tempo", "takes extra time"].includes(name)) {
-    scalarSignals.push({
-      path: "activation.timeStepsDelta",
-      value: levels ?? 1,
-      operation: "add",
-      source: "builtin",
-      priority: SOURCE_PRIORITIES.builtin,
-      derivedFrom: evidence.map(entry => ({
-        ...entry,
-        ruleId: "gurps.takes-extra-time",
-      })),
-    });
+    scalarSignals.push(createAddSignal(
+      "activation.timeStepsDelta",
+      levels ?? 1,
+      evidence,
+      "gurps.takes-extra-time",
+    ));
   }
 
   if (["tempo reduzido", "reduced time"].includes(name)) {
-    scalarSignals.push({
-      path: "activation.timeStepsDelta",
-      value: -(levels ?? 1),
-      operation: "add",
-      source: "builtin",
-      priority: SOURCE_PRIORITIES.builtin,
-      derivedFrom: evidence.map(entry => ({
-        ...entry,
-        ruleId: "gurps.reduced-time",
-      })),
-    });
+    scalarSignals.push(createAddSignal(
+      "activation.timeStepsDelta",
+      -(levels ?? 1),
+      evidence,
+      "gurps.reduced-time",
+    ));
   }
 
   if (["gatilho", "trigger"].includes(name)) {
@@ -312,12 +423,20 @@ function pushBuiltinSignals(item, scalarSignals, collectionSignals) {
       operation: "set",
       source: "builtin",
       priority: SOURCE_PRIORITIES.builtin,
-      derivedFrom: evidence.map(entry => ({
-        ...entry,
-        ruleId: "gurps.uncontrollable",
-      })),
+      derivedFrom: withRuleId(evidence, "gurps.uncontrollable"),
     });
   }
+}
+
+function createAddSignal(path, value, evidence, ruleId) {
+  return {
+    path,
+    value,
+    operation: "add",
+    source: "builtin",
+    priority: SOURCE_PRIORITIES.builtin,
+    derivedFrom: withRuleId(evidence, ruleId),
+  };
 }
 
 function createConditionSignal(path, item, kind, ruleId, evidence) {
@@ -332,8 +451,12 @@ function createConditionSignal(path, item, kind, ruleId, evidence) {
     source: "builtin",
     priority: SOURCE_PRIORITIES.builtin,
     strategy: "merge",
-    derivedFrom: evidence.map(entry => ({ ...entry, ruleId })),
+    derivedFrom: withRuleId(evidence, ruleId),
   };
+}
+
+function withRuleId(evidence, ruleId) {
+  return evidence.map(entry => ({ ...entry, ruleId }));
 }
 
 function readExplicitTransitionRules(value) {
@@ -350,9 +473,7 @@ function readExplicitTransitionRules(value) {
     const path = value.path ?? value.target;
     if (typeof path !== "string") return null;
 
-    const partial = {};
-    setPath(partial, path, value.value);
-    return partial;
+    return setPath({}, path, cloneValue(value.value));
   }
 
   return null;
@@ -404,14 +525,9 @@ function resolveSignals(baseRules, scalarSignals, collectionSignals, diagnostics
 
     if (signal.operation === "add") {
       if (signal.priority > current.priority) {
-        const baseValue = getPath(baseRules, signal.path) ?? 0;
-        const value = baseValue + signal.value;
+        const value = (getPath(baseRules, signal.path) ?? 0) + signal.value;
         setPath(transitionRules, signal.path, value);
-        setPath(decisions.scalars, signal.path, createDecision(
-          value,
-          signal,
-          false,
-        ));
+        setPath(decisions.scalars, signal.path, createDecision(value, signal));
       } else if (signal.priority === current.priority) {
         const value = getPath(transitionRules, signal.path) + signal.value;
         setPath(transitionRules, signal.path, value);
@@ -426,11 +542,7 @@ function resolveSignals(baseRules, scalarSignals, collectionSignals, diagnostics
 
     if (signal.priority > current.priority) {
       setPath(transitionRules, signal.path, signal.value);
-      setPath(decisions.scalars, signal.path, createDecision(
-        signal.value,
-        signal,
-        false,
-      ));
+      setPath(decisions.scalars, signal.path, createDecision(signal.value, signal));
       continue;
     }
 
@@ -459,11 +571,7 @@ function resolveSignals(baseRules, scalarSignals, collectionSignals, diagnostics
         ? cloneValue(signal.items)
         : mergeItems(getPath(transitionRules, signal.path), signal.items);
       setPath(transitionRules, signal.path, items);
-      setPath(decisions.collections, signal.path, createDecision(
-        items,
-        signal,
-        false,
-      ));
+      setPath(decisions.collections, signal.path, createDecision(items, signal));
       continue;
     }
 
@@ -506,10 +614,7 @@ function resolveSignals(baseRules, scalarSignals, collectionSignals, diagnostics
 }
 
 function createBaselineDecisions(rules) {
-  const decisions = {
-    scalars: {},
-    collections: {},
-  };
+  const decisions = { scalars: {}, collections: {} };
 
   for (const path of SCALAR_PATHS) {
     setPath(decisions.scalars, path, {
@@ -536,14 +641,14 @@ function createBaselineDecisions(rules) {
   return decisions;
 }
 
-function createDecision(value, signal, conflict) {
+function createDecision(value, signal) {
   return {
     value: cloneValue(value),
     source: signal.source,
     priority: signal.priority,
     derivedFrom: cloneValue(signal.derivedFrom),
     overridden: signal.source === "manual",
-    conflict,
+    conflict: false,
   };
 }
 
@@ -579,7 +684,7 @@ function normalizePartialTransitionRules(input) {
     if (!Array.isArray(value)) {
       throw new Error(`Form transition collection must be array for ${path}`);
     }
-    const complete = createFormTransitionRules(setPathClone(path, value));
+    const complete = createFormTransitionRules(setPath({}, path, cloneValue(value)));
     setPath(partial, path, getPath(complete, path));
   }
 
@@ -587,14 +692,8 @@ function normalizePartialTransitionRules(input) {
 }
 
 function normalizeScalar(path, value) {
-  const complete = createFormTransitionRules(setPathClone(path, value));
+  const complete = createFormTransitionRules(setPath({}, path, cloneValue(value)));
   return getPath(complete, path);
-}
-
-function setPathClone(path, value) {
-  const result = {};
-  setPath(result, path, cloneValue(value));
-  return result;
 }
 
 function normalizeCampaignRules(rules) {
@@ -617,10 +716,11 @@ function normalizeCampaignRules(rules) {
   });
 }
 
-function matchesRule(rule, evidence, set) {
+function matchesRule(rule, evidence, set, form) {
   const when = rule.when;
 
   if (when.setIds && !normalizeStringArray(when.setIds).includes(set.id)) return false;
+  if (when.formIds && !normalizeStringArray(when.formIds).includes(form.id)) return false;
   if (
     when.mechanisms &&
     !normalizeStringArray(when.mechanisms).includes(set.mechanism)
@@ -637,13 +737,10 @@ function matchesRule(rule, evidence, set) {
     when.traitNames &&
     !matchesEvidenceNames(evidence, "trait", when.traitNames)
   ) return false;
-
-  if (when.templateIds) {
-    const templateIds = new Set(evidence.map(item => item.templateId).filter(Boolean));
-    if (!normalizeStringArray(when.templateIds).some(id => templateIds.has(id))) {
-      return false;
-    }
-  }
+  if (
+    when.templateIds &&
+    !normalizeStringArray(when.templateIds).includes(form.templateId)
+  ) return false;
 
   return true;
 }
@@ -702,6 +799,7 @@ function summarizeEvidence(item, ruleId = null) {
     location: item.location ?? null,
     sourceTraitId: item.sourceTraitId ?? null,
     templateId: item.templateId ?? null,
+    formId: item.formId ?? null,
     enabled: item.enabled ?? true,
     ruleId,
   };
@@ -710,13 +808,34 @@ function summarizeEvidence(item, ruleId = null) {
 function mergeEvidence(first, second) {
   const result = [];
   const seen = new Set();
+
   for (const item of [...first, ...second]) {
     const key = JSON.stringify(item);
     if (seen.has(key)) continue;
     seen.add(key);
     result.push(cloneValue(item));
   }
+
   return result;
+}
+
+function readPerFormOverride(manualOverrides, setId, formId) {
+  if (!isPlainObject(manualOverrides)) {
+    return { found: false, value: undefined };
+  }
+
+  if (
+    isPlainObject(manualOverrides[setId]) &&
+    Object.hasOwn(manualOverrides[setId], formId)
+  ) {
+    return { found: true, value: manualOverrides[setId][formId] };
+  }
+
+  if (Object.hasOwn(manualOverrides, formId)) {
+    return { found: true, value: manualOverrides[formId] };
+  }
+
+  return { found: false, value: undefined };
 }
 
 function readOptionalRules(value) {
@@ -767,6 +886,10 @@ function findFormSet(character, formSetId) {
   return character.alternateFormSets.find(set => set.id === formSetId) ?? null;
 }
 
+function findForm(set, formId) {
+  return set.forms.find(form => form.id === formId) ?? null;
+}
+
 function getPath(object, path) {
   return path.split(".").reduce((value, key) => value?.[key], object);
 }
@@ -774,11 +897,13 @@ function getPath(object, path) {
 function setPath(object, path, value) {
   const keys = path.split(".");
   let cursor = object;
+
   for (let index = 0; index < keys.length - 1; index += 1) {
     const key = keys[index];
     cursor[key] ??= {};
     cursor = cursor[key];
   }
+
   cursor[keys.at(-1)] = value;
   return object;
 }
