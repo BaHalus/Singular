@@ -12,35 +12,52 @@ import { importSpells } from "./importers/SpellsImporter.js";
 import { importLanguages } from "./importers/LanguagesImporter.js";
 import { importFamiliarities } from "./importers/FamiliaritiesImporter.js";
 import { importEquipment } from "./importers/EquipmentImporter.js";
+import { importTemplates } from "./importers/TemplatesImporter.js";
 
 export function createSnapshotFromGcs(source = {}) {
-  const importedTraits = importTraits(source);
-  const importedSkills = importSkills(readSkillsSource(source));
+  const standaloneTemplate = isStandaloneTemplateSource(source);
+  const importedTemplates = importTemplates(readTemplatesSource(source));
+  const importedTraits = importTraits(standaloneTemplate ? [] : source);
+  const importedSkills = importSkills(
+    standaloneTemplate ? [] : readSkillsSource(source),
+  );
   const techniqueNodes = mergeImportedNodes(
     importedSkills.techniqueNodes,
-    readTechniquesSource(source),
+    standaloneTemplate ? [] : readTechniquesSource(source),
   );
   const importedTechniques = importTechniques(
     techniqueNodes,
     importedSkills.skills,
   );
-  const importedSpells = importSpells(readSpellsSource(source));
+  const importedSpells = importSpells(
+    standaloneTemplate ? [] : readSpellsSource(source),
+  );
   const languageNodes = mergeImportedNodes(
     importedTraits.languageNodes,
-    readLanguagesSource(source),
+    standaloneTemplate ? [] : readLanguagesSource(source),
   );
   const familiarityNodes = mergeImportedNodes(
     importedTraits.familiarityNodes,
-    readFamiliaritiesSource(source),
+    standaloneTemplate ? [] : readFamiliaritiesSource(source),
   );
   const importedLanguages = importLanguages(languageNodes);
   const importedFamiliarities = importFamiliarities(familiarityNodes);
-  const importedEquipment = importEquipment(readEquipmentSource(source));
+  const importedEquipment = importEquipment(
+    standaloneTemplate ? {} : readEquipmentSource(source),
+  );
+  const identity = importIdentity(source);
+
+  if (standaloneTemplate && importedTemplates.templates[0]) {
+    identity.name = importedTemplates.templates[0].name;
+    identity.concept = `Template GCS: ${importedTemplates.templates[0].templateType}`;
+  }
 
   return createImportSnapshot({
-    identity: importIdentity(source),
-    attributes: importAttributes(source),
-    secondaryCharacteristics: importSecondaryCharacteristics(source),
+    identity,
+    attributes: importAttributes(standaloneTemplate ? {} : source),
+    secondaryCharacteristics: importSecondaryCharacteristics(
+      standaloneTemplate ? {} : source,
+    ),
     traits: importedTraits,
 
     skills: importedSkills.skills,
@@ -65,6 +82,9 @@ export function createSnapshotFromGcs(source = {}) {
     equipment: importedEquipment.equipment,
     unknownEquipmentNodes: importedEquipment.unknownNodes,
 
+    templates: importedTemplates.templates,
+    unknownTemplateNodes: importedTemplates.unknownNodes,
+
     raw: source,
   });
 }
@@ -88,6 +108,7 @@ export function importCharacter(source = {}) {
     languages: snapshot.languages,
     familiarities: snapshot.familiarities,
     equipment: snapshot.equipment,
+    templates: snapshot.templates,
   });
 }
 
@@ -154,6 +175,19 @@ function readEquipmentSource(source) {
   }
 
   return result;
+}
+
+function readTemplatesSource(source) {
+  if (isStandaloneTemplateSource(source)) return [source];
+  if (Array.isArray(source.templates)) return source.templates;
+  if (Array.isArray(source.templateRows)) return source.templateRows;
+  if (Array.isArray(source.template_rows)) return source.template_rows;
+
+  return [];
+}
+
+function isStandaloneTemplateSource(source) {
+  return String(source?.type ?? "").trim().toLowerCase() === "template";
 }
 
 function mergeImportedNodes(first, second) {
