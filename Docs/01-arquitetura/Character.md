@@ -1,13 +1,11 @@
 # Character
 
-**Código:** DOM-CHAR-1.6  
+**Código:** DOM-CHAR-1.7  
 **Status:** Aprovado  
 **Camada:** Domain  
 **Tipo:** Aggregate Root
 
-Character é o Aggregate Root da SINGULAR.
-
-Ele representa a unidade fundamental de persistência, serialização e manipulação de um personagem.
+Character é o Aggregate Root da SINGULAR e a unidade fundamental de persistência, serialização e manipulação de um personagem.
 
 ## Responsabilidades
 
@@ -28,6 +26,7 @@ Character mantém:
 - snapshots das formas inativas;
 - políticas de continuidade;
 - regras declarativas de transição por forma;
+- runtime persistente da forma ativa;
 - metadados.
 
 Character garante apenas invariantes estruturais.
@@ -41,15 +40,16 @@ Character não:
 - interpreta pré-requisitos;
 - calcula máximos de pools;
 - converte dano entre formas;
-- planeja transições;
+- planeja ou executa transições por conta própria;
 - executa testes;
-- verifica requisitos, gatilhos ou impedimentos;
-- avança tempo;
-- agenda transformações automáticas;
+- decide requisitos, gatilhos ou impedimentos;
+- avança o relógio global da campanha;
+- agenda tarefas externas;
+- executa automaticamente pedidos de retorno;
 - persiste recibos de execução por conta própria;
 - implementa limites de Morfo.
 
-Essas responsabilidades pertencem a Rules, planners e executores apropriados.
+Essas responsabilidades pertencem a Rules, planners, executores e runtimes apropriados.
 
 ## Composição
 
@@ -84,9 +84,7 @@ Character
 
 `templateApplications` registra incorporações permanentes.
 
-Importar e incorporar são operações distintas.
-
-Uma aplicação removida permanece no histórico com status `removed`.
+Importar e incorporar são operações distintas. Uma aplicação removida permanece no histórico com status `removed`.
 
 ## Formas Alternativas
 
@@ -100,7 +98,8 @@ Cada conjunto possui:
 - mecanismo;
 - política de continuidade;
 - regras de transição compartilhadas como defaults;
-- proveniência da ativação atual.
+- proveniência da ativação atual;
+- runtime da sessão ativa.
 
 Cada forma pode possuir:
 
@@ -111,9 +110,7 @@ Cada forma pode possuir:
 - override de transição;
 - resolução explicável das regras.
 
-Somente uma forma fica ativa dentro de cada conjunto.
-
-Conjuntos independentes podem coexistir.
+Somente uma forma fica ativa dentro de cada conjunto. Conjuntos independentes podem coexistir.
 
 Templates permanentes como Elfo, Vampiro, Orc, Lich, Anão ou Licantropo não são removidos quando uma forma temporária muda.
 
@@ -133,14 +130,7 @@ Formas inativas preservam snapshots em:
 AlternateForm.runtimeState
 ```
 
-`AlternateFormSet.statePolicy` define se cada categoria é:
-
-```text
-shared
-perForm
-```
-
-A política pode controlar PV, PF, Reserva de Energia, ferimentos, condições, efeitos e equipamento.
+`AlternateFormSet.statePolicy` define `shared` ou `perForm` para PV, PF, Reserva de Energia, ferimentos, condições, efeitos e equipamento.
 
 ## Regras de transição
 
@@ -148,20 +138,7 @@ A política pode controlar PV, PF, Reserva de Energia, ferimentos, condições, 
 
 `AlternateForm.transitionRules` contém as regras efetivas daquela forma.
 
-Essas regras podem declarar:
-
-- tempo-base;
-- passos relativos de tempo;
-- manobra;
-- custos;
-- testes;
-- requisitos;
-- gatilhos;
-- ativação involuntária;
-- possibilidade de interrupção;
-- duração;
-- retorno;
-- impedimentos.
+Essas regras podem declarar tempo, manobra, custos, testes, requisitos, gatilhos, ativação involuntária, interrupção, duração, retorno e impedimentos.
 
 Character armazena essas declarações, mas não as executa.
 
@@ -169,23 +146,38 @@ Character armazena essas declarações, mas não as executa.
 
 `FormTransitionPlanner` lê o Character e produz um plano sem modificá-lo.
 
-`FormTransitionExecutor` recebe um plano pronto, revalida o Character atual, prepara o consumo dos pools e chama `activateAlternateForm` atomicamente.
+`FormTransitionExecutor` recebe um plano pronto, revalida o Character atual, consome os pools e chama `activateAlternateForm` atomicamente.
 
-O Character retornado pelo executor é uma nova instância válida.
+Uma execução bem-sucedida:
+
+1. troca a forma;
+2. inicializa o runtime da nova forma alternativa;
+3. mantém runtime nulo quando o destino é a forma-base;
+4. devolve Character novo, plano revalidado e recibo.
 
 O Character original permanece intacto em qualquer falha.
 
-O recibo de execução é devolvido separadamente:
+## Runtime da forma ativa
 
-```js
-{
-  character,
-  plan,
-  receipt
-}
+```text
+AlternateFormSet.transitionRuntime
 ```
 
-O recibo não integra o Aggregate Root nesta versão.
+Esse runtime mantém:
+
+- ID da sessão de ativação;
+- forma associada;
+- instante inicial e última observação;
+- tempo decorrido;
+- custos periódicos e intervalos já cobrados;
+- duração mínima e máxima;
+- pedido de retorno pendente.
+
+Ele pertence ao conjunto porque acompanha a sessão atualmente ativa, enquanto `AlternateForm.runtimeState` pertence à forma e preserva seu snapshot quando inativa.
+
+Ao mudar a forma ativa, o runtime anterior é limpo. O executor inicializa a nova sessão.
+
+O motor de runtime pode consumir manutenção e preparar um plano de retorno, mas nunca executa silenciosamente a mudança de forma.
 
 ## Dados permanentes
 
@@ -205,7 +197,7 @@ São permanentes estruturalmente:
 
 Componentes temporários da forma ativa permanecem serializados enquanto estiverem ativos, com proveniência explícita.
 
-## Dados transitórios
+## Dados transitórios persistíveis
 
 Incluem:
 
@@ -216,7 +208,10 @@ Incluem:
 - estado de combate;
 - estado e usos de equipamentos;
 - forma ativa;
-- snapshots das formas inativas.
+- snapshots das formas inativas;
+- runtime da sessão de forma ativa;
+- manutenção já cobrada;
+- pedido de retorno pendente.
 
 ## Invariantes
 
@@ -238,7 +233,9 @@ Cada conjunto de formas deve possuir:
 - forma ativa existente;
 - IDs únicos;
 - política de estado válida;
-- regras de transição default válidas.
+- regras de transição default válidas;
+- runtime nulo ou estruturalmente válido;
+- runtime, quando existente, vinculado à forma ativa e à ativação correspondente.
 
 Cada forma deve possuir:
 
@@ -261,11 +258,14 @@ A serialização inclui:
 - políticas e suas resoluções;
 - regras de transição e suas resoluções;
 - overrides manuais;
-- snapshots de estado.
+- snapshots de estado;
+- runtime da sessão ativa;
+- intervalos de manutenção já processados;
+- pedido de retorno pendente.
 
 Planos e recibos de transição não são armazenados automaticamente no Character.
 
-Ela não inclui métodos, referências circulares, estado de interface ou dependências externas.
+A serialização não inclui métodos, referências circulares, estado de interface ou dependências externas.
 
 ## Direção de implementação
 
@@ -277,7 +277,7 @@ A implementação privilegia:
 - imutabilidade;
 - operações reversíveis;
 - proveniência explícita;
-- separação entre dados, regras, planejamento, execução e apresentação.
+- separação entre dados, regras, planejamento, execução, runtime e apresentação.
 
 ## Checklist
 
@@ -293,5 +293,6 @@ A implementação privilegia:
 - [x] Integrar regras de transição por forma
 - [x] Integrar overrides e resoluções explicáveis
 - [x] Integrar planejamento puro de transições
-- [x] Integrar execução atômica externa ao agregado
-- [x] Aprovar Character v1.6
+- [x] Integrar execução atômica
+- [x] Integrar runtime persistente de duração e manutenção
+- [x] Aprovar Character v1.7
