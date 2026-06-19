@@ -4,7 +4,7 @@ export function createImportSnapshot(input = {}) {
     attributes: input.attributes ?? {},
     secondaryCharacteristics: input.secondaryCharacteristics ?? {},
 
-    traits: input.traits ?? [],
+    traits: input.traits ?? createEmptyImportedTraits(),
     skills: input.skills ?? [],
     techniques: input.techniques ?? [],
     languages: input.languages ?? [],
@@ -12,5 +12,16 @@ export function createImportSnapshot(input = {}) {
     equipment: input.equipment ?? [],
 
     raw: input.raw ?? {},
+  };
+}
+
+function createEmptyImportedTraits() {
+  return {
+    advantages: [],
+    perks: [],
+    disadvantages: [],
+    quirks: [],
+    containers: [],
+    unknownNodes: [],
   };
 }
