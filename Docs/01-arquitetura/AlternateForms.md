@@ -1,13 +1,13 @@
 # AlternateForms
 
-**Código:** DOM-FORM-1.4  
+**Código:** DOM-FORM-1.6  
 **Status:** Aprovado  
 **Camada:** Domain  
-**Tipo:** Agregado, operações, linker e resolvers
+**Tipo:** Agregado, linker, resolvers, planner e executor
 
 AlternateForms controla transformações reversíveis entre formas vinculadas a templates.
 
-A arquitetura segue ADR-0011 a ADR-0015.
+A arquitetura segue ADR-0011 a ADR-0017.
 
 ## Conceitos separados
 
@@ -18,7 +18,9 @@ vínculo entre vantagem e template
 forma temporariamente ativa
 estado transitório da forma
 política derivada de continuidade
-regras declarativas de transição por forma
+regras declarativas por forma
+plano de transição
+execução atômica
 ```
 
 Essa separação permite combinações como Elfo Vampiro, Orc Lich e Anão Lobisomem sem confundir templates permanentes com formas corporais momentâneas.
@@ -42,7 +44,6 @@ Essa separação permite combinações como Elfo Vampiro, Orc Lich e Anão Lobis
   statePolicyResolution,
 
   transitionRules,
-
   forms: []
 }
 ```
@@ -115,14 +116,7 @@ A política pode controlar:
 
 ## FormStatePolicyResolver
 
-`FormStatePolicyResolver` deriva a política a partir de:
-
-- traits de origem;
-- modificadores habilitados;
-- features habilitadas;
-- templates vinculados;
-- regras de campanha;
-- override manual.
+`FormStatePolicyResolver` deriva a política a partir de traits, modificadores, features, templates, regras de campanha e overrides.
 
 Precedência:
 
@@ -191,9 +185,72 @@ Incontrolável
 
 Modificadores desabilitados não produzem regras.
 
+## FormTransitionPlanner
+
+O planner responde se a transição pode ocorrer agora, sem alterar o Character:
+
+```js
+planFormTransition(character, setId, targetFormId, context)
+planFormReturn(character, setId, context)
+```
+
+Status possíveis:
+
+```text
+ready
+pending
+blocked
+already-active
+```
+
+Uma troca entre formas alternativas é planejada como:
+
+```text
+desativação da forma atual
++
+ativação da forma de destino
+```
+
+Custos da mesma reserva são agregados antes da verificação.
+
+Informação desconhecida produz `pending`. Falha confirmada produz `blocked`.
+
+## FormTransitionExecutor
+
+O executor recebe apenas um plano `ready`:
+
+```js
+executeFormTransition(character, plan, options)
+```
+
+Antes de modificar qualquer estado ele:
+
+1. valida o contrato do plano;
+2. confirma que a forma de origem ainda está ativa;
+3. replaneja com o Character e contexto atuais;
+4. compara a impressão digital das regras;
+5. prepara o consumo dos recursos;
+6. chama `activateAlternateForm`.
+
+A operação é atômica e imutável.
+
+Se a ativação falhar, o Character original permanece intacto e nenhum débito parcial é retornado.
+
+Uma execução bem-sucedida retorna:
+
+```js
+{
+  character,
+  plan,
+  receipt
+}
+```
+
+O recibo registra recursos consumidos, IDs dos custos, formas, tempo, intenção e impressão digital.
+
 ## Resoluções explicáveis
 
-Tanto a política de estado quanto as regras de transição preservam:
+Políticas e regras preservam:
 
 ```text
 base original
@@ -223,7 +280,9 @@ templateIds
 
 As comparações são exatas após normalização de caixa e acentos.
 
-## Transição estrutural
+## Operação estrutural
+
+`activateAlternateForm` continua responsável pela troca estrutural:
 
 ```text
 capturar estado da forma atual
@@ -237,7 +296,7 @@ restaurar o estado salvo
 atualizar a forma ativa
 ```
 
-As condições declaradas em FormTransitionRules ainda não são executadas por essa operação estrutural.
+O executor prepara custos e revalida o plano antes de chamar essa operação.
 
 ## Operações principais
 
@@ -248,12 +307,14 @@ linkAlternateForms(character)
 analyzeFormStatePolicy(character, setId, options)
 resolveFormStatePolicy(character, setId, options)
 applyResolvedFormStatePolicy(character, setId, options)
-applyResolvedFormStatePolicies(character, options)
 
 analyzeFormTransitionRules(character, setId, formId, options)
 resolveFormTransitionRules(character, setId, formId, options)
 applyResolvedFormTransitionRules(character, setId, formId, options)
-applyResolvedFormTransitionRulesToAll(character, options)
+
+planFormTransition(character, setId, targetFormId, context)
+planFormReturn(character, setId, context)
+executeFormTransition(character, plan, options)
 
 activateAlternateForm(character, setId, formId)
 switchAlternateForm(character, setId, formId)
@@ -268,14 +329,13 @@ A estrutura está preparada para Morfo, mas aquisição dinâmica, limites de po
 
 ## Não responsabilidades
 
-AlternateForms não:
+O conjunto de serviços atual não:
 
-- consome custos de transformação;
-- executa testes;
-- verifica ambiente;
-- avança tempo;
-- dispara transformações involuntárias;
-- calcula custo da vantagem;
-- calcula máximos ou proporção de dano;
+- realiza rolagens;
+- decide fatos ausentes do mundo;
+- avança o relógio da campanha;
+- agenda retorno automático;
+- consome custos de manutenção;
+- persiste recibos em histórico;
 - calcula atributos, secundárias, NH, RD, carga ou ataques;
-- implementa os limites de Morfo.
+- implementa limites de Morfo.
