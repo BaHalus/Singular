@@ -52,9 +52,11 @@ test("preserves skill containers, techniques and unknown nodes in snapshot", () 
   assert.equal(snapshot.skills.length, 1);
   assert.equal(snapshot.skillContainers.length, 1);
   assert.equal(snapshot.techniqueNodes.length, 1);
+  assert.equal(snapshot.techniques.length, 1);
   assert.equal(snapshot.unknownSkillNodes.length, 1);
   assert.deepEqual(snapshot.skills[0].importMeta.containerIds, ["container-001"]);
   assert.deepEqual(snapshot.techniqueNodes[0].importMeta.containerIds, ["container-001"]);
+  assert.deepEqual(snapshot.techniques[0].importMeta.containerIds, ["container-001"]);
 });
 
 test("imports rich GCS skills into character", () => {
@@ -126,5 +128,7 @@ test("does not import technique nodes as ordinary skills", () => {
   });
 
   assert.deepEqual(character.skills, []);
-  assert.deepEqual(character.techniques, []);
+  assert.equal(character.techniques.length, 1);
+  assert.equal(character.techniques[0].id, "tech-001");
+  assert.equal(character.techniques[0].skillId, null);
 });
