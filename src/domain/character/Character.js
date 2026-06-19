@@ -94,6 +94,12 @@ import {
   serializeTemplateApplications,
 } from "./TemplateApplications.js";
 
+import {
+  createAlternateFormSets,
+  validateAlternateFormSets,
+  serializeAlternateFormSets,
+} from "./AlternateForms.js";
+
 export function createCharacter(input = {}) {
   const character = {
     identity: input.identity ?? createDefaultIdentity(),
@@ -119,6 +125,7 @@ export function createCharacter(input = {}) {
     familiarities: createFamiliarities(input.familiarities),
     templates: createTemplates(input.templates),
     templateApplications: createTemplateApplications(input.templateApplications),
+    alternateFormSets: createAlternateFormSets(input.alternateFormSets),
 
     metadata: input.metadata ?? createDefaultMetadata(),
   };
@@ -159,6 +166,7 @@ export function validateCharacter(character) {
   validateEquipment(character.equipment);
   validateTemplates(character.templates);
   validateTemplateApplications(character.templateApplications);
+  validateAlternateFormSets(character.alternateFormSets);
 
   if (!character.metadata) {
     throw new Error("Character must have metadata");
@@ -195,6 +203,7 @@ export function serializeCharacter(character) {
     templates: serializeTemplates(character.templates),
     templateApplications:
       serializeTemplateApplications(character.templateApplications),
+    alternateFormSets: serializeAlternateFormSets(character.alternateFormSets),
 
     metadata: character.metadata,
   };
