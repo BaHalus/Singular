@@ -125,11 +125,20 @@ function isExplicitContainer(source) {
 function inferContainerType(source, tags) {
   const rawType = source.containerType ?? source.container_type ?? source.type ?? source.kind ?? "";
   const normalized = normalizeContainerType(rawType);
+  const semantic = inferSemanticContainerType(source, tags);
+
+  if (semantic !== "unknown") {
+    return semantic;
+  }
 
   if (normalized !== "unknown") {
     return normalized;
   }
 
+  return "unknown";
+}
+
+function inferSemanticContainerType(source, tags) {
   const text = [source.name, source.description, ...tags]
     .filter(Boolean)
     .join(" ")
@@ -140,7 +149,7 @@ function inferContainerType(source, tags) {
   }
 
   if (text.includes("meta")) return "metaTrait";
-  if (text.includes("raça") || text.includes("race")) return "race";
+  if (text.includes("raça") || text.includes("raca") || text.includes("race")) return "race";
   if (text.includes("template") || text.includes("modelo")) return "template";
   if (text.includes("poder") || text.includes("power")) return "power";
   if (text.includes("grupo") || text.includes("group")) return "group";
