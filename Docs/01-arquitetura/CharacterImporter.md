@@ -1,6 +1,6 @@
 # CharacterImporter
 
-**Código:** DOM-IMP-1.9  
+**Código:** DOM-IMP-1.10  
 **Status:** Aprovado  
 **Camada:** Domain / Import  
 **Tipo:** Import Pipeline
@@ -17,7 +17,9 @@ O importador:
 - cria agregados válidos;
 - preserva templates `.gct`;
 - vincula Forma Alternativa somente quando a relação é segura;
-- resolve políticas de continuidade sem executar cálculos de jogo.
+- resolve políticas de continuidade;
+- resolve regras declarativas de transição por forma;
+- não executa cálculos ou ações de jogo.
 
 ## Pipeline
 
@@ -31,6 +33,8 @@ Character
 AlternateFormsLinker
 ↓
 FormStatePolicyResolver
+↓
+FormTransitionRulesResolver
 ↓
 Character importado + diagnósticos
 ```
@@ -78,16 +82,9 @@ Não há correspondência aproximada nem escolha arbitrária entre candidatos.
 
 ## FormStatePolicyResolver
 
-Depois da vinculação, o resolver analisa:
+Depois da vinculação, o resolver analisa traits, modificadores, features, templates, regras de campanha e overrides.
 
-- traits de origem;
-- modificadores habilitados;
-- features habilitadas;
-- templates de forma;
-- regras de campanha;
-- overrides manuais.
-
-O resultado é armazenado em cada conjunto:
+O resultado é armazenado no conjunto:
 
 ```js
 {
@@ -100,6 +97,38 @@ O resultado é armazenado em cada conjunto:
 Modificadores desabilitados não alteram a política.
 
 A primeira regra interna reconhece `Dano Não-Recíproco` e deriva PV e ferimentos próprios de cada forma.
+
+## FormTransitionRulesResolver
+
+Depois da política de estado, o importador resolve as condições de cada forma separadamente.
+
+O resultado é armazenado na forma:
+
+```js
+{
+  transitionRules,
+  transitionRulesOverride,
+  transitionRulesResolution
+}
+```
+
+A resolução não mistura os modificadores de formas diferentes.
+
+Regras internas iniciais reconhecem:
+
+```text
+Custa Fadiga
+Gasto Adicional de Tempo
+Tempo Reduzido
+Gatilho
+Preparação Necessária
+Impedimento
+Incontrolável
+```
+
+Modificadores desabilitados são preservados, mas não produzem regras.
+
+As regras resultantes declaram tempo, custos, testes, requisitos, gatilhos, retorno e impedimentos. O importador não executa nenhuma dessas condições.
 
 ## API
 
@@ -120,7 +149,8 @@ Retorna:
   character,
   snapshot,
   alternateFormLinkReport,
-  formStatePolicyResolutions
+  formStatePolicyResolutions,
+  formTransitionRulesResolutions
 }
 ```
 
@@ -143,26 +173,57 @@ Retorna:
     manualOverrides,
     overrideId,
     overrideName
+  },
+
+  formTransitionRulesResolver: {
+    rules,
+    campaignRules,
+    manualOverride,
+    manualOverrides,
+    overrideId,
+    overrideName
   }
 }
 ```
 
-`manualOverrides` permite fornecer uma política específica por `formSetId`.
+Para transições, `manualOverrides` pode ser organizado por conjunto e forma:
+
+```js
+{
+  "set-body": {
+    "form-wolf": {
+      activation: {
+        maneuver: "Concentrate"
+      }
+    }
+  }
+}
+```
+
+Também pode usar diretamente o `formId` como chave.
+
+## Recomposição
+
+As resoluções preservam sua base original.
+
+Quando um modificador é removido ou desabilitado, uma nova resolução retira sua contribuição anterior.
+
+Overrides manuais persistem até serem removidos explicitamente.
 
 ## Fora de escopo
 
-O importador não calcula:
+O importador não:
 
-- custos;
-- atributos finais;
-- secundárias;
-- máximos de pools;
-- proporção de dano;
-- NH;
-- carga;
-- ataques finais;
-- duração ou teste de transformação;
-- limites de Morfo.
+- consome custos;
+- executa testes;
+- verifica requisitos ou impedimentos;
+- mede duração;
+- ativa gatilhos;
+- troca formas;
+- calcula atributos finais;
+- calcula máximos ou proporção de dano;
+- calcula NH, carga ou ataques;
+- implementa limites de Morfo.
 
 ## Checklist
 
@@ -179,7 +240,9 @@ O importador não calcula:
 - [x] TemplatesImporter
 - [x] AlternateFormsLinker
 - [x] FormStatePolicyResolver
+- [x] FormTransitionRulesResolver
 - [x] Diagnósticos de vínculo
-- [x] Diagnósticos de política
+- [x] Diagnósticos de continuidade
+- [x] Diagnósticos de transição
 - [x] Regras de campanha
-- [x] Override manual persistente
+- [x] Overrides manuais persistentes
