@@ -1,11 +1,11 @@
 # FormTransitionExecutor
 
-**Código:** DOM-FORM-1.6  
+**Código:** DOM-FORM-1.7  
 **Status:** Aprovado  
 **Camada:** Domain / Application boundary  
 **Tipo:** Executor atômico
 
-FormTransitionExecutor recebe um plano `ready`, revalida o estado atual e executa a troca de forma sem expor mutação parcial.
+FormTransitionExecutor recebe um plano `ready`, revalida o estado atual e troca a forma sem expor mutação parcial.
 
 ## API
 
@@ -16,23 +16,14 @@ executeFormTransition(character, plan, options)
 ## Fluxo
 
 ```text
-plano ready
-↓
-validação estrutural
-↓
-plano pertence a este Character?
-↓
-forma de origem ainda ativa?
-↓
-replanejamento com contexto atual
-↓
-impressão digital equivalente?
-↓
-consumo preparado dos recursos
-↓
-activateAlternateForm
-↓
-Character novo + recibo
+validar o plano
+confirmar characterId e forma de origem
+replanejar com o estado atual
+comparar a impressão digital
+preparar o consumo dos recursos
+chamar activateAlternateForm
+inicializar o runtime da forma de destino
+retornar Character novo e recibo
 ```
 
 ## Opções
@@ -46,59 +37,21 @@ Character novo + recibo
 }
 ```
 
-`context` pode atualizar fatos do mundo e recursos antes da execução.
-
-## Vínculo com o Character
-
-Todo plano produzido pelo planner contém:
-
-```js
-characterId
-```
-
-O executor compara esse valor com `character.identity.id`.
-
-Um plano de outro personagem falha com:
-
-```text
-PLAN_CHARACTER_MISMATCH
-```
-
 ## Revalidação
 
-O executor reconstrói do plano:
-
-- resultados de testes;
-- requisitos;
-- gatilhos;
-- impedimentos;
-- intenção.
-
-Depois chama novamente:
+O executor reconstrói do plano os resultados conhecidos e chama novamente:
 
 ```js
 planFormTransition(character, formSetId, targetFormId, context)
 ```
 
-Uma mudança confirmada que bloqueia a transição produz `REVALIDATION_FAILED`.
-
-## Impressão digital
-
-`FormTransitionPlan.js` fornece:
-
-```js
-validateExecutableFormTransitionPlan(plan)
-createFormTransitionPlanFingerprint(plan)
-createExecutionContextFromPlan(plan)
-```
-
-A impressão digital ignora disponibilidade instantânea de recursos, mas inclui todas as condições e regras que definem o que será executado.
+Uma mudança que bloqueia a transição produz `REVALIDATION_FAILED`.
 
 Mudanças nas regras produzem `PLAN_STALE`.
 
 ## Recursos
 
-`FormTransitionExecutorResources.js` agrega os custos por pool canônico:
+Custos são agregados por:
 
 ```text
 HP
@@ -106,27 +59,21 @@ FP
 EnergyReserve
 ```
 
-O resultado registra:
+O débito registra valor anterior, valor posterior, quantidade e IDs dos custos.
+
+Custos de manutenção não entram no débito inicial. Eles são tratados pelo FormTransitionRuntime.
+
+## Runtime
+
+Depois da troca, o executor chama:
 
 ```js
-{
-  resourceKey,
-  amount,
-  before,
-  after,
-  costIds
-}
+initializeFormTransitionRuntime(character, formSetId, { now })
 ```
 
-Custos de manutenção não fazem parte do débito inicial.
+Uma forma alternativa recebe runtime iniciado no instante da execução. A forma-base mantém runtime nulo.
 
-## Atomicidade
-
-O executor nunca altera o Character recebido.
-
-Ele cria pools descontados em memória e usa esse estado apenas para construir o Character transformado.
-
-Se `activateAlternateForm` lançar erro, nenhuma versão parcialmente descontada é retornada.
+Se a inicialização falhar, a execução inteira falha como `TRANSITION_FAILED` e nenhuma versão parcial é retornada.
 
 ## Recibo
 
@@ -142,6 +89,7 @@ Se `activateAlternateForm` lançar erro, nenhuma versão parcialmente descontada
   intent,
   planFingerprint,
   activationId,
+  runtimeId,
   maneuvers,
   timeSeconds,
   timeKnown,
@@ -150,27 +98,9 @@ Se `activateAlternateForm` lançar erro, nenhuma versão parcialmente descontada
 }
 ```
 
-O recibo serve para auditoria do chamador e para futura persistência de histórico.
+`runtimeId` identifica a sessão criada e é nulo quando o destino é a forma-base.
 
-## Erros
-
-```js
-FormTransitionExecutionError
-```
-
-Campos:
-
-```js
-{
-  name,
-  code,
-  message,
-  details,
-  cause
-}
-```
-
-Códigos principais:
+## Erros principais
 
 ```text
 PLAN_NOT_READY
@@ -183,24 +113,15 @@ TRANSITION_FAILED
 
 ## Garantias
 
-- plano pendente não é executado;
-- plano bloqueado não é executado;
+- o Character recebido não é modificado;
+- plano pendente ou bloqueado não é executado;
 - plano de outro personagem não é executado;
-- plano de origem antiga não é executado;
-- regras alteradas invalidam o plano;
-- recursos atuais são rechecados;
-- custos são consumidos uma vez;
+- recursos são rechecados;
+- custos iniciais são consumidos uma vez;
 - a mesma execução não pode ser repetida;
-- falha de ativação não deixa débito parcial.
+- o runtime corresponde à forma ativada;
+- falha não deixa débito ou runtime parcial.
 
 ## Não responsabilidades
 
-O executor não:
-
-- rola dados;
-- decide resultados;
-- mede passagem de tempo;
-- agenda duração;
-- consome manutenção;
-- resolve gatilhos futuros;
-- persiste histórico por conta própria.
+O executor não rola dados, não avança tempo posterior, não cobra manutenção, não resolve gatilhos futuros, não executa retornos preparados pelo runtime e não persiste histórico por conta própria.
