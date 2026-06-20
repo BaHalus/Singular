@@ -1,0 +1,141 @@
+name: Apply DOM-MORPH replacement guard
+
+on:
+  push:
+    branches:
+      - fix/dom-morph-1.3.1-capacity-gating
+
+permissions:
+  contents: write
+
+jobs:
+  apply-guard:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+        with:
+          ref: fix/dom-morph-1.3.1-capacity-gating
+
+      - name: Guard replacement-capable operations
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('src/domain/character/MorphCatalogOperations.js')
+          text = path.read_text()
+
+          def replace_once(old, new):
+              global text
+              if old not in text:
+                  raise SystemExit(f'Expected fragment not found:\n{old}')
+              text = text.replace(old, new, 1)
+
+          replace_once(
+          '''    case "observe-form":
+                validateCandidate(character, normalizedInput.knownForm, identityResolution, block);
+                if (normalizedInput.originalPresent !== true) {
+          ''',
+          '''    case "observe-form":
+                validateCandidate(character, normalizedInput.knownForm, identityResolution, block);
+                rejectUnsupportedReplacement(normalizedInput, block);
+                if (normalizedInput.originalPresent !== true) {
+          ''')
+
+          replace_once(
+          '''    case "memorize-form":
+                validateCandidate(character, normalizedInput.knownForm, identityResolution, block);
+                analyzeMemorization({
+          ''',
+          '''    case "memorize-form":
+                validateCandidate(character, normalizedInput.knownForm, identityResolution, block);
+                rejectUnsupportedReplacement(normalizedInput, block);
+                analyzeMemorization({
+          ''')
+
+          marker = '''function analyzeMemorization({
+          '''
+          helper = '''function rejectUnsupportedReplacement(normalizedInput, block) {
+            if (normalizedInput.replacementKnownFormId !== null) {
+              block("morph-replacement-operation-required", {
+                operation: normalizedInput.type,
+                replacementKnownFormId: normalizedInput.replacementKnownFormId,
+              });
+            }
+          }
+
+          function analyzeMemorization({
+          '''
+          replace_once(marker, helper)
+
+          replace_once(
+          '''  const retain = input.type !== "observe-form" || context.policy.mode === "permanent";
+            let stored = null;
+            let previousState = null;
+
+            if (input.replacementKnownFormId !== null) {
+          ''',
+          '''  const retain = input.type !== "observe-form" || context.policy.mode === "permanent";
+            const replacementOperation = input.replacementKnownFormId !== null;
+            if (
+              replacementOperation &&
+              !["acquire-form", "replace-memorized-form"].includes(input.type)
+            ) {
+              throw new Error("Morfose replacement requires validated replacement operation");
+            }
+            let stored = null;
+            let previousState = null;
+
+            if (replacementOperation) {
+          ''')
+
+          text = text.replace(
+              'const eventType = input.replacementKnownFormId !== null',
+              'const eventType = replacementOperation',
+              1,
+          )
+          text = text.replace(
+              'previousState: input.replacementKnownFormId !== null',
+              'previousState: replacementOperation',
+              1,
+          )
+          text = text.replace(
+              'nextState: input.replacementKnownFormId !== null',
+              'nextState: replacementOperation',
+              1,
+          )
+
+          path.write_text(text)
+
+          docs = Path('Docs/01-arquitetura/MorfoseKnownFormIdentity.md')
+          doc = docs.read_text()
+          old = '''`acquire-form` obedece à capacidade limitada conhecida. Quando uma aquisição manual ou importada acrescenta ocupação e excederia o repertório, o plano permanece pendente até receber `replacementKnownFormId`. A substituição ocorre atomicamente e é registrada como `form-replaced`. Uma substituição também é recusada quando há espaço livre ou quando a aquisição reutiliza uma entrada já retida.
+          '''
+          new = '''`acquire-form` obedece à capacidade limitada conhecida. Quando uma aquisição manual ou importada acrescenta ocupação e excederia o repertório, o plano permanece pendente até receber `replacementKnownFormId`. A substituição ocorre atomicamente e é registrada como `form-replaced`. Uma substituição também é recusada quando há espaço livre ou quando a aquisição reutiliza uma entrada já retida.
+
+          Somente `acquire-form` e `replace-memorized-form` aceitam `replacementKnownFormId`. `memorize-form` e `observe-form` recusam esse campo; a execução também verifica a operação antes de esquecer qualquer entrada.
+          '''
+          if old not in doc:
+              raise SystemExit('Architecture replacement paragraph not found')
+          docs.write_text(doc.replace(old, new, 1))
+
+          adr = Path('Docs/02-decisoes/ADR-0024-MorfoseKnownFormIdentity.md')
+          decision = adr.read_text()
+          old = '''Aquisições manuais e importadas não podem ultrapassar silenciosamente uma capacidade limitada conhecida. Quando o delta excede o repertório, a análise exige `replacementKnownFormId`; a forma escolhida é esquecida e a aquisição é persistida na mesma operação atômica.
+          '''
+          new = '''Aquisições manuais e importadas não podem ultrapassar silenciosamente uma capacidade limitada conhecida. Quando o delta excede o repertório, a análise exige `replacementKnownFormId`; a forma escolhida é esquecida e a aquisição é persistida na mesma operação atômica.
+
+          O campo de substituição só é válido em `acquire-form` e `replace-memorized-form`, que executam as validações correspondentes. Observação e memorização comuns recusam o campo, e a camada de execução mantém uma defesa adicional contra substituições não validadas.
+          '''
+          if old not in decision:
+              raise SystemExit('ADR replacement paragraph not found')
+          adr.write_text(decision.replace(old, new, 1))
+          PY
+
+          rm .github/workflows/apply-dom-morph-replacement-guard.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/domain/character/MorphCatalogOperations.js Docs/01-arquitetura/MorfoseKnownFormIdentity.md Docs/02-decisoes/ADR-0024-MorfoseKnownFormIdentity.md .github/workflows/apply-dom-morph-replacement-guard.yml
+          git commit -m "fix: guard Morfose replacement-capable operations"
+          git push origin HEAD:fix/dom-morph-1.3.1-capacity-gating
