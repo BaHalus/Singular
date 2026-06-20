@@ -1,345 +1,344 @@
-# Templates
+# Templates — Fundação soberana
 
-**Código:** DOM-TPL-1.1
-**Status:** Aprovado
-**Camada:** Domain
-**Tipo:** Agregado e operações
+**Código:** DOM-TEMPLATE-1.0  
+**Status:** Implementado  
+**Camada:** Domain  
+**Tipo:** Agregado, identidade, proveniência e preservação declarativa  
+**Decisão:** ADR-0029
 
-Templates representa pacotes GURPS importados de arquivos GCS com extensão original `.gct`.
-
-A arquitetura de aplicação segue ADR-0010.
-
----
-
-## Escopo
-
-O agregado cobre:
-
-- modelos genéricos;
-- raças;
-- metacaracterísticas;
-- formas explicitamente declaradas;
-- componentes adicionais do pacote.
-
-Os arquivos podem ter sido renomeados para `.txt` durante análise, mas o formato original suportado é `.gct`.
-
----
+Templates representa pacotes de personagem preservados pela SINGULAR. O domínio não se limita a arquivos GCS: ele é a base para raças, modelos raciais, metacaracterísticas, profissões, arquétipos, corpos, formas e pacotes de campanha.
 
 ## Regra central
 
-Um template é um pacote preservado, não uma alteração já aplicada ao personagem.
+```text
+Template declara.
+Cada domínio interpreta sua própria contribuição.
+O motor calcula.
+A UI apenas apresenta e despacha intenção.
+```
 
-A importação:
+Um template não é uma alteração já aplicada ao personagem.
 
-- não soma custos;
+A criação ou importação de um pacote:
+
 - não altera atributos;
-- não injeta vantagens no personagem;
+- não injeta traits no personagem;
+- não soma pontos;
+- não calcula NH;
 - não cria ataques derivados;
 - não resolve pré-requisitos;
-- não ativa formas alternativas.
+- não ativa formas;
+- não liga referências por nome.
 
-O custo fornecido pelo GCS é armazenado em `importedPoints`.
-
----
-
-## Estrutura canônica do pacote
+## Estrutura canônica
 
 ```js
 {
   id: "template-001",
-  externalIds: {},
-
-  sourceVersion: 2,
-  templateType: "race",
-  name: "Anão",
-  ancestry: "Human",
-  reference: "B261",
-  importedPoints: 35,
-
-  notes: "",
-  tags: ["import:gcs", "format:gct", "template-type:race"],
-
-  traits: {
-    advantages: [],
-    perks: [],
-    disadvantages: [],
-    quirks: [],
-    containers: [],
-    unknownNodes: []
+  externalIds: {
+    gcs: "external-template-id",
   },
-
-  skills: [],
-  techniques: [],
-  skillContainers: [],
-  techniqueNodes: [],
-  unresolvedTechniqueLinks: [],
-  unknownSkillNodes: [],
-
-  spells: [],
-  spellContainers: [],
-  unknownSpellNodes: [],
-
-  languages: [],
-  languageNodes: [],
-  unknownLanguageNodes: [],
-
-  familiarities: [],
-  familiarityNodes: [],
-  unknownFamiliarityNodes: [],
-
-  equipment: [],
-  unknownEquipmentNodes: [],
-
+  name: "Anão",
+  templateType: "race",
+  source: {
+    kind: "imported",
+    provider: "gcs",
+    format: "gct",
+    reference: "B261",
+    version: 2,
+  },
+  entries: [],
+  importedPoints: 35,
+  calculatedPoints: null,
+  notes: "",
+  tags: [],
   importMeta: {},
-  raw: {}
+  raw: {},
 }
 ```
 
----
+Esses campos formam a autoridade do pacote em DOM-TEMPLATE-1.0.
+
+## Identidade
+
+`id` é a identidade soberana da SINGULAR.
+
+Regras:
+
+- precisa ser uma string não vazia;
+- é única em `Character.templates`;
+- não é substituída por ID externo;
+- não é derivada do nome;
+- não muda quando o nome visível muda.
+
+`externalIds` preserva identidades de GCS, bibliotecas, campanhas e outros fornecedores. IDs externos nunca provocam ligação automática por nome.
 
 ## Tipos
 
 `templateType` aceita:
 
-- `template`
-- `race`
-- `metaTrait`
-- `form`
-- `unknown`
-
-O tipo é obtido primeiro de uma declaração explícita e depois do container estrutural principal do GCS.
-
-Os containers observados em `.gct` usam principalmente:
-
-```text
-container_type: race
-container_type: meta_trait
-```
-
----
-
-## Estrutura GCT observada
-
 ```text
 template
-├─ advantages
-│  └─ advantage_container
-│     ├─ container_type
-│     ├─ ancestry
-│     ├─ calc.points
-│     └─ children
-└─ skills
+race
+metaTrait
+profession
+archetype
+body
+form
+campaignPackage
+unknown
 ```
 
-Outras seções compatíveis podem incluir mágicas, técnicas, idiomas, familiaridades e equipamento.
+O tipo `unknown` preserva pacotes cuja classificação ainda não pode ser determinada com segurança.
 
----
+## Origem
 
-## Traits do pacote
+`source` registra a origem declarada do pacote:
 
-Os componentes passam pelo mesmo pipeline de traits da SINGULAR.
+```js
+{
+  kind: "singular" | "imported" | "embedded" | "external" | "unknown",
+  provider: string | null,
+  format: string | null,
+  reference: string | null,
+  version: string | number | null,
+}
+```
 
-São preservados:
+Campos adicionais de origem são preservados. A fundação não inventa fornecedor, referência ou versão ausente.
+
+Para payloads legados importados, `importMeta.source` e `importMeta.format` podem alimentar a normalização inicial da origem. Depois da criação, `source` é persistido explicitamente.
+
+## Entradas
+
+`entries` é a coleção canônica de contribuições declarativas.
+
+Cada entrada possui um envelope estável:
+
+```js
+{
+  id: "template-001:advantage:adv-001",
+  domain: "trait",
+  entryType: "advantage",
+  externalIds: {},
+  referenceId: null,
+  payload: {
+    id: "adv-001",
+    name: "Visão Noturna",
+    points: 5,
+  },
+  notes: "",
+  tags: [],
+  importMeta: null,
+  raw: null,
+}
+```
+
+### Identidade da entrada
+
+- `id` é único dentro do template;
+- `referenceId` só existe quando declarado explicitamente;
+- nomes iguais não geram vínculo;
+- a posição da entrada não é sua identidade;
+- entradas desconhecidas permanecem preservadas.
+
+### Domínio e tipo
+
+`domain` identifica quem deverá interpretar a contribuição. Exemplos atuais:
+
+```text
+trait
+skill
+magic
+language
+culture
+equipment
+template
+rule
+unknown
+```
+
+`entryType` é aberto. Tipos desconhecidos não são descartados nem convertidos para um tipo conhecido por aproximação.
+
+### Payload opaco
+
+`payload` conserva os dados da contribuição. DOM-TEMPLATE-1.0 só normaliza payloads pertencentes aos domínios já representados no Character. Ele não calcula o resultado mecânico da entrada.
+
+`raw` e `importMeta` preservam dados necessários à auditoria e a importadores futuros.
+
+## Entradas conhecidas atualmente
+
+A fundação reconhece envelopes para:
 
 - vantagens;
 - qualidades;
 - desvantagens;
 - peculiaridades;
-- níveis;
-- modificadores ativos e inativos;
-- features;
-- armas naturais;
-- pré-requisitos;
-- notas;
-- containers;
-- dados desconhecidos;
-- `calc`, referências e dados brutos no contexto de importação.
+- containers de traits;
+- perícias;
+- técnicas;
+- containers e nós auxiliares de perícias;
+- mágicas;
+- idiomas;
+- familiaridades culturais;
+- equipamentos;
+- nós desconhecidos de cada seção.
 
-As categorias GCS `Vantagem`, `Qualidade`, `Desvantagem`, `Peculiaridade`, `Advantage`, `Perk`, `Disadvantage` e `Quirk` participam da classificação.
+DOM-TEMPLATE-1.1 ampliará a composição declarativa para atributos, características secundárias, outros templates e regras especiais. Essa interpretação não pertence ao bloco 1.0.
 
-Traits de custo zero continuam classificáveis quando a categoria informa sua função.
+## Compatibilidade estrutural
 
----
-
-## Atributos e efeitos estruturais
-
-Bônus como:
-
-```js
-{
-  type: "attribute_bonus",
-  amount: 6,
-  attribute: "st"
-}
-```
-
-são preservados dentro das features originais.
-
-A incorporação não aplica esses bônus diretamente. O motor soberano deverá consumi-los posteriormente.
-
----
-
-## Ataques naturais
-
-Armas em traits, como mordidas, garras, caudas, sopros e pisoteios, permanecem em `weapons`.
-
-A incorporação preserva esses dados, mas não cria imediatamente `Character.attacks`.
-
----
-
-## Formas alternativas
-
-Traits como `Forma Alternativa` são preservados como componentes do pacote, incluindo notas que identificam formas como morcego ou lobo.
-
-A ligação entre uma vantagem Forma Alternativa e outro template externo não é inventada quando o `.gct` não fornece um identificador explícito.
-
----
-
-## Ciclo de vida
-
-O ciclo de vida é explícito:
+O código anterior armazenava contribuições em coleções como:
 
 ```text
-importar
-  ↓
-Character.templates
-  ↓
-incorporar
-  ↓
-componentes clonados + TemplateApplication ativa
-  ↓
-remover incorporação
-  ↓
-componentes removidos + histórico preservado
+traits.advantages
+traits.disadvantages
+skills
+techniques
+spells
+languages
+familiarities
+equipment
 ```
 
-### Importar
+Durante a transição arquitetural:
 
-Um `.gct` importado isoladamente entra em:
+- entradas legadas são convertidas em `entries`;
+- as coleções antigas continuam disponíveis como projeções somente leitura;
+- as projeções são sempre reconstruídas a partir de `entries`;
+- `entries` é a única autoridade;
+- save/load persiste tanto a forma canônica quanto o payload de compatibilidade necessário às integrações atuais;
+- definições conflitantes são rejeitadas em vez de conciliadas silenciosamente.
+
+Isso permite que Forma Alternativa, Morfose, importadores e operações de incorporação continuem funcionando enquanto os próximos blocos migram para a composição declarativa.
+
+## Pontos
 
 ```text
-Character.templates
+importedPoints   → valor declarado pela fonte
+calculatedPoints → valor declarado por um calculador soberano futuro
 ```
 
-Seus componentes não são duplicados nas listas principais do personagem.
+DOM-TEMPLATE-1.0 não calcula nenhum dos dois.
 
-### Incorporar
+Os valores permanecem separados. Uma divergência não é corrigida nem escondida. Reconciliação e diagnóstico pertencem ao DOM-TEMPLATE-1.4.
 
-`incorporateTemplate(character, templateId)`:
+Valores negativos são válidos, inclusive em metacaracterísticas.
 
-- preserva o pacote original;
-- copia componentes conhecidos para o personagem;
-- gera novos IDs;
-- grava proveniência em cada cópia;
-- remapeia técnicas para as perícias clonadas;
-- clona IDs de equipamento recursivamente;
-- cria uma entrada ativa em `Character.templateApplications`.
+## Imutabilidade
 
-A proveniência inclui:
+Templates e suas entradas são profundamente imutáveis depois de criados.
+
+Consequências:
+
+- a entrada original do chamador é clonada;
+- `raw`, `externalIds`, `source`, `entries` e payloads não compartilham referências mutáveis com o chamador;
+- operações de domínio não modificam o pacote existente;
+- uma atualização futura deverá produzir outro template e substituir a referência explicitamente;
+- operações de incorporação clonam componentes para o Character sem alterar o pacote.
+
+## Dados desconhecidos
+
+A regra de preservação é:
+
+```text
+não reconhecido ≠ inválido
+não resolvido ≠ ausente
+```
+
+Uma entrada desconhecida continua em `entries` com:
+
+- identidade;
+- domínio declarado ou `unknown`;
+- `entryType` original;
+- IDs externos;
+- payload;
+- metadados de importação;
+- dados brutos.
+
+Nenhum dado é descartado apenas porque o motor ainda não sabe interpretá-lo.
+
+## Relação com Character
+
+```text
+Character
+├── templates
+│   └── Template imutável
+└── templateApplications
+    └── histórico de incorporações
+```
+
+Armazenar um template em `Character.templates` não significa aplicá-lo.
+
+## Incorporação atual
+
+As operações existentes continuam disponíveis:
 
 ```js
-{
-  templateApplicationId,
-  templateId,
-  templateName,
-  templateComponentType,
-  templateSourceComponentId
-}
+incorporateTemplate(character, templateId)
+removeTemplateApplication(character, applicationId)
+removeTemplatePackage(character, templateId)
 ```
 
-### Remover incorporação
+`incorporateTemplate` usa as projeções conhecidas para clonar componentes e registrar proveniência. Essa operação será substituída pelo fluxo soberano de análise, plano, revalidação e aplicação no DOM-TEMPLATE-1.3.
 
-`removeTemplateApplication(character, applicationId)`:
+Até lá:
 
-- remove componentes associados à aplicação;
-- não remove componentes anteriores do personagem;
-- mantém o pacote em `Character.templates`;
-- mantém o registro histórico;
-- altera a aplicação para `status: "removed"`.
+- o pacote original permanece imutável;
+- componentes aplicados recebem novos IDs;
+- proveniência é registrada;
+- técnicas são remapeadas para perícias clonadas;
+- equipamentos são clonados recursivamente;
+- uma aplicação ativa impede remoção do pacote.
 
-### Remover pacote
+## Save/load
 
-`removeTemplatePackage(character, templateId)` remove o pacote importado somente quando ele não possui aplicação ativa.
+A serialização preserva:
 
-Uma aplicação removida não impede a remoção do pacote e permanece como histórico.
+- identidade SINGULAR;
+- IDs externos;
+- tipo;
+- origem;
+- entradas conhecidas e desconhecidas;
+- valores importado e calculado;
+- notas e tags;
+- metadados de importação;
+- documento bruto;
+- projeções temporárias de compatibilidade.
 
----
+O round trip:
 
-## TemplateApplication
-
-```js
-{
-  id: "application-001",
-  templateId: "template-001",
-  templateName: "Anão",
-  templateType: "race",
-  importedPoints: 35,
-
-  status: "active",
-  appliedAt: "2026-06-19T12:00:00.000Z",
-  removedAt: null,
-
-  componentIds: {
-    advantages: [],
-    perks: [],
-    disadvantages: [],
-    quirks: [],
-    skills: [],
-    techniques: [],
-    spells: [],
-    languages: [],
-    familiarities: [],
-    equipment: []
-  },
-
-  notes: ""
-}
+```text
+createTemplate
+→ serializeTemplates
+→ createTemplates
 ```
 
-O registro permite auditoria e remoção previsível.
-
----
-
-## Duplicidade
-
-Um template não pode ter duas aplicações ativas simultaneamente no mesmo personagem.
-
-Depois da remoção, o pacote pode ser incorporado novamente. A nova incorporação recebe outro ID e novos IDs de componentes.
-
----
-
-## Metadados de importação
-
-`importMeta` do pacote registra:
-
-```js
-{
-  source: "gcs",
-  format: "gct",
-  originalExtension: ".gct",
-  sourceType: "template",
-  rootContainerIds: [],
-  primaryContainerId: null
-}
-```
-
-O documento original completo permanece em `raw`.
-
----
+não deve perder informação nem criar novos vínculos.
 
 ## Não responsabilidades
 
-Templates e suas operações não calculam:
+DOM-TEMPLATE-1.0 não:
 
-- custo total;
-- custo alternativo;
-- atributos finais;
-- secundárias finais;
-- NH;
-- RD;
-- carga;
-- ataques finais;
-- satisfação de pré-requisitos;
-- ativação de Forma Alternativa;
-- efeitos de Morfo;
-- aplicação mecânica de features.
+- compõe templates dentro de templates;
+- resolve ciclos;
+- aplica pacotes ao Character por plano;
+- calcula pontos;
+- reconcilia custos;
+- interpreta atributos ou secundárias;
+- resolve traits, perícias, mágicas ou equipamentos;
+- satisfaz pré-requisitos;
+- cria ataques;
+- ativa Forma Alternativa ou Morfose;
+- resolve referência externa por nome;
+- calcula na UI.
+
+## Próximos blocos
+
+```text
+DOM-TEMPLATE-1.1 — composição declarativa
+DOM-TEMPLATE-1.2 — dependências e composição
+DOM-TEMPLATE-1.3 — aplicação ao Character
+DOM-TEMPLATE-1.4 — custo e reconciliação
+DOM-TEMPLATE-1.5 — importação e fechamento
+```
