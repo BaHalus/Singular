@@ -219,6 +219,33 @@ test("serializes canonical entries and compatibility projections", () => {
   assert.deepEqual(serializeTemplates(restored), json);
 });
 
+test("rejects conflicting canonical and compatibility definitions", () => {
+  assert.throws(() => createTemplate({
+    id: "template-conflict",
+    entries: [
+      {
+        id: "entry-advantage",
+        domain: "trait",
+        entryType: "advantage",
+        payload: {
+          id: "adv-001",
+          name: "Visão Noturna",
+          points: 5,
+        },
+      },
+    ],
+    traits: {
+      advantages: [
+        {
+          id: "adv-001",
+          name: "Visão Noturna",
+          points: 10,
+        },
+      ],
+    },
+  }));
+});
+
 test("does not retain mutable references from input or serialization", () => {
   const input = {
     id: "template-immutable",
