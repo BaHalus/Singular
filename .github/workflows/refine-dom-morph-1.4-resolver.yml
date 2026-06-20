@@ -1,0 +1,75 @@
+name: Refine DOM-MORPH-1.4 resolver
+
+on:
+  push:
+    branches:
+      - feature/dom-morph-1.4
+
+permissions:
+  contents: write
+
+jobs:
+  refine:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/dom-morph-1.4
+
+      - name: Apply dependent builtin precedence
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('src/domain/character/MorphProfileResolver.js')
+          text = path.read_text()
+
+          old = '''  {
+            id: "gurps.morph.unlimited",
+            names: ["Ilimitada", "Unlimited"],
+            profile: {
+          '''
+          new = '''  {
+            id: "gurps.morph.unlimited",
+            names: ["Ilimitada", "Unlimited"],
+            priority: PRIORITY.builtin + 10,
+            profile: {
+          '''
+          if old not in text:
+              raise SystemExit('Unlimited builtin fragment not found')
+          text = text.replace(old, new, 1)
+
+          old = '''  {
+            id: "gurps.morph.cosmic-improvised-forms",
+            names: [
+          '''
+          new = '''  {
+            id: "gurps.morph.cosmic-improvised-forms",
+            priority: PRIORITY.builtin + 10,
+            names: [
+          '''
+          if old not in text:
+              raise SystemExit('Cosmic builtin fragment not found')
+          text = text.replace(old, new, 1)
+
+          old = '''        metadata("builtin", PRIORITY.builtin, [summary]),
+          signals,
+        );
+          '''
+          new = '''        metadata("builtin", rule.priority ?? PRIORITY.builtin, [summary]),
+          signals,
+        );
+          '''
+          if old not in text:
+              raise SystemExit('Builtin signal priority fragment not found')
+          text = text.replace(old, new, 1)
+          path.write_text(text)
+          PY
+
+          rm .github/workflows/refine-dom-morph-1.4-resolver.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/domain/character/MorphProfileResolver.js .github/workflows/refine-dom-morph-1.4-resolver.yml
+          git commit -m "fix: compose dependent Morfose improvisation modifiers"
+          git push origin HEAD:feature/dom-morph-1.4
