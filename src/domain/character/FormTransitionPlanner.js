@@ -13,6 +13,10 @@ import {
   evaluateMaterializedMorphTarget,
 } from "./MorphKnownFormMaterialization.js";
 import { evaluateMorphImprovisedTarget } from "./MorphImprovisation.js";
+import {
+  applyMorphPointLimitToSelection,
+  evaluateMorphTargetPointLimit,
+} from "./MorphPointLimit.js";
 
 const HARD_REASONS = new Set([
   "insufficient-resource",
@@ -35,6 +39,8 @@ const HARD_REASONS = new Set([
   "morph-improvisation-composition-change-forbidden",
   "morph-improvisation-policy-stale",
   "morph-improvisation-projection-invalid",
+  "morph-point-limit-exceeded",
+  "morph-improvisation-point-limit-exceeded",
 ]);
 
 export function planFormTransition(
@@ -57,12 +63,16 @@ export function planFormTransition(
 
   const intent = context.intent ?? "voluntary";
   const bypassReturnTriggers = context.bypassReturnTriggers === true;
-  const morphSelection = evaluateMorphImprovisedTarget(set, targetForm) ??
+  const rawMorphSelection = evaluateMorphImprovisedTarget(set, targetForm) ??
     evaluateMaterializedMorphTarget(
       character,
       set,
       targetForm,
     );
+  const morphSelection = applyMorphPointLimitToSelection(
+    rawMorphSelection,
+    evaluateMorphTargetPointLimit(character, set, targetForm),
+  );
 
   if (fromForm.id === targetForm.id) {
     return createAlreadyActivePlan(

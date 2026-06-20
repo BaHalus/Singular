@@ -1,9 +1,9 @@
 # Improvisação de formas de Morfose
 
 **Código:** DOM-MORPH-1.4  
-**Status:** Implementado  
+**Status:** Implementado e integrado ao DOM-MORPH-1.5  
 **Camada:** Domain  
-**Decisão:** ADR-0025
+**Decisão:** ADR-0025 e ADR-0027
 
 ## Objetivo
 
@@ -70,7 +70,7 @@ Ela não concede Formas Improvisadas por si só. Quando aparece sem o modificado
 compositionScope: "unrestricted"
 ```
 
-Ela também mantém sua consequência já existente sobre o limite geral da Morfose. Não remove a exigência de características físicas naturais e não substitui Cósmica.
+Ela também mantém sua consequência sobre o limite geral da Morfose. Não remove a exigência de características físicas naturais, não substitui Cósmica e não apaga um teto específico de improvisação declarado separadamente.
 
 ## Rascunho declarativo
 
@@ -180,32 +180,50 @@ análise
 → plano efêmero
 → materialização transitória
 → FormTransitionPlanner
+→ MorphPointLimit
 → FormTransitionExecutor
 ```
 
-`prepareMorphImprovisedTransition` materializa a projeção e entrega seu `formId` ao planner já existente. O planner reavalia a improvisação e inclui o resultado em `morphSelection`.
+`prepareMorphImprovisedTransition` materializa a projeção e entrega seu `formId` ao planner existente. O planner reavalia a improvisação, aplica o limite de pontos e inclui o resultado em `morphSelection`.
 
 ## Limite em pontos
 
-DOM-MORPH-1.4 expõe:
+DOM-MORPH-1.5 substitui a avaliação provisória por uma avaliação mecânica canônica no momento do planejamento da transição:
 
 ```js
 {
+  targetKind: "improvised",
   generalPointLimitMode,
   generalPointLimit,
   generalPointLimitSource,
   improvisationPointLimit,
+  effectivePointLimit,
   templateImportedPoints,
-  status: "deferred-to-dom-morph-1.5",
-  enforced: false
+  generalExcessPoints,
+  improvisationExcessPoints,
+  enforcementMode,
+  enforced,
+  complete,
+  status,
+  reasons
 }
 ```
 
-A aplicação mecânica do limite continua reservada ao **DOM-MORPH-1.5**, autoridade única para formas conhecidas e improvisadas.
+Quando os dois tetos são finitos:
+
+```text
+effectivePointLimit = min(generalPointLimit, improvisationPointLimit)
+```
+
+A projeção pode permanecer materializada e inativa. A ativação fica bloqueada quando o valor do template excede qualquer teto conhecido.
+
+Detalhes: `MorfosePointLimit.md` e `ADR-0027-MorfosePointLimit.md`.
 
 ## Persistência
 
 A projeção materializada é serializável para preservar save/load. O plano efêmero não é serializado. O snapshot interno é persistido dentro de `morphImprovisation`, sem criar template persistente.
+
+A avaliação registrada na projeção documenta o instante da materialização; a avaliação atual usada para ativação é sempre refeita pelo planner.
 
 ## APIs principais
 
@@ -218,13 +236,13 @@ materializeMorphImprovisedForm(character, formSetId, input, options)
 prepareMorphImprovisedTransition(character, formSetId, input, context, options)
 discardMorphImprovisedForm(character, formSetId, formId, options)
 evaluateMorphImprovisedTarget(set, targetForm)
+evaluateMorphTargetPointLimit(character, set, targetForm)
 ```
 
 ## Não responsabilidades
 
 DOM-MORPH-1.4 não:
 
-- aplica mecanicamente o limite em pontos;
 - adiciona a forma ao repertório conhecido;
 - memoriza a improvisação;
 - incorpora ou importa o snapshot como template persistente;
@@ -233,3 +251,5 @@ DOM-MORPH-1.4 não:
 - cria outro planner ou executor;
 - presume que uma característica existe no cenário;
 - trata Cósmica ou Ilimitada como substitutas de Formas Improvisadas.
+
+A aplicação mecânica do limite pertence exclusivamente ao DOM-MORPH-1.5.

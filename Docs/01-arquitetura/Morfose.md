@@ -1,12 +1,20 @@
 # Morfose
 
-**Código:** DOM-MORPH-1.3  
-**Status:** Aquisição e memorização implementadas  
+**Código:** DOM-MORPH-1.5  
+**Status:** Implementado  
 **Camada:** Domain  
-**Tipo:** Perfil, catálogo, resolução, operações e projeção transitória  
-**Decisões:** ADR-0020, ADR-0021, ADR-0022 e ADR-0023
+**Tipo:** Perfil, catálogo, resolução, aquisição, improvisação, limite e projeção transitória  
+**Decisões:** ADR-0020, ADR-0021, ADR-0022, ADR-0023, ADR-0025 e ADR-0027
 
-Morfose reutiliza integralmente o subsistema de Forma Alternativa. Ela acrescenta catálogo de formas conhecidas, aquisição, observação, memorização, improvisação futura, limites declarados, resolução da vantagem e materialização transitória.
+Morfose reutiliza integralmente o subsistema de Forma Alternativa. Ela acrescenta resolução da vantagem, catálogo de formas conhecidas, observação, memorização, improvisação, limites declarados e materialização transitória.
+
+O princípio permanece:
+
+```text
+O motor calcula.
+O schema declara.
+A UI apresenta e coleta entrada.
+```
 
 ## Terminologia
 
@@ -30,9 +38,11 @@ Character
     ├── morphProfileOverride
     ├── morphProfileResolution
     └── forms
-        └── AlternateForm materializada
-            ├── morphKnownFormId
-            └── morphMaterialization
+        ├── AlternateForm materializada
+        │   ├── morphKnownFormId
+        │   └── morphMaterialization
+        └── AlternateForm improvisada
+            └── morphImprovisation
 ```
 
 Conjuntos `alternateForm` mantêm dados exclusivos de Morfose como nulos.
@@ -59,7 +69,10 @@ Conjuntos `alternateForm` mantêm dados exclusivos de Morfose como nulos.
 
   improvisation: {
     mode: "unknown",
-    pointLimit: null
+    pointLimit: null,
+    traitScope: "unknown",
+    availabilityScope: "unknown",
+    compositionScope: "unknown"
   },
 
   knownForms: [],
@@ -71,9 +84,44 @@ Conjuntos `alternateForm` mantêm dados exclusivos de Morfose como nulos.
 }
 ```
 
-O schema declara políticas. O motor resolve capacidades e consequências. A UI não calcula.
+O schema declara políticas. O motor resolve capacidades e consequências.
+
+## Resolução da vantagem
+
+A resolução possui precedência:
+
+```text
+perfil-base
+→ valor importado
+→ builtin
+→ campanha
+→ explícito
+→ manual
+```
+
+O vínculo usa `sourceTraitId` quando válido. Sem vínculo explícito, só existe associação automática quando há exatamente uma vantagem chamada Morfose.
+
+Modificadores reconhecidos incluem:
+
+```text
+Ilimitada
+Formas Improvisadas
+Cósmica (Para Formas Improvisadas)
+Não Exige Memorização
+Incapaz de Memorizar Formas
+Cosmética
+Mantém a Forma
+Conservação da Massa
+Mudança Ativa
+Imperfeita
+Somente Formas Não-Vivas
+```
+
+Modificadores não resolvidos são preservados como evidência. Nenhuma regra é inferida apenas por semelhança textual fora do vocabulário reconhecido.
 
 ## Limite em pontos
+
+Modos:
 
 ```text
 undeclared
@@ -91,7 +139,55 @@ modifier
 campaign
 ```
 
-A aplicação mecânica permanece reservada ao DOM-MORPH-1.5.
+`pointLimit` representa o teto efetivo já resolvido do valor do template racial. Importadores, regras de campanha e overrides convertem suas representações de origem para esse teto.
+
+A autoridade mecânica única é:
+
+```text
+MorphPointLimit
+```
+
+Avaliação:
+
+```js
+evaluateMorphPointLimit(profile, templateImportedPoints, {
+  targetKind: "known" | "improvised"
+})
+```
+
+Estados:
+
+```text
+ready   → limites conhecidos e satisfeitos
+pending → falta teto ou valor necessário
+blocked → teto conhecido excedido
+```
+
+Razões bloqueantes:
+
+```text
+morph-point-limit-exceeded
+morph-improvisation-point-limit-exceeded
+```
+
+Razões pendentes:
+
+```text
+morph-point-limit-undeclared
+morph-template-points-unknown
+```
+
+A igualdade com o teto é válida. Valores negativos de templates são comparados normalmente.
+
+Para improvisações, quando existem dois tetos finitos:
+
+```text
+effectivePointLimit = min(generalPointLimit, improvisationPointLimit)
+```
+
+`undeclared` não equivale a `unlimited`. A avaliação permanece incompleta e não declara que o limite foi cumprido.
+
+Detalhes: `MorfosePointLimit.md` e `ADR-0027-MorfosePointLimit.md`.
 
 ## Catálogo
 
@@ -105,7 +201,7 @@ open
 
 ## Memorização
 
-Modes:
+Modos:
 
 ```text
 unknown
@@ -122,17 +218,6 @@ fixed
 iq
 unlimited
 notApplicable
-```
-
-Campos:
-
-```js
-{
-  mode,
-  capacity,
-  capacityBasis,
-  durationSeconds
-}
 ```
 
 Para Morfose padrão, a política efetiva é:
@@ -159,8 +244,6 @@ Incapaz de Memorizar Formas
 → capacidade não aplicável
 ```
 
-Os modificadores são reconhecidos pelo resolver existente. As operações consomem seus IDs reconhecidos e não criam outro resolver textual.
-
 ## Improvisação
 
 ```text
@@ -170,7 +253,31 @@ allowed
 conditional
 ```
 
-DOM-MORPH-1.4 tratará composição e improvisação. O `pointLimit` de improvisação é independente do limite geral.
+Eixos:
+
+```text
+traitScope
+availabilityScope
+compositionScope
+pointLimit
+```
+
+Política-base de Formas Improvisadas:
+
+```js
+{
+  mode: "allowed",
+  traitScope: "physicalNatural",
+  availabilityScope: "settingOnly",
+  compositionScope: "sameComposition"
+}
+```
+
+Cósmica remove apenas a exigência de existência no cenário. Ilimitada remove a restrição de composição e o teto geral, mas não substitui Formas Improvisadas nem apaga um teto específico.
+
+A projeção improvisada é transitória: não entra em `Character.templates`, não entra em `knownForms` e não é ativada automaticamente.
+
+Detalhes: `MorfoseImprovisation.md` e `ADR-0025-MorfoseImprovisation.md`.
 
 ## Forma conhecida
 
@@ -238,7 +345,7 @@ análise
 → recibo persistente
 ```
 
-API:
+APIs de catálogo:
 
 ```js
 analyzeMorphCatalogOperation(character, setId, input, options)
@@ -271,7 +378,7 @@ Falha, pendência e bloqueio não alteram o `Character` original.
 
 Capacidade desconhecida permanece desconhecida.
 
-Quando os espaços estão cheios, a operação fica pendente até receber uma forma anterior explícita:
+Quando os espaços estão cheios, a operação fica pendente até receber:
 
 ```js
 {
@@ -291,7 +398,9 @@ Nenhuma forma é escolhida automaticamente ou apagada.
 
 ## Planos obsoletos
 
-O fingerprint inclui forma ativa, catálogo conhecido, política declarada e modificadores reconhecidos. Qualquer mudança relevante entre planejamento e execução torna o plano obsoleto.
+Fingerprints incluem forma ativa, catálogo conhecido, políticas declaradas, modificadores reconhecidos e avaliações mecânicas relevantes.
+
+Qualquer mudança entre planejamento e execução torna o plano obsoleto ou produz um novo status na revalidação.
 
 ## Histórico do catálogo
 
@@ -309,12 +418,6 @@ form-availability-changed
 form-replaced
 ```
 
-Cada entrada preserva personagem, conjunto, forma, template, instante, método de aquisição, estados, substituição e dados contextuais.
-
-## Recomposição do perfil
-
-Aquisições e histórico são sincronizados no `baseProfile` persistido da resolução. Uma nova recomposição pode remover contribuições de modificadores desabilitados sem apagar formas adquiridas após a resolução anterior.
-
 ## Materialização de forma conhecida
 
 ```js
@@ -322,7 +425,7 @@ analyzeMorphKnownFormMaterialization(character, setId, knownFormId)
 materializeMorphKnownForm(character, setId, knownFormId, options)
 ```
 
-Pré-condições:
+Pré-condições estruturais:
 
 - entrada existente;
 - estado `available`;
@@ -350,12 +453,15 @@ Materialização é idempotente. Template alterado exige `refresh: true`. Uma ma
 ## Transição
 
 ```text
-entrada conhecida
+entrada conhecida ou improvisada
 → materialização ou reutilização
+→ avaliação de limite
 → FormTransitionPlanner
 → FormTransitionExecutor
-→ runtime e histórico de transição existentes
+→ runtime e histórico existentes
 ```
+
+O planner é a fronteira mecânica de ativação. Uma projeção inativa pode existir acima do teto, mas não recebe plano executável.
 
 O executor de Forma Alternativa continua sendo o único responsável por ativar uma forma.
 
@@ -370,6 +476,7 @@ Sobrevivem ao save/load:
 - referências externas e `raw`;
 - instantes de observação e memorização;
 - formas materializadas;
+- improvisações transitórias persistíveis;
 - fingerprints, proveniência e runtime.
 
 Invariantes:
@@ -379,39 +486,35 @@ Invariantes:
 - template resolvido aponta para `Character.templates`;
 - histórico pertence ao personagem e ao conjunto corretos;
 - uma entrada possui no máximo uma materialização por conjunto;
-- a forma-base não pode ser uma forma conhecida materializada;
-- uma forma ativa não pode ser esquecida ou substituída.
+- a forma-base não pode ser forma conhecida materializada nem improvisação;
+- uma forma ativa não pode ser esquecida, substituída, atualizada ou descartada;
+- limites finitos exigem valores não negativos;
+- a UI não calcula o teto nem a diferença.
 
-## Próximos blocos
+## Estado dos blocos
 
 ```text
+DOM-MORPH-1.0 — fundação
+DOM-MORPH-1.1 — resolução da vantagem
+DOM-MORPH-1.2 — seleção e materialização
+DOM-MORPH-1.3 — aquisição e memorização
+DOM-MORPH-1.3.1 — identidade, idempotência e capacidade
 DOM-MORPH-1.4 — improvisação
 DOM-MORPH-1.5 — limites e fechamento
 ```
 
+Todos os blocos acima estão implementados no domínio.
+
 ## Não responsabilidades
 
-DOM-MORPH-1.3 não:
+Morfose não:
 
-- improvisa ou compõe modelos;
-- aplica limite de pontos;
-- calcula custo da vantagem;
-- duplica o planner, executor, runtime ou histórico de transição;
-- liga referência externa por nome;
+- calcula regras na UI;
+- duplica planner, executor, runtime ou histórico de Forma Alternativa;
+- liga referências externas por nome;
 - apaga proveniência;
-- atualiza silenciosamente uma forma ativa.
-
-
-## DOM-MORPH-1.4 — Improvisação de formas
-
-**Status:** implementado.
-
-A improvisação usa rascunho declarativo com snapshot de template e evidências explícitas. Sua projeção é transitória em `AlternateFormSet.forms`: não entra em `Character.templates`, não entra em `knownForms` e não é ativada automaticamente.
-
-- **Formas Improvisadas:** características físicas naturais, existentes no cenário e sem mudança de composição;
-- **Cósmica (Para Formas Improvisadas):** remove apenas a exigência de existência no cenário;
-- **Ilimitada:** remove apenas a restrição de composição, além do limite geral ilimitado.
-
-A projeção usa o `FormTransitionPlanner` e o `FormTransitionExecutor` existentes. A aplicação mecânica do limite em pontos permanece no DOM-MORPH-1.5.
-
-Detalhes: `MorfoseImprovisation.md` e `ADR-0025-MorfoseImprovisation.md`.
+- atualiza silenciosamente uma forma ativa;
+- incorpora templates durante materialização;
+- recalcula `Template.importedPoints` somando componentes;
+- deriva raça nativa por nome;
+- calcula o preço final da vantagem fora do resolver apropriado.
