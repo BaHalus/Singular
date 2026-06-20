@@ -19,25 +19,14 @@ A UI apenas apresenta e despacha intenção.
 
 Um template não é uma alteração já aplicada ao personagem.
 
-A criação ou importação de um pacote:
-
-- não altera atributos;
-- não injeta traits no personagem;
-- não soma pontos;
-- não calcula NH;
-- não cria ataques derivados;
-- não resolve pré-requisitos;
-- não ativa formas;
-- não liga referências por nome.
+A criação ou importação de um pacote não altera atributos, não injeta componentes no personagem, não soma pontos, não calcula NH, não cria ataques derivados, não resolve pré-requisitos, não ativa formas e não liga referências por nome.
 
 ## Estrutura canônica
 
 ```js
 {
   id: "template-001",
-  externalIds: {
-    gcs: "external-template-id",
-  },
+  externalIds: { gcs: "external-template-id" },
   name: "Anão",
   templateType: "race",
   source: {
@@ -57,19 +46,9 @@ A criação ou importação de um pacote:
 }
 ```
 
-Esses campos formam a autoridade do pacote em DOM-TEMPLATE-1.0.
-
 ## Identidade
 
-`id` é a identidade soberana da SINGULAR.
-
-Regras:
-
-- precisa ser uma string não vazia;
-- é única em `Character.templates`;
-- não é substituída por ID externo;
-- não é derivada do nome;
-- não muda quando o nome visível muda.
+`id` é a identidade soberana da SINGULAR. Precisa ser uma string não vazia, é única em `Character.templates`, não é substituída por ID externo, não é derivada do nome e não muda quando o nome visível muda.
 
 `externalIds` preserva identidades de GCS, bibliotecas, campanhas e outros fornecedores. IDs externos nunca provocam ligação automática por nome.
 
@@ -93,7 +72,7 @@ O tipo `unknown` preserva pacotes cuja classificação ainda não pode ser deter
 
 ## Origem
 
-`source` registra a origem declarada do pacote:
+`source` registra a origem declarada:
 
 ```js
 {
@@ -107,13 +86,11 @@ O tipo `unknown` preserva pacotes cuja classificação ainda não pode ser deter
 
 Campos adicionais de origem são preservados. A fundação não inventa fornecedor, referência ou versão ausente.
 
-Para payloads legados importados, `importMeta.source` e `importMeta.format` podem alimentar a normalização inicial da origem. Depois da criação, `source` é persistido explicitamente.
+Para payloads legados importados, `importMeta.source` e `importMeta.format` podem alimentar a normalização inicial. Depois da criação, `source` é persistido explicitamente.
 
 ## Entradas
 
 `entries` é a coleção canônica de contribuições declaradas.
-
-Cada entrada possui um envelope estável:
 
 ```js
 {
@@ -139,12 +116,12 @@ Cada entrada possui um envelope estável:
 - `id` é único dentro do template;
 - `referenceId` só existe quando declarado explicitamente;
 - nomes iguais não geram vínculo;
-- a posição da entrada não é sua identidade;
+- a posição não define identidade;
 - entradas desconhecidas permanecem preservadas.
 
 ### Domínio e tipo
 
-`domain` identifica quem deverá interpretar a contribuição. Exemplos atuais:
+`domain` identifica quem deverá interpretar a contribuição:
 
 ```text
 trait
@@ -158,9 +135,9 @@ rule
 unknown
 ```
 
-`entryType` é aberto. Tipos desconhecidos não são descartados nem convertidos para um tipo conhecido por aproximação.
+`entryType` é aberto. Tipos desconhecidos não são descartados nem convertidos por aproximação.
 
-### Payload opaco
+### Payload
 
 `payload` conserva os dados da contribuição. DOM-TEMPLATE-1.0 só normaliza payloads pertencentes aos domínios já representados no Character. Ele não calcula o resultado mecânico da entrada.
 
@@ -168,49 +145,24 @@ unknown
 
 ## Entradas conhecidas atualmente
 
-A fundação reconhece envelopes para:
+A fundação reconhece envelopes para traits, containers de traits, perícias, técnicas, nós auxiliares, mágicas, idiomas, familiaridades culturais, equipamentos e nós desconhecidos de cada seção.
 
-- vantagens;
-- qualidades;
-- desvantagens;
-- peculiaridades;
-- containers de traits;
-- perícias;
-- técnicas;
-- containers e nós auxiliares de perícias;
-- mágicas;
-- idiomas;
-- familiaridades culturais;
-- equipamentos;
-- nós desconhecidos de cada seção.
-
-DOM-TEMPLATE-1.1 ampliará a composição declarativa para atributos, características secundárias, outros templates e regras especiais. Essa interpretação não pertence ao bloco 1.0.
+DOM-TEMPLATE-1.1 ampliará a composição declarativa para atributos, características secundárias, outros templates e regras especiais.
 
 ## Compatibilidade estrutural
 
-O código anterior armazenava contribuições em coleções como:
+O código anterior armazenava contribuições em coleções como `traits.advantages`, `skills`, `spells` e `equipment`.
 
-```text
-traits.advantages
-traits.disadvantages
-skills
-techniques
-spells
-languages
-familiarities
-equipment
-```
-
-Durante a transição arquitetural:
+Durante a transição:
 
 - entradas legadas são convertidas em `entries`;
-- as coleções antigas continuam disponíveis como projeções somente leitura;
-- as projeções são sempre reconstruídas a partir de `entries`;
+- as coleções antigas permanecem como projeções somente leitura;
+- as projeções são reconstruídas a partir de `entries`;
 - `entries` é a única autoridade;
-- save/load persiste tanto a forma canônica quanto o payload de compatibilidade necessário às integrações atuais;
-- quando a mesma contribuição aparece em ambas as representações, definições equivalentes são unificadas e definições divergentes são rejeitadas.
+- save/load persiste a forma canônica e o payload de compatibilidade necessário às integrações atuais;
+- quando a mesma contribuição aparece nas duas representações, definições equivalentes são unificadas e definições divergentes são rejeitadas.
 
-Isso permite que Forma Alternativa, Morfose, importadores e operações de incorporação continuem funcionando enquanto os próximos blocos migram para a composição declarativa.
+Isso mantém Forma Alternativa, Morfose, importadores e operações de incorporação operantes enquanto os próximos blocos migram para a composição declarativa.
 
 ## Pontos
 
@@ -219,44 +171,26 @@ importedPoints   → valor declarado pela fonte
 calculatedPoints → valor declarado por um calculador soberano futuro
 ```
 
-DOM-TEMPLATE-1.0 não calcula nenhum dos dois.
-
-Os valores permanecem separados. Uma divergência não é corrigida nem escondida. Reconciliação e diagnóstico pertencem ao DOM-TEMPLATE-1.4.
-
-Valores negativos são válidos, inclusive em metacaracterísticas.
+DOM-TEMPLATE-1.0 não calcula nenhum dos dois. Divergências são preservadas para reconciliação no DOM-TEMPLATE-1.4. Valores negativos são válidos.
 
 ## Imutabilidade
 
-Templates e suas entradas são profundamente imutáveis depois de criados.
+Templates e entradas são profundamente imutáveis depois de criados.
 
-Consequências:
-
-- a entrada original do chamador é clonada;
-- `raw`, `externalIds`, `source`, `entries` e payloads não compartilham referências mutáveis com o chamador;
-- operações de domínio não modificam o pacote existente;
-- uma atualização futura deverá produzir outro template e substituir a referência explicitamente;
-- operações de incorporação clonam componentes para o Character sem alterar o pacote.
+- a entrada original é clonada;
+- dados aninhados não compartilham referências mutáveis com o chamador;
+- operações não modificam o pacote existente;
+- atualizações futuras produzirão outro valor;
+- incorporação clona componentes sem alterar o template.
 
 ## Dados desconhecidos
-
-A regra de preservação é:
 
 ```text
 não reconhecido ≠ inválido
 não resolvido ≠ ausente
 ```
 
-Uma entrada desconhecida continua em `entries` com:
-
-- identidade;
-- domínio declarado ou `unknown`;
-- `entryType` original;
-- IDs externos;
-- payload;
-- metadados de importação;
-- dados brutos.
-
-Nenhum dado é descartado apenas porque o motor ainda não sabe interpretá-lo.
+Entradas desconhecidas preservam identidade, domínio, tipo, IDs externos, payload, metadados e dados brutos.
 
 ## Relação com Character
 
@@ -268,11 +202,11 @@ Character
     └── histórico de incorporações
 ```
 
-Armazenar um template em `Character.templates` não significa aplicá-lo.
+Armazenar um template não significa aplicá-lo.
 
 ## Incorporação atual
 
-As operações existentes continuam disponíveis:
+As operações atuais continuam disponíveis:
 
 ```js
 incorporateTemplate(character, templateId)
@@ -280,33 +214,11 @@ removeTemplateApplication(character, applicationId)
 removeTemplatePackage(character, templateId)
 ```
 
-`incorporateTemplate` usa as projeções conhecidas para clonar componentes e registrar proveniência. Essa operação será substituída pelo fluxo soberano de análise, plano, revalidação e aplicação no DOM-TEMPLATE-1.3.
-
-Até lá:
-
-- o pacote original permanece imutável;
-- componentes aplicados recebem novos IDs;
-- proveniência é registrada;
-- técnicas são remapeadas para perícias clonadas;
-- equipamentos são clonados recursivamente;
-- uma aplicação ativa impede remoção do pacote.
+Elas usam as projeções conhecidas. O fluxo soberano de análise, plano, revalidação e aplicação será implementado no DOM-TEMPLATE-1.3.
 
 ## Save/load
 
-A serialização preserva:
-
-- identidade SINGULAR;
-- IDs externos;
-- tipo;
-- origem;
-- entradas conhecidas e desconhecidas;
-- valores importado e calculado;
-- notas e tags;
-- metadados de importação;
-- documento bruto;
-- projeções temporárias de compatibilidade.
-
-O round trip:
+A serialização preserva identidade, IDs externos, tipo, origem, entradas conhecidas e desconhecidas, valores importado e calculado, notas, tags, metadados, documento bruto e projeções temporárias de compatibilidade.
 
 ```text
 createTemplate
@@ -314,24 +226,11 @@ createTemplate
 → createTemplates
 ```
 
-não deve perder informação nem criar novos vínculos.
+O round trip não perde informação nem cria vínculos.
 
 ## Não responsabilidades
 
-DOM-TEMPLATE-1.0 não:
-
-- compõe templates dentro de templates;
-- resolve ciclos;
-- aplica pacotes ao Character por plano;
-- calcula pontos;
-- reconcilia custos;
-- interpreta atributos ou secundárias;
-- resolve traits, perícias, mágicas ou equipamentos;
-- satisfaz pré-requisitos;
-- cria ataques;
-- ativa Forma Alternativa ou Morfose;
-- resolve referência externa por nome;
-- calcula na UI.
+DOM-TEMPLATE-1.0 não compõe templates, não resolve ciclos, não aplica pacotes por plano, não calcula ou reconcilia pontos, não interpreta contribuições dos outros domínios, não satisfaz pré-requisitos, não cria ataques, não ativa formas, não resolve referência por nome e não calcula na UI.
 
 ## Próximos blocos
 
