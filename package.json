@@ -4,6 +4,6 @@
   "description": "Ficha GURPS 4e Mobile First",
   "type": "module",
   "scripts": {
-    "test": "node scripts/run-tests-tail.mjs"
+    "test": "node scripts/run-tests-tail-2.mjs"
   }
 }
