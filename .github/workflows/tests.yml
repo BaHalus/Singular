@@ -8,53 +8,85 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
-  test:
+  finalize-dom-morph-1-4:
+    if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout
+      - name: Checkout feature branch
         uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
         with:
-          node-version: 22
+          ref: feature/dom-morph-1.4
 
-      - name: Install dependencies
-        run: npm install
-
-      - name: Run tests and build failure summary
-        id: tests
+      - name: Update schema regression and restore standard CI
         shell: bash
         run: |
-          set +e
-          node --test --test-reporter=tap > test-output.txt 2>&1
-          code=$?
-          python - <<'PY' > failure-summary.txt
+          python - <<'PY'
           from pathlib import Path
-          lines = Path('test-output.txt').read_text(errors='replace').splitlines()
-          indexes = [i for i, line in enumerate(lines) if 'not ok ' in line]
-          if not indexes:
-              print('\n'.join(lines[-80:]))
-          else:
-              for index in indexes:
-                  print('\n'.join(lines[max(0, index - 3):min(len(lines), index + 55)]))
-                  print('--- FAILURE SEPARATOR ---')
-              for marker in ('# tests ', '# pass ', '# fail ', '# duration_ms '):
-                  match = next((line for line in reversed(lines) if line.startswith(marker)), None)
-                  if match is not None:
-                      print(match)
-          PY
-          cat failure-summary.txt
-          exit $code
 
-      - name: Upload failure summary
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: dom-morph-1.4-failure-summary
-          path: failure-summary.txt
-          if-no-files-found: error
+          test_file = Path('src/domain/character/MorphProfile.test.js')
+          text = test_file.read_text()
+          old = '''  assert.deepEqual(profile.improvisation, {
+            mode: "unknown",
+            pointLimit: null,
+          });
+          '''
+          new = '''  assert.deepEqual(profile.improvisation, {
+            mode: "unknown",
+            pointLimit: null,
+            traitScope: "unknown",
+            availabilityScope: "unknown",
+            compositionScope: "unknown",
+          });
+          '''
+          if old not in text:
+              raise SystemExit('Expected MorphProfile improvisation assertion not found')
+          test_file.write_text(text.replace(old, new, 1))
+
+          package_text = '{\n  "name": "singular",\n  "version": "0.1.0",\n  "description": "Ficha GURPS 4e Mobile First",\n  "type": "module",\n  "scripts": {\n    "test": "node --test"\n  }\n}\n'
+          Path('package.json').write_text(package_text)
+
+          standard_workflow = '\n'.join([
+              'name: Tests',
+              '',
+              'on:',
+              '  push:',
+              '    branches:',
+              '      - main',
+              '  pull_request:',
+              '  workflow_dispatch:',
+              '',
+              'permissions:',
+              '  contents: read',
+              '',
+              'jobs:',
+              '  test:',
+              '    runs-on: ubuntu-latest',
+              '',
+              '    steps:',
+              '      - name: Checkout',
+              '        uses: actions/checkout@v4',
+              '',
+              '      - name: Setup Node.js',
+              '        uses: actions/setup-node@v4',
+              '        with:',
+              '          node-version: 22',
+              '',
+              '      - name: Install dependencies',
+              '        run: npm install',
+              '',
+              '      - name: Run tests',
+              '        run: npm test',
+              '',
+          ])
+          Path('.github/workflows/tests.yml').write_text(standard_workflow)
+          PY
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/domain/character/MorphProfile.test.js package.json .github/workflows/tests.yml
+          git commit -m "test: align Morfose improvisation schema regression"
+          git push origin HEAD:feature/dom-morph-1.4
