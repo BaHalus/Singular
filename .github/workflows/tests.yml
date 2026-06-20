@@ -26,5 +26,25 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Run tests
-        run: npm test
+      - name: Run tests and isolate failures
+        shell: bash
+        run: |
+          set +e
+          node --test --test-reporter=tap > test-output.txt 2>&1
+          code=$?
+          python - <<'PY'
+          from pathlib import Path
+          lines = Path('test-output.txt').read_text(errors='replace').splitlines()
+          indexes = [i for i, line in enumerate(lines) if 'not ok ' in line]
+          if not indexes:
+              print('\n'.join(lines[-80:]))
+          else:
+              for index in indexes:
+                  print('\n'.join(lines[max(0, index - 3):min(len(lines), index + 55)]))
+                  print('--- FAILURE SEPARATOR ---')
+              for marker in ('# tests ', '# pass ', '# fail ', '# duration_ms '):
+                  match = next((line for line in reversed(lines) if line.startswith(marker)), None)
+                  if match is not None:
+                      print(match)
+          PY
+          exit $code
