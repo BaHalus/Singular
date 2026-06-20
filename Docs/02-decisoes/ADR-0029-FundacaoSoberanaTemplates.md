@@ -6,17 +6,13 @@
 
 ## Contexto
 
-Forma Alternativa e Morfose foram encerradas com APIs estáveis. Ambos os domínios já dependem de `Character.templates`, mas o modelo anterior era orientado principalmente à preservação de arquivos GCS e distribuía as contribuições em várias coleções paralelas.
+Forma Alternativa e Morfose foram encerradas com APIs estáveis. Ambos dependem de `Character.templates`, mas o modelo anterior era orientado principalmente à preservação de arquivos GCS e distribuía contribuições em coleções paralelas.
 
-O próximo domínio precisa sustentar raças, modelos raciais, metacaracterísticas, profissões, arquétipos, corpos, formas, pacotes de campanha, composição futura e importação GCS ampla.
-
-Manter cada seção do template como uma autoridade independente criaria divergência entre importação, aplicação, Forma Alternativa e Morfose.
+O domínio precisa sustentar raças, modelos raciais, metacaracterísticas, profissões, arquétipos, corpos, formas, pacotes de campanha, composição futura e importação ampla.
 
 ## Decisão
 
 ### Template soberano
-
-O template passa a possuir o núcleo canônico:
 
 ```js
 {
@@ -41,14 +37,12 @@ O template passa a possuir o núcleo canônico:
 
 - IDs são únicos em `Character.templates`;
 - IDs externos permanecem em `externalIds`;
-- nomes nunca são usados para criar vínculo;
-- renomear um template não altera sua identidade.
+- nomes nunca criam vínculo;
+- renomear não altera identidade.
 
 ### Entradas canônicas
 
 `entries` é a autoridade única das contribuições declaradas.
-
-Cada entrada possui:
 
 ```js
 {
@@ -65,37 +59,21 @@ Cada entrada possui:
 }
 ```
 
-`entryType` é aberto. Entradas desconhecidas são válidas e preservadas.
-
-`referenceId` só é preenchido quando uma referência explícita existe. Nenhuma ligação por nome é permitida.
+`entryType` é aberto. Entradas desconhecidas são válidas e preservadas. `referenceId` só é preenchido por referência explícita.
 
 ### Compatibilidade temporária
 
-As coleções anteriores, como `traits.advantages`, `skills`, `spells` e `equipment`, permanecem como projeções somente leitura reconstruídas a partir de `entries`.
+Coleções anteriores, como `traits.advantages`, `skills`, `spells` e `equipment`, permanecem como projeções somente leitura reconstruídas a partir de `entries`. Elas não constituem segunda autoridade.
 
-Elas não constituem uma segunda autoridade.
-
-Durante o round trip, payloads que contenham simultaneamente `entries` e projeções legadas precisam ser semanticamente equivalentes. A mesma contribuição equivalente é unificada; uma definição divergente é rejeitada.
+Payloads que contenham as duas representações precisam ser semanticamente equivalentes. A mesma contribuição equivalente é unificada; uma definição divergente é rejeitada.
 
 ### Origem
 
-`source` é estruturado e preserva:
-
-```text
-kind
-provider
-format
-reference
-version
-```
-
-Campos adicionais da fonte são mantidos.
+`source` preserva `kind`, `provider`, `format`, `reference` e `version`, além de campos adicionais declarados.
 
 ### Pontos
 
-`importedPoints` e `calculatedPoints` são valores distintos.
-
-DOM-TEMPLATE-1.0 não calcula nem reconcilia nenhum deles.
+`importedPoints` e `calculatedPoints` são distintos. DOM-TEMPLATE-1.0 não calcula nem reconcilia nenhum deles.
 
 ```text
 importado divergente calculado
@@ -106,32 +84,23 @@ importado divergente calculado
 
 ### Imutabilidade
 
-Templates e entradas são profundamente imutáveis após a criação.
+Templates e entradas são profundamente imutáveis. Operações futuras produzirão novos valores em vez de modificar pacotes existentes.
 
-Operações futuras deverão produzir novos valores em vez de modificar o pacote existente.
+### Limites
 
-### Limites do bloco
-
-DOM-TEMPLATE-1.0 não implementa composição entre templates, dependências, ciclos, aplicação planejada ao Character, reconciliação de custos ou importação GCS final. Essas responsabilidades pertencem aos blocos 1.1 a 1.5.
+DOM-TEMPLATE-1.0 não implementa composição, dependências, ciclos, aplicação planejada ao Character, reconciliação de custos ou importação final. Essas responsabilidades pertencem aos blocos 1.1 a 1.5.
 
 ## Consequências
 
-### Positivas
-
-- uma única estrutura passa a representar contribuições conhecidas e desconhecidas;
-- Forma Alternativa e Morfose continuam consumindo `id`, `name`, `templateType` e `importedPoints` sem quebra;
-- importadores atuais podem continuar fornecendo as coleções legadas;
-- a aplicação atual pode continuar usando projeções conhecidas;
-- referências externas não são confundidas com identidade interna;
+- uma estrutura representa contribuições conhecidas e desconhecidas;
+- Forma Alternativa e Morfose mantêm seus contratos;
+- importadores atuais podem fornecer coleções legadas;
+- a aplicação atual pode usar projeções conhecidas;
+- referências externas não se confundem com identidade interna;
 - save/load preserva dados opacos;
-- atualizações acidentais por mutação são impedidas.
-
-### Custos
-
-- durante a migração, a serialização inclui entradas canônicas e projeções de compatibilidade;
-- os próximos blocos deverão migrar consumidores para `entries`;
-- o payload fica temporariamente mais volumoso;
-- conflitos entre representações passam a gerar erro explícito.
+- mutações acidentais são impedidas;
+- durante a migração, a serialização inclui forma canônica e compatibilidade;
+- conflitos entre representações geram erro explícito.
 
 ## Invariantes
 
@@ -148,10 +117,8 @@ DOM-TEMPLATE-1.0 não implementa composição entre templates, dependências, ci
 
 ## Continuidade
 
-O próximo bloco é:
-
 ```text
 DOM-TEMPLATE-1.1 — Composição declarativa
 ```
 
-Ele deverá definir contribuições para atributos, características secundárias, traits, perícias, técnicas, idiomas, culturas, equipamentos, outros templates e regras especiais, mantendo cada domínio responsável por sua própria interpretação.
+O próximo bloco definirá contribuições para atributos, características secundárias, traits, perícias, técnicas, idiomas, culturas, equipamentos, outros templates e regras especiais, mantendo cada domínio responsável pela própria interpretação.
