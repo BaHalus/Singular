@@ -8,6 +8,91 @@ on:
   workflow_dispatch:
 
 permissions:
+  contents: write
+
+jobs:
+  finalize-dom-morph-1-4:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout feature branch
+        uses: actions/checkout@v4
+        with:
+          ref: feature/dom-morph-1.4
+
+      - name: Finalize resolver and clean branch
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          resolver = Path('src/domain/character/MorphProfileResolver.js')
+          text = resolver.read_text()
+          replacements = [
+            (
+              '    names: ["Ilimitada", "Unlimited"],\n    profile: {',
+              '    names: ["Ilimitada", "Unlimited"],\n    priority: PRIORITY.builtin + 10,\n    profile: {',
+            ),
+            (
+              '    id: "gurps.morph.cosmic-improvised-forms",\n    names: [',
+              '    id: "gurps.morph.cosmic-improvised-forms",\n    priority: PRIORITY.builtin + 10,\n    names: [',
+            ),
+            (
+              'metadata("builtin", PRIORITY.builtin, [summarizeEvidence(item, rule.id)])',
+              'metadata("builtin", rule.priority ?? PRIORITY.builtin, [summarizeEvidence(item, rule.id)])',
+            ),
+          ]
+          for old, new in replacements:
+            if old in text:
+              text = text.replace(old, new, 1)
+            elif new not in text:
+              raise SystemExit(f'Expected resolver fragment not found: {old}')
+          resolver.write_text(text)
+
+          Path('package.json').write_text('''{
+  "name": "singular",
+  "version": "0.1.0",
+  "description": "Ficha GURPS 4e Mobile First",
+  "type": "module",
+  "scripts": {
+    "test": "node --test"
+  }
+}
+''')
+
+          architecture = Path('Docs/01-arquitetura/Morfose.md')
+          content = architecture.read_text()
+          marker = '## DOM-MORPH-1.4 — Improvisação de formas\n'
+          if marker not in content:
+            content += '''
+
+## DOM-MORPH-1.4 — Improvisação de formas
+
+**Status:** implementado.
+
+A improvisação usa rascunho declarativo com snapshot de template e evidências explícitas. Sua projeção é transitória em `AlternateFormSet.forms`: não entra em `Character.templates`, não entra em `knownForms` e não é ativada automaticamente.
+
+- **Formas Improvisadas:** características físicas naturais, existentes no cenário e sem mudança de composição;
+- **Cósmica (Para Formas Improvisadas):** remove apenas a exigência de existência no cenário;
+- **Ilimitada:** remove apenas a restrição de composição, além do limite geral ilimitado.
+
+A projeção usa o `FormTransitionPlanner` e o `FormTransitionExecutor` existentes. A aplicação mecânica do limite em pontos permanece no DOM-MORPH-1.5.
+
+Detalhes: `MorfoseImprovisation.md` e `ADR-0025-MorfoseImprovisation.md`.
+'''
+            architecture.write_text(content)
+
+          Path('.github/workflows/tests.yml').write_text('''name: Tests
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+
+permissions:
   contents: read
 
 jobs:
@@ -28,3 +113,16 @@ jobs:
 
       - name: Run tests
         run: npm test
+''')
+          PY
+
+          rm -f Docs/01-arquitetura/MorfoseImprovisation.tmp
+          rm -f .github/workflows/refine-dom-morph-1.4-resolver.yml
+          rm -f .github/workflows/finalize-dom-morph-1.4-branch.yml
+          rm -f .github/workflows/cleanup-dom-morph-1.4-pr.yml
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "fix: finalize DOM-MORPH-1.4 resolver and branch hygiene"
+          git push origin HEAD:feature/dom-morph-1.4
