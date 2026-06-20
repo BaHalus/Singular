@@ -8,85 +8,23 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  finalize-dom-morph-1-4:
-    if: github.actor != 'github-actions[bot]'
+  test:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout feature branch
+      - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
-          ref: feature/dom-morph-1.4
+          node-version: 22
 
-      - name: Update schema regression and restore standard CI
-        shell: bash
-        run: |
-          python - <<'PY'
-          from pathlib import Path
+      - name: Install dependencies
+        run: npm install
 
-          test_file = Path('src/domain/character/MorphProfile.test.js')
-          text = test_file.read_text()
-          old = '''  assert.deepEqual(profile.improvisation, {
-            mode: "unknown",
-            pointLimit: null,
-          });
-          '''
-          new = '''  assert.deepEqual(profile.improvisation, {
-            mode: "unknown",
-            pointLimit: null,
-            traitScope: "unknown",
-            availabilityScope: "unknown",
-            compositionScope: "unknown",
-          });
-          '''
-          if old not in text:
-              raise SystemExit('Expected MorphProfile improvisation assertion not found')
-          test_file.write_text(text.replace(old, new, 1))
-
-          package_text = '{\n  "name": "singular",\n  "version": "0.1.0",\n  "description": "Ficha GURPS 4e Mobile First",\n  "type": "module",\n  "scripts": {\n    "test": "node --test"\n  }\n}\n'
-          Path('package.json').write_text(package_text)
-
-          standard_workflow = '\n'.join([
-              'name: Tests',
-              '',
-              'on:',
-              '  push:',
-              '    branches:',
-              '      - main',
-              '  pull_request:',
-              '  workflow_dispatch:',
-              '',
-              'permissions:',
-              '  contents: read',
-              '',
-              'jobs:',
-              '  test:',
-              '    runs-on: ubuntu-latest',
-              '',
-              '    steps:',
-              '      - name: Checkout',
-              '        uses: actions/checkout@v4',
-              '',
-              '      - name: Setup Node.js',
-              '        uses: actions/setup-node@v4',
-              '        with:',
-              '          node-version: 22',
-              '',
-              '      - name: Install dependencies',
-              '        run: npm install',
-              '',
-              '      - name: Run tests',
-              '        run: npm test',
-              '',
-          ])
-          Path('.github/workflows/tests.yml').write_text(standard_workflow)
-          PY
-
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add src/domain/character/MorphProfile.test.js package.json .github/workflows/tests.yml
-          git commit -m "test: align Morfose improvisation schema regression"
-          git push origin HEAD:feature/dom-morph-1.4
+      - name: Run tests
+        run: npm test
