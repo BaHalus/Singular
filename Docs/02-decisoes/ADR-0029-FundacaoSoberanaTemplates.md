@@ -33,12 +33,7 @@ O domínio precisa sustentar raças, modelos raciais, metacaracterísticas, prof
 
 ### Identidade
 
-`id` é a identidade própria da SINGULAR.
-
-- IDs são únicos em `Character.templates`;
-- IDs externos permanecem em `externalIds`;
-- nomes nunca criam vínculo;
-- renomear não altera identidade.
+`id` é a identidade própria da SINGULAR. IDs são únicos em `Character.templates`; IDs externos permanecem em `externalIds`; nomes nunca criam vínculo; renomear não altera identidade.
 
 ### Entradas canônicas
 
@@ -63,7 +58,7 @@ O domínio precisa sustentar raças, modelos raciais, metacaracterísticas, prof
 
 ### Compatibilidade temporária
 
-Coleções anteriores, como `traits.advantages`, `skills`, `spells` e `equipment`, permanecem como projeções somente leitura reconstruídas a partir de `entries`. Elas não constituem segunda autoridade.
+Coleções anteriores permanecem como projeções somente leitura reconstruídas a partir de `entries`. Elas não constituem segunda autoridade.
 
 Payloads que contenham as duas representações precisam ser semanticamente equivalentes. A mesma contribuição equivalente é unificada; uma definição divergente é rejeitada.
 
