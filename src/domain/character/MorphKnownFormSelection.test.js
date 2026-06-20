@@ -115,7 +115,11 @@ test("prepares a ready transition after materializing the selected known form", 
   assert.deepEqual(prepared.plan.morphSelection.reasons, []);
   assert.equal(
     prepared.plan.morphSelection.pointLimitEvaluation.enforced,
-    false,
+    true,
+  );
+  assert.equal(
+    prepared.plan.morphSelection.pointLimitEvaluation.status,
+    "ready",
   );
 });
 
