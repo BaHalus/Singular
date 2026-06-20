@@ -99,7 +99,7 @@ test("registers known form immutably", () => {
   assert.equal(updated.metadata.updatedAt, "2026-06-19T12:00:00.000Z");
 });
 
-test("rejects missing template and duplicate registration", () => {
+test("rejects missing template and reuses exact template identity", () => {
   const character = createMorphCharacter();
 
   assert.throws(() => registerMorphKnownForm(
@@ -121,16 +121,23 @@ test("rejects missing template and duplicate registration", () => {
       name: "Lobo",
     },
   );
-
-  assert.throws(() => registerMorphKnownForm(
+  const reacquired = registerMorphKnownForm(
     withWolf,
     "set-morph",
     {
-      id: "known-wolf-duplicate",
+      id: "known-wolf-imported",
       templateId: "template-wolf",
       name: "Outro Lobo",
+      acquisitionMethod: "imported",
+      externalIds: { gcs: "wolf-001" },
     },
-  ));
+  );
+  const profile = reacquired.alternateFormSets[0].morphProfile;
+
+  assert.equal(profile.knownForms.length, 1);
+  assert.equal(profile.knownForms[0].id, "known-wolf");
+  assert.equal(profile.knownForms[0].externalIds.gcs, "wolf-001");
+  assert.equal(profile.catalogHistory.at(-1).data.reused, true);
 });
 
 test("forgets and restores known form without deleting provenance", () => {
