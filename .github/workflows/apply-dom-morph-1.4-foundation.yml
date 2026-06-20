@@ -1,0 +1,362 @@
+name: Apply DOM-MORPH-1.4 foundation
+
+on:
+  push:
+    branches:
+      - feature/dom-morph-1.4
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/dom-morph-1.4
+
+      - name: Patch improvisation policy and form projection
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          def patch(path, replacements):
+              p = Path(path)
+              text = p.read_text()
+              for old, new in replacements:
+                  if old not in text:
+                      raise SystemExit(f'Fragment not found in {path}:\n{old}')
+                  text = text.replace(old, new, 1)
+              p.write_text(text)
+
+          patch('src/domain/character/MorphProfile.js', [
+              (
+                  'const IMPROVISATION_MODES = ["unknown", "forbidden", "allowed", "conditional"];\n',
+                  'const IMPROVISATION_MODES = ["unknown", "forbidden", "allowed", "conditional"];\n'
+                  'const IMPROVISATION_TRAIT_SCOPES = ["unknown", "physicalNatural"];\n'
+                  'const IMPROVISATION_AVAILABILITY_SCOPES = [\n'
+                  '  "unknown",\n'
+                  '  "settingOnly",\n'
+                  '  "unrestricted",\n'
+                  '];\n'
+                  'const IMPROVISATION_COMPOSITION_SCOPES = [\n'
+                  '  "unknown",\n'
+                  '  "sameComposition",\n'
+                  '  "unrestricted",\n'
+                  '];\n'
+              ),
+              (
+                  '    improvisation: {\n'
+                  '      mode: input.improvisation?.mode ?? "unknown",\n'
+                  '      pointLimit: nullableNumber(\n'
+                  '        input.improvisation?.pointLimit,\n'
+                  '        "Morfose improvisation pointLimit must be non-negative number or null",\n'
+                  '      ),\n'
+                  '    },\n',
+                  '    improvisation: {\n'
+                  '      mode: input.improvisation?.mode ?? "unknown",\n'
+                  '      pointLimit: nullableNumber(\n'
+                  '        input.improvisation?.pointLimit,\n'
+                  '        "Morfose improvisation pointLimit must be non-negative number or null",\n'
+                  '      ),\n'
+                  '      traitScope: input.improvisation?.traitScope ?? "unknown",\n'
+                  '      availabilityScope: input.improvisation?.availabilityScope ?? "unknown",\n'
+                  '      compositionScope: input.improvisation?.compositionScope ?? "unknown",\n'
+                  '    },\n'
+              ),
+              (
+                  '  validatePolicy(\n'
+                  '    profile.improvisation,\n'
+                  '    IMPROVISATION_MODES,\n'
+                  '    "Morfose improvisation",\n'
+                  '    "pointLimit",\n'
+                  '    validateNullableNumber,\n'
+                  '  );\n',
+                  '  validateImprovisationPolicy(profile.improvisation);\n'
+              ),
+              (
+                  '    improvisationModes: [...IMPROVISATION_MODES],\n',
+                  '    improvisationModes: [...IMPROVISATION_MODES],\n'
+                  '    improvisationTraitScopes: [...IMPROVISATION_TRAIT_SCOPES],\n'
+                  '    improvisationAvailabilityScopes: [...IMPROVISATION_AVAILABILITY_SCOPES],\n'
+                  '    improvisationCompositionScopes: [...IMPROVISATION_COMPOSITION_SCOPES],\n'
+              ),
+              (
+                  'function normalizeCapacityBasis(mode, capacity, requested) {\n',
+                  'function validateImprovisationPolicy(policy) {\n'
+                  '  if (!plain(policy)) throw new Error("Morfose improvisation policy must be object");\n'
+                  '  if (!IMPROVISATION_MODES.includes(policy.mode)) {\n'
+                  '    throw new Error("Morfose improvisation mode is invalid");\n'
+                  '  }\n'
+                  '  validateNullableNumber(\n'
+                  '    policy.pointLimit,\n'
+                  '    "Morfose improvisation pointLimit must be non-negative value or null",\n'
+                  '  );\n'
+                  '  if (!IMPROVISATION_TRAIT_SCOPES.includes(policy.traitScope)) {\n'
+                  '    throw new Error("Morfose improvisation traitScope is invalid");\n'
+                  '  }\n'
+                  '  if (!IMPROVISATION_AVAILABILITY_SCOPES.includes(policy.availabilityScope)) {\n'
+                  '    throw new Error("Morfose improvisation availabilityScope is invalid");\n'
+                  '  }\n'
+                  '  if (!IMPROVISATION_COMPOSITION_SCOPES.includes(policy.compositionScope)) {\n'
+                  '    throw new Error("Morfose improvisation compositionScope is invalid");\n'
+                  '  }\n'
+                  '}\n\n'
+                  'function normalizeCapacityBasis(mode, capacity, requested) {\n'
+              ),
+          ])
+
+          patch('src/domain/character/MorphProfileResolver.js', [
+              (
+                  '  "improvisation.mode",\n'
+                  '  "improvisation.pointLimit",\n',
+                  '  "improvisation.mode",\n'
+                  '  "improvisation.pointLimit",\n'
+                  '  "improvisation.traitScope",\n'
+                  '  "improvisation.availabilityScope",\n'
+                  '  "improvisation.compositionScope",\n'
+              ),
+              (
+                  '      pointLimitSource: "modifier",\n'
+                  '    },\n'
+                  '  },\n'
+                  '  {\n'
+                  '    id: "gurps.morph.improvised-forms",\n',
+                  '      pointLimitSource: "modifier",\n'
+                  '      improvisation: { compositionScope: "unrestricted" },\n'
+                  '    },\n'
+                  '  },\n'
+                  '  {\n'
+                  '    id: "gurps.morph.improvised-forms",\n'
+              ),
+              (
+                  '    profile: {\n'
+                  '      improvisation: { mode: "allowed" },\n'
+                  '    },\n'
+                  '  },\n'
+                  '  {\n'
+                  '    id: "gurps.morph.cosmic-improvised-forms",\n',
+                  '    profile: {\n'
+                  '      improvisation: {\n'
+                  '        mode: "allowed",\n'
+                  '        traitScope: "physicalNatural",\n'
+                  '        availabilityScope: "settingOnly",\n'
+                  '        compositionScope: "sameComposition",\n'
+                  '      },\n'
+                  '    },\n'
+                  '  },\n'
+                  '  {\n'
+                  '    id: "gurps.morph.cosmic-improvised-forms",\n'
+              ),
+              (
+                  '    profile: {\n'
+                  '      improvisation: { mode: "allowed" },\n'
+                  '    },\n'
+                  '  },\n'
+                  '  {\n'
+                  '    id: "gurps.morph.no-memorization-required",\n',
+                  '    profile: {\n'
+                  '      improvisation: { availabilityScope: "unrestricted" },\n'
+                  '    },\n'
+                  '  },\n'
+                  '  {\n'
+                  '    id: "gurps.morph.no-memorization-required",\n'
+              ),
+              (
+                  '  if (\n'
+                  '    enabledBuiltinIds.has("gurps.morph.cosmetic") &&\n'
+                  '    enabledBuiltinIds.has("gurps.morph.imperfect")\n'
+                  '  ) {\n'
+                  '    diagnostics.push({\n'
+                  '      type: "incompatible-modifiers",\n'
+                  '      ruleIds: ["gurps.morph.cosmetic", "gurps.morph.imperfect"],\n'
+                  '      message: "Cosmética e Imperfeita são incompatíveis para Morfose",\n'
+                  '    });\n'
+                  '  }\n',
+                  '  if (\n'
+                  '    enabledBuiltinIds.has("gurps.morph.cosmetic") &&\n'
+                  '    enabledBuiltinIds.has("gurps.morph.imperfect")\n'
+                  '  ) {\n'
+                  '    diagnostics.push({\n'
+                  '      type: "incompatible-modifiers",\n'
+                  '      ruleIds: ["gurps.morph.cosmetic", "gurps.morph.imperfect"],\n'
+                  '      message: "Cosmética e Imperfeita são incompatíveis para Morfose",\n'
+                  '    });\n'
+                  '  }\n'
+                  '  if (\n'
+                  '    enabledBuiltinIds.has("gurps.morph.cosmic-improvised-forms") &&\n'
+                  '    !enabledBuiltinIds.has("gurps.morph.improvised-forms")\n'
+                  '  ) {\n'
+                  '    diagnostics.push({\n'
+                  '      type: "modifier-dependency",\n'
+                  '      ruleId: "gurps.morph.cosmic-improvised-forms",\n'
+                  '      requiresRuleId: "gurps.morph.improvised-forms",\n'
+                  '      message: "Cósmica para Formas Improvisadas não concede improvisação sozinha",\n'
+                  '    });\n'
+                  '  }\n'
+              ),
+              (
+                  '  validatePartialPath(partial, "improvisation.mode", ["unknown", "forbidden", "allowed", "conditional"]);\n',
+                  '  validatePartialPath(partial, "improvisation.mode", ["unknown", "forbidden", "allowed", "conditional"]);\n'
+                  '  validatePartialPath(partial, "improvisation.traitScope", ["unknown", "physicalNatural"]);\n'
+                  '  validatePartialPath(partial, "improvisation.availabilityScope", [\n'
+                  '    "unknown", "settingOnly", "unrestricted",\n'
+                  '  ]);\n'
+                  '  validatePartialPath(partial, "improvisation.compositionScope", [\n'
+                  '    "unknown", "sameComposition", "unrestricted",\n'
+                  '  ]);\n'
+              ),
+          ])
+
+          patch('src/domain/character/AlternateForms.js', [
+              (
+                  'import {\n'
+                  '  createMorphMaterialization,\n'
+                  '  validateMorphMaterialization,\n'
+                  '  serializeMorphMaterialization,\n'
+                  '} from "./MorphMaterialization.js";\n',
+                  'import {\n'
+                  '  createMorphMaterialization,\n'
+                  '  validateMorphMaterialization,\n'
+                  '  serializeMorphMaterialization,\n'
+                  '} from "./MorphMaterialization.js";\n'
+                  'import {\n'
+                  '  createMorphImprovisationProjection,\n'
+                  '  validateMorphImprovisationProjection,\n'
+                  '  serializeMorphImprovisationProjection,\n'
+                  '} from "./MorphImprovisation.js";\n'
+              ),
+              (
+                  '    morphMaterialization: input.morphMaterialization === undefined ||\n'
+                  '      input.morphMaterialization === null\n'
+                  '      ? null\n'
+                  '      : createMorphMaterialization(input.morphMaterialization),\n',
+                  '    morphMaterialization: input.morphMaterialization === undefined ||\n'
+                  '      input.morphMaterialization === null\n'
+                  '      ? null\n'
+                  '      : createMorphMaterialization(input.morphMaterialization),\n'
+                  '    morphImprovisation: input.morphImprovisation === undefined ||\n'
+                  '      input.morphImprovisation === null\n'
+                  '      ? null\n'
+                  '      : createMorphImprovisationProjection(input.morphImprovisation),\n'
+              ),
+              (
+                  '  if (form.morphMaterialization !== null) {\n'
+                  '    validateMorphMaterialization(form.morphMaterialization);\n'
+                  '  }\n',
+                  '  if (form.morphMaterialization !== null) {\n'
+                  '    validateMorphMaterialization(form.morphMaterialization);\n'
+                  '  }\n'
+                  '  if (form.morphImprovisation !== null) {\n'
+                  '    validateMorphImprovisationProjection(form.morphImprovisation);\n'
+                  '  }\n'
+              ),
+              (
+                  '      morphMaterialization: form.morphMaterialization === null\n'
+                  '        ? null\n'
+                  '        : serializeMorphMaterialization(form.morphMaterialization),\n',
+                  '      morphMaterialization: form.morphMaterialization === null\n'
+                  '        ? null\n'
+                  '        : serializeMorphMaterialization(form.morphMaterialization),\n'
+                  '      morphImprovisation: form.morphImprovisation === null\n'
+                  '        ? null\n'
+                  '        : serializeMorphImprovisationProjection(form.morphImprovisation),\n'
+              ),
+              (
+                  '      form.morphKnownFormId !== null || form.morphMaterialization !== null\n',
+                  '      form.morphKnownFormId !== null ||\n'
+                  '      form.morphMaterialization !== null ||\n'
+                  '      form.morphImprovisation !== null\n'
+              ),
+              (
+                  '  const materializedIds = new Set();\n',
+                  '  const materializedIds = new Set();\n'
+                  '  const improvisationIds = new Set();\n'
+              ),
+              (
+                  '      if (form.morphKnownFormId !== null || form.morphMaterialization !== null) {\n'
+                  '        throw new Error("Morfose base form cannot be a materialized known form");\n'
+                  '      }\n',
+                  '      if (\n'
+                  '        form.morphKnownFormId !== null ||\n'
+                  '        form.morphMaterialization !== null ||\n'
+                  '        form.morphImprovisation !== null\n'
+                  '      ) {\n'
+                  '        throw new Error("Morfose base form cannot be materialized or improvised");\n'
+                  '      }\n'
+              ),
+              (
+                  '    if (form.morphKnownFormId === null) {\n'
+                  '      if (form.morphMaterialization !== null) {\n'
+                  '        throw new Error("Morfose materialization requires morphKnownFormId");\n'
+                  '      }\n'
+                  '      continue;\n'
+                  '    }\n',
+                  '    if (form.morphImprovisation !== null) {\n'
+                  '      if (\n'
+                  '        form.morphKnownFormId !== null ||\n'
+                  '        form.morphMaterialization !== null ||\n'
+                  '        form.templateId !== null\n'
+                  '      ) {\n'
+                  '        throw new Error("Morfose improvised form cannot be a known-form materialization");\n'
+                  '      }\n'
+                  '      if (improvisationIds.has(form.morphImprovisation.improvisationId)) {\n'
+                  '        throw new Error("Morfose improvisation can be materialized only once per set");\n'
+                  '      }\n'
+                  '      improvisationIds.add(form.morphImprovisation.improvisationId);\n'
+                  '      continue;\n'
+                  '    }\n\n'
+                  '    if (form.morphKnownFormId === null) {\n'
+                  '      if (form.morphMaterialization !== null) {\n'
+                  '        throw new Error("Morfose materialization requires morphKnownFormId");\n'
+                  '      }\n'
+                  '      continue;\n'
+                  '    }\n'
+              ),
+          ])
+
+          patch('src/domain/character/FormTransitionPlanner.js', [
+              (
+                  'import {\n'
+                  '  evaluateMaterializedMorphTarget,\n'
+                  '} from "./MorphKnownFormMaterialization.js";\n',
+                  'import {\n'
+                  '  evaluateMaterializedMorphTarget,\n'
+                  '} from "./MorphKnownFormMaterialization.js";\n'
+                  'import { evaluateMorphImprovisedTarget } from "./MorphImprovisation.js";\n'
+              ),
+              (
+                  '  "morph-materialization-invalid",\n',
+                  '  "morph-materialization-invalid",\n'
+                  '  "morph-improvisation-forbidden",\n'
+                  '  "morph-improvisation-conditions-unsatisfied",\n'
+                  '  "morph-improvisation-nonphysical-characteristic",\n'
+                  '  "morph-improvisation-characteristic-not-in-setting",\n'
+                  '  "morph-improvisation-composition-change-forbidden",\n'
+                  '  "morph-improvisation-policy-stale",\n'
+                  '  "morph-improvisation-projection-invalid",\n'
+              ),
+              (
+                  '  const morphSelection = evaluateMaterializedMorphTarget(\n'
+                  '    character,\n'
+                  '    set,\n'
+                  '    targetForm,\n'
+                  '  );\n',
+                  '  const morphSelection = evaluateMorphImprovisedTarget(set, targetForm) ??\n'
+                  '    evaluateMaterializedMorphTarget(\n'
+                  '      character,\n'
+                  '      set,\n'
+                  '      targetForm,\n'
+                  '    );\n'
+              ),
+          ])
+          PY
+
+          rm .github/workflows/apply-dom-morph-1.4-foundation.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/domain/character/MorphProfile.js src/domain/character/MorphProfileResolver.js src/domain/character/AlternateForms.js src/domain/character/FormTransitionPlanner.js .github/workflows/apply-dom-morph-1.4-foundation.yml
+          git commit -m "feat: integrate Morfose improvisation policy and projections"
+          git push origin HEAD:feature/dom-morph-1.4
