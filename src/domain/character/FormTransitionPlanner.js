@@ -12,6 +12,7 @@ import {
 import {
   evaluateMaterializedMorphTarget,
 } from "./MorphKnownFormMaterialization.js";
+import { evaluateMorphImprovisedTarget } from "./MorphImprovisation.js";
 
 const HARD_REASONS = new Set([
   "insufficient-resource",
@@ -27,6 +28,13 @@ const HARD_REASONS = new Set([
   "morph-known-form-template-missing",
   "morph-materialization-stale",
   "morph-materialization-invalid",
+  "morph-improvisation-forbidden",
+  "morph-improvisation-conditions-unsatisfied",
+  "morph-improvisation-nonphysical-characteristic",
+  "morph-improvisation-characteristic-not-in-setting",
+  "morph-improvisation-composition-change-forbidden",
+  "morph-improvisation-policy-stale",
+  "morph-improvisation-projection-invalid",
 ]);
 
 export function planFormTransition(
@@ -49,11 +57,12 @@ export function planFormTransition(
 
   const intent = context.intent ?? "voluntary";
   const bypassReturnTriggers = context.bypassReturnTriggers === true;
-  const morphSelection = evaluateMaterializedMorphTarget(
-    character,
-    set,
-    targetForm,
-  );
+  const morphSelection = evaluateMorphImprovisedTarget(set, targetForm) ??
+    evaluateMaterializedMorphTarget(
+      character,
+      set,
+      targetForm,
+    );
 
   if (fromForm.id === targetForm.id) {
     return createAlreadyActivePlan(

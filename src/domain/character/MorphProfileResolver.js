@@ -11,6 +11,9 @@ const PROFILE_PATHS = [
   "memorization.capacity",
   "improvisation.mode",
   "improvisation.pointLimit",
+  "improvisation.traitScope",
+  "improvisation.availabilityScope",
+  "improvisation.compositionScope",
 ];
 
 const PRIORITY = {
@@ -30,13 +33,19 @@ const BUILTIN_MODIFIERS = [
       pointLimitMode: "unlimited",
       pointLimit: null,
       pointLimitSource: "modifier",
+      improvisation: { compositionScope: "unrestricted" },
     },
   },
   {
     id: "gurps.morph.improvised-forms",
     names: ["Formas Improvisadas", "Improvised Forms"],
     profile: {
-      improvisation: { mode: "allowed" },
+      improvisation: {
+        mode: "allowed",
+        traitScope: "physicalNatural",
+        availabilityScope: "settingOnly",
+        compositionScope: "sameComposition",
+      },
     },
   },
   {
@@ -46,7 +55,7 @@ const BUILTIN_MODIFIERS = [
       "Cosmic (For Improvised Forms)",
     ],
     profile: {
-      improvisation: { mode: "allowed" },
+      improvisation: { availabilityScope: "unrestricted" },
     },
   },
   {
@@ -177,6 +186,17 @@ export function analyzeMorphProfile(character, formSetId, options = {}) {
       type: "incompatible-modifiers",
       ruleIds: ["gurps.morph.cosmetic", "gurps.morph.imperfect"],
       message: "Cosmética e Imperfeita são incompatíveis para Morfose",
+    });
+  }
+  if (
+    enabledBuiltinIds.has("gurps.morph.cosmic-improvised-forms") &&
+    !enabledBuiltinIds.has("gurps.morph.improvised-forms")
+  ) {
+    diagnostics.push({
+      type: "modifier-dependency",
+      ruleId: "gurps.morph.cosmic-improvised-forms",
+      requiresRuleId: "gurps.morph.improvised-forms",
+      message: "Cósmica para Formas Improvisadas não concede improvisação sozinha",
     });
   }
 
@@ -427,6 +447,13 @@ function normalizePartialProfile(input, source) {
   validatePartialPath(partial, "catalog.mode", ["unknown", "knownOnly", "open"]);
   validatePartialPath(partial, "memorization.mode", ["unknown", "none", "permanent", "limited"]);
   validatePartialPath(partial, "improvisation.mode", ["unknown", "forbidden", "allowed", "conditional"]);
+  validatePartialPath(partial, "improvisation.traitScope", ["unknown", "physicalNatural"]);
+  validatePartialPath(partial, "improvisation.availabilityScope", [
+    "unknown", "settingOnly", "unrestricted",
+  ]);
+  validatePartialPath(partial, "improvisation.compositionScope", [
+    "unknown", "sameComposition", "unrestricted",
+  ]);
   for (const path of [
     "pointLimit",
     "catalog.capacity",
