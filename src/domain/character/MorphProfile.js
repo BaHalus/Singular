@@ -330,8 +330,18 @@ function validateMemorizationPolicy(policy) {
 }
 
 function normalizeCapacityBasis(mode, capacity, requested) {
-  if (mode === "permanent") return "unlimited";
-  if (mode === "none") return "notApplicable";
+  if (mode === "permanent") {
+    if ([undefined, null, "unknown", "unlimited"].includes(requested)) {
+      return "unlimited";
+    }
+    return requested;
+  }
+  if (mode === "none") {
+    if ([undefined, null, "unknown", "notApplicable"].includes(requested)) {
+      return "notApplicable";
+    }
+    return requested;
+  }
   if (requested === undefined || requested === null || requested === "unknown") {
     return capacity !== null ? "fixed" : "unknown";
   }
