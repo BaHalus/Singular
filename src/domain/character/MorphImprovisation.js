@@ -4,6 +4,7 @@ import {
   serializeTemplates,
 } from "./Templates.js";
 import { createMorphTemplateFingerprint } from "./MorphMaterialization.js";
+import { evaluateMorphPointLimit } from "./MorphPointLimit.js";
 
 const IMPROVISATION_SOURCES = ["unknown", "manual", "imported", "generated"];
 const HARD_REASONS = new Set([
@@ -216,15 +217,11 @@ export function evaluateMorphImprovisationPolicy(policy, evidence) {
 
 export function createMorphImprovisationPointLimitEvaluation(profile, draft) {
   validateMorphImprovisationDraft(draft);
-  return {
-    generalPointLimitMode: profile.pointLimitMode,
-    generalPointLimit: profile.pointLimit,
-    generalPointLimitSource: profile.pointLimitSource,
-    improvisationPointLimit: profile.improvisation.pointLimit,
-    templateImportedPoints: draft.template.importedPoints,
-    status: "deferred-to-dom-morph-1.5",
-    enforced: false,
-  };
+  return evaluateMorphPointLimit(
+    profile,
+    draft.template.importedPoints,
+    { targetKind: "improvised" },
+  );
 }
 
 export function evaluateMorphImprovisedTarget(set, targetForm) {
@@ -248,15 +245,15 @@ export function evaluateMorphImprovisedTarget(set, targetForm) {
   if (projection !== null) {
     if (
       projection.draftFingerprint !==
-      createMorphImprovisationDraftFingerprint(projection.draft) ||
+        createMorphImprovisationDraftFingerprint(projection.draft) ||
       projection.templateFingerprint !==
-      createMorphTemplateFingerprint(projection.draft.template)
+        createMorphTemplateFingerprint(projection.draft.template)
     ) {
       reasons.push("morph-improvisation-projection-invalid");
     }
     if (
       projection.policyFingerprint !==
-      createMorphImprovisationPolicyFingerprint(set.morphProfile.improvisation)
+        createMorphImprovisationPolicyFingerprint(set.morphProfile.improvisation)
     ) {
       reasons.push("morph-improvisation-policy-stale");
     }
