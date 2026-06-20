@@ -1,3 +1,9 @@
+import {
+  createMorphCatalogHistory,
+  validateMorphCatalogHistory,
+  serializeMorphCatalogHistory,
+} from "./MorphCatalogHistory.js";
+
 const POINT_LIMIT_MODES = ["undeclared", "limited", "unlimited"];
 const POINT_LIMIT_SOURCES = [
   "undeclared",
@@ -8,6 +14,13 @@ const POINT_LIMIT_SOURCES = [
 ];
 const CATALOG_MODES = ["unknown", "knownOnly", "open"];
 const MEMORIZATION_MODES = ["unknown", "none", "permanent", "limited"];
+const MEMORIZATION_CAPACITY_BASES = [
+  "unknown",
+  "iq",
+  "fixed",
+  "unlimited",
+  "notApplicable",
+];
 const IMPROVISATION_MODES = ["unknown", "forbidden", "allowed", "conditional"];
 const ACQUISITION_METHODS = [
   "unknown",
@@ -26,6 +39,12 @@ export function createMorphProfile(input = {}) {
   const pointLimitMode = input.pointLimitMode ?? (
     pointLimit === null ? "undeclared" : "limited"
   );
+  const memorizationMode = input.memorization?.mode ?? "unknown";
+  const memorizationCapacity = nullableInteger(
+    input.memorization?.capacity,
+    "Morfose memorization capacity must be non-negative integer or null",
+  );
+
   const profile = {
     pointLimitMode,
     pointLimit,
@@ -38,10 +57,15 @@ export function createMorphProfile(input = {}) {
       ),
     },
     memorization: {
-      mode: input.memorization?.mode ?? "unknown",
-      capacity: nullableInteger(
-        input.memorization?.capacity,
-        "Morfose memorization capacity must be non-negative integer or null",
+      mode: memorizationMode,
+      capacity: memorizationCapacity,
+      capacityBasis: input.memorization?.capacityBasis ?? inferCapacityBasis(
+        memorizationMode,
+        memorizationCapacity,
+      ),
+      durationSeconds: nullableInteger(
+        input.memorization?.durationSeconds,
+        "Morfose memorization durationSeconds must be non-negative integer or null",
       ),
     },
     improvisation: {
@@ -52,6 +76,7 @@ export function createMorphProfile(input = {}) {
       ),
     },
     knownForms: normalizeKnownForms(input.knownForms),
+    catalogHistory: createMorphCatalogHistory(input.catalogHistory),
     notes: input.notes ?? "",
     tags: stringArray(input.tags, "Morfose tags must be string array"),
     importMeta: nullableObject(input.importMeta, "Morfose importMeta must be object or null"),
@@ -72,6 +97,14 @@ export function createMorphKnownForm(input = {}) {
     acquiredAt: nullableTimestamp(
       input.acquiredAt,
       "Morfose known form acquiredAt must be valid timestamp or null",
+    ),
+    memorizedAt: nullableTimestamp(
+      input.memorizedAt,
+      "Morfose known form memorizedAt must be valid timestamp or null",
+    ),
+    lastObservedAt: nullableTimestamp(
+      input.lastObservedAt,
+      "Morfose known form lastObservedAt must be valid timestamp or null",
     ),
     state: input.state ?? "available",
     notes: input.notes ?? "",
@@ -106,9 +139,21 @@ export function validateMorphProfile(profile) {
     throw new Error("Only limited Morfose point limit may have pointLimit");
   }
 
-  validatePolicy(profile.catalog, CATALOG_MODES, "Morfose catalog", "capacity", validateNullableInteger);
-  validatePolicy(profile.memorization, MEMORIZATION_MODES, "Morfose memorization", "capacity", validateNullableInteger);
-  validatePolicy(profile.improvisation, IMPROVISATION_MODES, "Morfose improvisation", "pointLimit", validateNullableNumber);
+  validatePolicy(
+    profile.catalog,
+    CATALOG_MODES,
+    "Morfose catalog",
+    "capacity",
+    validateNullableInteger,
+  );
+  validateMemorizationPolicy(profile.memorization);
+  validatePolicy(
+    profile.improvisation,
+    IMPROVISATION_MODES,
+    "Morfose improvisation",
+    "pointLimit",
+    validateNullableNumber,
+  );
 
   if (!Array.isArray(profile.knownForms)) {
     throw new Error("Morfose knownForms must be array");
@@ -127,6 +172,7 @@ export function validateMorphProfile(profile) {
     }
   }
 
+  validateMorphCatalogHistory(profile.catalogHistory);
   if (typeof profile.notes !== "string") throw new Error("Morfose notes must be string");
   validateStringArray(profile.tags, "Morfose tags must be string array");
   validateNullableObject(profile.importMeta, "Morfose importMeta must be object or null");
@@ -147,6 +193,14 @@ export function validateMorphKnownForm(form) {
   validateNullableTimestamp(
     form.acquiredAt,
     "Morfose known form acquiredAt must be valid timestamp or null",
+  );
+  validateNullableTimestamp(
+    form.memorizedAt,
+    "Morfose known form memorizedAt must be valid timestamp or null",
+  );
+  validateNullableTimestamp(
+    form.lastObservedAt,
+    "Morfose known form lastObservedAt must be valid timestamp or null",
   );
   if (!KNOWN_FORM_STATES.includes(form.state)) {
     throw new Error("Morfose known form state is invalid");
@@ -175,6 +229,14 @@ export function validateMorphProfilesForCharacter(character) {
           throw new Error("Morfose known form templateId must reference Character template");
         }
       }
+      for (const entry of set.morphProfile.catalogHistory) {
+        if (entry.characterId !== character.identity.id) {
+          throw new Error("Morfose catalog history entry belongs to another character");
+        }
+        if (entry.formSetId !== set.id) {
+          throw new Error("Morfose catalog history entry belongs to another form set");
+        }
+      }
     } else if (set.morphProfile !== null) {
       throw new Error("Only Morfose form sets may have morphProfile");
     }
@@ -192,6 +254,7 @@ export function serializeMorphProfile(profile) {
     memorization: { ...profile.memorization },
     improvisation: { ...profile.improvisation },
     knownForms: profile.knownForms.map(serializeMorphKnownForm),
+    catalogHistory: serializeMorphCatalogHistory(profile.catalogHistory),
     notes: profile.notes,
     tags: [...profile.tags],
     importMeta: clone(profile.importMeta),
@@ -208,6 +271,8 @@ export function serializeMorphKnownForm(form) {
     name: form.name,
     acquisitionMethod: form.acquisitionMethod,
     acquiredAt: form.acquiredAt,
+    memorizedAt: form.memorizedAt,
+    lastObservedAt: form.lastObservedAt,
     state: form.state,
     notes: form.notes,
     tags: [...form.tags],
@@ -222,10 +287,48 @@ export function getMorphProfileEnums() {
     pointLimitSources: [...POINT_LIMIT_SOURCES],
     catalogModes: [...CATALOG_MODES],
     memorizationModes: [...MEMORIZATION_MODES],
+    memorizationCapacityBases: [...MEMORIZATION_CAPACITY_BASES],
     improvisationModes: [...IMPROVISATION_MODES],
     acquisitionMethods: [...ACQUISITION_METHODS],
     knownFormStates: [...KNOWN_FORM_STATES],
   };
+}
+
+function validateMemorizationPolicy(policy) {
+  if (!plain(policy)) throw new Error("Morfose memorization policy must be object");
+  if (!MEMORIZATION_MODES.includes(policy.mode)) {
+    throw new Error("Morfose memorization mode is invalid");
+  }
+  validateNullableInteger(
+    policy.capacity,
+    "Morfose memorization capacity must be non-negative value or null",
+  );
+  if (!MEMORIZATION_CAPACITY_BASES.includes(policy.capacityBasis)) {
+    throw new Error("Morfose memorization capacityBasis is invalid");
+  }
+  validateNullableInteger(
+    policy.durationSeconds,
+    "Morfose memorization durationSeconds must be non-negative value or null",
+  );
+  if (policy.capacityBasis === "fixed" && policy.capacity === null) {
+    throw new Error("Fixed Morfose memorization capacity requires capacity");
+  }
+  if (policy.capacityBasis !== "fixed" && policy.capacity !== null) {
+    throw new Error("Only fixed Morfose memorization capacity may declare capacity");
+  }
+  if (policy.mode === "permanent" && policy.capacityBasis !== "unlimited") {
+    throw new Error("Permanent Morfose repertoire requires unlimited capacity basis");
+  }
+  if (policy.mode === "none" && policy.capacityBasis !== "notApplicable") {
+    throw new Error("Morfose without memorization requires notApplicable capacity basis");
+  }
+}
+
+function inferCapacityBasis(mode, capacity) {
+  if (mode === "permanent") return "unlimited";
+  if (mode === "none") return "notApplicable";
+  if (capacity !== null) return "fixed";
+  return "unknown";
 }
 
 function normalizeKnownForms(value) {
