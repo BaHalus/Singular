@@ -86,7 +86,7 @@ As coleções anteriores, como `traits.advantages`, `skills`, `spells` e `equipm
 
 Elas não constituem uma segunda autoridade.
 
-Durante o round trip, payloads que contenham simultaneamente `entries` e projeções legadas precisam ser equivalentes. Conflitos são rejeitados.
+Durante o round trip, payloads que contenham simultaneamente `entries` e projeções legadas precisam ser semanticamente equivalentes. A mesma contribuição equivalente é unificada; uma definição divergente é rejeitada.
 
 ### Origem
 
