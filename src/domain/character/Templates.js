@@ -116,10 +116,8 @@ export function createTemplates(input = []) {
     throw new Error("Templates must be an array");
   }
 
-  const templates = input.map(createTemplate);
-
+  const templates = input.map(item => createTemplate(item));
   validateTemplates(templates);
-
   return deepFreeze([...templates]);
 }
 
@@ -128,24 +126,28 @@ export function createTemplate(input = {}) {
     throw new Error("Template must be an object");
   }
 
-  const id = normalizeRequiredId(input.id ?? generateTemplateId());
+  const id = requiredString(input.id ?? generateTemplateId(), "Template must have id");
+  const sourceVersion = normalizeNullableNonNegativeInteger(
+    input.sourceVersion,
+    "Template sourceVersion must be non-negative integer or null",
+  );
   const importMeta = normalizePlainObject(
     input.importMeta,
     "Template importMeta must be object or null",
     null,
   );
-  const source = createTemplateSource(input.source, {
+  const source = normalizeTemplateSource(input.source, {
     importMeta,
     reference: input.reference,
-    sourceVersion: input.sourceVersion,
+    sourceVersion,
   });
-  const legacy = normalizeLegacyTemplateComponents(input);
-  const generatedEntries = createEntriesFromLegacyComponents(id, legacy);
+  const legacy = normalizeLegacyComponents(input);
   const explicitEntries = input.entries === undefined || input.entries === null
     ? []
     : createTemplateEntries(input.entries, { templateId: id });
-  const entries = mergeTemplateEntries(explicitEntries, generatedEntries);
-  const views = createLegacyViewsFromEntries(entries);
+  const generatedEntries = createEntriesFromLegacy(id, legacy);
+  const entries = mergeEntries(explicitEntries, generatedEntries);
+  const views = createLegacyViews(entries);
 
   const template = {
     id,
@@ -165,8 +167,8 @@ export function createTemplate(input = {}) {
     importMeta,
     raw: cloneValue(input.raw ?? null),
 
-    // Read-only compatibility projections. `entries` is the authority.
-    sourceVersion: normalizeSourceVersion(input.sourceVersion, source.version),
+    // Compatibility projections. `entries` remains the only authority.
+    sourceVersion: sourceVersion ?? normalizeCompatibleSourceVersion(source.version),
     ancestry: input.ancestry ?? null,
     reference: input.reference ?? source.reference,
     traits: views.traits,
@@ -216,15 +218,10 @@ export function createTemplateEntry(input = {}, options = {}) {
   const entryType = input.entryType ?? input.type ?? "unknown";
   const templateId = options.templateId ?? "template";
   const index = options.index ?? 0;
-  const id = normalizeRequiredId(
+  const id = requiredString(
     input.id ?? `${templateId}:entry:${entryType}:${index}`,
+    "Template entry id must be non-empty string",
   );
-  const payload = normalizeTemplateEntryPayload(
-    entryType,
-    input.payload ?? {},
-    id,
-  );
-
   const entry = {
     id,
     domain: input.domain ?? ENTRY_DOMAIN_BY_TYPE[entryType] ?? "unknown",
@@ -234,8 +231,8 @@ export function createTemplateEntry(input = {}, options = {}) {
       "Template entry externalIds must be object",
       {},
     ),
-    referenceId: normalizeNullableStringValue(input.referenceId),
-    payload,
+    referenceId: normalizeNullableString(input.referenceId),
+    payload: normalizeEntryPayload(entryType, input.payload ?? {}, id),
     notes: input.notes ?? "",
     tags: normalizeStringArray(
       input.tags,
@@ -259,17 +256,13 @@ export function validateTemplates(templates) {
   }
 
   const ids = new Set();
-
   for (const template of templates) {
     validateTemplate(template);
-
     if (ids.has(template.id)) {
       throw new Error("Template ids must be unique");
     }
-
     ids.add(template.id);
   }
-
   return true;
 }
 
@@ -278,13 +271,9 @@ export function validateTemplate(template) {
     throw new Error("Template must be an object");
   }
 
-  normalizeRequiredId(template.id);
-
-  if (!isPlainObject(template.externalIds)) {
-    throw new Error("Template externalIds must be object");
-  }
-
-  validateString(template.name, "Template name must be string");
+  requiredString(template.id, "Template must have id");
+  requirePlainObject(template.externalIds, "Template externalIds must be object");
+  requireString(template.name, "Template name must be string");
 
   if (!TEMPLATE_TYPES.includes(template.templateType)) {
     throw new Error("Template templateType is invalid");
@@ -300,11 +289,11 @@ export function validateTemplate(template) {
     template.calculatedPoints,
     "Template calculatedPoints must be number or null",
   );
-  validateString(template.notes, "Template notes must be string");
+  requireString(template.notes, "Template notes must be string");
   validateStringArray(template.tags, "Template tags must be string array");
 
-  if (template.importMeta !== null && !isPlainObject(template.importMeta)) {
-    throw new Error("Template importMeta must be object or null");
+  if (template.importMeta !== null) {
+    requirePlainObject(template.importMeta, "Template importMeta must be object or null");
   }
 
   if (
@@ -314,54 +303,9 @@ export function validateTemplate(template) {
     throw new Error("Template sourceVersion must be non-negative integer or null");
   }
 
-  validateNullableString(template.ancestry, "Template ancestry must be string or null");
-  validateNullableString(template.reference, "Template reference must be string or null");
-
-  if (!isPlainObject(template.traits)) {
-    throw new Error("Template traits must be object");
-  }
-
-  validateAdvantages(template.traits.advantages);
-  validatePerks(template.traits.perks);
-  validateDisadvantages(template.traits.disadvantages);
-  validateQuirks(template.traits.quirks);
-  validateArray(template.traits.containers, "Template trait containers must be array");
-  validateArray(template.traits.unknownNodes, "Template unknown trait nodes must be array");
-
-  validateSkills(template.skills);
-  validateTechniques(template.techniques);
-  validateArray(template.skillContainers, "Template skillContainers must be array");
-  validateArray(template.techniqueNodes, "Template techniqueNodes must be array");
-  validateArray(
-    template.unresolvedTechniqueLinks,
-    "Template unresolvedTechniqueLinks must be array",
-  );
-  validateArray(template.unknownSkillNodes, "Template unknownSkillNodes must be array");
-
-  validateSpells(template.spells);
-  validateArray(template.spellContainers, "Template spellContainers must be array");
-  validateArray(template.unknownSpellNodes, "Template unknownSpellNodes must be array");
-
-  validateLanguages(template.languages);
-  validateArray(template.languageNodes, "Template languageNodes must be array");
-  validateArray(
-    template.unknownLanguageNodes,
-    "Template unknownLanguageNodes must be array",
-  );
-
-  validateFamiliarities(template.familiarities);
-  validateArray(template.familiarityNodes, "Template familiarityNodes must be array");
-  validateArray(
-    template.unknownFamiliarityNodes,
-    "Template unknownFamiliarityNodes must be array",
-  );
-
-  validateEquipment(template.equipment);
-  validateArray(
-    template.unknownEquipmentNodes,
-    "Template unknownEquipmentNodes must be array",
-  );
-
+  validateNullableStringField(template.ancestry, "Template ancestry must be string or null");
+  validateNullableStringField(template.reference, "Template reference must be string or null");
+  validateLegacyViews(template);
   return true;
 }
 
@@ -371,17 +315,13 @@ export function validateTemplateEntries(entries) {
   }
 
   const ids = new Set();
-
   for (const entry of entries) {
     validateTemplateEntry(entry);
-
     if (ids.has(entry.id)) {
       throw new Error("Template entry ids must be unique");
     }
-
     ids.add(entry.id);
   }
-
   return true;
 }
 
@@ -390,43 +330,49 @@ export function validateTemplateEntry(entry) {
     throw new Error("Template entry must be an object");
   }
 
-  normalizeRequiredId(entry.id);
-  validateNonEmptyString(entry.domain, "Template entry domain must be non-empty string");
-  validateNonEmptyString(
+  requiredString(entry.id, "Template entry id must be non-empty string");
+  requiredString(entry.domain, "Template entry domain must be non-empty string");
+  requiredString(
     entry.entryType,
     "Template entry entryType must be non-empty string",
   );
-
-  if (!isPlainObject(entry.externalIds)) {
-    throw new Error("Template entry externalIds must be object");
-  }
-
-  validateNullableString(
+  requirePlainObject(entry.externalIds, "Template entry externalIds must be object");
+  validateNullableStringField(
     entry.referenceId,
     "Template entry referenceId must be string or null",
   );
-  validateString(entry.notes, "Template entry notes must be string");
+  requireString(entry.notes, "Template entry notes must be string");
   validateStringArray(entry.tags, "Template entry tags must be string array");
 
-  if (entry.importMeta !== null && !isPlainObject(entry.importMeta)) {
-    throw new Error("Template entry importMeta must be object or null");
+  if (entry.importMeta !== null) {
+    requirePlainObject(
+      entry.importMeta,
+      "Template entry importMeta must be object or null",
+    );
   }
 
   return true;
 }
 
 export function validateTemplateSource(source) {
-  if (!isPlainObject(source)) {
-    throw new Error("Template source must be object");
-  }
+  requirePlainObject(source, "Template source must be object");
 
   if (!TEMPLATE_SOURCE_KINDS.includes(source.kind)) {
     throw new Error("Template source kind is invalid");
   }
 
-  validateNullableString(source.provider, "Template source provider must be string or null");
-  validateNullableString(source.format, "Template source format must be string or null");
-  validateNullableString(source.reference, "Template source reference must be string or null");
+  validateNullableStringField(
+    source.provider,
+    "Template source provider must be string or null",
+  );
+  validateNullableStringField(
+    source.format,
+    "Template source format must be string or null",
+  );
+  validateNullableStringField(
+    source.reference,
+    "Template source reference must be string or null",
+  );
 
   if (
     source.version !== null &&
@@ -448,7 +394,7 @@ export function serializeTemplates(templates) {
     name: template.name,
     templateType: template.templateType,
     source: cloneValue(template.source),
-    entries: template.entries.map(serializeTemplateEntry),
+    entries: template.entries.map(entry => serializeTemplateEntry(entry)),
     importedPoints: template.importedPoints,
     calculatedPoints: template.calculatedPoints,
     notes: template.notes,
@@ -456,7 +402,6 @@ export function serializeTemplates(templates) {
     importMeta: cloneValue(template.importMeta),
     raw: cloneValue(template.raw),
 
-    // Compatibility payload for current importers and application operations.
     sourceVersion: template.sourceVersion,
     ancestry: template.ancestry,
     reference: template.reference,
@@ -490,7 +435,6 @@ export function serializeTemplates(templates) {
 
 export function serializeTemplateEntry(entry) {
   validateTemplateEntry(entry);
-
   return {
     id: entry.id,
     domain: entry.domain,
@@ -513,12 +457,9 @@ export function getTemplateSourceKinds() {
   return [...TEMPLATE_SOURCE_KINDS];
 }
 
-function normalizeLegacyTemplateComponents(input) {
+function normalizeLegacyComponents(input) {
   const traits = input.traits ?? {};
-
-  if (!isPlainObject(traits)) {
-    throw new Error("Template traits must be object");
-  }
+  requirePlainObject(traits, "Template traits must be object");
 
   return {
     traits: {
@@ -588,8 +529,7 @@ function normalizeLegacyTemplateComponents(input) {
   };
 }
 
-function createEntriesFromLegacyComponents(templateId, legacy) {
-  const usedIds = new Set();
+function createEntriesFromLegacy(templateId, legacy) {
   const groups = [
     ["trait", "advantage", serializeAdvantages(legacy.traits.advantages)],
     ["trait", "perk", serializePerks(legacy.traits.perks)],
@@ -616,10 +556,13 @@ function createEntriesFromLegacyComponents(templateId, legacy) {
     ["equipment", "unknownEquipment", legacy.unknownEquipmentNodes],
   ];
   const entries = [];
+  const usedIds = new Set();
 
   for (const [domain, entryType, records] of groups) {
     records.forEach((record, index) => {
-      const sourceId = isPlainObject(record) && typeof record.id === "string" && record.id !== ""
+      const sourceId = isPlainObject(record) &&
+        typeof record.id === "string" &&
+        record.id !== ""
         ? record.id
         : `legacy-${index}`;
       const baseId = `${templateId}:${entryType}:${sourceId}`;
@@ -644,61 +587,56 @@ function createEntriesFromLegacyComponents(templateId, legacy) {
   return entries;
 }
 
-function mergeTemplateEntries(explicitEntries, generatedEntries) {
+function mergeEntries(explicitEntries, generatedEntries) {
   const result = [];
-  const ids = new Map();
-  const semanticKeys = new Map();
+  const byId = new Map();
+  const bySemanticKey = new Map();
 
   for (const entry of explicitEntries) {
-    appendEntry(entry, "explicit");
+    append(entry);
   }
 
   for (const entry of generatedEntries) {
-    const semanticKey = createEntrySemanticKey(entry);
-    const existing = semanticKeys.get(semanticKey);
-
+    const existing = bySemanticKey.get(semanticKey(entry));
     if (existing) {
-      if (!deepEqual(existing.entry.payload, entry.payload)) {
+      if (!deepEqual(existing.payload, entry.payload)) {
         throw new Error("Template entries conflict with compatibility components");
       }
       continue;
     }
-
-    appendEntry(entry, "legacy");
+    append(entry);
   }
 
   validateTemplateEntries(result);
   return result;
 
-  function appendEntry(entry, origin) {
-    if (ids.has(entry.id)) {
-      const existing = ids.get(entry.id);
-      if (!deepEqual(serializeTemplateEntry(existing.entry), serializeTemplateEntry(entry))) {
+  function append(entry) {
+    const sameId = byId.get(entry.id);
+    if (sameId) {
+      if (!deepEqual(serializeTemplateEntry(sameId), serializeTemplateEntry(entry))) {
         throw new Error("Template entry id has conflicting definitions");
       }
       return;
     }
 
-    const semanticKey = createEntrySemanticKey(entry);
-    ids.set(entry.id, { entry, origin });
-    semanticKeys.set(semanticKey, { entry, origin });
+    byId.set(entry.id, entry);
+    bySemanticKey.set(semanticKey(entry), entry);
     result.push(entry);
   }
 }
 
-function createEntrySemanticKey(entry) {
+function semanticKey(entry) {
   const payloadId = isPlainObject(entry.payload) &&
     typeof entry.payload.id === "string" &&
     entry.payload.id !== ""
     ? entry.payload.id
     : entry.id;
-
   return `${entry.entryType}:${payloadId}`;
 }
 
-function createLegacyViewsFromEntries(entries) {
-  const payloads = entryType => entries
-    .filter(entry => entry.entryType === entryType)
+function createLegacyViews(entries) {
+  const payloads = type => entries
+    .filter(entry => entry.entryType === type)
     .map(entry => cloneValue(entry.payload));
 
   return {
@@ -730,12 +668,9 @@ function createLegacyViewsFromEntries(entries) {
   };
 }
 
-function normalizeTemplateEntryPayload(entryType, payload, entryId) {
+function normalizeEntryPayload(entryType, payload, entryId) {
   const cloned = cloneValue(payload);
-
-  if (!KNOWN_COMPONENT_ENTRY_TYPES.has(entryType)) {
-    return cloned;
-  }
+  if (!KNOWN_COMPONENT_ENTRY_TYPES.has(entryType)) return cloned;
 
   if (!isPlainObject(cloned)) {
     throw new Error(`Template ${entryType} entry payload must be object`);
@@ -772,54 +707,41 @@ function normalizeTemplateEntryPayload(entryType, payload, entryId) {
   }
 }
 
-function createTemplateSource(input, fallback = {}) {
+function normalizeTemplateSource(input, fallback) {
   let source;
 
   if (input === undefined || input === null) {
-    const importedProvider = isPlainObject(fallback.importMeta) &&
+    const provider = isPlainObject(fallback.importMeta) &&
       typeof fallback.importMeta.source === "string" &&
       fallback.importMeta.source !== ""
       ? fallback.importMeta.source
       : null;
-
     source = {
-      kind: importedProvider === null ? "singular" : "imported",
-      provider: importedProvider,
+      kind: provider === null ? "singular" : "imported",
+      provider,
       format: isPlainObject(fallback.importMeta) &&
         typeof fallback.importMeta.format === "string"
         ? fallback.importMeta.format
         : null,
-      reference: normalizeNullableStringValue(fallback.reference),
-      version: normalizeSourceVersionValue(fallback.sourceVersion),
+      reference: normalizeNullableString(fallback.reference),
+      version: fallback.sourceVersion,
     };
   } else if (typeof input === "string") {
-    source = TEMPLATE_SOURCE_KINDS.includes(input)
-      ? {
-        kind: input,
-        provider: null,
-        format: null,
-        reference: normalizeNullableStringValue(fallback.reference),
-        version: normalizeSourceVersionValue(fallback.sourceVersion),
-      }
-      : {
-        kind: "external",
-        provider: input,
-        format: null,
-        reference: normalizeNullableStringValue(fallback.reference),
-        version: normalizeSourceVersionValue(fallback.sourceVersion),
-      };
+    source = {
+      kind: TEMPLATE_SOURCE_KINDS.includes(input) ? input : "external",
+      provider: TEMPLATE_SOURCE_KINDS.includes(input) ? null : input,
+      format: null,
+      reference: normalizeNullableString(fallback.reference),
+      version: fallback.sourceVersion,
+    };
   } else if (isPlainObject(input)) {
     source = {
       ...cloneValue(input),
       kind: input.kind ?? "unknown",
-      provider: normalizeNullableStringValue(input.provider),
-      format: normalizeNullableStringValue(input.format),
-      reference: normalizeNullableStringValue(
-        input.reference ?? fallback.reference,
-      ),
-      version: normalizeSourceVersionValue(
-        input.version ?? fallback.sourceVersion,
-      ),
+      provider: normalizeNullableString(input.provider),
+      format: normalizeNullableString(input.format),
+      reference: normalizeNullableString(input.reference ?? fallback.reference),
+      version: normalizeSourceVersionValue(input.version ?? fallback.sourceVersion),
     };
   } else {
     throw new Error("Template source must be object, string or null");
@@ -829,65 +751,99 @@ function createTemplateSource(input, fallback = {}) {
   return source;
 }
 
-function normalizeArray(value, errorMessage) {
-  if (value === undefined || value === null) return [];
-
-  if (!Array.isArray(value)) {
-    throw new Error(errorMessage);
-  }
-
-  return value.map(cloneValue);
+function validateLegacyViews(template) {
+  requirePlainObject(template.traits, "Template traits must be object");
+  validateAdvantages(template.traits.advantages);
+  validatePerks(template.traits.perks);
+  validateDisadvantages(template.traits.disadvantages);
+  validateQuirks(template.traits.quirks);
+  requireArray(template.traits.containers, "Template trait containers must be array");
+  requireArray(template.traits.unknownNodes, "Template unknown trait nodes must be array");
+  validateSkills(template.skills);
+  validateTechniques(template.techniques);
+  requireArray(template.skillContainers, "Template skillContainers must be array");
+  requireArray(template.techniqueNodes, "Template techniqueNodes must be array");
+  requireArray(
+    template.unresolvedTechniqueLinks,
+    "Template unresolvedTechniqueLinks must be array",
+  );
+  requireArray(template.unknownSkillNodes, "Template unknownSkillNodes must be array");
+  validateSpells(template.spells);
+  requireArray(template.spellContainers, "Template spellContainers must be array");
+  requireArray(template.unknownSpellNodes, "Template unknownSpellNodes must be array");
+  validateLanguages(template.languages);
+  requireArray(template.languageNodes, "Template languageNodes must be array");
+  requireArray(
+    template.unknownLanguageNodes,
+    "Template unknownLanguageNodes must be array",
+  );
+  validateFamiliarities(template.familiarities);
+  requireArray(template.familiarityNodes, "Template familiarityNodes must be array");
+  requireArray(
+    template.unknownFamiliarityNodes,
+    "Template unknownFamiliarityNodes must be array",
+  );
+  validateEquipment(template.equipment);
+  requireArray(
+    template.unknownEquipmentNodes,
+    "Template unknownEquipmentNodes must be array",
+  );
 }
 
-function normalizeStringArray(value, errorMessage) {
+function normalizeArray(value, message) {
   if (value === undefined || value === null) return [];
-  validateStringArray(value, errorMessage);
+  if (!Array.isArray(value)) throw new Error(message);
+  return value.map(item => cloneValue(item));
+}
+
+function normalizeStringArray(value, message) {
+  if (value === undefined || value === null) return [];
+  validateStringArray(value, message);
   return [...value];
 }
 
-function normalizePlainObject(value, errorMessage, fallback) {
+function normalizePlainObject(value, message, fallback) {
   if (value === undefined || value === null) return fallback;
-
-  if (!isPlainObject(value)) {
-    throw new Error(errorMessage);
-  }
-
+  if (!isPlainObject(value)) throw new Error(message);
   return cloneValue(value);
 }
 
 function normalizeNullableNumber(value) {
   if (value === undefined || value === null || value === "") return null;
   if (typeof value === "number") return Number.isNaN(value) ? null : value;
-
   if (typeof value === "string") {
     const parsed = Number(value.trim());
     return Number.isNaN(parsed) ? null : parsed;
   }
-
   return null;
 }
 
-function normalizeSourceVersion(explicitValue, sourceValue) {
-  const candidate = explicitValue ?? sourceValue;
-
-  if (candidate === undefined || candidate === null || candidate === "") return null;
-
-  const parsed = typeof candidate === "number"
-    ? candidate
-    : typeof candidate === "string" && candidate.trim() !== ""
-      ? Number(candidate.trim())
+function normalizeNullableNonNegativeInteger(value, message) {
+  if (value === undefined || value === null || value === "") return null;
+  const parsed = typeof value === "number"
+    ? value
+    : typeof value === "string"
+      ? Number(value.trim())
       : Number.NaN;
+  if (!Number.isInteger(parsed) || parsed < 0) throw new Error(message);
+  return parsed;
+}
 
+function normalizeCompatibleSourceVersion(value) {
+  if (value === undefined || value === null || value === "") return null;
+  const parsed = typeof value === "number" ? value : Number(value);
   return Number.isInteger(parsed) && parsed >= 0 ? parsed : null;
 }
 
 function normalizeSourceVersionValue(value) {
   if (value === undefined || value === null || value === "") return null;
-  if (typeof value === "string" || typeof value === "number") return value;
-  throw new Error("Template source version must be string, number or null");
+  if (typeof value !== "string" && typeof value !== "number") {
+    throw new Error("Template source version must be string, number or null");
+  }
+  return value;
 }
 
-function normalizeNullableStringValue(value) {
+function normalizeNullableString(value) {
   if (value === undefined || value === null) return null;
   if (typeof value !== "string") {
     throw new Error("Template nullable string value must be string or null");
@@ -895,50 +851,42 @@ function normalizeNullableStringValue(value) {
   return value;
 }
 
-function normalizeRequiredId(value) {
-  if (typeof value !== "string" || value === "") {
-    throw new Error("Template identity must be non-empty string");
-  }
+function requiredString(value, message) {
+  if (typeof value !== "string" || value === "") throw new Error(message);
   return value;
 }
 
-function validateString(value, errorMessage) {
-  if (typeof value !== "string") {
-    throw new Error(errorMessage);
-  }
+function requireString(value, message) {
+  if (typeof value !== "string") throw new Error(message);
 }
 
-function validateNonEmptyString(value, errorMessage) {
-  if (typeof value !== "string" || value === "") {
-    throw new Error(errorMessage);
-  }
+function validateNullableStringField(value, message) {
+  if (value !== null && typeof value !== "string") throw new Error(message);
 }
 
-function validateNullableString(value, errorMessage) {
-  if (value !== null && typeof value !== "string") {
-    throw new Error(errorMessage);
-  }
-}
-
-function validateNullableNumber(value, errorMessage) {
+function validateNullableNumber(value, message) {
   if (value !== null && (typeof value !== "number" || Number.isNaN(value))) {
-    throw new Error(errorMessage);
+    throw new Error(message);
   }
 }
 
-function validateArray(value, errorMessage) {
-  if (!Array.isArray(value)) {
-    throw new Error(errorMessage);
-  }
+function requireArray(value, message) {
+  if (!Array.isArray(value)) throw new Error(message);
 }
 
-function validateStringArray(value, errorMessage) {
+function validateStringArray(value, message) {
   if (!Array.isArray(value) || value.some(item => typeof item !== "string")) {
-    throw new Error(errorMessage);
+    throw new Error(message);
   }
+}
+
+function requirePlainObject(value, message) {
+  if (!isPlainObject(value)) throw new Error(message);
 }
 
 function cloneValue(value, seen = new WeakMap()) {
+  if (!(seen instanceof WeakMap)) seen = new WeakMap();
+
   if (Array.isArray(value)) {
     if (seen.has(value)) return seen.get(value);
     const result = [];
@@ -963,7 +911,6 @@ function cloneValue(value, seen = new WeakMap()) {
 function deepFreeze(value, seen = new WeakSet()) {
   if (!value || typeof value !== "object" || seen.has(value)) return value;
   seen.add(value);
-
   Object.values(value).forEach(item => deepFreeze(item, seen));
   return Object.freeze(value);
 }
@@ -973,7 +920,7 @@ function deepEqual(left, right) {
 }
 
 function canonicalize(value) {
-  if (Array.isArray(value)) return value.map(canonicalize);
+  if (Array.isArray(value)) return value.map(item => canonicalize(item));
   if (isPlainObject(value)) {
     return Object.fromEntries(
       Object.keys(value).sort().map(key => [key, canonicalize(value[key])]),
