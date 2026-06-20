@@ -62,6 +62,8 @@ state !== "forgotten"
 
 Uma entrada já retida tem delta de ocupação `0`. Uma entrada nova ou esquecida tem delta `1`.
 
+Aquisições manuais e importadas não podem ultrapassar silenciosamente uma capacidade limitada conhecida. Quando o delta excede o repertório, a análise exige `replacementKnownFormId`; a forma escolhida é esquecida e a aquisição é persistida na mesma operação atômica.
+
 ## Consequências
 
 - reaquisição torna-se idempotente quanto à identidade do catálogo;

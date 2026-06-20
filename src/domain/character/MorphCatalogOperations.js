@@ -80,6 +80,15 @@ export function analyzeMorphCatalogOperation(
   switch (normalizedInput.type) {
     case "acquire-form":
       validateCandidate(character, normalizedInput.knownForm, identityResolution, block);
+      analyzeAcquisition({
+        set,
+        normalizedInput,
+        identityResolution,
+        policy,
+        capacityEvaluation,
+        block,
+        pending,
+      });
       break;
 
     case "observe-form":
@@ -247,6 +256,8 @@ export function registerMorphKnownForm(character, formSetId, input = {}, options
     {
       type: "acquire-form",
       knownFormId: options.knownFormId ?? input.knownFormId ?? null,
+      replacementKnownFormId: options.replacementKnownFormId ??
+        input.replacementKnownFormId ?? null,
       knownForm: input,
     },
     options,
@@ -429,6 +440,47 @@ function analyzeMemorization({
   }
 }
 
+function analyzeAcquisition({
+  set,
+  normalizedInput,
+  identityResolution,
+  policy,
+  capacityEvaluation,
+  block,
+  pending,
+}) {
+  if (normalizedInput.replacementKnownFormId !== null) {
+    analyzeReplacement(
+      set,
+      normalizedInput,
+      identityResolution,
+      capacityEvaluation,
+      block,
+    );
+  }
+
+  if (policy.mode !== "limited" || capacityEvaluation.requiredSlots === 0) {
+    return;
+  }
+  if (capacityEvaluation.capacity === null) {
+    pending("morph-acquisition-capacity-unknown");
+    return;
+  }
+  if (capacityEvaluation.wouldExceed) {
+    if (normalizedInput.replacementKnownFormId === null) {
+      pending("morph-acquisition-replacement-required", {
+        capacity: capacityEvaluation.capacity,
+        projectedUsed: capacityEvaluation.projectedUsed,
+      });
+    } else {
+      block("morph-acquisition-capacity-exceeded", {
+        capacity: capacityEvaluation.capacity,
+        projectedUsed: capacityEvaluation.projectedUsed,
+      });
+    }
+  }
+}
+
 function analyzeReplacement(
   set,
   normalizedInput,
@@ -506,7 +558,7 @@ function applyCandidateOperation(character, set, input, context) {
   let stored = null;
   let previousState = null;
 
-  if (input.type === "replace-memorized-form") {
+  if (input.replacementKnownFormId !== null) {
     knownForms = knownForms.map(form => (
       form.id === input.replacementKnownFormId
         ? { ...form, state: "forgotten" }
@@ -531,23 +583,22 @@ function applyCandidateOperation(character, set, input, context) {
     knownForms.push(stored);
   }
 
-  const eventType = input.type === "memorize-form" ? "form-memorized" :
-    input.type === "observe-form" ? "form-observed" :
-      input.type === "replace-memorized-form" ? "form-replaced" :
+  const eventType = input.replacementKnownFormId !== null
+    ? "form-replaced"
+    : input.type === "memorize-form" ? "form-memorized" :
+      input.type === "observe-form" ? "form-observed" :
         "form-acquired";
   const canonicalKnownFormId = stored?.id ?? incoming.id;
   const eventInput = {
     type: eventType,
     knownFormId: canonicalKnownFormId,
-    relatedKnownFormId: input.type === "replace-memorized-form"
-      ? input.replacementKnownFormId
-      : null,
+    relatedKnownFormId: input.replacementKnownFormId,
     templateId: stored?.templateId ?? incoming.templateId,
     acquisitionMethod: incoming.acquisitionMethod,
-    previousState: input.type === "replace-memorized-form"
+    previousState: input.replacementKnownFormId !== null
       ? findMorphKnownForm(set, input.replacementKnownFormId)?.state ?? null
       : previousState,
-    nextState: input.type === "replace-memorized-form"
+    nextState: input.replacementKnownFormId !== null
       ? "forgotten"
       : stored?.state ?? null,
     data: {
@@ -707,7 +758,7 @@ function evaluateCapacity(set, policy, input, identityResolution) {
   const requiredSlots = retainsCandidate
     ? morphKnownFormOccupancyDelta(set, identityResolution)
     : 0;
-  const replacement = input.type === "replace-memorized-form"
+  const replacement = input.replacementKnownFormId !== null
     ? findMorphKnownForm(set, input.replacementKnownFormId)
     : null;
   const releasedSlots = replacement && replacement.state !== "forgotten" ? 1 : 0;
@@ -729,7 +780,12 @@ function evaluateCapacity(set, policy, input, identityResolution) {
 }
 
 function isRetentionOperation(type) {
-  return ["observe-form", "memorize-form", "replace-memorized-form"].includes(type);
+  return [
+    "acquire-form",
+    "observe-form",
+    "memorize-form",
+    "replace-memorized-form",
+  ].includes(type);
 }
 
 function isActiveKnownForm(set, knownFormId) {
