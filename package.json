@@ -4,6 +4,6 @@
   "description": "Ficha GURPS 4e Mobile First",
   "type": "module",
   "scripts": {
-    "test": "node --test --test-reporter=dot"
+    "test": "node --test"
   }
 }
