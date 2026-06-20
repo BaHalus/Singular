@@ -93,6 +93,7 @@ export function analyzeMorphCatalogOperation(
 
     case "observe-form":
       validateCandidate(character, normalizedInput.knownForm, identityResolution, block);
+      rejectUnsupportedReplacement(normalizedInput, block);
       if (normalizedInput.originalPresent !== true) {
         block("morph-original-not-present");
       }
@@ -103,6 +104,7 @@ export function analyzeMorphCatalogOperation(
 
     case "memorize-form":
       validateCandidate(character, normalizedInput.knownForm, identityResolution, block);
+      rejectUnsupportedReplacement(normalizedInput, block);
       analyzeMemorization({
         normalizedInput,
         policy,
@@ -396,6 +398,15 @@ export function listAvailableMorphKnownForms(character, formSetId) {
   return set.morphProfile.knownForms.filter(form => form.state === "available");
 }
 
+function rejectUnsupportedReplacement(normalizedInput, block) {
+  if (normalizedInput.replacementKnownFormId !== null) {
+    block("morph-replacement-operation-required", {
+      operation: normalizedInput.type,
+      replacementKnownFormId: normalizedInput.replacementKnownFormId,
+    });
+  }
+}
+
 function analyzeMemorization({
   normalizedInput,
   policy,
@@ -574,10 +585,17 @@ function applyCandidateOperation(character, set, input, context) {
   const isMemorization = input.type === "memorize-form" ||
     input.type === "replace-memorized-form";
   const retain = input.type !== "observe-form" || context.policy.mode === "permanent";
+  const replacementOperation = input.replacementKnownFormId !== null;
+  if (
+    replacementOperation &&
+    !["acquire-form", "replace-memorized-form"].includes(input.type)
+  ) {
+    throw new Error("Morfose replacement requires validated replacement operation");
+  }
   let stored = null;
   let previousState = null;
 
-  if (input.replacementKnownFormId !== null) {
+  if (replacementOperation) {
     knownForms = knownForms.map(form => (
       form.id === input.replacementKnownFormId
         ? { ...form, state: "forgotten" }
@@ -602,7 +620,7 @@ function applyCandidateOperation(character, set, input, context) {
     knownForms.push(stored);
   }
 
-  const eventType = input.replacementKnownFormId !== null
+  const eventType = replacementOperation
     ? "form-replaced"
     : input.type === "memorize-form" ? "form-memorized" :
       input.type === "observe-form" ? "form-observed" :
@@ -614,10 +632,10 @@ function applyCandidateOperation(character, set, input, context) {
     relatedKnownFormId: input.replacementKnownFormId,
     templateId: stored?.templateId ?? incoming.templateId,
     acquisitionMethod: incoming.acquisitionMethod,
-    previousState: input.replacementKnownFormId !== null
+    previousState: replacementOperation
       ? findMorphKnownForm(set, input.replacementKnownFormId)?.state ?? null
       : previousState,
-    nextState: input.replacementKnownFormId !== null
+    nextState: replacementOperation
       ? "forgotten"
       : stored?.state ?? null,
     data: {

@@ -100,6 +100,8 @@ Reaquisição de uma entrada já retida exige `0` espaços adicionais. Reaquisi�
 
 `acquire-form` obedece à capacidade limitada conhecida. Quando uma aquisição manual ou importada acrescenta ocupação e excederia o repertório, o plano permanece pendente até receber `replacementKnownFormId`. A substituição ocorre atomicamente e é registrada como `form-replaced`. Uma substituição também é recusada quando há espaço livre ou quando a aquisição reutiliza uma entrada já retida.
 
+Somente `acquire-form` e `replace-memorized-form` aceitam `replacementKnownFormId`. `memorize-form` e `observe-form` recusam esse campo; a execução também verifica a operação antes de esquecer qualquer entrada.
+
 ## Isolamento
 
 A operação afeta apenas o conjunto de Morfose identificado por `formSetId`.
