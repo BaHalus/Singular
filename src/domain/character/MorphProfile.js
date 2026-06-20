@@ -40,10 +40,18 @@ export function createMorphProfile(input = {}) {
     pointLimit === null ? "undeclared" : "limited"
   );
   const memorizationMode = input.memorization?.mode ?? "unknown";
-  const memorizationCapacity = nullableInteger(
+  const requestedMemorizationCapacity = nullableInteger(
     input.memorization?.capacity,
     "Morfose memorization capacity must be non-negative integer or null",
   );
+  const memorizationCapacityBasis = normalizeCapacityBasis(
+    memorizationMode,
+    requestedMemorizationCapacity,
+    input.memorization?.capacityBasis,
+  );
+  const memorizationCapacity = memorizationCapacityBasis === "fixed"
+    ? requestedMemorizationCapacity
+    : null;
 
   const profile = {
     pointLimitMode,
@@ -59,10 +67,7 @@ export function createMorphProfile(input = {}) {
     memorization: {
       mode: memorizationMode,
       capacity: memorizationCapacity,
-      capacityBasis: input.memorization?.capacityBasis ?? inferCapacityBasis(
-        memorizationMode,
-        memorizationCapacity,
-      ),
+      capacityBasis: memorizationCapacityBasis,
       durationSeconds: nullableInteger(
         input.memorization?.durationSeconds,
         "Morfose memorization durationSeconds must be non-negative integer or null",
@@ -324,11 +329,13 @@ function validateMemorizationPolicy(policy) {
   }
 }
 
-function inferCapacityBasis(mode, capacity) {
+function normalizeCapacityBasis(mode, capacity, requested) {
   if (mode === "permanent") return "unlimited";
   if (mode === "none") return "notApplicable";
-  if (capacity !== null) return "fixed";
-  return "unknown";
+  if (requested === undefined || requested === null || requested === "unknown") {
+    return capacity !== null ? "fixed" : "unknown";
+  }
+  return requested;
 }
 
 function normalizeKnownForms(value) {
