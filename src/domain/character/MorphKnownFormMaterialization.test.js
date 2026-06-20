@@ -108,11 +108,35 @@ test("materializes one available known form without activating it", () => {
     "2026-06-19T12:00:00.000Z",
   );
   assert.deepEqual(form.tags, ["conhecida", "animal"]);
-  assert.equal(result.analysis.pointLimitEvaluation.enforced, false);
-  assert.equal(
-    result.analysis.pointLimitEvaluation.status,
-    "deferred-to-dom-morph-1.5",
+  assert.equal(result.analysis.pointLimitEvaluation.enforced, true);
+  assert.equal(result.analysis.pointLimitEvaluation.complete, true);
+  assert.equal(result.analysis.pointLimitEvaluation.status, "ready");
+  assert.equal(result.analysis.pointLimitEvaluation.effectivePointLimit, 50);
+});
+
+test("analysis reports a known form above the point limit without blocking projection", () => {
+  const character = createMorphCharacter({ templateImportedPoints: 60 });
+  const analysis = analyzeMorphKnownFormMaterialization(
+    character,
+    "set-morph",
+    "known-wolf",
   );
+  const result = materializeMorphKnownForm(
+    character,
+    "set-morph",
+    "known-wolf",
+    { now: "2026-06-19T12:00:00.000Z" },
+  );
+
+  assert.equal(analysis.status, "ready");
+  assert.equal(analysis.pointLimitEvaluation.status, "blocked");
+  assert.equal(analysis.pointLimitEvaluation.generalExcessPoints, 10);
+  assert.equal(
+    analysis.pointLimitEvaluation.reasons.includes("morph-point-limit-exceeded"),
+    true,
+  );
+  assert.equal(result.status, "materialized");
+  assert.equal(result.character.alternateFormSets[0].activeFormId, "form-base");
 });
 
 test("materialization is idempotent while source template is unchanged", () => {
@@ -172,6 +196,11 @@ test("keeps unresolved imported form pending without inventing a template", () =
 
   assert.equal(analysis.status, "pending");
   assert.deepEqual(analysis.reasons, ["morph-known-form-template-unresolved"]);
+  assert.equal(analysis.pointLimitEvaluation.status, "pending");
+  assert.equal(
+    analysis.pointLimitEvaluation.reasons.includes("morph-template-points-unknown"),
+    true,
+  );
   assert.throws(
     () => materializeMorphKnownForm(
       character,
@@ -212,6 +241,7 @@ test("detects stale template materialization and refreshes only explicitly", () 
 
   assert.equal(analysis.status, "blocked");
   assert.equal(analysis.reasons.includes("morph-materialization-stale"), true);
+  assert.equal(analysis.pointLimitEvaluation.status, "ready");
   assert.throws(
     () => materializeMorphKnownForm(
       changedTemplate,

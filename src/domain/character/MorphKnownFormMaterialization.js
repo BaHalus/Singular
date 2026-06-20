@@ -3,6 +3,7 @@ import {
   createMorphMaterialization,
   createMorphTemplateFingerprint,
 } from "./MorphMaterialization.js";
+import { evaluateMorphPointLimit } from "./MorphPointLimit.js";
 
 const HARD_SELECTION_REASONS = new Set([
   "morph-known-form-not-found",
@@ -269,14 +270,11 @@ function createAnalysis({ set, knownForm, template, materializedForm, reasons })
 }
 
 function createPointLimitEvaluation(profile, template) {
-  return {
-    mode: profile.pointLimitMode,
-    pointLimit: profile.pointLimit,
-    pointLimitSource: profile.pointLimitSource,
-    templateImportedPoints: template?.importedPoints ?? null,
-    status: "deferred-to-dom-morph-1.5",
-    enforced: false,
-  };
+  return evaluateMorphPointLimit(
+    profile,
+    template?.importedPoints ?? null,
+    { targetKind: "known" },
+  );
 }
 
 function determineSelectionStatus(reasons) {

@@ -174,6 +174,11 @@ export function executeFormTransition(character, plan, options = {}) {
     targetFormId: currentPlan.targetFormId,
     targetTemplateId: targetForm?.templateId ?? null,
     morphKnownFormId: targetForm?.morphKnownFormId ?? null,
+    morphImprovisationId:
+      targetForm?.morphImprovisation?.improvisationId ?? null,
+    morphPointLimitEvaluation: cloneValue(
+      currentPlan.morphSelection?.pointLimitEvaluation ?? null,
+    ),
     transitionKind: currentPlan.transitionKind,
     intent: currentPlan.intent,
 
@@ -274,6 +279,16 @@ function normalizeTimestamp(value) {
     );
   }
 
+  return value;
+}
+
+function cloneValue(value) {
+  if (Array.isArray(value)) return value.map(cloneValue);
+  if (value && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, item]) => [key, cloneValue(item)]),
+    );
+  }
   return value;
 }
 
