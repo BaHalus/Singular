@@ -17,9 +17,7 @@ O motor calcula.
 A UI apenas apresenta e despacha intenção.
 ```
 
-Um template não é uma alteração já aplicada ao personagem.
-
-A criação ou importação de um pacote não altera atributos, não injeta componentes no personagem, não soma pontos, não calcula NH, não cria ataques derivados, não resolve pré-requisitos, não ativa formas e não liga referências por nome.
+Um template não é uma alteração já aplicada ao personagem. Sua criação ou importação não altera atributos, não injeta componentes, não soma pontos, não calcula NH, não cria ataques, não resolve pré-requisitos, não ativa formas e não liga referências por nome.
 
 ## Estrutura canônica
 
@@ -48,13 +46,11 @@ A criação ou importação de um pacote não altera atributos, não injeta comp
 
 ## Identidade
 
-`id` é a identidade soberana da SINGULAR. Precisa ser uma string não vazia, é única em `Character.templates`, não é substituída por ID externo, não é derivada do nome e não muda quando o nome visível muda.
+`id` é a identidade soberana da SINGULAR. É único em `Character.templates`, não é substituído por ID externo, não deriva do nome e permanece estável quando o nome muda.
 
-`externalIds` preserva identidades de GCS, bibliotecas, campanhas e outros fornecedores. IDs externos nunca provocam ligação automática por nome.
+`externalIds` preserva identidades de GCS, bibliotecas, campanhas e outros fornecedores. IDs externos nunca criam ligação automática por nome.
 
 ## Tipos
-
-`templateType` aceita:
 
 ```text
 template
@@ -68,11 +64,9 @@ campaignPackage
 unknown
 ```
 
-O tipo `unknown` preserva pacotes cuja classificação ainda não pode ser determinada com segurança.
+`unknown` preserva pacotes cuja classificação ainda não pode ser determinada com segurança.
 
 ## Origem
-
-`source` registra a origem declarada:
 
 ```js
 {
@@ -84,9 +78,7 @@ O tipo `unknown` preserva pacotes cuja classificação ainda não pode ser deter
 }
 ```
 
-Campos adicionais de origem são preservados. A fundação não inventa fornecedor, referência ou versão ausente.
-
-Para payloads legados importados, `importMeta.source` e `importMeta.format` podem alimentar a normalização inicial. Depois da criação, `source` é persistido explicitamente.
+Campos adicionais são preservados. A fundação não inventa fornecedor, referência ou versão ausente. Para payloads legados, `importMeta.source` e `importMeta.format` podem alimentar a normalização inicial; depois disso, `source` é persistido explicitamente.
 
 ## Entradas
 
@@ -111,17 +103,15 @@ Para payloads legados importados, `importMeta.source` e `importMeta.format` pode
 }
 ```
 
-### Identidade da entrada
+Regras:
 
 - `id` é único dentro do template;
-- `referenceId` só existe quando declarado explicitamente;
+- `referenceId` só existe quando declarado;
 - nomes iguais não geram vínculo;
-- a posição não define identidade;
+- posição não define identidade;
 - entradas desconhecidas permanecem preservadas.
 
-### Domínio e tipo
-
-`domain` identifica quem deverá interpretar a contribuição:
+`domain` indica quem deverá interpretar a contribuição:
 
 ```text
 trait
@@ -137,17 +127,7 @@ unknown
 
 `entryType` é aberto. Tipos desconhecidos não são descartados nem convertidos por aproximação.
 
-### Payload
-
-`payload` conserva os dados da contribuição. DOM-TEMPLATE-1.0 só normaliza payloads pertencentes aos domínios já representados no Character. Ele não calcula o resultado mecânico da entrada.
-
-`raw` e `importMeta` preservam dados necessários à auditoria e a importadores futuros.
-
-## Entradas conhecidas atualmente
-
-A fundação reconhece envelopes para traits, containers de traits, perícias, técnicas, nós auxiliares, mágicas, idiomas, familiaridades culturais, equipamentos e nós desconhecidos de cada seção.
-
-DOM-TEMPLATE-1.1 ampliará a composição declarativa para atributos, características secundárias, outros templates e regras especiais.
+`payload` conserva os dados da contribuição. DOM-TEMPLATE-1.0 apenas normaliza payloads pertencentes aos domínios já representados no Character; não calcula o resultado mecânico.
 
 ## Compatibilidade estrutural
 
@@ -156,11 +136,12 @@ O código anterior armazenava contribuições em coleções como `traits.advanta
 Durante a transição:
 
 - entradas legadas são convertidas em `entries`;
-- as coleções antigas permanecem como projeções somente leitura;
-- as projeções são reconstruídas a partir de `entries`;
+- coleções antigas permanecem como projeções somente leitura;
+- projeções são reconstruídas a partir de `entries`;
 - `entries` é a única autoridade;
 - save/load persiste a forma canônica e o payload de compatibilidade necessário às integrações atuais;
-- quando a mesma contribuição aparece nas duas representações, definições equivalentes são unificadas e definições divergentes são rejeitadas.
+- contribuições equivalentes presentes nas duas representações são unificadas;
+- definições divergentes são rejeitadas.
 
 Isso mantém Forma Alternativa, Morfose, importadores e operações de incorporação operantes enquanto os próximos blocos migram para a composição declarativa.
 
@@ -175,13 +156,7 @@ DOM-TEMPLATE-1.0 não calcula nenhum dos dois. Divergências são preservadas pa
 
 ## Imutabilidade
 
-Templates e entradas são profundamente imutáveis depois de criados.
-
-- a entrada original é clonada;
-- dados aninhados não compartilham referências mutáveis com o chamador;
-- operações não modificam o pacote existente;
-- atualizações futuras produzirão outro valor;
-- incorporação clona componentes sem alterar o template.
+Templates e entradas são profundamente imutáveis. Dados de entrada são clonados; estruturas aninhadas não compartilham referências mutáveis com o chamador; operações não modificam o pacote existente; incorporações clonam componentes sem alterar o template.
 
 ## Dados desconhecidos
 
@@ -206,15 +181,13 @@ Armazenar um template não significa aplicá-lo.
 
 ## Incorporação atual
 
-As operações atuais continuam disponíveis:
-
 ```js
 incorporateTemplate(character, templateId)
 removeTemplateApplication(character, applicationId)
 removeTemplatePackage(character, templateId)
 ```
 
-Elas usam as projeções conhecidas. O fluxo soberano de análise, plano, revalidação e aplicação será implementado no DOM-TEMPLATE-1.3.
+As operações atuais usam as projeções conhecidas. O fluxo soberano de análise, plano, revalidação e aplicação será implementado no DOM-TEMPLATE-1.3.
 
 ## Save/load
 
