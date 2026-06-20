@@ -20,6 +20,7 @@ const NOW = "2026-06-20T21:00:00.000Z";
 function createMorphCharacter({
   modifiers = [{ id: "mod-improvised", name: "Formas Improvisadas" }],
   secondSet = false,
+  manualOverride = null,
 } = {}) {
   let character = createCharacter({
     identity: {
@@ -56,7 +57,10 @@ function createMorphCharacter({
     },
   });
 
-  character = applyResolvedMorphProfile(character, "set-morph", { now: NOW }).character;
+  character = applyResolvedMorphProfile(character, "set-morph", {
+    now: NOW,
+    ...(manualOverride === null ? {} : { manualOverride }),
+  }).character;
   return character;
 }
 
@@ -70,7 +74,9 @@ function validDraft(overrides = {}) {
       id: overrides.templateId ?? "improvisation-winged-template",
       templateType: "form",
       name: overrides.templateName ?? "Predador Alado",
-      importedPoints: overrides.importedPoints ?? 45,
+      importedPoints: Object.hasOwn(overrides, "importedPoints")
+        ? overrides.importedPoints
+        : 45,
       tags: ["animal"],
     },
     evidence: {
@@ -89,7 +95,7 @@ function morphSet(character) {
   return character.alternateFormSets.find(set => set.id === "set-morph");
 }
 
-test("standard improvised form is ready only with complete physical evidence", () => {
+test("standard improvised form exposes canonical point-limit analysis", () => {
   const analysis = analyzeMorphImprovisation(
     createMorphCharacter(),
     "set-morph",
@@ -99,20 +105,42 @@ test("standard improvised form is ready only with complete physical evidence", (
   assert.equal(analysis.status, "ready");
   assert.deepEqual(analysis.reasons, []);
   assert.equal(analysis.pointLimitEvaluation.enforced, false);
+  assert.equal(analysis.pointLimitEvaluation.complete, false);
+  assert.equal(analysis.pointLimitEvaluation.status, "pending");
   assert.equal(
-    analysis.pointLimitEvaluation.status,
-    "deferred-to-dom-morph-1.5",
+    analysis.pointLimitEvaluation.reasons.includes("morph-point-limit-undeclared"),
+    true,
   );
   assert.equal(analysis.pointLimitEvaluation.templateImportedPoints, 45);
+});
+
+test("finite improvisation limit is evaluated during analysis", () => {
+  const analysis = analyzeMorphImprovisation(
+    createMorphCharacter({
+      manualOverride: {
+        pointLimitMode: "limited",
+        pointLimit: 40,
+        pointLimitSource: "manual",
+      },
+    }),
+    "set-morph",
+    validDraft({ importedPoints: 45 }),
+  );
+
+  assert.equal(analysis.status, "ready");
+  assert.equal(analysis.pointLimitEvaluation.status, "blocked");
+  assert.equal(analysis.pointLimitEvaluation.generalExcessPoints, 5);
+  assert.equal(
+    analysis.pointLimitEvaluation.reasons.includes("morph-point-limit-exceeded"),
+    true,
+  );
 });
 
 test("standard improvisation blocks traits absent from the setting", () => {
   const analysis = analyzeMorphImprovisation(
     createMorphCharacter(),
     "set-morph",
-    validDraft({
-      evidence: { allCharacteristicsExistInSetting: false },
-    }),
+    validDraft({ evidence: { allCharacteristicsExistInSetting: false } }),
   );
 
   assert.equal(analysis.status, "blocked");
@@ -132,9 +160,7 @@ test("Cosmic allows out-of-setting traits but not nonphysical traits", () => {
   const outOfSetting = analyzeMorphImprovisation(
     character,
     "set-morph",
-    validDraft({
-      evidence: { allCharacteristicsExistInSetting: false },
-    }),
+    validDraft({ evidence: { allCharacteristicsExistInSetting: false } }),
   );
   const nonphysical = analyzeMorphImprovisation(
     character,
@@ -234,6 +260,7 @@ test("materialization is transient and does not alter templates or known forms",
   assert.equal(form.morphMaterialization, null);
   assert.equal(form.morphImprovisation.improvisationId, "improvisation-winged");
   assert.equal(form.morphImprovisation.draft.template.importedPoints, 45);
+  assert.equal(form.morphImprovisation.pointLimitEvaluation.status, "pending");
   assert.deepEqual(result.character.templates, beforeTemplates);
   assert.deepEqual(set.morphProfile.knownForms, beforeKnownForms);
   assert.deepEqual(
@@ -347,6 +374,10 @@ test("prepared improvised transition uses the existing FormTransitionPlanner", (
     prepared.plan.morphSelection.pointLimitEvaluation.enforced,
     false,
   );
+  assert.equal(
+    prepared.plan.morphSelection.pointLimitEvaluation.status,
+    "pending",
+  );
 });
 
 test("save and load preserve the embedded improvised template and provenance", () => {
@@ -366,6 +397,7 @@ test("save and load preserve the embedded improvised template and provenance", (
   assert.equal(projection.draft.template.name, "Predador Alado");
   assert.equal(projection.draft.template.importedPoints, 45);
   assert.equal(projection.materializedAt, NOW);
+  assert.equal(projection.pointLimitEvaluation.status, "pending");
 });
 
 test("discard removes only an inactive improvised projection", () => {
