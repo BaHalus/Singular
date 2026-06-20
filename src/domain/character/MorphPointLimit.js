@@ -125,7 +125,7 @@ export function evaluateMorphTargetPointLimit(character, set, targetForm) {
 export function applyMorphPointLimitToSelection(selection, evaluation) {
   if (selection === null || evaluation === null) return selection;
 
-  const mergePending = evaluation.enforcementMode === "complete";
+  const mergePending = evaluation.enforcementMode !== "none";
   const evaluationReasons = evaluation.reasons.filter(reason => (
     HARD_REASONS.has(reason) || mergePending
   ));
