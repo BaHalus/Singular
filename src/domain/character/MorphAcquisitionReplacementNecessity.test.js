@@ -65,16 +65,17 @@ test("rejects acquisition replacement when a new identity fits without discardin
       acquisitionMethod: "imported",
     },
   }, { now: NOW });
+  const reason = analysis.reasons.find(candidate => (
+    candidate.code === "morph-acquisition-replacement-not-required"
+  ));
 
+  assert.equal(analysis.capacityEvaluation.capacity, 2);
   assert.equal(analysis.capacityEvaluation.used, 1);
   assert.equal(analysis.capacityEvaluation.requiredSlots, 1);
+  assert.equal(analysis.capacityEvaluation.releasedSlots, 1);
+  assert.equal(analysis.capacityEvaluation.projectedUsed, 1);
   assert.equal(analysis.status, "blocked");
-  assert.equal(
-    analysis.reasons.some(reason => (
-      reason.code === "morph-acquisition-replacement-not-required"
-    )),
-    true,
-  );
+  assert.equal(reason?.projectedWithoutReplacement, 2);
 
   assert.throws(() => registerMorphKnownForm(character, "set-morph", {
     id: "known-owl",
