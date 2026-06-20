@@ -29,6 +29,7 @@ const BUILTIN_MODIFIERS = [
   {
     id: "gurps.morph.unlimited",
     names: ["Ilimitada", "Unlimited"],
+    priority: PRIORITY.builtin + 10,
     profile: {
       pointLimitMode: "unlimited",
       pointLimit: null,
@@ -50,6 +51,7 @@ const BUILTIN_MODIFIERS = [
   },
   {
     id: "gurps.morph.cosmic-improvised-forms",
+    priority: PRIORITY.builtin + 10,
     names: [
       "Cósmica (Para Formas Improvisadas)",
       "Cosmic (For Improvised Forms)",
@@ -158,7 +160,7 @@ export function analyzeMorphProfile(character, formSetId, options = {}) {
         if (rule.profile !== null) {
           pushPartialSignals(
             rule.profile,
-            metadata("builtin", PRIORITY.builtin, [summarizeEvidence(item, rule.id)]),
+            metadata("builtin", rule.priority ?? PRIORITY.builtin, [summarizeEvidence(item, rule.id)]),
             signals,
           );
         }

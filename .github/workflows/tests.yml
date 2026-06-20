@@ -8,113 +8,23 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  finalize-dom-morph-1-4:
-    if: github.actor != 'github-actions[bot]'
+  test:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout feature branch
+      - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
-          ref: feature/dom-morph-1.4
+          node-version: 22
 
-      - name: Finalize resolver and clean branch
-        shell: bash
-        run: |
-          python - <<'PY'
-          from pathlib import Path
+      - name: Install dependencies
+        run: npm install
 
-          resolver = Path('src/domain/character/MorphProfileResolver.js')
-          text = resolver.read_text()
-          replacements = [
-              (
-                  '    names: ["Ilimitada", "Unlimited"],\n    profile: {',
-                  '    names: ["Ilimitada", "Unlimited"],\n    priority: PRIORITY.builtin + 10,\n    profile: {',
-              ),
-              (
-                  '    id: "gurps.morph.cosmic-improvised-forms",\n    names: [',
-                  '    id: "gurps.morph.cosmic-improvised-forms",\n    priority: PRIORITY.builtin + 10,\n    names: [',
-              ),
-              (
-                  'metadata("builtin", PRIORITY.builtin, [summarizeEvidence(item, rule.id)])',
-                  'metadata("builtin", rule.priority ?? PRIORITY.builtin, [summarizeEvidence(item, rule.id)])',
-              ),
-          ]
-          for old, new in replacements:
-              if old in text:
-                  text = text.replace(old, new, 1)
-              elif new not in text:
-                  raise SystemExit(f'Expected resolver fragment not found: {old}')
-          resolver.write_text(text)
-
-          package_text = '{\n  "name": "singular",\n  "version": "0.1.0",\n  "description": "Ficha GURPS 4e Mobile First",\n  "type": "module",\n  "scripts": {\n    "test": "node --test"\n  }\n}\n'
-          Path('package.json').write_text(package_text)
-
-          architecture = Path('Docs/01-arquitetura/Morfose.md')
-          content = architecture.read_text()
-          marker = '## DOM-MORPH-1.4 — Improvisação de formas\n'
-          if marker not in content:
-              addition = (
-                  '\n\n## DOM-MORPH-1.4 — Improvisação de formas\n\n'
-                  '**Status:** implementado.\n\n'
-                  'A improvisação usa rascunho declarativo com snapshot de template e evidências explícitas. '
-                  'Sua projeção é transitória em `AlternateFormSet.forms`: não entra em `Character.templates`, '
-                  'não entra em `knownForms` e não é ativada automaticamente.\n\n'
-                  '- **Formas Improvisadas:** características físicas naturais, existentes no cenário e sem mudança de composição;\n'
-                  '- **Cósmica (Para Formas Improvisadas):** remove apenas a exigência de existência no cenário;\n'
-                  '- **Ilimitada:** remove apenas a restrição de composição, além do limite geral ilimitado.\n\n'
-                  'A projeção usa o `FormTransitionPlanner` e o `FormTransitionExecutor` existentes. '
-                  'A aplicação mecânica do limite em pontos permanece no DOM-MORPH-1.5.\n\n'
-                  'Detalhes: `MorfoseImprovisation.md` e `ADR-0025-MorfoseImprovisation.md`.\n'
-              )
-              architecture.write_text(content + addition)
-
-          standard_workflow = '\n'.join([
-              'name: Tests',
-              '',
-              'on:',
-              '  push:',
-              '    branches:',
-              '      - main',
-              '  pull_request:',
-              '  workflow_dispatch:',
-              '',
-              'permissions:',
-              '  contents: read',
-              '',
-              'jobs:',
-              '  test:',
-              '    runs-on: ubuntu-latest',
-              '',
-              '    steps:',
-              '      - name: Checkout',
-              '        uses: actions/checkout@v4',
-              '',
-              '      - name: Setup Node.js',
-              '        uses: actions/setup-node@v4',
-              '        with:',
-              '          node-version: 22',
-              '',
-              '      - name: Install dependencies',
-              '        run: npm install',
-              '',
-              '      - name: Run tests',
-              '        run: npm test',
-              '',
-          ])
-          Path('.github/workflows/tests.yml').write_text(standard_workflow)
-          PY
-
-          rm -f Docs/01-arquitetura/MorfoseImprovisation.tmp
-          rm -f .github/workflows/refine-dom-morph-1.4-resolver.yml
-          rm -f .github/workflows/finalize-dom-morph-1.4-branch.yml
-          rm -f .github/workflows/cleanup-dom-morph-1.4-pr.yml
-
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -A
-          git commit -m "fix: finalize DOM-MORPH-1.4 resolver and branch hygiene"
-          git push origin HEAD:feature/dom-morph-1.4
+      - name: Run tests
+        run: npm test
