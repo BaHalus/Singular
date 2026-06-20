@@ -8,18 +8,7 @@
 
 Forma Alternativa e Morfose foram encerradas com APIs estáveis. Ambos os domínios já dependem de `Character.templates`, mas o modelo anterior era orientado principalmente à preservação de arquivos GCS e distribuía as contribuições em várias coleções paralelas.
 
-O próximo domínio precisa sustentar:
-
-- raças;
-- modelos raciais;
-- metacaracterísticas;
-- profissões;
-- arquétipos;
-- corpos;
-- formas;
-- pacotes de campanha;
-- composição futura;
-- importação GCS ampla.
+O próximo domínio precisa sustentar raças, modelos raciais, metacaracterísticas, profissões, arquétipos, corpos, formas, pacotes de campanha, composição futura e importação GCS ampla.
 
 Manter cada seção do template como uma autoridade independente criaria divergência entre importação, aplicação, Forma Alternativa e Morfose.
 
@@ -123,16 +112,7 @@ Operações futuras deverão produzir novos valores em vez de modificar o pacote
 
 ### Limites do bloco
 
-DOM-TEMPLATE-1.0 não implementa:
-
-- composição entre templates;
-- dependências;
-- ciclos;
-- aplicação planejada ao Character;
-- reconciliação de custos;
-- importação GCS final.
-
-Essas responsabilidades pertencem aos blocos 1.1 a 1.5.
+DOM-TEMPLATE-1.0 não implementa composição entre templates, dependências, ciclos, aplicação planejada ao Character, reconciliação de custos ou importação GCS final. Essas responsabilidades pertencem aos blocos 1.1 a 1.5.
 
 ## Consequências
 
