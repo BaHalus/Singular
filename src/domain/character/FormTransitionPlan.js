@@ -129,6 +129,7 @@ function projectMorphSelection(value) {
   if (!isPlainObject(value)) return null;
   return {
     knownFormId: value.knownFormId ?? null,
+    improvisationId: value.improvisationId ?? null,
     knownFormState: value.knownFormState ?? null,
     templateId: value.templateId ?? null,
     templateImportedPoints: value.templateImportedPoints ?? null,
