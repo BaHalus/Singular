@@ -256,7 +256,7 @@ test("unnecessary replacement cannot discard a retained form", () => {
 
   assert.equal(analysis.status, "blocked");
   assert.equal(
-    analysis.reasons.some(reason => reason.code === "morph-replacement-candidate-already-retained"),
+    analysis.reasons.some(reason => reason.code === "morph-acquisition-replacement-not-required"),
     true,
   );
 });
