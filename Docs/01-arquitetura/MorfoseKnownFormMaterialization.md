@@ -1,10 +1,10 @@
 # MorfoseKnownFormMaterialization
 
-**Código:** DOM-MORPH-1.2  
-**Status:** Implementado  
+**Código:** DOM-MORPH-1.2 integrado ao DOM-MORPH-1.5  
+**Status:** Fechado  
 **Camada:** Domain / Application boundary  
 **Tipo:** Seleção, projeção transitória e integração com transições  
-**Decisão:** ADR-0022
+**Decisões:** ADR-0022, ADR-0027 e ADR-0028
 
 Este componente transforma uma entrada disponível do catálogo de Morfose em uma forma transitória utilizável pela infraestrutura de Forma Alternativa.
 
@@ -13,6 +13,7 @@ Este componente transforma uma entrada disponível do catálogo de Morfose em um
 ```text
 MorphKnownFormMaterialization
 ├── análise da entrada
+├── avaliação canônica do limite
 ├── materialização idempotente
 ├── proveniência e fingerprint
 ├── atualização explícita
@@ -22,7 +23,7 @@ MorphKnownFormSelection
 └── materialização + planFormTransition
 ```
 
-## APIs
+## APIs estáveis
 
 ```js
 analyzeMorphKnownFormMaterialization(character, setId, knownFormId)
@@ -39,16 +40,16 @@ prepareMorphKnownFormTransition(
 )
 ```
 
-## Pré-condições
+## Pré-condições estruturais
 
 A entrada precisa:
 
-- existir no `morphProfile.knownForms`;
+- existir em `morphProfile.knownForms`;
 - estar `available`;
 - ter `templateId` resolvido;
 - apontar para um template existente em `Character.templates`.
 
-A materialização não adivinha templates.
+A materialização não adivinha templates nem liga referências por nome.
 
 ## Forma materializada
 
@@ -66,7 +67,7 @@ A materialização não adivinha templates.
     materializedAt,
     sourceName,
     acquisitionMethod,
-    externalIds
+    externalIds,
   },
   runtimeState: {
     initialized: false,
@@ -75,7 +76,7 @@ A materialização não adivinha templates.
 }
 ```
 
-O template continua armazenado em `Character.templates`. A forma contém somente a referência e a proveniência necessárias para ativação temporária.
+O template continua em `Character.templates`. A forma guarda somente a referência e a proveniência necessárias à ativação temporária.
 
 ## Análise
 
@@ -90,19 +91,29 @@ O template continua armazenado em `Character.templates`. A forma contém somente
   materializedForm,
   status,
   reasons,
-  pointLimitEvaluation
+  pointLimitEvaluation,
 }
 ```
 
+`pointLimitEvaluation` é produzido por `MorphPointLimit` e pode estar:
+
+```text
+ready
+pending
+blocked
+```
+
+A análise estrutural não confunde projeção com ativação. Uma entrada estruturalmente válida pode ser materializada mesmo quando a avaliação de pontos está bloqueada; o planner impede a ativação.
+
 ## Idempotência
 
-Quando a entrada, o template e a materialização permanecem iguais:
+Quando entrada, template e materialização permanecem iguais:
 
 ```js
 {
   status: "already-materialized",
   changed: false,
-  character: characterOriginal
+  character: characterOriginal,
 }
 ```
 
@@ -114,20 +125,20 @@ Quando o fingerprint do template muda:
 
 ```js
 materializeMorphKnownForm(character, setId, knownFormId, {
-  refresh: true
+  refresh: true,
 })
 ```
 
 A atualização:
 
-- reutiliza o mesmo ID da forma;
+- reutiliza o ID da forma;
 - atualiza a proveniência;
 - não cria duplicata;
-- é proibida enquanto a forma materializada estiver ativa.
+- é proibida enquanto a forma estiver ativa.
 
 ## Planner
 
-`FormTransitionPlanner` consulta `evaluateMaterializedMorphTarget` para toda forma de Morfose materializada.
+`FormTransitionPlanner` consulta `evaluateMaterializedMorphTarget` e aplica novamente o limite atual.
 
 O plano contém:
 
@@ -142,12 +153,12 @@ O plano contém:
     materialization,
     status,
     reasons,
-    pointLimitEvaluation
-  }
+    pointLimitEvaluation,
+  },
 }
 ```
 
-A seleção participa do fingerprint. Alterações posteriores tornam o plano inválido ou bloqueado.
+A seleção e a avaliação participam do fingerprint. Alterações posteriores tornam o plano inválido, pendente ou bloqueado.
 
 ## Executor
 
@@ -155,11 +166,14 @@ A execução reutiliza integralmente `FormTransitionExecutor`.
 
 Ela:
 
-- revalida o catálogo e o template;
+- revalida catálogo, template e limite;
+- compara o fingerprint do plano;
 - aplica o template temporariamente;
 - inicializa runtime;
 - registra recibo e histórico;
-- preserva `morphKnownFormId` e `targetTemplateId`.
+- preserva `morphKnownFormId`;
+- preserva `targetTemplateId`;
+- preserva `morphPointLimitEvaluation`.
 
 ## Bloqueios posteriores ao planejamento
 
@@ -168,27 +182,24 @@ Se, depois do plano:
 - a entrada ficar indisponível;
 - a entrada for esquecida;
 - o template mudar;
+- o valor de pontos mudar;
+- o limite mudar;
 - a proveniência ficar inconsistente;
 
-o executor rejeita a operação durante a revalidação, sem modificar o Character.
-
-## Limites
-
-`pointLimitEvaluation` é somente informativo em DOM-MORPH-1.2.
-
-A aplicação efetiva do limite pertence ao DOM-MORPH-1.5.
+então o executor rejeita a operação durante a revalidação sem modificar o `Character`.
 
 ## Persistência
 
-A serialização de `AlternateForm` inclui:
+A serialização inclui:
 
 ```text
 morphKnownFormId
 morphMaterialization
 runtimeState
+formTransitionHistory
 ```
 
-Isso permite restaurar a forma materializada sem perder a origem.
+Isso permite restaurar a forma materializada, a forma ativa e a origem da transição.
 
 ## Não responsabilidades
 
@@ -197,6 +208,7 @@ O componente não:
 - aprende formas;
 - memoriza formas;
 - improvisa templates;
-- calcula custos;
-- aplica o limite de pontos;
-- executa a transformação durante a seleção.
+- calcula o custo interno do template;
+- executa transformação durante a seleção;
+- cria planner ou executor paralelo;
+- calcula regras na UI.
