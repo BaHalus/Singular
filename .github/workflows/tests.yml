@@ -34,4 +34,18 @@ jobs:
           npm --version
 
       - name: Run full test suite
-        run: npm test
+        id: tests
+        continue-on-error: true
+        run: npm test > test-output.txt 2>&1
+
+      - name: Upload diagnostic output
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-output
+          path: test-output.txt
+          retention-days: 1
+
+      - name: Preserve test result
+        if: steps.tests.outcome == 'failure'
+        run: exit 1
