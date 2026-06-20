@@ -11,6 +11,11 @@ import {
   countOccupiedMorphMemorySlots,
   resolveMorphMemorizationPolicy,
 } from "./MorphMemorizationPolicy.js";
+import {
+  mergeMorphKnownFormEvidence,
+  morphKnownFormOccupancyDelta,
+  resolveMorphKnownFormIdentity,
+} from "./MorphKnownFormIdentity.js";
 
 const OPERATION_TYPES = [
   "acquire-form",
@@ -19,6 +24,12 @@ const OPERATION_TYPES = [
   "forget-form",
   "restore-form",
   "set-availability",
+  "replace-memorized-form",
+];
+const CANDIDATE_OPERATION_TYPES = [
+  "acquire-form",
+  "observe-form",
+  "memorize-form",
   "replace-memorized-form",
 ];
 
@@ -31,7 +42,19 @@ export function analyzeMorphCatalogOperation(
   const set = requireMorphSet(character, formSetId);
   const normalizedInput = normalizeOperationInput(operationInput, options.now);
   const policy = resolveMorphMemorizationPolicy(character, set);
-  const capacityEvaluation = evaluateCapacity(set, policy);
+  const identityResolution = CANDIDATE_OPERATION_TYPES.includes(normalizedInput.type)
+    ? resolveMorphKnownFormIdentity(
+      set,
+      normalizedInput.knownForm,
+      normalizedInput.identityHints,
+    )
+    : null;
+  const capacityEvaluation = evaluateCapacity(
+    set,
+    policy,
+    normalizedInput,
+    identityResolution,
+  );
   const reasons = [];
   let status = "ready";
 
@@ -56,23 +79,21 @@ export function analyzeMorphCatalogOperation(
 
   switch (normalizedInput.type) {
     case "acquire-form":
-      validateCandidate(character, set, normalizedInput.knownForm, block);
+      validateCandidate(character, normalizedInput.knownForm, identityResolution, block);
       break;
 
     case "observe-form":
+      validateCandidate(character, normalizedInput.knownForm, identityResolution, block);
       if (normalizedInput.originalPresent !== true) {
         block("morph-original-not-present");
       }
       if (policy.mode === "unknown") {
         pending("morph-memorization-policy-unknown");
       }
-      if (policy.mode === "permanent") {
-        validateCandidate(character, set, normalizedInput.knownForm, block, noOp);
-      }
       break;
 
     case "memorize-form":
-      validateCandidate(character, set, normalizedInput.knownForm, block, noOp);
+      validateCandidate(character, normalizedInput.knownForm, identityResolution, block);
       analyzeMemorization({
         normalizedInput,
         policy,
@@ -83,26 +104,20 @@ export function analyzeMorphCatalogOperation(
       break;
 
     case "replace-memorized-form":
-      validateCandidate(character, set, normalizedInput.knownForm, block, noOp);
-      if (!normalizedInput.replacementKnownFormId) {
-        block("morph-replacement-form-required");
-      } else {
-        const replaced = findMorphKnownForm(set, normalizedInput.replacementKnownFormId);
-        if (!replaced) {
-          block("morph-replacement-form-not-found");
-        } else if (replaced.state === "forgotten") {
-          block("morph-replacement-form-already-forgotten");
-        } else if (isActiveKnownForm(set, replaced.id)) {
-          block("morph-active-form-cannot-be-replaced");
-        }
-      }
+      validateCandidate(character, normalizedInput.knownForm, identityResolution, block);
+      analyzeReplacement(
+        set,
+        normalizedInput,
+        identityResolution,
+        capacityEvaluation,
+        block,
+      );
       analyzeMemorization({
         normalizedInput,
         policy,
         capacityEvaluation,
         block,
         pending,
-        replacementProvided: true,
       });
       break;
 
@@ -142,6 +157,7 @@ export function analyzeMorphCatalogOperation(
     formSetId: set.id,
     operation: normalizedInput.type,
     normalizedInput,
+    identityResolution: clone(identityResolution),
     policySnapshot: clone(policy),
     capacityEvaluation,
     catalogFingerprint: fingerprintMorphCatalog(set),
@@ -188,7 +204,11 @@ export function executeMorphCatalogPlan(character, plan, options = {}) {
     plan.normalizedInput,
     { now: plan.createdAt },
   );
-  if (refreshed.status !== plan.status || refreshed.status === "blocked" || refreshed.status === "pending") {
+  if (
+    refreshed.status !== plan.status ||
+    refreshed.status === "blocked" ||
+    refreshed.status === "pending"
+  ) {
     throw new Error("Morfose catalog plan is no longer executable");
   }
 
@@ -201,7 +221,8 @@ export function executeMorphCatalogPlan(character, plan, options = {}) {
         occurredAt: normalizeTimestamp(options.now ?? plan.createdAt),
         characterId: character.identity.id,
         formSetId: set.id,
-        knownFormId: plan.normalizedInput.knownFormId ??
+        knownFormId: refreshed.identityResolution?.matchedKnownFormId ??
+          plan.normalizedInput.knownFormId ??
           plan.normalizedInput.knownForm?.id ?? null,
         persisted: false,
         reasons: clone(refreshed.reasons),
@@ -213,6 +234,7 @@ export function executeMorphCatalogPlan(character, plan, options = {}) {
   return applyCatalogOperation(character, set, plan.normalizedInput, {
     occurredAt,
     eventId: options.eventId,
+    identityResolution: refreshed.identityResolution,
     policy: refreshed.policySnapshot,
     capacityEvaluation: refreshed.capacityEvaluation,
   });
@@ -222,7 +244,11 @@ export function registerMorphKnownForm(character, formSetId, input = {}, options
   const plan = planMorphCatalogOperation(
     character,
     formSetId,
-    { type: "acquire-form", knownForm: input },
+    {
+      type: "acquire-form",
+      knownFormId: options.knownFormId ?? input.knownFormId ?? null,
+      knownForm: input,
+    },
     options,
   );
   return executeMorphCatalogPlan(character, plan, options).character;
@@ -234,6 +260,7 @@ export function observeMorphForm(character, formSetId, input = {}, options = {})
     formSetId,
     {
       type: "observe-form",
+      knownFormId: options.knownFormId ?? input.knownFormId ?? null,
       knownForm: input,
       originalPresent: options.originalPresent ?? input.originalPresent ?? true,
     },
@@ -248,10 +275,12 @@ export function memorizeMorphForm(character, formSetId, input = {}, options = {}
     formSetId,
     {
       type: "memorize-form",
+      knownFormId: options.knownFormId ?? input.knownFormId ?? null,
       knownForm: input,
       originalPresent: options.originalPresent ?? input.originalPresent ?? true,
       concentrationSeconds: options.concentrationSeconds ?? input.concentrationSeconds ?? 0,
-      replacementKnownFormId: options.replacementKnownFormId ?? input.replacementKnownFormId ?? null,
+      replacementKnownFormId: options.replacementKnownFormId ??
+        input.replacementKnownFormId ?? null,
     },
     options,
   );
@@ -270,6 +299,7 @@ export function replaceMorphMemorizedForm(
     formSetId,
     {
       type: "replace-memorized-form",
+      knownFormId: options.knownFormId ?? input.knownFormId ?? null,
       replacementKnownFormId,
       knownForm: input,
       originalPresent: options.originalPresent ?? input.originalPresent ?? true,
@@ -361,7 +391,6 @@ function analyzeMemorization({
   capacityEvaluation,
   block,
   pending,
-  replacementProvided = false,
 }) {
   if (normalizedInput.originalPresent !== true) {
     block("morph-original-not-present");
@@ -385,15 +414,58 @@ function analyzeMemorization({
     }
     if (capacityEvaluation.capacity === null) {
       pending("morph-memorization-capacity-unknown");
-    } else if (capacityEvaluation.full && !replacementProvided && !normalizedInput.replacementKnownFormId) {
-      pending("morph-memorization-replacement-required", {
-        capacity: capacityEvaluation.capacity,
+    } else if (capacityEvaluation.wouldExceed) {
+      if (normalizedInput.type === "replace-memorized-form") {
+        block("morph-memorization-capacity-exceeded", {
+          capacity: capacityEvaluation.capacity,
+          projectedUsed: capacityEvaluation.projectedUsed,
+        });
+      } else {
+        pending("morph-memorization-replacement-required", {
+          capacity: capacityEvaluation.capacity,
+        });
+      }
+    }
+  }
+}
+
+function analyzeReplacement(
+  set,
+  normalizedInput,
+  identityResolution,
+  capacityEvaluation,
+  block,
+) {
+  if (!normalizedInput.replacementKnownFormId) {
+    block("morph-replacement-form-required");
+    return;
+  }
+
+  const replaced = findMorphKnownForm(set, normalizedInput.replacementKnownFormId);
+  if (!replaced) {
+    block("morph-replacement-form-not-found");
+    return;
+  }
+  if (replaced.state === "forgotten") {
+    block("morph-replacement-form-already-forgotten");
+  }
+  if (isActiveKnownForm(set, replaced.id)) {
+    block("morph-active-form-cannot-be-replaced");
+  }
+
+  if (identityResolution?.status === "matched") {
+    const candidate = findMorphKnownForm(set, identityResolution.matchedKnownFormId);
+    if (candidate.id === replaced.id) {
+      block("morph-replacement-candidate-same-form");
+    } else if (candidate.state !== "forgotten") {
+      block("morph-replacement-candidate-already-retained", {
+        knownFormId: candidate.id,
       });
     }
   }
 }
 
-function validateCandidate(character, set, knownForm, block, noOp = null) {
+function validateCandidate(character, knownForm, identityResolution, block) {
   if (!knownForm) {
     block("morph-known-form-input-required");
     return;
@@ -404,143 +476,131 @@ function validateCandidate(character, set, knownForm, block, noOp = null) {
   ) {
     block("morph-known-form-template-not-found", { templateId: knownForm.templateId });
   }
-
-  const sameId = findMorphKnownForm(set, knownForm.id);
-  if (sameId) {
-    if (sameId.templateId === knownForm.templateId && noOp) {
-      noOp("morph-known-form-already-registered", { knownFormId: sameId.id });
-    } else {
-      block("morph-known-form-id-already-exists", { knownFormId: knownForm.id });
-    }
-  }
-
-  if (knownForm.templateId !== null) {
-    const sameTemplate = findMorphKnownFormByTemplate(set, knownForm.templateId);
-    if (sameTemplate && sameTemplate.id !== knownForm.id) {
-      block("morph-template-already-registered", {
-        knownFormId: sameTemplate.id,
-        templateId: knownForm.templateId,
-      });
+  if (["ambiguous", "conflict"].includes(identityResolution?.status)) {
+    for (const reason of identityResolution.reasons) {
+      block(reason.code, clone(reason));
     }
   }
 }
 
 function applyCatalogOperation(character, set, input, context) {
+  if (CANDIDATE_OPERATION_TYPES.includes(input.type)) {
+    return applyCandidateOperation(character, set, input, context);
+  }
+  return applyStateOperation(character, set, input, context);
+}
+
+function applyCandidateOperation(character, set, input, context) {
   let knownForms = set.morphProfile.knownForms.map(clone);
-  let eventInput;
+  const identity = context.identityResolution;
+  const existing = identity?.status === "matched"
+    ? findMorphKnownForm(set, identity.matchedKnownFormId)
+    : null;
+  const incoming = createIncomingKnownForm(input, context);
+  const isObservation = input.type === "observe-form" ||
+    input.type === "memorize-form" ||
+    input.type === "replace-memorized-form";
+  const isMemorization = input.type === "memorize-form" ||
+    input.type === "replace-memorized-form";
+  const retain = input.type !== "observe-form" || context.policy.mode === "permanent";
+  let stored = null;
+  let previousState = null;
 
-  if (["acquire-form", "memorize-form", "observe-form", "replace-memorized-form"].includes(input.type)) {
-    const shouldPersist = input.type !== "observe-form" || context.policy.mode === "permanent";
-    const method = input.type === "memorize-form" || input.type === "replace-memorized-form"
-      ? "memorized"
-      : input.knownForm.acquisitionMethod;
-    const knownForm = createMorphKnownForm({
-      ...input.knownForm,
-      acquisitionMethod: method,
-      acquiredAt: input.knownForm.acquiredAt ?? context.occurredAt,
-      memorizedAt: ["memorize-form", "replace-memorized-form"].includes(input.type)
-        ? (input.knownForm.memorizedAt ?? context.occurredAt)
-        : input.knownForm.memorizedAt,
-      lastObservedAt: input.type === "observe-form" || ["memorize-form", "replace-memorized-form"].includes(input.type)
-        ? (input.knownForm.lastObservedAt ?? context.occurredAt)
-        : input.knownForm.lastObservedAt,
-      state: "available",
-    });
-
-    if (input.type === "replace-memorized-form") {
-      knownForms = knownForms.map(form => (
-        form.id === input.replacementKnownFormId
-          ? { ...form, state: "forgotten" }
-          : form
-      ));
-      knownForms.push(knownForm);
-      eventInput = {
-        type: "form-replaced",
-        knownFormId: knownForm.id,
-        relatedKnownFormId: input.replacementKnownFormId,
-        templateId: knownForm.templateId,
-        acquisitionMethod: knownForm.acquisitionMethod,
-        previousState: "available",
-        nextState: "forgotten",
-        data: {
-          newKnownForm: clone(knownForm),
-          capacityEvaluation: clone(context.capacityEvaluation),
-        },
-      };
-    } else if (shouldPersist) {
-      knownForms.push(knownForm);
-      eventInput = {
-        type: input.type === "memorize-form" ? "form-memorized" :
-          input.type === "observe-form" ? "form-observed" : "form-acquired",
-        knownFormId: knownForm.id,
-        templateId: knownForm.templateId,
-        acquisitionMethod: knownForm.acquisitionMethod,
-        previousState: null,
-        nextState: "available",
-        data: {
-          retained: true,
-          knownForm: clone(knownForm),
-          policy: clone(context.policy),
-        },
-      };
-    } else {
-      eventInput = {
-        type: "form-observed",
-        knownFormId: knownForm.id,
-        templateId: knownForm.templateId,
-        acquisitionMethod: "observed",
-        previousState: null,
-        nextState: null,
-        data: {
-          retained: false,
-          observedForm: clone(knownForm),
-          policy: clone(context.policy),
-        },
-      };
-    }
-  } else {
-    const index = knownForms.findIndex(form => form.id === input.knownFormId);
-    const previous = knownForms[index];
-
-    if (input.type === "forget-form") {
-      knownForms[index] = { ...previous, state: "forgotten" };
-      eventInput = {
-        type: "form-forgotten",
-        knownFormId: previous.id,
-        templateId: previous.templateId,
-        acquisitionMethod: previous.acquisitionMethod,
-        previousState: previous.state,
-        nextState: "forgotten",
-      };
-    } else if (input.type === "restore-form") {
-      knownForms[index] = { ...previous, state: "available" };
-      eventInput = {
-        type: "form-restored",
-        knownFormId: previous.id,
-        templateId: previous.templateId,
-        acquisitionMethod: previous.acquisitionMethod,
-        previousState: previous.state,
-        nextState: "available",
-      };
-    } else if (input.type === "set-availability") {
-      const nextState = input.available ? "available" : "unavailable";
-      knownForms[index] = { ...previous, state: nextState };
-      eventInput = {
-        type: "form-availability-changed",
-        knownFormId: previous.id,
-        templateId: previous.templateId,
-        acquisitionMethod: previous.acquisitionMethod,
-        previousState: previous.state,
-        nextState,
-      };
-    }
+  if (input.type === "replace-memorized-form") {
+    knownForms = knownForms.map(form => (
+      form.id === input.replacementKnownFormId
+        ? { ...form, state: "forgotten" }
+        : form
+    ));
   }
 
+  if (existing) {
+    previousState = existing.state;
+    stored = mergeMorphKnownFormEvidence(existing, incoming, {
+      occurredAt: context.occurredAt,
+      observed: isObservation,
+      memorized: isMemorization,
+      retain,
+    });
+    knownForms = knownForms.map(form => form.id === existing.id ? stored : form);
+  } else if (retain) {
+    stored = createMorphKnownForm({
+      ...incoming,
+      state: "available",
+    });
+    knownForms.push(stored);
+  }
+
+  const eventType = input.type === "memorize-form" ? "form-memorized" :
+    input.type === "observe-form" ? "form-observed" :
+      input.type === "replace-memorized-form" ? "form-replaced" :
+        "form-acquired";
+  const canonicalKnownFormId = stored?.id ?? incoming.id;
+  const eventInput = {
+    type: eventType,
+    knownFormId: canonicalKnownFormId,
+    relatedKnownFormId: input.type === "replace-memorized-form"
+      ? input.replacementKnownFormId
+      : null,
+    templateId: stored?.templateId ?? incoming.templateId,
+    acquisitionMethod: incoming.acquisitionMethod,
+    previousState: input.type === "replace-memorized-form"
+      ? findMorphKnownForm(set, input.replacementKnownFormId)?.state ?? null
+      : previousState,
+    nextState: input.type === "replace-memorized-form"
+      ? "forgotten"
+      : stored?.state ?? null,
+    data: {
+      retained: retain,
+      reused: existing !== null,
+      identityResolution: clone(identity),
+      previousKnownForm: clone(existing),
+      incomingKnownForm: clone(incoming),
+      knownForm: clone(stored),
+      policy: clone(context.policy),
+      capacityEvaluation: clone(context.capacityEvaluation),
+    },
+  };
+
+  return persistCatalogChange(character, set, knownForms, eventInput, context);
+}
+
+function applyStateOperation(character, set, input, context) {
+  const knownForms = set.morphProfile.knownForms.map(clone);
+  const index = knownForms.findIndex(form => form.id === input.knownFormId);
+  const previous = knownForms[index];
+  let nextState;
+  let type;
+
+  if (input.type === "forget-form") {
+    nextState = "forgotten";
+    type = "form-forgotten";
+  } else if (input.type === "restore-form") {
+    nextState = "available";
+    type = "form-restored";
+  } else {
+    nextState = input.available ? "available" : "unavailable";
+    type = "form-availability-changed";
+  }
+
+  knownForms[index] = { ...previous, state: nextState };
+  return persistCatalogChange(character, set, knownForms, {
+    type,
+    knownFormId: previous.id,
+    templateId: previous.templateId,
+    acquisitionMethod: previous.acquisitionMethod,
+    previousState: previous.state,
+    nextState,
+  }, context);
+}
+
+function persistCatalogChange(character, set, knownForms, eventInput, context) {
   const receipt = createMorphCatalogHistoryEntry({
     id: context.eventId,
     occurredAt: context.occurredAt,
     characterId: character.identity.id,
     formSetId: set.id,
+    relatedKnownFormId: null,
     data: {},
     ...eventInput,
   });
@@ -559,6 +619,31 @@ function applyCatalogOperation(character, set, input, context) {
   };
 }
 
+function createIncomingKnownForm(input, context) {
+  const method = input.type === "memorize-form" ||
+    input.type === "replace-memorized-form"
+    ? "memorized"
+    : input.knownForm.acquisitionMethod;
+  const observed = input.type === "observe-form" ||
+    input.type === "memorize-form" ||
+    input.type === "replace-memorized-form";
+  const memorized = input.type === "memorize-form" ||
+    input.type === "replace-memorized-form";
+
+  return createMorphKnownForm({
+    ...input.knownForm,
+    acquisitionMethod: method,
+    acquiredAt: input.knownForm.acquiredAt ?? context.occurredAt,
+    memorizedAt: memorized
+      ? (input.knownForm.memorizedAt ?? context.occurredAt)
+      : input.knownForm.memorizedAt,
+    lastObservedAt: observed
+      ? (input.knownForm.lastObservedAt ?? context.occurredAt)
+      : input.knownForm.lastObservedAt,
+    state: "available",
+  });
+}
+
 function normalizeOperationInput(input, now) {
   if (!plain(input)) throw new Error("Morfose catalog operation must be object");
   const type = input.type ?? "acquire-form";
@@ -574,20 +659,35 @@ function normalizeOperationInput(input, now) {
     originalPresent: input.originalPresent === true,
     concentrationSeconds: nonNegativeNumber(input.concentrationSeconds ?? 0),
     knownForm: null,
+    identityHints: null,
   };
 
-  if (["acquire-form", "observe-form", "memorize-form", "replace-memorized-form"].includes(type)) {
+  if (CANDIDATE_OPERATION_TYPES.includes(type)) {
     const source = input.knownForm ?? input.form ?? input;
+    const existingHints = plain(input.identityHints) ? clone(input.identityHints) : null;
+    const sourceId = nullableString(source.id);
+    const topLevelId = nullableString(input.knownFormId);
+    const explicitKnownFormId = existingHints
+      ? nullableString(existingHints.explicitKnownFormId)
+      : topLevelId ?? sourceId;
+    const conflictingKnownFormIds = existingHints?.conflictingKnownFormIds ??
+      [topLevelId, sourceId].filter(value => value !== null);
     const acquisitionMethod = type === "memorize-form" || type === "replace-memorized-form"
       ? "memorized"
       : type === "observe-form"
         ? "observed"
         : source.acquisitionMethod ?? "manual";
+
     normalized.knownForm = createMorphKnownForm({
       ...source,
+      id: topLevelId ?? source.id,
       acquisitionMethod,
       acquiredAt: source.acquiredAt ?? normalizeTimestamp(now),
     });
+    normalized.identityHints = {
+      explicitKnownFormId,
+      conflictingKnownFormIds: [...new Set(conflictingKnownFormIds)],
+    };
   }
 
   if (type === "set-availability" && typeof normalized.available !== "boolean") {
@@ -597,16 +697,33 @@ function normalizeOperationInput(input, now) {
   return normalized;
 }
 
-function evaluateCapacity(set, policy) {
+function evaluateCapacity(set, policy, input, identityResolution) {
   const used = countOccupiedMorphMemorySlots(set);
   const capacity = policy.effectiveCapacity;
+  const retainsCandidate = input.type === "memorize-form" ||
+    input.type === "replace-memorized-form" ||
+    input.type === "acquire-form" ||
+    (input.type === "observe-form" && policy.mode === "permanent");
+  const requiredSlots = retainsCandidate
+    ? morphKnownFormOccupancyDelta(set, identityResolution)
+    : 0;
+  const replacement = input.type === "replace-memorized-form"
+    ? findMorphKnownForm(set, input.replacementKnownFormId)
+    : null;
+  const releasedSlots = replacement && replacement.state !== "forgotten" ? 1 : 0;
+  const projectedUsed = Math.max(0, used - releasedSlots + requiredSlots);
+
   return {
     mode: policy.mode,
     basis: policy.capacityBasis,
     capacity,
     used,
-    remaining: capacity === null ? null : Math.max(0, capacity - used),
+    requiredSlots,
+    releasedSlots,
+    projectedUsed,
+    remaining: capacity === null ? null : Math.max(0, capacity - projectedUsed),
     full: capacity === null ? false : used >= capacity,
+    wouldExceed: capacity === null ? false : projectedUsed > capacity,
     known: policy.mode !== "unknown" && (policy.mode !== "limited" || capacity !== null),
   };
 }
