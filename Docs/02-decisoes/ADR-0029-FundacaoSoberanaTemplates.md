@@ -60,7 +60,7 @@ O domínio precisa sustentar raças, modelos raciais, metacaracterísticas, prof
 
 Coleções anteriores permanecem como projeções somente leitura reconstruídas a partir de `entries`. Elas não constituem segunda autoridade.
 
-Payloads que contenham as duas representações precisam ser semanticamente equivalentes. A mesma contribuição equivalente é unificada; uma definição divergente é rejeitada.
+Payloads com as duas representações precisam ser semanticamente equivalentes. A mesma contribuição equivalente é unificada; uma definição divergente é rejeitada.
 
 ### Origem
 
