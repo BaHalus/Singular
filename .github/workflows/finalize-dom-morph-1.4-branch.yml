@@ -1,0 +1,56 @@
+name: Finalize DOM-MORPH-1.4 branch
+
+on:
+  push:
+    branches:
+      - feature/dom-morph-1.4
+
+permissions:
+  contents: write
+
+jobs:
+  finalize:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/dom-morph-1.4
+
+      - name: Remove temporary file and update main architecture index
+        run: |
+          rm -f Docs/01-arquitetura/MorfoseImprovisation.tmp
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('Docs/01-arquitetura/Morfose.md')
+          text = path.read_text()
+          marker = '## DOM-MORPH-1.4 — Improvisação de formas\n'
+          if marker not in text:
+              text += '''
+
+## DOM-MORPH-1.4 — Improvisação de formas
+
+**Status:** implementado.
+
+A improvisação usa um rascunho declarativo com snapshot de template e evidências explícitas. Sua projeção é transitória em `AlternateFormSet.forms`: não entra em `Character.templates`, não entra em `knownForms` e não é ativada automaticamente.
+
+O resolver distingue:
+
+- **Formas Improvisadas:** características físicas naturais, existentes no cenário e sem mudança de composição;
+- **Cósmica (Para Formas Improvisadas):** remove apenas a exigência de existência no cenário;
+- **Ilimitada:** remove apenas a restrição de composição, além do limite geral ilimitado.
+
+A forma materializada é entregue ao `FormTransitionPlanner` e ao `FormTransitionExecutor` existentes. A aplicação mecânica do limite em pontos permanece reservada ao DOM-MORPH-1.5.
+
+Detalhes: `MorfoseImprovisation.md` e `ADR-0025-MorfoseImprovisation.md`.
+'''
+              path.write_text(text)
+          PY
+
+          rm .github/workflows/finalize-dom-morph-1.4-branch.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "docs: finalize DOM-MORPH-1.4 branch"
+          git push origin HEAD:feature/dom-morph-1.4
