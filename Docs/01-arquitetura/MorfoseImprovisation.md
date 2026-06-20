@@ -16,3 +16,7 @@ O motor calcula.
 O schema declara.
 A UI não calcula.
 ```
+
+## Regras GURPS representadas
+
+A política oficial de Formas Improvisadas é dividida em eixos independentes.
