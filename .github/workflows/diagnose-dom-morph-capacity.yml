@@ -20,12 +20,13 @@ jobs:
         with:
           node-version: 22
       - name: Run tests and isolate failures
+        id: tests
         shell: bash
         run: |
           set +e
           node --test > test-output.txt 2>&1
           code=$?
-          python - <<'PY'
+          python - <<'PY' > failure-summary.txt
           from pathlib import Path
           lines = Path('test-output.txt').read_text(errors='replace').splitlines()
           indexes = [i for i, line in enumerate(lines) if line.startswith('not ok ')]
@@ -39,4 +40,12 @@ jobs:
               if summary is not None:
                   print('\n'.join(lines[summary:]))
           PY
+          cat failure-summary.txt
           exit $code
+      - name: Upload failure summary
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dom-morph-capacity-failure-summary
+          path: failure-summary.txt
+          if-no-files-found: error
