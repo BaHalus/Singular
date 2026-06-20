@@ -98,7 +98,7 @@ Entradas manuais, importadas, observadas e memorizadas ocupam igualmente enquant
 
 Reaquisição de uma entrada já retida exige `0` espaços adicionais. Reaquisição de uma entrada `forgotten` exige `1` espaço e pode exigir substituição explícita quando a capacidade estiver cheia.
 
-`acquire-form` obedece à capacidade limitada conhecida. Quando uma aquisição manual ou importada acrescenta ocupação e excederia o repertório, o plano permanece pendente até receber `replacementKnownFormId`. A substituição ocorre atomicamente e é registrada como `form-replaced`.
+`acquire-form` obedece à capacidade limitada conhecida. Quando uma aquisição manual ou importada acrescenta ocupação e excederia o repertório, o plano permanece pendente até receber `replacementKnownFormId`. A substituição ocorre atomicamente e é registrada como `form-replaced`. Uma substituição também é recusada quando há espaço livre ou quando a aquisição reutiliza uma entrada já retida.
 
 ## Isolamento
 
