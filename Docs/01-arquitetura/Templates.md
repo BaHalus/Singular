@@ -111,7 +111,7 @@ Para payloads legados importados, `importMeta.source` e `importMeta.format` pode
 
 ## Entradas
 
-`entries` é a coleção canônica de contribuições declarativas.
+`entries` é a coleção canônica de contribuições declaradas.
 
 Cada entrada possui um envelope estável:
 
@@ -208,7 +208,7 @@ Durante a transição arquitetural:
 - as projeções são sempre reconstruídas a partir de `entries`;
 - `entries` é a única autoridade;
 - save/load persiste tanto a forma canônica quanto o payload de compatibilidade necessário às integrações atuais;
-- definições conflitantes são rejeitadas em vez de conciliadas silenciosamente.
+- quando a mesma contribuição aparece em ambas as representações, definições equivalentes são unificadas e definições divergentes são rejeitadas.
 
 Isso permite que Forma Alternativa, Morfose, importadores e operações de incorporação continuem funcionando enquanto os próximos blocos migram para a composição declarativa.
 
