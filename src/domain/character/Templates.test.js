@@ -239,8 +239,8 @@ test("does not retain mutable references from input or serialization", () => {
   input.externalIds.gcs = "changed";
   input.entries[0].payload.nested.amount = 99;
   input.raw.source.value = 99;
-  serialized.entries[0].payload.nested.amount = 41;
-  serialized.raw.source.value = 41;
+  serialized[0].entries[0].payload.nested.amount = 41;
+  serialized[0].raw.source.value = 41;
 
   assert.equal(template.externalIds.gcs, "template-immutable");
   assert.equal(template.entries[0].payload.nested.amount, 3);
