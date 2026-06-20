@@ -11,7 +11,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: tests-${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.event_name == 'pull_request' && format('tests-pr-{0}', github.event.pull_request.number) || format('tests-run-{0}', github.run_id) }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
