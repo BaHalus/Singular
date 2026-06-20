@@ -7,6 +7,6 @@
     "node": "22.x"
   },
   "scripts": {
-    "test": "node --test src/domain/character/Templates.test.js"
+    "test": "node --test"
   }
 }
