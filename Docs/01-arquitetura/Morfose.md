@@ -400,3 +400,18 @@ DOM-MORPH-1.3 não:
 - liga referência externa por nome;
 - apaga proveniência;
 - atualiza silenciosamente uma forma ativa.
+
+
+## DOM-MORPH-1.4 — Improvisação de formas
+
+**Status:** implementado.
+
+A improvisação usa rascunho declarativo com snapshot de template e evidências explícitas. Sua projeção é transitória em `AlternateFormSet.forms`: não entra em `Character.templates`, não entra em `knownForms` e não é ativada automaticamente.
+
+- **Formas Improvisadas:** características físicas naturais, existentes no cenário e sem mudança de composição;
+- **Cósmica (Para Formas Improvisadas):** remove apenas a exigência de existência no cenário;
+- **Ilimitada:** remove apenas a restrição de composição, além do limite geral ilimitado.
+
+A projeção usa o `FormTransitionPlanner` e o `FormTransitionExecutor` existentes. A aplicação mecânica do limite em pontos permanece no DOM-MORPH-1.5.
+
+Detalhes: `MorfoseImprovisation.md` e `ADR-0025-MorfoseImprovisation.md`.

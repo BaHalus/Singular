@@ -27,6 +27,9 @@ test("creates an undeclared Morfose profile by default", () => {
   assert.deepEqual(profile.improvisation, {
     mode: "unknown",
     pointLimit: null,
+    traitScope: "unknown",
+    availabilityScope: "unknown",
+    compositionScope: "unknown",
   });
   assert.deepEqual(profile.knownForms, []);
   assert.deepEqual(profile.catalogHistory, []);

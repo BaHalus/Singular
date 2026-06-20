@@ -26,6 +26,11 @@ import {
   validateMorphMaterialization,
   serializeMorphMaterialization,
 } from "./MorphMaterialization.js";
+import {
+  createMorphImprovisationProjection,
+  validateMorphImprovisationProjection,
+  serializeMorphImprovisationProjection,
+} from "./MorphImprovisation.js";
 
 const FORM_MECHANISMS = ["alternateForm", "morph"];
 
@@ -104,6 +109,10 @@ export function createAlternateForm(input = {}) {
       input.morphMaterialization === null
       ? null
       : createMorphMaterialization(input.morphMaterialization),
+    morphImprovisation: input.morphImprovisation === undefined ||
+      input.morphImprovisation === null
+      ? null
+      : createMorphImprovisationProjection(input.morphImprovisation),
     notes: input.notes ?? "",
     tags: normalizeStringArray(input.tags, "Alternate form tags must be array"),
     state: normalizePlainObject(input.state, "Alternate form state must be object", {}),
@@ -239,6 +248,9 @@ export function validateAlternateForm(form) {
   if (form.morphMaterialization !== null) {
     validateMorphMaterialization(form.morphMaterialization);
   }
+  if (form.morphImprovisation !== null) {
+    validateMorphImprovisationProjection(form.morphImprovisation);
+  }
   if (typeof form.notes !== "string") throw new Error("Alternate form notes must be string");
   validateStringArray(form.tags, "Alternate form tags must be string array");
   if (!isPlainObject(form.state)) throw new Error("Alternate form state must be object");
@@ -280,6 +292,9 @@ export function serializeAlternateFormSets(sets) {
       morphMaterialization: form.morphMaterialization === null
         ? null
         : serializeMorphMaterialization(form.morphMaterialization),
+      morphImprovisation: form.morphImprovisation === null
+        ? null
+        : serializeMorphImprovisationProjection(form.morphImprovisation),
       notes: form.notes,
       tags: [...form.tags],
       state: { ...form.state },
@@ -302,7 +317,9 @@ export function serializeAlternateFormSets(sets) {
 function validateMorphFormLinks(set) {
   if (set.mechanism !== "morph") {
     if (set.forms.some(form => (
-      form.morphKnownFormId !== null || form.morphMaterialization !== null
+      form.morphKnownFormId !== null ||
+      form.morphMaterialization !== null ||
+      form.morphImprovisation !== null
     ))) {
       throw new Error("Only Morfose sets may contain materialized known forms");
     }
@@ -313,12 +330,32 @@ function validateMorphFormLinks(set) {
     set.morphProfile.knownForms.map(form => [form.id, form]),
   );
   const materializedIds = new Set();
+  const improvisationIds = new Set();
 
   for (const form of set.forms) {
     if (form.id === set.baseFormId) {
-      if (form.morphKnownFormId !== null || form.morphMaterialization !== null) {
-        throw new Error("Morfose base form cannot be a materialized known form");
+      if (
+        form.morphKnownFormId !== null ||
+        form.morphMaterialization !== null ||
+        form.morphImprovisation !== null
+      ) {
+        throw new Error("Morfose base form cannot be materialized or improvised");
       }
+      continue;
+    }
+
+    if (form.morphImprovisation !== null) {
+      if (
+        form.morphKnownFormId !== null ||
+        form.morphMaterialization !== null ||
+        form.templateId !== null
+      ) {
+        throw new Error("Morfose improvised form cannot be a known-form materialization");
+      }
+      if (improvisationIds.has(form.morphImprovisation.improvisationId)) {
+        throw new Error("Morfose improvisation can be materialized only once per set");
+      }
+      improvisationIds.add(form.morphImprovisation.improvisationId);
       continue;
     }
 

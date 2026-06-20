@@ -22,6 +22,17 @@ const MEMORIZATION_CAPACITY_BASES = [
   "notApplicable",
 ];
 const IMPROVISATION_MODES = ["unknown", "forbidden", "allowed", "conditional"];
+const IMPROVISATION_TRAIT_SCOPES = ["unknown", "physicalNatural"];
+const IMPROVISATION_AVAILABILITY_SCOPES = [
+  "unknown",
+  "settingOnly",
+  "unrestricted",
+];
+const IMPROVISATION_COMPOSITION_SCOPES = [
+  "unknown",
+  "sameComposition",
+  "unrestricted",
+];
 const ACQUISITION_METHODS = [
   "unknown",
   "manual",
@@ -79,6 +90,9 @@ export function createMorphProfile(input = {}) {
         input.improvisation?.pointLimit,
         "Morfose improvisation pointLimit must be non-negative number or null",
       ),
+      traitScope: input.improvisation?.traitScope ?? "unknown",
+      availabilityScope: input.improvisation?.availabilityScope ?? "unknown",
+      compositionScope: input.improvisation?.compositionScope ?? "unknown",
     },
     knownForms: normalizeKnownForms(input.knownForms),
     catalogHistory: createMorphCatalogHistory(input.catalogHistory),
@@ -152,13 +166,7 @@ export function validateMorphProfile(profile) {
     validateNullableInteger,
   );
   validateMemorizationPolicy(profile.memorization);
-  validatePolicy(
-    profile.improvisation,
-    IMPROVISATION_MODES,
-    "Morfose improvisation",
-    "pointLimit",
-    validateNullableNumber,
-  );
+  validateImprovisationPolicy(profile.improvisation);
 
   if (!Array.isArray(profile.knownForms)) {
     throw new Error("Morfose knownForms must be array");
@@ -294,6 +302,9 @@ export function getMorphProfileEnums() {
     memorizationModes: [...MEMORIZATION_MODES],
     memorizationCapacityBases: [...MEMORIZATION_CAPACITY_BASES],
     improvisationModes: [...IMPROVISATION_MODES],
+    improvisationTraitScopes: [...IMPROVISATION_TRAIT_SCOPES],
+    improvisationAvailabilityScopes: [...IMPROVISATION_AVAILABILITY_SCOPES],
+    improvisationCompositionScopes: [...IMPROVISATION_COMPOSITION_SCOPES],
     acquisitionMethods: [...ACQUISITION_METHODS],
     knownFormStates: [...KNOWN_FORM_STATES],
   };
@@ -326,6 +337,26 @@ function validateMemorizationPolicy(policy) {
   }
   if (policy.mode === "none" && policy.capacityBasis !== "notApplicable") {
     throw new Error("Morfose without memorization requires notApplicable capacity basis");
+  }
+}
+
+function validateImprovisationPolicy(policy) {
+  if (!plain(policy)) throw new Error("Morfose improvisation policy must be object");
+  if (!IMPROVISATION_MODES.includes(policy.mode)) {
+    throw new Error("Morfose improvisation mode is invalid");
+  }
+  validateNullableNumber(
+    policy.pointLimit,
+    "Morfose improvisation pointLimit must be non-negative value or null",
+  );
+  if (!IMPROVISATION_TRAIT_SCOPES.includes(policy.traitScope)) {
+    throw new Error("Morfose improvisation traitScope is invalid");
+  }
+  if (!IMPROVISATION_AVAILABILITY_SCOPES.includes(policy.availabilityScope)) {
+    throw new Error("Morfose improvisation availabilityScope is invalid");
+  }
+  if (!IMPROVISATION_COMPOSITION_SCOPES.includes(policy.compositionScope)) {
+    throw new Error("Morfose improvisation compositionScope is invalid");
   }
 }
 
