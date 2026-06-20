@@ -167,7 +167,6 @@ export function createTemplate(input = {}) {
     importMeta,
     raw: cloneValue(input.raw ?? null),
 
-    // Compatibility projections. `entries` remains the only authority.
     sourceVersion: sourceVersion ?? normalizeCompatibleSourceVersion(source.version),
     ancestry: input.ancestry ?? null,
     reference: input.reference ?? source.reference,
