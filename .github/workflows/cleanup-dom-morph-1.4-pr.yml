@@ -1,0 +1,106 @@
+name: Cleanup DOM-MORPH-1.4 review branch
+
+on:
+  pull_request:
+
+permissions:
+  contents: write
+
+jobs:
+  cleanup:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+
+      - name: Finalize resolver, documentation and branch hygiene
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          resolver = Path('src/domain/character/MorphProfileResolver.js')
+          text = resolver.read_text()
+
+          if 'priority: PRIORITY.builtin + 10' not in text:
+              old = '''  {
+            id: "gurps.morph.unlimited",
+            names: ["Ilimitada", "Unlimited"],
+            profile: {
+          '''
+              new = '''  {
+            id: "gurps.morph.unlimited",
+            names: ["Ilimitada", "Unlimited"],
+            priority: PRIORITY.builtin + 10,
+            profile: {
+          '''
+              if old not in text:
+                  raise SystemExit('Unlimited builtin fragment not found')
+              text = text.replace(old, new, 1)
+
+              old = '''  {
+            id: "gurps.morph.cosmic-improvised-forms",
+            names: [
+          '''
+              new = '''  {
+            id: "gurps.morph.cosmic-improvised-forms",
+            priority: PRIORITY.builtin + 10,
+            names: [
+          '''
+              if old not in text:
+                  raise SystemExit('Cosmic builtin fragment not found')
+              text = text.replace(old, new, 1)
+
+              old = '''        metadata("builtin", PRIORITY.builtin, [summary]),
+          signals,
+        );
+          '''
+              new = '''        metadata("builtin", rule.priority ?? PRIORITY.builtin, [summary]),
+          signals,
+        );
+          '''
+              if old not in text:
+                  raise SystemExit('Builtin signal priority fragment not found')
+              text = text.replace(old, new, 1)
+              resolver.write_text(text)
+
+          architecture = Path('Docs/01-arquitetura/Morfose.md')
+          content = architecture.read_text()
+          marker = '## DOM-MORPH-1.4 — Improvisação de formas\n'
+          if marker not in content:
+              content += '''
+
+## DOM-MORPH-1.4 — Improvisação de formas
+
+**Status:** implementado.
+
+A improvisação usa um rascunho declarativo com snapshot de template e evidências explícitas. Sua projeção é transitória em `AlternateFormSet.forms`: não entra em `Character.templates`, não entra em `knownForms` e não é ativada automaticamente.
+
+O resolver distingue:
+
+- **Formas Improvisadas:** características físicas naturais, existentes no cenário e sem mudança de composição;
+- **Cósmica (Para Formas Improvisadas):** remove apenas a exigência de existência no cenário;
+- **Ilimitada:** remove apenas a restrição de composição, além do limite geral ilimitado.
+
+A forma materializada é entregue ao `FormTransitionPlanner` e ao `FormTransitionExecutor` existentes. A aplicação mecânica do limite em pontos permanece reservada ao DOM-MORPH-1.5.
+
+Detalhes: `MorfoseImprovisation.md` e `ADR-0025-MorfoseImprovisation.md`.
+'''
+              architecture.write_text(content)
+          PY
+
+          rm -f Docs/01-arquitetura/MorfoseImprovisation.tmp
+          rm -f .github/workflows/refine-dom-morph-1.4-resolver.yml
+          rm -f .github/workflows/finalize-dom-morph-1.4-branch.yml
+          rm -f .github/workflows/cleanup-dom-morph-1.4-pr.yml
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "Branch already clean"
+          else
+            git commit -m "chore: finalize DOM-MORPH-1.4 review branch"
+            git push origin HEAD:${{ github.event.pull_request.head.ref }}
+          fi
