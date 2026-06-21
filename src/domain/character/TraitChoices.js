@@ -1,9 +1,8 @@
 const CHOICE_EVALUATION_STATUSES = ["ready", "incomplete"];
 
 export function createTraitChoices(input = null) {
-  const entries = normalizeChoiceEntries(input);
-  const choices = entries.map(([fallbackKey, value]) => (
-    createTraitChoice(value, fallbackKey)
+  const choices = normalizeChoiceEntries(input).map(entry => (
+    createTraitChoice(entry)
   ));
 
   validateTraitChoices(choices);
@@ -87,11 +86,15 @@ export function getTraitChoiceEvaluationStatuses() {
   return [...CHOICE_EVALUATION_STATUSES];
 }
 
-function createTraitChoice(input, fallbackKey) {
-  const source = isPlainObject(input)
-    ? cloneValue(input)
-    : { value: input };
-  const key = normalizeKey(source.key ?? fallbackKey);
+function createTraitChoice(entry) {
+  const source = entry.explicit
+    ? normalizeExplicitChoice(entry.value)
+    : {
+        key: entry.key,
+        value: entry.value,
+        required: false,
+      };
+  const key = normalizeKey(source.key);
   const value = normalizeChoiceValue(source.value);
   const required = normalizeRequired(source.required);
 
@@ -106,12 +109,22 @@ function createTraitChoice(input, fallbackKey) {
   };
 }
 
+function normalizeExplicitChoice(input) {
+  if (!isPlainObject(input)) {
+    return { value: input };
+  }
+  return cloneValue(input);
+}
+
 function validateTraitChoice(choice) {
   if (!isPlainObject(choice)) {
     throw new Error("Trait choice must be object");
   }
   normalizeKey(choice.key);
-  normalizeChoiceValue(choice.value);
+  const normalizedValue = normalizeChoiceValue(choice.value);
+  if (!Object.is(choice.value, normalizedValue)) {
+    throw new Error("Trait choice value must be canonical scalar string or null");
+  }
   if (typeof choice.required !== "boolean") {
     throw new Error("Trait choice required must be boolean");
   }
@@ -124,11 +137,15 @@ function normalizeChoiceEntries(input) {
   if (input === undefined || input === null) return [];
 
   if (Array.isArray(input)) {
-    return input.map(value => [undefined, value]);
+    return input.map(value => ({ explicit: true, key: null, value }));
   }
 
   if (isPlainObject(input)) {
-    return Object.entries(input);
+    return Object.entries(input).map(([key, value]) => ({
+      explicit: false,
+      key,
+      value,
+    }));
   }
 
   throw new Error("Trait choices must be array, object or null");
