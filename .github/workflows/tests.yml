@@ -34,7 +34,22 @@ jobs:
           npm --version
 
       - name: Diagnose Point Ledger tests
-        run: node --test src/domain/points/*.test.js src/domain/import/PointBudgetImporter.test.js
+        id: point-ledger-diagnostics
+        run: |
+          set +e
+          node --test src/domain/points/*.test.js src/domain/import/PointBudgetImporter.test.js > point-ledger-test.log 2>&1
+          status=$?
+          cat point-ledger-test.log
+          exit "$status"
+
+      - name: Upload Point Ledger diagnostics
+        if: ${{ failure() && steps.point-ledger-diagnostics.outcome == 'failure' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: point-ledger-test-log
+          path: point-ledger-test.log
+          if-no-files-found: error
+          retention-days: 1
 
       - name: Run full test suite
         run: npm test
