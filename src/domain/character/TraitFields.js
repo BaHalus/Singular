@@ -1,6 +1,13 @@
+import {
+  createTraitModifiers,
+  validateTraitModifiers,
+  serializeTraitModifiers,
+} from "./TraitModifiers.js";
+
 export function createTraitRecord(input = {}, generateId) {
+  const id = input.id ?? generateId();
   return {
-    id: input.id ?? generateId(),
+    id,
     externalIds: normalizeExternalIds(input.externalIds),
     name: input.name ?? "",
     notes: input.notes ?? "",
@@ -9,7 +16,10 @@ export function createTraitRecord(input = {}, generateId) {
     points: normalizeNullableNumber(input.points),
     levels: normalizeNullableNumber(input.levels),
 
-    modifiers: normalizeArray(input.modifiers, "Trait modifiers must be array"),
+    modifiers: createTraitModifiers(input.modifiers, {
+      traitId: id,
+      source: inferModifierSource(input),
+    }),
     features: normalizeArray(input.features, "Trait features must be array"),
     weapons: normalizeArray(input.weapons, "Trait weapons must be array"),
     prereqs: input.prereqs ?? null,
@@ -51,9 +61,7 @@ export function validateTraitRecord(record, label) {
   validateNullableNumber(record.points, `${label} points must be number or null`);
   validateNullableNumber(record.levels, `${label} levels must be number or null`);
 
-  if (!Array.isArray(record.modifiers)) {
-    throw new Error(`${label} modifiers must be array`);
-  }
+  validateTraitModifiers(record.modifiers);
 
   if (!Array.isArray(record.features)) {
     throw new Error(`${label} features must be array`);
@@ -105,7 +113,7 @@ export function serializeTraitRecord(record, label) {
     points: record.points,
     levels: record.levels,
 
-    modifiers: [...record.modifiers],
+    modifiers: serializeTraitModifiers(record.modifiers),
     features: [...record.features],
     weapons: [...record.weapons],
     prereqs: record.prereqs,
@@ -116,6 +124,22 @@ export function serializeTraitRecord(record, label) {
     isPrimaryAlternative: record.isPrimaryAlternative,
 
     raw: record.raw,
+  };
+}
+
+function inferModifierSource(input) {
+  if (isPlainObject(input.source)) return input.source;
+  const provider = isPlainObject(input.importMeta) && typeof input.importMeta.source === "string"
+    ? input.importMeta.source
+    : null;
+  return {
+    kind: provider === null ? "singular" : "imported",
+    provider,
+    format: null,
+    reference: isPlainObject(input.importMeta) && typeof input.importMeta.reference === "string"
+      ? input.importMeta.reference
+      : null,
+    version: null,
   };
 }
 
