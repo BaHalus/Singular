@@ -1,6 +1,7 @@
 import {
   analyzeTraitCostAuthority,
   serializeTraitCostAuthorityAnalysis,
+  validateTraitCostAuthorityAnalysis,
 } from "./TraitCostAuthorityAnalysis.js";
 import { createTraitCostFingerprint } from "./TraitCostSourceProjection.js";
 
@@ -40,6 +41,7 @@ export function validateTraitCostAuthorityPlan(plan) {
     "operationId",
     "plannedAt",
     "characterId",
+    "percentageMode",
     "sourceFingerprint",
     "targetFingerprint",
     "analysisFingerprint",
@@ -53,8 +55,10 @@ export function validateTraitCostAuthorityPlan(plan) {
   if (!STATUSES.includes(plan.status)) {
     throw new Error("Trait cost authority plan status is invalid");
   }
+  validateTraitCostAuthorityAnalysis(plan.analysis);
   if (plan.analysis.status !== plan.status ||
       plan.analysis.characterId !== plan.characterId ||
+      plan.analysis.percentageMode !== plan.percentageMode ||
       plan.analysis.sourceFingerprint !== plan.sourceFingerprint ||
       plan.analysis.targetFingerprint !== plan.targetFingerprint ||
       plan.analysis.analysisFingerprint !== plan.analysisFingerprint) {
