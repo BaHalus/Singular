@@ -1,6 +1,6 @@
 # ADR-0039 — Autocontrole, frequência, escolhas e custo individual de Traits
 
-**Status:** Proposto  
+**Status:** Aceito  
 **Data:** 2026-06-21  
 **Bloco:** DOM-TRAIT-1.4
 
