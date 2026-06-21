@@ -76,11 +76,14 @@ test("keeps the historical projection shape unchanged for default controls", () 
     }],
   });
   const projected = serializeCharacter(character).advantages[0];
+  const mechanicalKeys = [
+    "selfControl",
+    "frequency",
+    "roundCostDown",
+    "choices",
+  ].filter(key => Object.hasOwn(projected, key));
 
-  assert.equal(Object.hasOwn(projected, "selfControl"), false);
-  assert.equal(Object.hasOwn(projected, "frequency"), false);
-  assert.equal(Object.hasOwn(projected, "roundCostDown"), false);
-  assert.equal(Object.hasOwn(projected, "choices"), false);
+  assert.deepEqual(mechanicalKeys, []);
 });
 
 test("round-trips canonical controls and choices through Character save/load", () => {
