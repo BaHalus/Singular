@@ -5,7 +5,19 @@ import {
   createSnapshotFromGcs,
   importCharacterWithDiagnostics,
 } from "./CharacterImporter.js";
-import { serializeCharacter } from "../character/Character.js";
+import {
+  createCharacter,
+  serializeCharacter,
+} from "../character/Character.js";
+import {
+  analyzeTraitCostAuthority,
+} from "../character/TraitCostAuthorityAnalysis.js";
+import {
+  executeTraitCostAuthorityPlan,
+} from "../character/TraitCostAuthorityExecutor.js";
+import {
+  planTraitCostAuthority,
+} from "../character/TraitCostAuthorityPlan.js";
 
 function source() {
   return {
@@ -105,4 +117,47 @@ test("nearest nested alternative container owns the member", () => {
     snapshot.traits.advantages.map(trait => trait.alternateGroupId),
     ["nested-alternative", "nested-alternative"],
   );
+});
+
+test("imported group reaches final authority without erasing imported points", () => {
+  const imported = importCharacterWithDiagnostics(source(), {
+    now: "2026-06-21T16:30:00.000Z",
+  });
+  const plan = planTraitCostAuthority(imported.character, {
+    now: "2026-06-21T17:10:00.000Z",
+    operationId: "operation-imported-group",
+    planId: "plan-imported-group",
+  });
+  const executed = executeTraitCostAuthorityPlan(imported.character, plan, {
+    now: "2026-06-21T17:11:00.000Z",
+  });
+  const primary = executed.character.traits.find(item => (
+    item.id === "ability-primary"
+  ));
+  const secondary = executed.character.traits.find(item => (
+    item.id === "ability-secondary"
+  ));
+  const serialized = serializeCharacter(executed.character);
+  const restored = createCharacter(structuredClone(serialized));
+
+  assert.equal(primary.pointValue.importedPoints, 20);
+  assert.equal(primary.pointValue.calculatedPoints, 20);
+  assert.equal(primary.pointValue.reconciliation.status, "reconciled");
+  assert.equal(secondary.pointValue.importedPoints, 7);
+  assert.equal(secondary.pointValue.calculatedPoints, 1);
+  assert.equal(secondary.pointValue.reconciliation.status, "divergent");
+  assert.equal(
+    secondary.pointValue.reconciliation.differences.calculatedMinusImported,
+    -6,
+  );
+  assert.equal(
+    secondary.pointValue.finalCostAuthority.individualPoints,
+    7,
+  );
+  assert.equal(
+    secondary.pointValue.finalCostAuthority.contributionPoints,
+    1,
+  );
+  assert.deepEqual(serializeCharacter(restored), serialized);
+  assert.equal(analyzeTraitCostAuthority(restored).status, "no-op");
 });
