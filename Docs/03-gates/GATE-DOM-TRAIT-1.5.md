@@ -75,7 +75,7 @@
 - [x] ADR-0040 registra as decisões;
 - [x] documento arquitetural público foi criado;
 - [x] suíte integral verde no head final;
-- [x] CI canônica verde no head final — `Tests #580`;
+- [x] CI canônica verde no head final;
 - [ ] nenhuma revisão bloqueante ou thread aberta;
 - [ ] PR pronta e integrada à `main`;
 - [ ] `main` confirmada idêntica ao merge final.
@@ -103,7 +103,6 @@ Próximo domínio — DOM-POINTS-1.0
 
 ## Evidências finais
 
-- head final de implementação validado: `f0dae4be919240e070664d800bb315c9c017b8b3`;
-- execução canônica: `Tests #580` concluída com sucesso;
+- head final e execução canônica serão registrados na PR após a revisão;
 - branch alinhada à `main` antes da revisão final;
 - estado de revisões, SHA do merge e confirmação pós-merge serão registrados na PR.
