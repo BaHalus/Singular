@@ -33,12 +33,13 @@ export function createTrait(input = {}, explicitRole = null) {
     throw new Error("Trait must be an object");
   }
 
-  const role = normalizeTraitRole(explicitRole ?? input.role ?? "unknown");
-  const record = createTraitRecord(input, () => generateTraitId(role));
+  const clonedInput = cloneValue(input);
+  const role = normalizeTraitRole(explicitRole ?? clonedInput.role ?? "unknown");
+  const record = createTraitRecord(clonedInput, () => generateTraitId(role));
   const trait = {
     ...record,
     role,
-    source: normalizeTraitSource(input.source, input.importMeta),
+    source: normalizeTraitSource(clonedInput.source, clonedInput.importMeta),
   };
 
   validateTrait(trait);
