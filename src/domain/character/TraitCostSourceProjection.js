@@ -9,10 +9,24 @@ export function createTraitCostSourceProjection(character, options = {}) {
   return {
     characterId: character.identity.id,
     percentageMode: options.percentageMode ?? "additive",
-    traits: character.traits.map(projectTrait),
+    traits: character.traits.map(projectTraitSource),
     groupPolicies: serializeTraitAlternativeGroupPolicies(
       character.traitAlternativeGroups,
     ),
+  };
+}
+
+export function createTraitCostTargetProjection(character) {
+  validateCharacter(character);
+  return {
+    characterId: character.identity.id,
+    traits: character.traits.map(trait => ({
+      id: trait.id,
+      calculatedPoints: trait.pointValue.calculatedPoints,
+      finalCostAuthority: cloneValue(
+        trait.pointValue.finalCostAuthority ?? null,
+      ),
+    })),
   };
 }
 
@@ -32,7 +46,11 @@ export function createTraitCostSourceFingerprint(character, options = {}) {
   );
 }
 
-function projectTrait(trait) {
+export function createTraitCostTargetFingerprint(character) {
+  return createTraitCostFingerprint(createTraitCostTargetProjection(character));
+}
+
+function projectTraitSource(trait) {
   const value = serializeTrait(trait);
   return {
     id: value.id,
@@ -64,6 +82,16 @@ function canonicalize(value) {
   if (value !== null && typeof value === "object") {
     return Object.fromEntries(
       Object.keys(value).sort().map(key => [key, canonicalize(value[key])]),
+    );
+  }
+  return value;
+}
+
+function cloneValue(value) {
+  if (Array.isArray(value)) return value.map(cloneValue);
+  if (value && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, item]) => [key, cloneValue(item)]),
     );
   }
   return value;
