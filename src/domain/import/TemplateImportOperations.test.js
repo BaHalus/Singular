@@ -236,3 +236,51 @@ test("returns blocked analysis for invalid legacy sources", () => {
   assert.equal(analysis.diagnostics[0].code, "template-import-source-invalid");
   assert.equal(Object.isFrozen(analysis), true);
 });
+
+
+  test("collapses equivalent anonymous packages despite transient child ids", () => {
+    const anonymous = {
+      type: "template",
+      version: 2,
+      name: "Pacote anônimo duplicado",
+      template_type: "profession",
+      skills: [{
+        type: "skill",
+        name: "Comércio",
+        difficulty: "iq/a",
+        points: 2,
+      }],
+    };
+    const analysis = analyzeTemplateImport([
+      anonymous,
+      structuredClone(anonymous),
+    ]);
+
+    assert.equal(analysis.status, "ready-with-warnings");
+    assert.equal(analysis.templates.length, 1);
+    assert.equal(
+      analysis.diagnostics.some(item => (
+        item.code === "template-import-duplicate-collapsed"
+      )),
+      true,
+    );
+  });
+
+  test("rejects altered approved analysis snapshots", () => {
+    const source = createTemplateSource();
+    const plan = structuredClone(planTemplateImport(source, {
+      now: NOW,
+      planId: "plan-tampered-import",
+      operationId: "operation-tampered-import",
+    }));
+    plan.analysis.templates[0].name = "Pacote injetado";
+
+    assert.throws(
+      () => executeTemplateImportPlan(source, plan, { now: NOW }),
+      error => (
+        error instanceof TemplateImportOperationError &&
+        error.code === "TEMPLATE_IMPORT_PLAN_TAMPERED"
+      ),
+    );
+  });
+  

@@ -126,6 +126,7 @@ export function planTemplateImport(source = [], options = {}) {
     sourceKind: analysis.sourceKind,
     sourceFingerprint: analysis.sourceFingerprint,
     analysisFingerprint: analysis.analysisFingerprint,
+    snapshotFingerprint: createValueFingerprint(analysis),
     options: cloneValue(analysis.options),
     analysis: cloneValue(analysis),
   };
@@ -164,9 +165,25 @@ export function executeTemplateImportPlan(source = [], plan, options = {}) {
       { diagnostics: currentAnalysis.diagnostics },
     );
   }
-
   const approvedAnalysis = plan.analysis;
   validateTemplateImportAnalysis(approvedAnalysis);
+  const approvedSnapshotFingerprint = createValueFingerprint(approvedAnalysis);
+  const approvedPlanFingerprint = createPlanFingerprint(plan);
+  if (
+    approvedSnapshotFingerprint !== plan.snapshotFingerprint ||
+    approvedPlanFingerprint !== plan.planFingerprint
+  ) {
+    throw new TemplateImportOperationError(
+      "TEMPLATE_IMPORT_PLAN_TAMPERED",
+      "Template import plan snapshot was altered",
+      {
+        expectedSnapshotFingerprint: plan.snapshotFingerprint,
+        currentSnapshotFingerprint: approvedSnapshotFingerprint,
+        expectedPlanFingerprint: plan.planFingerprint,
+        currentPlanFingerprint: approvedPlanFingerprint,
+      },
+    );
+  }
   const executedAt = normalizeTimestamp(options.now ?? plan.plannedAt);
   const templates = createTemplates(approvedAnalysis.templates);
   const opaqueTemplates = createTemplates(approvedAnalysis.opaqueTemplates);
@@ -341,6 +358,7 @@ export function validateTemplateImportPlan(plan) {
     "sourceKind",
     "sourceFingerprint",
     "analysisFingerprint",
+    "snapshotFingerprint",
     "planFingerprint",
   ]) {
     requiredString(plan[key], `Template import plan ${key} is required`);
@@ -459,7 +477,8 @@ function deduplicateBySovereignId(templates, diagnostics, scope) {
       continue;
     }
 
-    if (templateFingerprint(existing) === templateFingerprint(template)) {
+    if (importDefinitionFingerprint(existing) ===
+        importDefinitionFingerprint(template)) {
       diagnostics.push({
         code: "template-import-duplicate-collapsed",
         severity: "warning",
@@ -643,6 +662,7 @@ function createPlanFingerprint(plan) {
     sourceKind: plan.sourceKind,
     sourceFingerprint: plan.sourceFingerprint,
     analysisFingerprint: plan.analysisFingerprint,
+    snapshotFingerprint: plan.snapshotFingerprint,
     options: plan.options,
   });
 }
@@ -663,7 +683,14 @@ function validateImportedResult(result) {
   validateTemplates(result.allTemplates);
 }
 
-function templateFingerprint(template) {
+function importDefinitionFingerprint(template) {
+    const fingerprint = template.importMeta?.importFingerprint;
+    return typeof fingerprint === "string" && fingerprint !== ""
+      ? fingerprint
+      : templateFingerprint(template);
+  }
+
+  function templateFingerprint(template) {
   return createValueFingerprint(serializeTemplates([template])[0]);
 }
 
