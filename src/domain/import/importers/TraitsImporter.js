@@ -121,6 +121,7 @@ function mapTraitNode(node, context) {
     selfControl: mapSelfControl(node),
     frequency: mapFrequency(node),
     roundCostDown: mapRoundCostDown(node),
+    choices: mapChoices(node),
 
     modifiers: [...node.modifiers],
     features: [...node.features],
@@ -141,7 +142,12 @@ function mapTraitNode(node, context) {
 
 function mapSelfControl(node) {
   if (node.selfControl !== undefined && node.selfControl !== null) {
-    return node.selfControl;
+    if (isPlainObject(node.selfControl)) return node.selfControl;
+    return {
+      roll: node.selfControl,
+      adjustment: node.selfControlAdjustment ?? node.raw?.cr_adj ?? "none",
+      raw: node.selfControl,
+    };
   }
 
   const raw = isPlainObject(node.raw) ? node.raw : {};
@@ -177,6 +183,14 @@ function mapRoundCostDown(node) {
   if (typeof node.roundCostDown === "boolean") return node.roundCostDown;
   const raw = isPlainObject(node.raw) ? node.raw : {};
   return hasOwn(raw, "round_down") ? raw.round_down : false;
+}
+
+function mapChoices(node) {
+  if (node.choices !== undefined && node.choices !== null) {
+    return node.choices;
+  }
+  const raw = isPlainObject(node.raw) ? node.raw : {};
+  return hasOwn(raw, "replacements") ? raw.replacements : null;
 }
 
 function mapSpecialNode(node, context, specialKind) {
@@ -270,14 +284,6 @@ function normalizeForComparison(value) {
   return String(value ?? "").trim().toLocaleLowerCase("pt-BR");
 }
 
-function hasOwn(value, key) {
-  return Object.prototype.hasOwnProperty.call(value, key);
-}
-
-function isPlainObject(value) {
-  return value !== null && typeof value === "object" && !Array.isArray(value);
-}
-
 function isNormalizedTraitTree(source) {
   return (
     Array.isArray(source) &&
@@ -288,4 +294,12 @@ function isNormalizedTraitTree(source) {
       Array.isArray(item.children)
     ))
   );
+}
+
+function hasOwn(value, key) {
+  return Object.prototype.hasOwnProperty.call(value, key);
+}
+
+function isPlainObject(value) {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
 }
