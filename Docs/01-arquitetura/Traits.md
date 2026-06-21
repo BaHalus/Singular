@@ -1,23 +1,23 @@
 # Traits — Domínio soberano
 
-**Código:** DOM-TRAIT-1.0 a 1.3  
+**Código:** DOM-TRAIT-1.0 a 1.4  
 **Status:** Implementado mediante CI canônica verde  
 **Camada:** Domain  
-**Tipo:** Agregado canônico, identidade, papéis, autoridades de valor, custo-base e interpretação de modificadores  
-**Decisões:** ADR-0035 a ADR-0038
+**Tipo:** Agregado canônico, identidade, papéis, autoridades de valor, custo-base, modificadores, controles e escolhas  
+**Decisões:** ADR-0035 a ADR-0039
 
 Traits representa vantagens, qualidades, desvantagens, peculiaridades e futuras categorias compatíveis sem manter quatro autoridades persistentes independentes.
 
 ## Regra central
 
 ```text
-Trait declara identidade, papel, origem, evidências de valor e modificadores.
+Trait declara identidade, papel, origem, evidências de valor, modificadores, controles e escolhas.
 O domínio proprietário calcula quando possuir regra suficiente.
 O Point Ledger agrega somente resultados autorizados.
 A UI apresenta e despacha intenção.
 ```
 
-DOM-TRAIT-1.0 a 1.3 calcula o custo-base e interpreta modificadores conhecidos, mas ainda não estabelece o custo final completo após autocontrole, frequência e grupos alternativos. Nenhuma etapa escolhe silenciosamente qual autoridade divergente deve vencer.
+DOM-TRAIT-1.0 a 1.4 calcula o custo individual após custo-base, modificadores, autocontrole e frequência. Grupos alternativos e a promoção da autoridade final persistida permanecem em etapa posterior. Nenhuma etapa escolhe silenciosamente qual autoridade divergente deve vencer.
 
 ## Autoridade canônica
 
@@ -52,6 +52,10 @@ permanecem temporariamente como projeções derivadas por `role`. Elas não cons
   points,
   levels,
   pointValue,
+  selfControl,
+  frequency,
+  roundCostDown,
+  choices,
   modifiers,
   features,
   weapons,
@@ -68,6 +72,8 @@ permanecem temporariamente como projeções derivadas por `role`. Elas não cons
 
 `modifiers` é a autoridade declarativa dos modificadores. Projeções normalizadas usadas no cálculo são derivadas e não persistem uma segunda coleção canônica.
 
+`selfControl`, `frequency`, `roundCostDown` e `choices` são declarações canônicas. Os aliases GCS correspondentes são consumidos somente na fronteira.
+
 ## Identidade
 
 `id` é soberano em toda a coleção de Traits.
@@ -81,6 +87,13 @@ papel ≠ identidade
 ```
 
 `externalIds` preserva identidades externas sem substituir o ID soberano.
+
+Escolhas também possuem identidade explícita por `key`:
+
+```text
+chave da escolha ≠ nome
+chave da escolha ≠ posição
+```
 
 ## Papéis
 
@@ -331,8 +344,10 @@ Adições `levels` alteram o custo unitário por nível antes da multiplicação
 2. adições planas
 3. percentuais
 4. multiplicadores
-5. arredondamento da etapa
+5. arredondamento configurável da avaliação isolada
 ```
+
+Quando consumido por `TraitFinalCost`, o avaliador usa `rounding: none` e entrega a fração integral à etapa seguinte.
 
 ### Percentuais
 
@@ -352,24 +367,7 @@ A limitation agregada aplicável a cada parcela é limitada a `-80%`.
 
 ### Modificadores por nível
 
-O valor de um modificador pode ser escalado por seus próprios níveis ou pelos níveis do Trait quando `use_level_from_trait` estiver declarado.
-
-### Arredondamento
-
-Políticas:
-
-```text
-up
-down
-none
-```
-
-`up` é o padrão:
-
-- positivo fracionário avança para o inteiro superior;
-- negativo fracionário avança em direção a zero.
-
-`down` usa o inteiro inferior e `none` preserva a fração. A avaliação registra entrada, saída e diferença.
+O valor de um modificador pode ser escalado por seus próprios `levels` ou pelos níveis do Trait quando `use_level_from_trait` estiver declarado.
 
 ### Compatibilidade de formato
 
@@ -381,14 +379,67 @@ compatibilidade de leitura ≠ schema canônico paralelo
 
 O importador continua preservando dados. O cálculo pertence exclusivamente ao domínio de Traits.
 
-### Autoridade calculada
-
-DOM-TRAIT-1.3 expõe `calculatedPoints` apenas dentro de sua avaliação derivada.
-
-Ele não sobrescreve `Trait.pointValue.calculatedPoints`, porque ainda faltam autocontrole, frequência, grupos alternativos e a definição formal da autoridade final de custo.
-
 Documento detalhado: `TraitModifierCost.md`.  
 Documento decisório: ADR-0038.
+
+## DOM-TRAIT-1.4 — Autocontrole, frequência, escolhas e custo individual
+
+### Controles
+
+`TraitControl` normaliza e valida as tabelas soberanas de autocontrole e frequência.
+
+Testes reconhecidos de autocontrole:
+
+```text
+0, 1, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15
+```
+
+Testes reconhecidos de frequência:
+
+```text
+0, 6, 9, 12, 15, 18
+```
+
+Valores desconhecidos são preservados como `unsupported`; nenhuma aproximação é inventada.
+
+`cr_adj` é uma consequência operacional e não altera o custo em pontos. Ajuste operacional desconhecido não bloqueia o custo quando o multiplicador de autocontrole é conhecido.
+
+### Escolhas
+
+`Trait.choices` mantém declarações explícitas por chave:
+
+```js
+{
+  key,
+  value,
+  required,
+}
+```
+
+`TraitChoices` expõe os estados `ready` e `incomplete`, além das chaves obrigatórias ainda sem valor. O mapa externo `replacements` é convertido na fronteira, sem persistir um schema paralelo.
+
+### Custo individual
+
+`TraitFinalCost` compõe:
+
+```text
+1. custo-base
+2. modificadores sem arredondamento intermediário
+3. multiplicador de autocontrole
+4. multiplicador de frequência
+5. arredondamento final por roundCostDown
+```
+
+Estados incompletos, conflitantes ou não suportados são propagados. O resultado é puro, profundamente imutável e explicável.
+
+DOM-TRAIT-1.4 ainda não grava esse valor em `pointValue.calculatedPoints`, pois grupos alternativos precisam definir a contribuição entre Traits antes da promoção da autoridade final.
+
+```text
+custo individual completo ≠ contribuição final do grupo
+```
+
+Documento detalhado: `TraitFinalCost.md`.  
+Documento decisório: ADR-0039.
 
 ## Compatibilidade
 
@@ -408,6 +459,18 @@ Quando código legado altera `points`:
 - a divergência é registrada, não apagada;
 - `calculatedPoints` permanece intacto até uma aplicação explícita de uma autoridade calculadora.
 
+Aliases GCS de controle e escolha são reconhecidos na fronteira:
+
+```text
+cr
+cr_adj
+frequency
+round_down
+replacements
+```
+
+A serialização canônica usa `selfControl`, `frequency`, `roundCostDown` e `choices`. Quando esses campos estão ausentes ou neutros, as projeções históricas conservam sua forma anterior.
+
 Depois da reconstrução:
 
 ```text
@@ -419,11 +482,11 @@ Divergência posterior causada por mutação direta é detectada por validação
 
 ## Imutabilidade
 
-Traits canônicos, `pointValue`, avaliações de custo-base e avaliações de modificadores são profundamente imutáveis e clonam os dados recebidos.
+Traits canônicos, `pointValue`, controles, escolhas e avaliações de custo são profundamente imutáveis e clonam os dados recebidos.
 
 Objetos pertencentes ao chamador não são congelados.
 
-Operações produzem novo agregado ou novo Character, nunca modificam o Trait original.
+Operações produzem novo agregado ou nova avaliação, nunca modificam o Trait original.
 
 ## Serialização
 
@@ -437,17 +500,17 @@ disadvantages         → projeção de compatibilidade
 quirks                 → projeção de compatibilidade
 ```
 
-`traits` preserva `pointValue`, autoridades, diferenças, origem, modificadores e dados desconhecidos.
+`traits` preserva `pointValue`, autoridades, diferenças, origem, modificadores, controles, escolhas e dados desconhecidos.
 
-As projeções históricas mantêm a forma anterior e não expõem `pointValue`.
+As projeções históricas mantêm a forma anterior quando os novos campos têm valores neutros e não expõem `pointValue`.
 
 Resultados aplicados em `pointValue.calculatedPoints` sobrevivem a save/load e são reconciliados novamente na reconstrução.
 
-Avaliações derivadas de `TraitModifierCost` não são automaticamente persistidas.
+Avaliações derivadas de `TraitModifierCost` e `TraitFinalCost` não são automaticamente persistidas.
 
 No round trip, representações equivalentes são unificadas.
 
-A remoção das projeções persistidas exige migração explícita e não pertence ao DOM-TRAIT-1.3.
+A remoção das projeções persistidas exige migração explícita e não pertence ao DOM-TRAIT-1.4.
 
 ## Relação com Templates
 
@@ -465,7 +528,7 @@ Nenhum vínculo passa a ser realizado por nome além das regras já congeladas n
 
 ## Relação com Point Ledger
 
-O Point Ledger ainda não deve calcular diretamente a partir de `points` ou reinterpretar `modifiers`.
+O Point Ledger ainda não deve calcular diretamente a partir de `points`, reinterpretar `modifiers` nem repetir tabelas de controle.
 
 DOM-TRAIT já estabelece:
 
@@ -474,41 +537,40 @@ DOM-TRAIT já estabelece:
 - cálculo por níveis;
 - reconciliação explicável;
 - interpretação de adições, percentuais e multiplicadores;
-- limitação percentual e arredondamento explícitos.
+- limitação percentual;
+- autocontrole e frequência;
+- escolhas explícitas por chave;
+- custo individual com arredondamento final único.
 
 Antes da abertura do Point Ledger, Traits ainda precisa estabelecer:
 
-- autocontrole e frequência quando aplicáveis;
 - grupos alternativos;
-- autoridade final de custo após todas as regras proprietárias.
+- autoridade final persistida após todas as regras proprietárias.
 
 ## Não responsabilidades
 
-DOM-TRAIT-1.0 a 1.3 não:
+DOM-TRAIT-1.0 a 1.4 não:
 
-- resolve autocontrole ou frequência;
 - resolve pré-requisitos;
 - aplica features a atributos ou perícias;
 - cria ataques derivados;
 - calcula grupos alternativos;
 - escolhe um valor efetivo em caso de divergência;
-- promove o custo modificado a autoridade final persistente;
+- promove o custo individual a autoridade final persistente;
 - agrega o total de pontos do Character;
 - altera DOM-TEMPLATE, Morfose ou Forma Alternativa;
 - calcula na UI.
 
-## Critério de conclusão do DOM-TRAIT-1.3
+## Critério de conclusão do DOM-TRAIT-1.4
 
-- custo-base consumido como única base mecânica;
-- adições, percentuais e multiplicadores interpretados pelo domínio;
-- escopos base, níveis e total distintos;
-- limitation limitada a `-80%`;
-- modos percentual aditivo e multiplicativo explícitos;
-- modificadores por nível suportados;
-- arredondamento final da etapa auditável;
-- formatos atuais e históricos relevantes projetados sem mutar a origem;
-- itens textuais e desabilitados preservados sem efeito;
-- desconhecidos ativos bloqueados sem adivinhação;
-- nenhuma autoridade persistente paralela;
-- projeções históricas estáveis;
+- tabelas de autocontrole e frequência pertencem ao domínio;
+- ajustes operacionais permanecem separados do custo;
+- escolhas explícitas são identificadas por chave;
+- aliases externos são consumidos apenas na fronteira;
+- custo individual usa modificadores sem arredondamento intermediário;
+- multiplicadores de autocontrole e frequência são aplicados na ordem soberana;
+- arredondamento final positivo e negativo respeita `roundCostDown`;
+- estados incompleto, conflito e não suportado são propagados;
+- nenhuma autoridade persistente prematura ou pipeline paralelo é criado;
+- projeções históricas permanecem estáveis quando os campos são neutros;
 - suíte integral verde.
