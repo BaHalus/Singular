@@ -89,6 +89,44 @@ test("legacy edit preserves canonical source and point value for the same id", (
 });
 
 
+test("editing imported legacy points creates a local declaration without erasing import evidence", () => {
+  const original = createCharacter({
+    traits: [
+      {
+        id: "adv-imported-edited",
+        role: "advantage",
+        name: "Importada",
+        points: 15,
+        source: {
+          kind: "imported",
+          provider: "gcs",
+          format: "gcs",
+          reference: null,
+          version: 2,
+        },
+      },
+    ],
+  });
+  const edited = createCharacter({
+    ...original,
+    advantages: original.advantages.map(item => ({
+      ...item,
+      points: 20,
+    })),
+  });
+
+  assert.equal(edited.traits[0].points, 20);
+  assert.equal(edited.traits[0].pointValue.legacyPoints, 20);
+  assert.equal(edited.traits[0].pointValue.importedPoints, 15);
+  assert.equal(edited.traits[0].pointValue.declaredPoints, 20);
+  assert.equal(edited.traits[0].pointValue.reconciliation.status, "divergent");
+  assert.equal(
+    edited.traits[0].pointValue.reconciliation.differences.importedMinusDeclared,
+    -5,
+  );
+});
+
+
 test("new legacy trait receives a new singular declaration", () => {
   const original = createCharacter();
   const edited = createCharacter({
@@ -172,8 +210,11 @@ test("editing one legacy role preserves canonical-only data in other roles", () 
       points: 10,
     })),
   });
+  const advantage = edited.traits.find(item => item.id === "adv-edit-role");
   const disadvantage = edited.traits.find(item => item.id === "disadv-keep-role");
 
+  assert.equal(advantage.pointValue.declaredPoints, 10);
+  assert.equal(advantage.pointValue.legacyPoints, 10);
   assert.equal(disadvantage.pointValue.calculatedPoints, -10);
   assert.equal(disadvantage.pointValue.reconciliation.status, "reconciled");
 });
