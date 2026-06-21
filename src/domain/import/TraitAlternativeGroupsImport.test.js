@@ -78,6 +78,21 @@ test("snapshot preserves the alternative container and annotates member identity
   );
 });
 
+test("container name alone does not establish alternative-group identity", () => {
+  const namedOnly = source();
+  delete namedOnly.traits[0].container_type;
+
+  const snapshot = createSnapshotFromGcs(namedOnly, {
+    now: "2026-06-21T16:30:00.000Z",
+  });
+
+  assert.equal(snapshot.traits.alternativeGroups.length, 0);
+  assert.deepEqual(
+    snapshot.traits.advantages.map(trait => trait.alternateGroupId ?? null),
+    [null, null],
+  );
+});
+
 test("Character import materializes and round-trips the group policy", () => {
   const imported = importCharacterWithDiagnostics(source(), {
     now: "2026-06-21T16:30:00.000Z",
