@@ -1,23 +1,23 @@
-# Traits — Fundação soberana
+# Traits — Domínio soberano
 
-**Código:** DOM-TRAIT-1.0  
-**Status:** Em implementação  
+**Código:** DOM-TRAIT-1.0 a 1.1  
+**Status:** Implementado mediante CI canônica verde  
 **Camada:** Domain  
-**Tipo:** Agregado canônico, identidade, papéis e compatibilidade  
-**Decisão:** ADR-0035
+**Tipo:** Agregado canônico, identidade, papéis e autoridades de valor  
+**Decisões:** ADR-0035 e ADR-0036
 
 Traits representa vantagens, qualidades, desvantagens, peculiaridades e futuras categorias compatíveis sem manter quatro autoridades persistentes independentes.
 
 ## Regra central
 
 ```text
-Trait declara sua identidade, seu papel e seus dados.
-O domínio de Traits interpreta modificadores e custo em blocos posteriores.
-O Point Ledger apenas agrega resultados já autorizados.
+Trait declara identidade, papel, origem e evidências de valor.
+O domínio proprietário calcula quando possuir regra suficiente.
+O Point Ledger agrega somente resultados autorizados.
 A UI apresenta e despacha intenção.
 ```
 
-DOM-TRAIT-1.0 não calcula custo, não resolve pré-requisitos e não cria efeitos derivados.
+DOM-TRAIT-1.0 e 1.1 não calculam custo final, não aplicam modificadores e não escolhem silenciosamente qual valor é efetivo.
 
 ## Autoridade canônica
 
@@ -36,9 +36,7 @@ Character.disadvantages
 Character.quirks
 ```
 
-permanecem temporariamente como projeções derivadas por `role`.
-
-Elas não constituem quatro agregados independentes.
+permanecem temporariamente como projeções derivadas por `role`. Elas não constituem quatro agregados independentes.
 
 ## Estrutura
 
@@ -53,6 +51,7 @@ Elas não constituem quatro agregados independentes.
   tags,
   points,
   levels,
+  pointValue,
   modifiers,
   features,
   weapons,
@@ -64,6 +63,8 @@ Elas não constituem quatro agregados independentes.
   raw,
 }
 ```
+
+`points` e `levels` continuam como campos de compatibilidade. A estrutura soberana de autoridades é `pointValue`.
 
 ## Identidade
 
@@ -114,13 +115,129 @@ Traits criados na SINGULAR usam `kind: "singular"`.
 
 Dados importados preservam provedor e referência quando disponíveis. `importMeta` e `raw` continuam intactos para evidência e retrocompatibilidade.
 
+## DOM-TRAIT-1.0 — Fundação
+
+Estabelece:
+
+- `Character.traits` como autoridade única;
+- papéis conhecidos e papéis futuros preservados;
+- identidade global entre papéis;
+- origem estruturada;
+- imutabilidade profunda;
+- quatro projeções históricas derivadas;
+- conversão de entradas legadas;
+- save/load canônico.
+
+Documento decisório: ADR-0035.
+
+## DOM-TRAIT-1.1 — Autoridades de valor em pontos
+
+Cada Trait possui:
+
+```js
+pointValue: {
+  mode,
+  basePoints,
+  pointsPerLevel,
+  levels,
+  legacyPoints,
+  declaredPoints,
+  importedPoints,
+  calculatedPoints,
+  complete,
+  reconciliation: {
+    status,
+    differences: {
+      importedMinusDeclared,
+      calculatedMinusDeclared,
+      calculatedMinusImported,
+    },
+  },
+}
+```
+
+### Modos conhecidos
+
+```text
+unknown
+total
+per-level
+base-plus-levels
+```
+
+O vocabulário de modo é preservável, mas apenas os modos conhecidos recebem avaliação de completude.
+
+### Autoridades separadas
+
+```text
+legacyPoints      → evidência da projeção histórica
+
+declaredPoints    → declaração local ou explícita
+importedPoints    → valor preservado da fonte externa
+calculatedPoints  → resultado fornecido por uma autoridade calculadora
+```
+
+Nenhum desses valores sobrescreve outro.
+
+`legacyPoints` não é promovido automaticamente quando a origem é desconhecida.
+
+Quando a origem é `singular`, o valor legado inicial é reconhecido como declaração local.
+
+Quando a origem é `imported`, `embedded` ou `external`, o valor legado inicial é reconhecido como evidência importada.
+
+### Reconciliação
+
+Estados:
+
+```text
+unknown
+legacy-only
+declared-only
+imported-only
+calculated-only
+reconciled
+divergent
+```
+
+`reconciled` exige igualdade entre todas as autoridades presentes.
+
+`divergent` preserva as diferenças sem escolher vencedor.
+
+```text
+reconciliação ≠ precedência
+reconciliação ≠ cálculo
+```
+
+Não existe `effectivePoints` neste bloco.
+
+### Declarações por nível
+
+`basePoints`, `pointsPerLevel` e `levels` podem ser preservados mesmo sem total calculado.
+
+```text
+estrutura completa ≠ total calculado
+```
+
+DOM-TRAIT-1.1 marca completude estrutural, mas não executa a fórmula de custo.
+
+Valores negativos e fracionários são permitidos porque o domínio não deve invalidar desvantagens, peculiaridades especiais ou regras de campanha apenas pelo sinal.
+
 ## Compatibilidade
 
 Entradas antigas que fornecem somente as quatro coleções são convertidas para `traits`.
 
 Quando uma representação canônica e suas projeções equivalentes aparecem juntas, a representação canônica permanece autoridade.
 
-Durante a migração, uma coleção histórica explicitamente alterada substitui apenas o papel correspondente ao reconstruir o Character. Isso mantém operações anteriores funcionais sem criar um segundo estado persistente.
+Durante a migração, uma coleção histórica explicitamente alterada substitui apenas o papel correspondente ao reconstruir o Character.
+
+Dados exclusivamente canônicos, como `source` e `pointValue`, são preservados por identidade.
+
+Quando código legado altera `points`:
+
+- em Trait singular, a declaração local é atualizada;
+- em Trait importado, o valor importado original permanece e a edição vira declaração local;
+- a divergência é registrada, não apagada;
+- `calculatedPoints` permanece intacto.
 
 Depois da reconstrução:
 
@@ -133,7 +250,9 @@ Divergência posterior causada por mutação direta é detectada por validação
 
 ## Imutabilidade
 
-Traits canônicos são profundamente imutáveis e clonam os dados recebidos.
+Traits canônicos e `pointValue` são profundamente imutáveis e clonam os dados recebidos.
+
+Objetos pertencentes ao chamador não são congelados.
 
 Operações futuras deverão produzir novo agregado ou novo Character, nunca modificar o Trait original.
 
@@ -149,15 +268,19 @@ disadvantages         → projeção de compatibilidade
 quirks                 → projeção de compatibilidade
 ```
 
+`traits` preserva `pointValue`, autoridades, diferenças, origem e dados desconhecidos.
+
+As projeções históricas mantêm a forma anterior e não expõem `pointValue`.
+
 No round trip, representações equivalentes são unificadas.
 
-A remoção das projeções persistidas exige migração explícita e não pertence ao DOM-TRAIT-1.0.
+A remoção das projeções persistidas exige migração explícita e não pertence ao DOM-TRAIT-1.1.
 
 ## Relação com Templates
 
 Templates declaram contribuições de domínio `trait`.
 
-Quando um Template é aplicado, os componentes atualmente projetados nas coleções históricas são absorvidos por `Character.traits` durante a reconstrução do agregado.
+Quando um Template é aplicado, componentes projetados nas coleções históricas são absorvidos por `Character.traits` durante a reconstrução do agregado.
 
 DOM-TEMPLATE permanece fechado. A interpretação mecânica do Trait pertence a DOM-TRAIT.
 
@@ -169,39 +292,42 @@ Nenhum vínculo passa a ser realizado por nome além das regras já congeladas n
 
 ## Relação com Point Ledger
 
-O Point Ledger não deve ser aberto antes de Traits possuir autoridades claras para:
+O Point Ledger ainda não deve calcular diretamente a partir de `points`.
 
-- custo declarado e calculado;
-- níveis;
-- modificadores;
+Antes de sua abertura, Traits ainda precisa estabelecer:
+
+- cálculo por níveis;
+- interpretação de modificadores;
 - grupos alternativos;
-- divergências importadas.
+- autocontrole quando aplicável;
+- autoridade final de custo calculado.
 
-DOM-TRAIT-1.0 apenas estabiliza o agregado sobre o qual essas regras serão implementadas.
+DOM-TRAIT-1.1 fornece as trilhas separadas que essas regras consumirão.
 
 ## Não responsabilidades
 
-DOM-TRAIT-1.0 não:
+DOM-TRAIT-1.0 e 1.1 não:
 
-- calcula custo final;
-- interpreta enhancements ou limitations;
-- resolve autocontrole;
-- resolve pré-requisitos;
-- aplica features a atributos ou perícias;
-- cria ataques derivados;
-- calcula grupos alternativos;
-- agrega o total de pontos do Character;
-- altera DOM-TEMPLATE, Morfose ou Forma Alternativa;
-- calcula na UI.
+- calculam custo final;
+- interpretam enhancements ou limitations;
+- resolvem autocontrole;
+- resolvem pré-requisitos;
+- aplicam features a atributos ou perícias;
+- criam ataques derivados;
+- calculam grupos alternativos;
+- escolhem um valor efetivo em caso de divergência;
+- agregam o total de pontos do Character;
+- alteram DOM-TEMPLATE, Morfose ou Forma Alternativa;
+- calculam na UI.
 
-## Critério de conclusão
+## Critério de conclusão do DOM-TRAIT-1.1
 
-- `Character.traits` como autoridade canônica;
-- quatro projeções históricas derivadas;
-- IDs únicos entre todos os papéis;
-- origem e IDs externos preservados;
-- papéis desconhecidos preservados;
-- imutabilidade profunda;
-- compatibilidade com operações antigas;
+- autoridades declarada, importada e calculada separadas;
+- evidência legada preservada;
+- reconciliação explicável;
+- diferenças explícitas;
+- declarações por nível preservadas sem cálculo prematuro;
+- edições legadas sem perda de proveniência;
+- projeções históricas estáveis;
 - save/load sem perda;
 - suíte integral verde.
