@@ -4,6 +4,7 @@ const BUDGET_STATUSES = [
   "imported-only",
   "reconciled",
   "divergent",
+  "conflict",
 ];
 
 export function createPointBudget(input = {}) {
@@ -54,7 +55,7 @@ export function evaluatePointBudget(budget, totalSpentPoints = null) {
     : calculatedUnspentPoints - budget.importedUnspentPoints;
   const result = {
     status,
-    complete: status !== "unknown" && status !== "divergent",
+    complete: !["unknown", "divergent", "conflict"].includes(status),
     declaredPoints: budget.declaredPoints,
     importedPoints: budget.importedPoints,
     effectivePoints,
@@ -64,6 +65,7 @@ export function evaluatePointBudget(budget, totalSpentPoints = null) {
     importedUnspentDifference,
     diagnostics: createDiagnostics({
       status,
+      importMeta: budget.importMeta,
       totalSpentPoints,
       importedUnspentPoints: budget.importedUnspentPoints,
       importedUnspentDifference,
@@ -78,7 +80,7 @@ export function validatePointBudgetEvaluation(value) {
   if (!BUDGET_STATUSES.includes(value.status)) {
     throw new Error("Point budget evaluation status is invalid");
   }
-  if (value.complete !== !["unknown", "divergent"].includes(value.status)) {
+  if (value.complete !== !["unknown", "divergent", "conflict"].includes(value.status)) {
     throw new Error("Point budget evaluation complete flag is inconsistent");
   }
   for (const field of [
@@ -95,8 +97,8 @@ export function validatePointBudgetEvaluation(value) {
   if (!Array.isArray(value.diagnostics)) {
     throw new Error("Point budget evaluation diagnostics must be array");
   }
-  if (value.status === "divergent" && value.effectivePoints !== null) {
-    throw new Error("Divergent point budget cannot expose effectivePoints");
+  if (["divergent", "conflict"].includes(value.status) && value.effectivePoints !== null) {
+    throw new Error("Conflicting point budget cannot expose effectivePoints");
   }
   if (value.status === "reconciled" && !Object.is(
     value.declaredPoints,
@@ -119,6 +121,7 @@ export function serializePointBudget(budget) {
 }
 
 function reconcileStatus(budget) {
+  if (budget.importMeta?.status === "conflict") return "conflict";
   const declared = budget.declaredPoints;
   const imported = budget.importedPoints;
   if (declared === null && imported === null) return "unknown";
@@ -142,6 +145,13 @@ function createDiagnostics(input) {
   }
   if (input.status === "divergent") {
     diagnostics.push({ code: "point-budget-divergent", severity: "warning" });
+  }
+  if (input.status === "conflict") {
+    diagnostics.push({
+      code: "point-budget-import-conflict",
+      severity: "warning",
+      details: cloneValue(input.importMeta?.diagnostics ?? []),
+    });
   }
   if (input.totalSpentPoints === null) {
     diagnostics.push({ code: "point-ledger-total-incomplete", severity: "pending" });
