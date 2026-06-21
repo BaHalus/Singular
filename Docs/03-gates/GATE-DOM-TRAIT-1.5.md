@@ -76,9 +76,9 @@
 - [x] documento arquitetural público foi criado;
 - [x] suíte integral verde no head final;
 - [x] CI canônica verde no head final;
-- [ ] nenhuma revisão bloqueante ou thread aberta;
-- [ ] PR pronta e integrada à `main`;
-- [ ] `main` confirmada idêntica ao merge final.
+- [x] nenhuma revisão bloqueante, comentário ou thread aberta;
+- [x] PR funcional pronta e integrada à `main`;
+- [x] `main` confirmada idêntica ao merge funcional final.
 
 ## APIs congeladas ao encerrar
 
@@ -103,6 +103,12 @@ Próximo domínio — DOM-POINTS-1.0
 
 ## Evidências finais
 
-- head final e execução canônica serão registrados na PR após a revisão;
-- branch alinhada à `main` antes da revisão final;
-- estado de revisões, SHA do merge e confirmação pós-merge serão registrados na PR.
+- PR funcional: `#34`;
+- head funcional integrado: `0b6a6e3275f64e9f36c90f83049173c0a6070309`;
+- CI canônica final: `Tests #584`, concluída com sucesso;
+- revisões submetidas: nenhuma;
+- comentários: nenhum;
+- threads inline: nenhuma;
+- merge funcional: `92ec791bc13f21023ca0a1f91a5def954ce0efd4`;
+- comparação pós-merge: `main` idêntica ao merge funcional, sem commits à frente ou atrás;
+- este registro documental não altera código nem reabre DOM-TRAIT.
