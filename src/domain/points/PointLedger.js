@@ -128,7 +128,7 @@ export function serializePointLedger(ledger) {
 
 function determineLedgerStatus(requiredReports, spendingComplete, budget) {
   if (requiredReports.some(report => report.status === "unsupported")) return "blocked";
-  if (budget.status === "divergent") return "conflict";
+  if (["divergent", "conflict"].includes(budget.status)) return "conflict";
   if (!spendingComplete || !budget.complete) return "partial";
   return "ready";
 }
