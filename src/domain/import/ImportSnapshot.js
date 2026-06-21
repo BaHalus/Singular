@@ -1,6 +1,7 @@
 export function createImportSnapshot(input = {}) {
   return {
     identity: input.identity ?? {},
+    pointBudget: input.pointBudget ?? {},
     attributes: input.attributes ?? {},
     secondaryCharacteristics: input.secondaryCharacteristics ?? {},
 
