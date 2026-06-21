@@ -7,6 +7,6 @@
     "node": "22.x"
   },
   "scripts": {
-    "test": "node --test --test-reporter=dot src/domain/character/TraitControl.test.js src/domain/character/TraitChoices.test.js src/domain/character/TraitFinalCost.test.js src/domain/character/TraitControl.integration.test.js src/domain/character/TraitFinalCost.gate.test.js src/domain/character/TraitChoices.gate.test.js src/domain/import/importers/TraitsImporter.control.test.js"
+    "test": "node --test"
   }
 }
