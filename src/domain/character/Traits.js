@@ -29,6 +29,14 @@ const LEGACY_COLLECTIONS = [
   { key: "quirks", role: "quirk", label: "Quirk" },
 ];
 
+const BASE_COST_INPUT_FIELDS = [
+  "mode",
+  "basePoints",
+  "pointsPerLevel",
+  "levels",
+  "declaredPoints",
+];
+
 export function createTraits(input = []) {
   if (!Array.isArray(input)) {
     throw new Error("Traits must be an array");
@@ -226,10 +234,26 @@ function mergeLegacyTraitInput(existing, incoming) {
       }
     }
 
+    invalidateStaleBaseCostCalculation(pointValue, existing.pointValue);
     merged.pointValue = pointValue;
   }
 
   return merged;
+}
+
+function invalidateStaleBaseCostCalculation(pointValue, previousPointValue) {
+  const calculation = pointValue.baseCostCalculation;
+  if (calculation === null) return;
+
+  const calculationInputsChanged = BASE_COST_INPUT_FIELDS.some(field => (
+    !Object.is(pointValue[field], previousPointValue[field])
+  ));
+  if (!calculationInputsChanged) return;
+
+  pointValue.baseCostCalculation = null;
+  if (Object.is(pointValue.calculatedPoints, calculation.calculatedPoints)) {
+    pointValue.calculatedPoints = null;
+  }
 }
 
 function legacyRoleEquivalent(current, incoming, descriptor) {
