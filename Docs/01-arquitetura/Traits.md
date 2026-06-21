@@ -1,10 +1,10 @@
 # Traits — Domínio soberano
 
-**Código:** DOM-TRAIT-1.0 a 1.1  
+**Código:** DOM-TRAIT-1.0 a 1.2  
 **Status:** Implementado mediante CI canônica verde  
 **Camada:** Domain  
-**Tipo:** Agregado canônico, identidade, papéis e autoridades de valor  
-**Decisões:** ADR-0035 e ADR-0036
+**Tipo:** Agregado canônico, identidade, papéis, autoridades de valor e custo-base  
+**Decisões:** ADR-0035, ADR-0036 e ADR-0037
 
 Traits representa vantagens, qualidades, desvantagens, peculiaridades e futuras categorias compatíveis sem manter quatro autoridades persistentes independentes.
 
@@ -17,7 +17,7 @@ O Point Ledger agrega somente resultados autorizados.
 A UI apresenta e despacha intenção.
 ```
 
-DOM-TRAIT-1.0 e 1.1 não calculam custo final, não aplicam modificadores e não escolhem silenciosamente qual valor é efetivo.
+DOM-TRAIT-1.0 a 1.2 não calcula custo final modificado, não interpreta modificadores e não escolhe silenciosamente qual valor é efetivo.
 
 ## Autoridade canônica
 
@@ -208,7 +208,7 @@ reconciliação ≠ precedência
 reconciliação ≠ cálculo
 ```
 
-Não existe `effectivePoints` neste bloco.
+Não existe `effectivePoints`.
 
 ### Declarações por nível
 
@@ -218,9 +218,69 @@ Não existe `effectivePoints` neste bloco.
 estrutura completa ≠ total calculado
 ```
 
-DOM-TRAIT-1.1 marca completude estrutural, mas não executa a fórmula de custo.
-
 Valores negativos e fracionários são permitidos porque o domínio não deve invalidar desvantagens, peculiaridades especiais ou regras de campanha apenas pelo sinal.
+
+Documento decisório: ADR-0036.
+
+## DOM-TRAIT-1.2 — Cálculo soberano do custo-base
+
+`TraitBaseCost` avalia a estrutura de pontos sem alterar o Trait recebido.
+
+### Fórmulas
+
+```text
+total             → custo fixo
+per-level         → pointsPerLevel × levels
+base-plus-levels  → basePoints + pointsPerLevel × levels
+```
+
+No modo `total`, `basePoints` é a declaração estrutural preferencial do custo fixo.
+
+Na ausência de `basePoints`, uma autoridade declarada ou importada pode fornecer o custo fixo. Quando ambas existem, precisam concordar.
+
+`legacyPoints` isolado continua apenas como evidência e não é promovido a cálculo.
+
+`basePoints` isolado infere `mode: total` e satisfaz a completude estrutural do modo fixo.
+
+### Estados da avaliação
+
+```text
+ready
+incomplete
+conflict
+unsupported
+```
+
+- `ready`: fórmula conhecida e entradas suficientes;
+- `incomplete`: entradas obrigatórias ausentes;
+- `conflict`: autoridades fixas declarada e importada divergem sem estrutura independente;
+- `unsupported`: modo desconhecido ou futuro preservado sem cálculo inventado.
+
+Somente `ready` expõe `rawPoints` e `calculatedPoints`.
+
+### Arredondamento
+
+```text
+rounding.policy = none
+```
+
+O custo-base preserva integralmente resultados negativos e fracionários.
+
+Nenhum arredondamento ocorre antes da interpretação dos modificadores. A regra de arredondamento do custo final pertence ao bloco proprietário de enhancements, limitations e demais modificadores.
+
+### Aplicação
+
+`withTraitCalculatedBaseCost`:
+
+1. exige avaliação `ready`;
+2. serializa o Trait sem mutar o original;
+3. grava o resultado em `pointValue.calculatedPoints`;
+4. reconstrói o agregado;
+5. refaz a reconciliação.
+
+Avaliações incompletas, conflitantes ou não suportadas não são aplicadas.
+
+Documento decisório: ADR-0037.
 
 ## Compatibilidade
 
@@ -236,8 +296,9 @@ Quando código legado altera `points`:
 
 - em Trait singular, a declaração local é atualizada;
 - em Trait importado, o valor importado original permanece e a edição vira declaração local;
+- o sentinela `mode: unknown` é reinferido quando a edição passa a fornecer pontos;
 - a divergência é registrada, não apagada;
-- `calculatedPoints` permanece intacto.
+- `calculatedPoints` permanece intacto até uma aplicação explícita do calculador.
 
 Depois da reconstrução:
 
@@ -250,11 +311,11 @@ Divergência posterior causada por mutação direta é detectada por validação
 
 ## Imutabilidade
 
-Traits canônicos e `pointValue` são profundamente imutáveis e clonam os dados recebidos.
+Traits canônicos, `pointValue` e avaliações de custo-base são profundamente imutáveis e clonam os dados recebidos.
 
 Objetos pertencentes ao chamador não são congelados.
 
-Operações futuras deverão produzir novo agregado ou novo Character, nunca modificar o Trait original.
+Operações produzem novo agregado ou novo Character, nunca modificam o Trait original.
 
 ## Serialização
 
@@ -272,9 +333,11 @@ quirks                 → projeção de compatibilidade
 
 As projeções históricas mantêm a forma anterior e não expõem `pointValue`.
 
+Resultados aplicados em `calculatedPoints` sobrevivem a save/load e são reconciliados novamente na reconstrução.
+
 No round trip, representações equivalentes são unificadas.
 
-A remoção das projeções persistidas exige migração explícita e não pertence ao DOM-TRAIT-1.1.
+A remoção das projeções persistidas exige migração explícita e não pertence ao DOM-TRAIT-1.2.
 
 ## Relação com Templates
 
@@ -294,21 +357,24 @@ Nenhum vínculo passa a ser realizado por nome além das regras já congeladas n
 
 O Point Ledger ainda não deve calcular diretamente a partir de `points`.
 
-Antes de sua abertura, Traits ainda precisa estabelecer:
+DOM-TRAIT já estabelece:
 
+- autoridades declarada, importada e calculada separadas;
+- custo fixo estrutural;
 - cálculo por níveis;
+- reconciliação explicável.
+
+Antes da abertura do Point Ledger, Traits ainda precisa estabelecer:
+
 - interpretação de modificadores;
 - grupos alternativos;
 - autocontrole quando aplicável;
-- autoridade final de custo calculado.
-
-DOM-TRAIT-1.1 fornece as trilhas separadas que essas regras consumirão.
+- autoridade final de custo após todas as regras proprietárias.
 
 ## Não responsabilidades
 
-DOM-TRAIT-1.0 e 1.1 não:
+DOM-TRAIT-1.0 a 1.2 não:
 
-- calculam custo final;
 - interpretam enhancements ou limitations;
 - resolvem autocontrole;
 - resolvem pré-requisitos;
@@ -316,18 +382,19 @@ DOM-TRAIT-1.0 e 1.1 não:
 - criam ataques derivados;
 - calculam grupos alternativos;
 - escolhem um valor efetivo em caso de divergência;
+- arredondam custo final modificado;
 - agregam o total de pontos do Character;
 - alteram DOM-TEMPLATE, Morfose ou Forma Alternativa;
 - calculam na UI.
 
-## Critério de conclusão do DOM-TRAIT-1.1
+## Critério de conclusão do DOM-TRAIT-1.2
 
-- autoridades declarada, importada e calculada separadas;
-- evidência legada preservada;
-- reconciliação explicável;
-- diferenças explícitas;
-- declarações por nível preservadas sem cálculo prematuro;
-- edições legadas sem perda de proveniência;
+- custo fixo, por nível e base mais níveis avaliados pelo domínio;
+- entradas ausentes e conflitos explícitos;
+- modos futuros preservados como não suportados;
+- política de ausência de arredondamento registrada;
+- aplicação imutável somente para avaliação pronta;
+- reconciliação refeita após aplicação;
 - projeções históricas estáveis;
 - save/load sem perda;
 - suíte integral verde.

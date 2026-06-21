@@ -229,6 +229,9 @@ function inferMode(values) {
   if (values.pointsPerLevel !== null) {
     return "per-level";
   }
+  if (values.basePoints !== null) {
+    return "total";
+  }
   if (
     values.legacyPoints !== null ||
     values.declaredPoints !== null ||
@@ -244,6 +247,7 @@ function evaluateCompleteness(pointValue) {
   switch (pointValue.mode) {
     case "total":
       return [
+        pointValue.basePoints,
         pointValue.declaredPoints,
         pointValue.importedPoints,
         pointValue.calculatedPoints,
