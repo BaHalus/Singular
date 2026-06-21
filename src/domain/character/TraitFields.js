@@ -1,4 +1,34 @@
+import {
+  createTraitChoices,
+  serializeTraitChoices,
+  validateTraitChoices,
+} from "./TraitChoices.js";
+import {
+  createTraitFrequency,
+  createTraitSelfControl,
+  serializeTraitFrequency,
+  serializeTraitSelfControl,
+  validateTraitFrequency,
+  validateTraitSelfControl,
+} from "./TraitControl.js";
+
 export function createTraitRecord(input = {}, generateId) {
+  const selfControlInput = hasOwn(input, "selfControl")
+    ? input.selfControl
+    : input.cr ?? null;
+  const selfControlAdjustment = hasOwn(input, "selfControlAdjustment")
+    ? input.selfControlAdjustment
+    : input.cr_adj ?? null;
+  const frequencyInput = hasOwn(input, "frequency")
+    ? input.frequency
+    : null;
+  const roundCostDownInput = hasOwn(input, "roundCostDown")
+    ? input.roundCostDown
+    : input.round_down;
+  const choicesInput = hasOwn(input, "choices")
+    ? input.choices
+    : input.replacements ?? null;
+
   return {
     id: input.id ?? generateId(),
     externalIds: normalizeExternalIds(input.externalIds),
@@ -8,6 +38,14 @@ export function createTraitRecord(input = {}, generateId) {
 
     points: normalizeNullableNumber(input.points),
     levels: normalizeNullableNumber(input.levels),
+
+    selfControl: createTraitSelfControl(
+      selfControlInput,
+      selfControlAdjustment,
+    ),
+    frequency: createTraitFrequency(frequencyInput),
+    roundCostDown: normalizeBoolean(roundCostDownInput, false),
+    choices: createTraitChoices(choicesInput),
 
     modifiers: normalizeArray(input.modifiers, "Trait modifiers must be array"),
     features: normalizeArray(input.features, "Trait features must be array"),
@@ -50,6 +88,7 @@ export function validateTraitRecord(record, label) {
 
   validateNullableNumber(record.points, `${label} points must be number or null`);
   validateNullableNumber(record.levels, `${label} levels must be number or null`);
+  validateControlFields(record, label);
 
   if (!Array.isArray(record.modifiers)) {
     throw new Error(`${label} modifiers must be array`);
@@ -105,6 +144,17 @@ export function serializeTraitRecord(record, label) {
     points: record.points,
     levels: record.levels,
 
+    ...(hasOwn(record, "selfControl") && shouldSerializeSelfControl(record.selfControl)
+      ? { selfControl: serializeTraitSelfControl(record.selfControl) }
+      : {}),
+    ...(hasOwn(record, "frequency") && shouldSerializeFrequency(record.frequency)
+      ? { frequency: serializeTraitFrequency(record.frequency) }
+      : {}),
+    ...(record.roundCostDown === true ? { roundCostDown: true } : {}),
+    ...(Array.isArray(record.choices) && record.choices.length > 0
+      ? { choices: serializeTraitChoices(record.choices) }
+      : {}),
+
     modifiers: [...record.modifiers],
     features: [...record.features],
     weapons: [...record.weapons],
@@ -117,6 +167,48 @@ export function serializeTraitRecord(record, label) {
 
     raw: record.raw,
   };
+}
+
+function validateControlFields(record, label) {
+  const canonical = label === "Trait";
+
+  if (hasOwn(record, "selfControl")) {
+    validateTraitSelfControl(record.selfControl);
+  } else if (canonical) {
+    throw new Error("Trait selfControl must be present");
+  }
+
+  if (hasOwn(record, "frequency")) {
+    validateTraitFrequency(record.frequency);
+  } else if (canonical) {
+    throw new Error("Trait frequency must be present");
+  }
+
+  if (hasOwn(record, "roundCostDown")) {
+    if (typeof record.roundCostDown !== "boolean") {
+      throw new Error(`${label} roundCostDown must be boolean`);
+    }
+  } else if (canonical) {
+    throw new Error("Trait roundCostDown must be present");
+  }
+
+  if (hasOwn(record, "choices")) {
+    validateTraitChoices(record.choices);
+  } else if (canonical) {
+    throw new Error("Trait choices must be present");
+  }
+}
+
+function shouldSerializeSelfControl(value) {
+  return (
+    value.roll !== 0 ||
+    value.adjustment.type !== "none" ||
+    value.raw !== null
+  );
+}
+
+function shouldSerializeFrequency(value) {
+  return value.roll !== 0 || value.raw !== null;
 }
 
 function normalizeExternalIds(externalIds) {
@@ -161,10 +253,20 @@ function normalizeNullableNumber(value) {
   return null;
 }
 
+function normalizeBoolean(value, fallback) {
+  if (value === undefined || value === null) return fallback;
+  if (typeof value === "boolean") return value;
+  throw new Error("Trait roundCostDown must be boolean");
+}
+
 function validateNullableNumber(value, errorMessage) {
   if (value !== null && (typeof value !== "number" || Number.isNaN(value))) {
     throw new Error(errorMessage);
   }
+}
+
+function hasOwn(value, key) {
+  return Object.prototype.hasOwnProperty.call(value, key);
 }
 
 function isPlainObject(value) {

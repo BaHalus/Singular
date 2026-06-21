@@ -118,6 +118,11 @@ function mapTraitNode(node, context) {
     points: node.points,
     levels: node.levels,
 
+    selfControl: mapSelfControl(node),
+    frequency: mapFrequency(node),
+    roundCostDown: mapRoundCostDown(node),
+    choices: mapChoices(node),
+
     modifiers: [...node.modifiers],
     features: [...node.features],
     weapons: [...node.weapons],
@@ -133,6 +138,59 @@ function mapTraitNode(node, context) {
 
     raw: node.raw,
   };
+}
+
+function mapSelfControl(node) {
+  if (node.selfControl !== undefined && node.selfControl !== null) {
+    if (isPlainObject(node.selfControl)) return node.selfControl;
+    return {
+      roll: node.selfControl,
+      adjustment: node.selfControlAdjustment ?? node.raw?.cr_adj ?? "none",
+      raw: node.selfControl,
+    };
+  }
+
+  const raw = isPlainObject(node.raw) ? node.raw : {};
+  const hasRoll = hasOwn(raw, "cr");
+  const hasAdjustment = hasOwn(raw, "cr_adj");
+  if (!hasRoll && !hasAdjustment) return null;
+
+  return {
+    roll: raw.cr ?? 0,
+    adjustment: raw.cr_adj ?? "none",
+    raw: {
+      cr: hasRoll ? raw.cr : null,
+      cr_adj: hasAdjustment ? raw.cr_adj : null,
+    },
+  };
+}
+
+function mapFrequency(node) {
+  if (node.frequency !== undefined && node.frequency !== null) {
+    return node.frequency;
+  }
+
+  const raw = isPlainObject(node.raw) ? node.raw : {};
+  if (!hasOwn(raw, "frequency")) return null;
+
+  return {
+    roll: raw.frequency ?? 0,
+    raw: raw.frequency ?? null,
+  };
+}
+
+function mapRoundCostDown(node) {
+  if (typeof node.roundCostDown === "boolean") return node.roundCostDown;
+  const raw = isPlainObject(node.raw) ? node.raw : {};
+  return hasOwn(raw, "round_down") ? raw.round_down : false;
+}
+
+function mapChoices(node) {
+  if (node.choices !== undefined && node.choices !== null) {
+    return node.choices;
+  }
+  const raw = isPlainObject(node.raw) ? node.raw : {};
+  return hasOwn(raw, "replacements") ? raw.replacements : null;
 }
 
 function mapSpecialNode(node, context, specialKind) {
@@ -236,4 +294,12 @@ function isNormalizedTraitTree(source) {
       Array.isArray(item.children)
     ))
   );
+}
+
+function hasOwn(value, key) {
+  return Object.prototype.hasOwnProperty.call(value, key);
+}
+
+function isPlainObject(value) {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
 }
