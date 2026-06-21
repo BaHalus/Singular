@@ -1,10 +1,10 @@
 # Traits — Domínio soberano
 
-**Código:** DOM-TRAIT-1.0 a 1.1  
+**Código:** DOM-TRAIT-1.0 a 1.2  
 **Status:** Implementado mediante CI canônica verde  
 **Camada:** Domain  
-**Tipo:** Agregado canônico, identidade, papéis e autoridades de valor  
-**Decisões:** ADR-0035 e ADR-0036
+**Tipo:** Agregado canônico, identidade, papéis, autoridades de valor e cálculo-base  
+**Decisões:** ADR-0035 a ADR-0037
 
 Traits representa vantagens, qualidades, desvantagens, peculiaridades e futuras categorias compatíveis sem manter quatro autoridades persistentes independentes.
 
@@ -17,7 +17,7 @@ O Point Ledger agrega somente resultados autorizados.
 A UI apresenta e despacha intenção.
 ```
 
-DOM-TRAIT-1.0 e 1.1 não calculam custo final, não aplicam modificadores e não escolhem silenciosamente qual valor é efetivo.
+DOM-TRAIT-1.0 a 1.2 calculam somente o custo-base autorizado. Não aplicam modificadores, não calculam custo final e não escolhem silenciosamente qual valor é efetivo.
 
 ## Autoridade canônica
 
@@ -144,6 +144,7 @@ pointValue: {
   declaredPoints,
   importedPoints,
   calculatedPoints,
+  baseCostCalculation,
   complete,
   reconciliation: {
     status,
@@ -165,7 +166,7 @@ per-level
 base-plus-levels
 ```
 
-O vocabulário de modo é preservável, mas apenas os modos conhecidos recebem avaliação de completude.
+O vocabulário de modo é preservável, mas apenas os modos conhecidos recebem avaliação de completude e cálculo-base soberano.
 
 ### Autoridades separadas
 
@@ -218,9 +219,55 @@ Não existe `effectivePoints` neste bloco.
 estrutura completa ≠ total calculado
 ```
 
-DOM-TRAIT-1.1 marca completude estrutural, mas não executa a fórmula de custo.
+DOM-TRAIT-1.1 marca a completude estrutural. DOM-TRAIT-1.2 executa a fórmula de custo-base quando houver entradas suficientes.
 
 Valores negativos e fracionários são permitidos porque o domínio não deve invalidar desvantagens, peculiaridades especiais ou regras de campanha apenas pelo sinal.
+
+## DOM-TRAIT-1.2 — Cálculo soberano do custo-base
+
+O custo-base é calculado por uma autoridade pura e explicável nos modos:
+
+```text
+total
+per-level
+base-plus-levels
+```
+
+Fórmulas:
+
+```text
+total            = custo fixo declarado
+per-level        = pointsPerLevel × levels
+base-plus-levels = basePoints + pointsPerLevel × levels
+```
+
+`importedPoints` nunca é promovido automaticamente a fórmula.
+
+O resultado aplicado ao Trait é persistido em `pointValue.baseCostCalculation` com:
+
+- versão do schema;
+- modo e entradas consumidas;
+- fingerprint das entradas;
+- valor bruto;
+- valor após arredondamento;
+- política e incremento de arredondamento;
+- diagnósticos.
+
+O padrão de arredondamento é `none`, preservando frações até que uma regra posterior determine outra política.
+
+Um snapshot persistido deve estar calculado e continuar compatível com as entradas atuais. Snapshot adulterado ou obsoleto é rejeitado durante a validação canônica.
+
+Operações autorizadas:
+
+```js
+withTraitBaseCostCalculation(trait, options)
+recalculateTraitBaseCost(character, traitId, options)
+```
+
+A operação de Character é atômica, localiza o Trait pelo ID soberano, reconstrói o agregado uma única vez e retorna recibo auditável.
+
+Documento: `TraitBaseCost.md`.  
+Documento decisório: ADR-0037.
 
 ## Compatibilidade
 
@@ -237,7 +284,13 @@ Quando código legado altera `points`:
 - em Trait singular, a declaração local é atualizada;
 - em Trait importado, o valor importado original permanece e a edição vira declaração local;
 - a divergência é registrada, não apagada;
-- `calculatedPoints` permanece intacto.
+- se uma entrada do cálculo-base mudar, `baseCostCalculation` é invalidado;
+- `calculatedPoints` é limpo somente quando era o resultado daquele snapshot derivado;
+- autoridades independentes, especialmente `importedPoints`, permanecem intactas.
+
+A mesma invalidação ocorre quando uma edição legada altera `levels` usado pelo cálculo-base.
+
+Edições que não alteram entradas do cálculo, como mudança de nome ou notas, preservam o snapshot atual.
 
 Depois da reconstrução:
 
@@ -268,13 +321,13 @@ disadvantages         → projeção de compatibilidade
 quirks                 → projeção de compatibilidade
 ```
 
-`traits` preserva `pointValue`, autoridades, diferenças, origem e dados desconhecidos.
+`traits` preserva `pointValue`, autoridades, reconciliação, cálculo-base, origem e dados desconhecidos.
 
 As projeções históricas mantêm a forma anterior e não expõem `pointValue`.
 
 No round trip, representações equivalentes são unificadas.
 
-A remoção das projeções persistidas exige migração explícita e não pertence ao DOM-TRAIT-1.1.
+A remoção das projeções persistidas exige migração explícita e não pertence ao DOM-TRAIT-1.2.
 
 ## Relação com Templates
 
@@ -296,19 +349,18 @@ O Point Ledger ainda não deve calcular diretamente a partir de `points`.
 
 Antes de sua abertura, Traits ainda precisa estabelecer:
 
-- cálculo por níveis;
 - interpretação de modificadores;
 - grupos alternativos;
 - autocontrole quando aplicável;
 - autoridade final de custo calculado.
 
-DOM-TRAIT-1.1 fornece as trilhas separadas que essas regras consumirão.
+DOM-TRAIT-1.2 fornece um custo-base calculado e auditável. Modificadores e demais regras continuam em blocos posteriores.
 
 ## Não responsabilidades
 
-DOM-TRAIT-1.0 e 1.1 não:
+DOM-TRAIT-1.0 a 1.2 não:
 
-- calculam custo final;
+- calculam custo final após modificadores;
 - interpretam enhancements ou limitations;
 - resolvem autocontrole;
 - resolvem pré-requisitos;
@@ -320,14 +372,16 @@ DOM-TRAIT-1.0 e 1.1 não:
 - alteram DOM-TEMPLATE, Morfose ou Forma Alternativa;
 - calculam na UI.
 
-## Critério de conclusão do DOM-TRAIT-1.1
+## Critério de conclusão do DOM-TRAIT-1.2
 
 - autoridades declarada, importada e calculada separadas;
 - evidência legada preservada;
-- reconciliação explicável;
-- diferenças explícitas;
-- declarações por nível preservadas sem cálculo prematuro;
-- edições legadas sem perda de proveniência;
+- reconciliação explicável e diferenças explícitas;
+- modos `total`, `per-level` e `base-plus-levels` calculados soberanamente;
+- arredondamento explícito e padrão sem truncamento;
+- snapshot auditável e validado contra suas entradas;
+- edição estrutural legada invalida somente o resultado derivado;
+- edições não estruturais preservam o cálculo atual;
 - projeções históricas estáveis;
 - save/load sem perda;
 - suíte integral verde.
