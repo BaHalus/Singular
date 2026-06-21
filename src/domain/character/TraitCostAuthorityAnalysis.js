@@ -2,11 +2,15 @@ import { validateCharacter } from "./Character.js";
 import {
   evaluateTraitAlternativeGroups,
   serializeTraitAlternativeGroupsEvaluation,
+  validateTraitAlternativeGroupsEvaluation,
 } from "./TraitAlternativeGroups.js";
 import {
   projectTraitAlternativeGroupPolicies,
 } from "./TraitAlternativeGroupPolicies.js";
-import { evaluateTraitChoices } from "./TraitChoices.js";
+import {
+  evaluateTraitChoices,
+  validateTraitChoicesEvaluation,
+} from "./TraitChoices.js";
 import {
   createTraitCostFingerprint,
   createTraitCostSourceFingerprint,
@@ -69,15 +73,9 @@ export function analyzeTraitCostAuthority(character, options = {}) {
     groups: serializeTraitAlternativeGroupsEvaluation(groups),
     diagnostics,
   };
-  analysis.analysisFingerprint = createTraitCostFingerprint({
-    status,
-    percentageMode,
-    sourceFingerprint,
-    targetFingerprint,
-    choices,
-    groups: analysis.groups,
-    diagnostics,
-  });
+  analysis.analysisFingerprint = createTraitCostFingerprint(
+    projectAnalysisFingerprint(analysis),
+  );
 
   validateTraitCostAuthorityAnalysis(analysis);
   return deepFreeze(analysis);
@@ -93,6 +91,7 @@ export function validateTraitCostAuthorityAnalysis(value) {
   }
   for (const field of [
     "characterId",
+    "percentageMode",
     "sourceFingerprint",
     "targetFingerprint",
     "analysisFingerprint",
@@ -104,12 +103,41 @@ export function validateTraitCostAuthorityAnalysis(value) {
   if (!Array.isArray(value.choices) || !Array.isArray(value.diagnostics)) {
     throw new Error("Trait cost authority analysis arrays are invalid");
   }
+  const traitIds = new Set();
+  for (const item of value.choices) {
+    requireObject(item, "Trait cost authority choice entry");
+    if (typeof item.traitId !== "string" || item.traitId === "") {
+      throw new Error("Trait cost authority choice traitId is required");
+    }
+    if (traitIds.has(item.traitId)) {
+      throw new Error(`Duplicate Trait cost choice traitId: ${item.traitId}`);
+    }
+    traitIds.add(item.traitId);
+    validateTraitChoicesEvaluation(item.evaluation);
+  }
+  validateTraitAlternativeGroupsEvaluation(value.groups);
+  const expected = createTraitCostFingerprint(projectAnalysisFingerprint(value));
+  if (value.analysisFingerprint !== expected) {
+    throw new Error("Trait cost authority analysis fingerprint is inconsistent");
+  }
   return true;
 }
 
 export function serializeTraitCostAuthorityAnalysis(value) {
   validateTraitCostAuthorityAnalysis(value);
   return cloneValue(value);
+}
+
+function projectAnalysisFingerprint(value) {
+  return {
+    status: value.status,
+    percentageMode: value.percentageMode,
+    sourceFingerprint: value.sourceFingerprint,
+    targetFingerprint: value.targetFingerprint,
+    choices: value.choices,
+    groups: value.groups,
+    diagnostics: value.diagnostics,
+  };
 }
 
 function isCurrent(character, groups, sourceFingerprint) {
