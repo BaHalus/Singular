@@ -216,7 +216,7 @@ function normalizeControlInput(input) {
     return {
       roll: input.roll ?? input.value ?? input.cr ?? 0,
       adjustment: readAdjustmentInput(input),
-      raw: input.raw ?? input,
+      raw: hasOwn(input, "raw") ? input.raw : input,
     };
   }
   return { roll: input, adjustment: null, raw: input };
@@ -237,7 +237,7 @@ function normalizeFrequencyInput(input) {
   if (isPlainObject(input)) {
     return {
       roll: input.roll ?? input.value ?? input.frequency ?? 0,
-      raw: input.raw ?? input,
+      raw: hasOwn(input, "raw") ? input.raw : input,
     };
   }
   return { roll: input, raw: input };
@@ -291,6 +291,10 @@ function deepFreeze(value, seen = new WeakSet()) {
   seen.add(value);
   Object.values(value).forEach(item => deepFreeze(item, seen));
   return Object.freeze(value);
+}
+
+function hasOwn(value, key) {
+  return Object.prototype.hasOwnProperty.call(value, key);
 }
 
 function isPlainObject(value) {
