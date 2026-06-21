@@ -3,6 +3,11 @@ import {
   validateTraitRecord,
   serializeTraitRecord,
 } from "./TraitFields.js";
+import {
+  createTraitPointValue,
+  validateTraitPointValue,
+  serializeTraitPointValue,
+} from "./TraitPointValue.js";
 
 const KNOWN_TRAIT_ROLES = [
   "advantage",
@@ -36,10 +41,16 @@ export function createTrait(input = {}, explicitRole = null) {
   const clonedInput = cloneValue(input);
   const role = normalizeTraitRole(explicitRole ?? clonedInput.role ?? "unknown");
   const record = createTraitRecord(clonedInput, () => generateTraitId(role));
+  const source = normalizeTraitSource(clonedInput.source, clonedInput.importMeta);
   const trait = {
     ...record,
     role,
-    source: normalizeTraitSource(clonedInput.source, clonedInput.importMeta),
+    source,
+    pointValue: createTraitPointValue(clonedInput.pointValue, {
+      points: record.points,
+      levels: record.levels,
+      sourceKind: source.kind,
+    }),
   };
 
   validateTrait(trait);
@@ -60,10 +71,18 @@ export function createTraitsFromCharacterInput(input = {}) {
       throw new Error(`${capitalize(descriptor.key)} must be an array`);
     }
 
-    const incoming = input[descriptor.key].map(item => (
-      createTrait(item, descriptor.role)
-    ));
     const current = traits.filter(trait => trait.role === descriptor.role);
+    const currentById = new Map(current.map(trait => [trait.id, trait]));
+    const incoming = input[descriptor.key].map(item => {
+      const existing = isPlainObject(item) && item.id
+        ? currentById.get(item.id)
+        : null;
+      const mergedInput = existing
+        ? mergeLegacyTraitInput(existing, item)
+        : item;
+
+      return createTrait(mergedInput, descriptor.role);
+    });
 
     if (!hasCanonicalTraits || !legacyRoleEquivalent(current, incoming, descriptor)) {
       traits = [
@@ -103,6 +122,7 @@ export function validateTrait(trait) {
     throw new Error("Trait source must be object");
   }
   validateTraitSource(trait.source);
+  validateTraitPointValue(trait.pointValue);
 
   return true;
 }
@@ -118,6 +138,7 @@ export function serializeTrait(trait) {
     ...serializeTraitRecord(trait, "Trait"),
     role: trait.role,
     source: cloneValue(trait.source),
+    pointValue: serializeTraitPointValue(trait.pointValue),
   };
 }
 
@@ -162,6 +183,13 @@ export function getKnownTraitRoles() {
 
 export function isKnownTraitRole(role) {
   return KNOWN_TRAIT_ROLES.includes(role);
+}
+
+function mergeLegacyTraitInput(existing, incoming) {
+  return {
+    ...serializeTrait(existing),
+    ...cloneValue(incoming),
+  };
 }
 
 function legacyRoleEquivalent(current, incoming, descriptor) {
