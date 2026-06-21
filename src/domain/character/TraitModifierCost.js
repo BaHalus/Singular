@@ -21,24 +21,11 @@ const MODIFIER_KINDS = [
   "container",
 ];
 
-const MODIFIER_AFFECTS = [
-  "total",
-  "base",
-  "levels",
-];
-
-const PERCENTAGE_MODES = [
-  "additive",
-  "multiplicative",
-];
-
-const ROUNDING_POLICIES = [
-  "up",
-  "down",
-  "none",
-];
-
+const MODIFIER_AFFECTS = ["total", "base", "levels"];
+const PERCENTAGE_MODES = ["additive", "multiplicative"];
+const ROUNDING_POLICIES = ["up", "down", "none"];
 const LIMITATION_FLOOR_PERCENT = -80;
+const ARITHMETIC_PRECISION_DIGITS = 12;
 
 export function evaluateTraitModifierCost(trait, options = {}) {
   validateTrait(trait);
@@ -87,7 +74,10 @@ export function evaluateTraitModifierCost(trait, options = {}) {
       continue;
     }
 
-    const value = normalizeZero(modifier.value * modifier.levelMultiplier);
+    const value = normalizeArithmetic(
+      modifier.value * modifier.levelMultiplier,
+    );
+
     switch (modifier.kind) {
       case "addition":
         applyAddition(components, modifier.affects, value);
@@ -96,29 +86,35 @@ export function evaluateTraitModifierCost(trait, options = {}) {
         applyPercentage(components, modifier.affects, value);
         break;
       case "percentage-multiplier":
-        multiplier = normalizeZero(multiplier * (value / 100));
+        multiplier = normalizeArithmetic(multiplier * (value / 100));
         break;
       case "multiplier":
-        multiplier = normalizeZero(multiplier * value);
+        multiplier = normalizeArithmetic(multiplier * value);
         break;
       default:
         throw new Error(`Unhandled Trait modifier kind: ${modifier.kind}`);
     }
   }
 
-  const baseEvaluation = evaluateComponent(components.base, policy.percentageMode);
-  const levelEvaluation = evaluateComponent(components.levels, policy.percentageMode);
-  const beforeMultiplier = normalizeZero(
+  const baseEvaluation = evaluateComponent(
+    components.base,
+    policy.percentageMode,
+  );
+  const levelEvaluation = evaluateComponent(
+    components.levels,
+    policy.percentageMode,
+  );
+  const beforeMultiplier = normalizeArithmetic(
     baseEvaluation.afterPercentage + levelEvaluation.afterPercentage,
   );
-  const rawPoints = normalizeZero(beforeMultiplier * multiplier);
+  const rawPoints = normalizeArithmetic(beforeMultiplier * multiplier);
   const calculatedPoints = applyRounding(rawPoints, policy.rounding);
   const rounding = {
     policy: policy.rounding,
     applied: !Object.is(rawPoints, calculatedPoints),
     input: rawPoints,
     output: calculatedPoints,
-    difference: normalizeZero(calculatedPoints - rawPoints),
+    difference: normalizeArithmetic(calculatedPoints - rawPoints),
   };
 
   const result = {
@@ -164,6 +160,7 @@ export function validateTraitModifierCost(result) {
   if (result.complete !== (result.status === "ready")) {
     throw new Error("Trait modifier cost complete flag is inconsistent");
   }
+
   validatePolicy(result.policy);
   validateProjectedModifiers(result.modifiers);
 
@@ -173,12 +170,18 @@ export function validateTraitModifierCost(result) {
     }
     validateComponentEvaluation(result.components.base, "base");
     validateComponentEvaluation(result.components.levels, "levels");
-    validateFiniteNumber(result.multiplier, "Trait modifier multiplier must be finite number");
+    validateFiniteNumber(
+      result.multiplier,
+      "Trait modifier multiplier must be finite number",
+    );
     validateFiniteNumber(
       result.beforeMultiplier,
       "Trait modifier beforeMultiplier must be finite number",
     );
-    validateFiniteNumber(result.rawPoints, "Trait modifier rawPoints must be finite number");
+    validateFiniteNumber(
+      result.rawPoints,
+      "Trait modifier rawPoints must be finite number",
+    );
     validateFiniteNumber(
       result.calculatedPoints,
       "Trait modifier calculatedPoints must be finite number",
@@ -299,10 +302,15 @@ function createComponent() {
 
 function applyAddition(components, affects, value) {
   if (affects === "levels") {
-    components.levels.addition = normalizeZero(components.levels.addition + value);
+    components.levels.addition = normalizeArithmetic(
+      components.levels.addition + value,
+    );
     return;
   }
-  components.base.addition = normalizeZero(components.base.addition + value);
+
+  components.base.addition = normalizeArithmetic(
+    components.base.addition + value,
+  );
 }
 
 function applyPercentage(components, affects, value) {
@@ -316,18 +324,24 @@ function applyPercentage(components, affects, value) {
 
 function addPercentage(component, value) {
   if (value < 0) {
-    component.limitationPercent = normalizeZero(component.limitationPercent + value);
-  } else {
-    component.enhancementPercent = normalizeZero(component.enhancementPercent + value);
+    component.limitationPercent = normalizeArithmetic(
+      component.limitationPercent + value,
+    );
+    return;
   }
+
+  component.enhancementPercent = normalizeArithmetic(
+    component.enhancementPercent + value,
+  );
 }
 
 function evaluateComponent(component, percentageMode) {
-  const beforePercentage = normalizeZero(
-    component.baseValue + ((component.unitValue + component.addition) * component.levels),
-  );
-  const directBaseAddition = component.levels === 0 ? component.addition : 0;
-  const normalizedBeforePercentage = normalizeZero(beforePercentage + directBaseAddition);
+  const beforePercentage = component.levels === 0
+    ? normalizeArithmetic(component.baseValue + component.addition)
+    : normalizeArithmetic(
+      component.baseValue +
+      ((component.unitValue + component.addition) * component.levels),
+    );
   const cappedLimitationPercent = Math.max(
     LIMITATION_FLOOR_PERCENT,
     component.limitationPercent,
@@ -335,22 +349,28 @@ function evaluateComponent(component, percentageMode) {
 
   let appliedPercent;
   let afterPercentage;
+
   if (percentageMode === "multiplicative") {
-    const enhancementFactor = 1 + (component.enhancementPercent / 100);
-    const limitationFactor = 1 + (cappedLimitationPercent / 100);
-    afterPercentage = normalizeZero(
-      normalizedBeforePercentage * enhancementFactor * limitationFactor,
+    const enhancementFactor = normalizeArithmetic(
+      1 + (component.enhancementPercent / 100),
     );
-    appliedPercent = normalizeZero(
-      ((enhancementFactor * limitationFactor) - 1) * 100,
+    const limitationFactor = normalizeArithmetic(
+      1 + (cappedLimitationPercent / 100),
     );
+    const combinedFactor = normalizeArithmetic(
+      enhancementFactor * limitationFactor,
+    );
+    appliedPercent = normalizeArithmetic((combinedFactor - 1) * 100);
+    afterPercentage = normalizeArithmetic(beforePercentage * combinedFactor);
   } else {
     appliedPercent = Math.max(
       LIMITATION_FLOOR_PERCENT,
-      normalizeZero(component.enhancementPercent + component.limitationPercent),
+      normalizeArithmetic(
+        component.enhancementPercent + component.limitationPercent,
+      ),
     );
-    afterPercentage = normalizeZero(
-      normalizedBeforePercentage * (1 + (appliedPercent / 100)),
+    afterPercentage = normalizeArithmetic(
+      beforePercentage * (1 + (appliedPercent / 100)),
     );
   }
 
@@ -359,7 +379,7 @@ function evaluateComponent(component, percentageMode) {
     unitValue: component.unitValue,
     levels: component.levels,
     addition: component.addition,
-    beforePercentage: normalizedBeforePercentage,
+    beforePercentage,
     enhancementPercent: component.enhancementPercent,
     limitationPercent: component.limitationPercent,
     cappedLimitationPercent,
@@ -390,7 +410,7 @@ function createContainerProjection(modifier, path) {
     kind: "container",
     value: null,
     affects: "total",
-    enabled: true,
+    enabled: modifier.disabled !== true && modifier.enabled !== false,
     levelMultiplier: 1,
     costExpression: null,
     sourceFormat: "container",
@@ -401,17 +421,18 @@ function createContainerProjection(modifier, path) {
 function normalizeModifier(modifier, trait, path) {
   if (typeof modifier === "string") {
     const parsed = parseCostExpression(modifier);
+    const textual = parsed.kind === "unsupported";
     return createProjection({
       source: {},
       path,
-      parsed: parsed.kind === "unsupported"
+      parsed: textual
         ? { kind: "textual", value: null, costExpression: null }
         : parsed,
-      name: parsed.kind === "unsupported" ? modifier : "",
+      name: textual ? modifier : "",
       enabled: true,
       affects: "total",
       levelMultiplier: 1,
-      sourceFormat: parsed.kind === "unsupported" ? "textual" : "cost-expression",
+      sourceFormat: textual ? "textual" : "cost-expression",
       raw: modifier,
     });
   }
@@ -516,7 +537,7 @@ function createProjection({
 }
 
 function parseCostExpression(expression) {
-  const normalized = expression.trim().replace(",", ".");
+  const normalized = expression.trim().replaceAll(",", ".");
   if (normalized === "") {
     return { kind: "textual", value: null, costExpression: null };
   }
@@ -622,6 +643,7 @@ function normalizePolicy(options) {
   if (!isPlainObject(options)) {
     throw new Error("Trait modifier cost options must be object");
   }
+
   const policy = {
     percentageMode: options.percentageMode ?? "additive",
     rounding: options.rounding ?? "up",
@@ -650,6 +672,7 @@ function validateProjectedModifiers(modifiers) {
   if (!Array.isArray(modifiers)) {
     throw new Error("Trait modifier projection must be array");
   }
+
   const ids = new Set();
   for (const modifier of modifiers) {
     if (!isPlainObject(modifier)) {
@@ -662,6 +685,7 @@ function validateProjectedModifiers(modifiers) {
       throw new Error(`Duplicate projected Trait modifier id: ${modifier.id}`);
     }
     ids.add(modifier.id);
+
     if (!MODIFIER_KINDS.includes(modifier.kind)) {
       throw new Error("Projected Trait modifier kind is invalid");
     }
@@ -675,9 +699,13 @@ function validateProjectedModifiers(modifiers) {
       modifier.levelMultiplier,
       "Projected Trait modifier levelMultiplier must be finite number",
     );
-    if (["addition", "percentage", "percentage-multiplier", "multiplier"].includes(
-      modifier.kind,
-    )) {
+
+    if ([
+      "addition",
+      "percentage",
+      "percentage-multiplier",
+      "multiplier",
+    ].includes(modifier.kind)) {
       validateFiniteNumber(
         modifier.value,
         "Mechanical Trait modifier value must be finite number",
@@ -692,6 +720,7 @@ function validateComponentEvaluation(component, label) {
   if (!isPlainObject(component)) {
     throw new Error(`Trait modifier ${label} component must be object`);
   }
+
   for (const field of [
     "baseValue",
     "unitValue",
@@ -730,8 +759,11 @@ function validateRounding(rounding) {
 }
 
 function applyRounding(value, policy) {
-  if (policy === "none") return normalizeZero(value);
-  return normalizeZero(policy === "down" ? Math.floor(value) : Math.ceil(value));
+  const normalized = normalizeArithmetic(value);
+  if (policy === "none") return normalized;
+  return normalizeArithmetic(
+    policy === "down" ? Math.floor(normalized) : Math.ceil(normalized),
+  );
 }
 
 function normalizeAffects(value) {
@@ -764,7 +796,7 @@ function firstFiniteNumber(...values) {
 function normalizeFiniteNumber(value) {
   if (typeof value === "number" && Number.isFinite(value)) return value;
   if (typeof value === "string" && value.trim() !== "") {
-    const parsed = Number(value.trim().replace(",", "."));
+    const parsed = Number(value.trim().replaceAll(",", "."));
     return Number.isFinite(parsed) ? parsed : null;
   }
   return null;
@@ -780,8 +812,10 @@ function validateFiniteNumber(value, message) {
   }
 }
 
-function normalizeZero(value) {
-  return Object.is(value, -0) ? 0 : value;
+function normalizeArithmetic(value) {
+  if (!Number.isFinite(value)) return value;
+  const normalized = Number(value.toFixed(ARITHMETIC_PRECISION_DIGITS));
+  return Object.is(normalized, -0) ? 0 : normalized;
 }
 
 function cloneValue(value, seen = new WeakMap()) {
