@@ -1,3 +1,8 @@
+import {
+  validateTraitBaseCostCalculationForPointValue,
+  serializeTraitBaseCostCalculation,
+} from "./TraitBaseCostCalculator.js";
+
 const EXTERNAL_SOURCE_KINDS = new Set([
   "imported",
   "embedded",
@@ -47,10 +52,13 @@ export function createTraitPointValue(input = null, context = {}) {
     "importedPoints",
     EXTERNAL_SOURCE_KINDS.has(sourceKind) ? legacyPoints : null,
   );
+  const baseCostCalculation = normalizeBaseCostCalculation(
+    source.baseCostCalculation,
+  );
   const calculatedPoints = readNullableNumber(
     source,
     "calculatedPoints",
-    null,
+    baseCostCalculation?.calculatedPoints ?? null,
   );
 
   const basePoints = readNullableNumber(source, "basePoints", null);
@@ -98,6 +106,7 @@ export function createTraitPointValue(input = null, context = {}) {
     declaredPoints,
     importedPoints,
     calculatedPoints,
+    baseCostCalculation,
     complete,
     reconciliation,
   };
@@ -136,12 +145,35 @@ export function validateTraitPointValue(pointValue) {
     throw new Error("Trait pointValue completeness is stale or inconsistent");
   }
 
+  if (pointValue.baseCostCalculation !== null) {
+    if (pointValue.baseCostCalculation.status !== "calculated") {
+      throw new Error("Persisted Trait base cost calculation must be calculated");
+    }
+    validateTraitBaseCostCalculationForPointValue(
+      pointValue.baseCostCalculation,
+      pointValue,
+    );
+    if (!Object.is(
+      pointValue.calculatedPoints,
+      pointValue.baseCostCalculation.calculatedPoints,
+    )) {
+      throw new Error(
+        "Trait calculatedPoints must match persisted base cost calculation",
+      );
+    }
+  }
+
   return true;
 }
 
 export function serializeTraitPointValue(pointValue) {
   validateTraitPointValue(pointValue);
-  return cloneValue(pointValue);
+  return {
+    ...cloneValue(pointValue),
+    baseCostCalculation: pointValue.baseCostCalculation === null
+      ? null
+      : serializeTraitBaseCostCalculation(pointValue.baseCostCalculation),
+  };
 }
 
 export function reconcileTraitPointValue(pointValue) {
@@ -155,6 +187,14 @@ export function getKnownTraitPointValueModes() {
 
 export function getKnownTraitPointReconciliationStatuses() {
   return [...KNOWN_RECONCILIATION_STATUSES];
+}
+
+function normalizeBaseCostCalculation(value) {
+  if (value === undefined || value === null) return null;
+  if (!isPlainObject(value)) {
+    throw new Error("Trait baseCostCalculation must be object or null");
+  }
+  return cloneValue(value);
 }
 
 function reconcilePointAuthorities(pointValue) {
@@ -278,21 +318,21 @@ function readNullableNumber(source, key, fallback) {
 function normalizeNullableNumber(value, label) {
   if (value === undefined || value === null || value === "") return null;
 
-  if (typeof value === "number" && !Number.isNaN(value)) {
+  if (typeof value === "number" && Number.isFinite(value)) {
     return value;
   }
 
   if (typeof value === "string" && value.trim() !== "") {
     const parsed = Number(value.trim());
-    if (!Number.isNaN(parsed)) return parsed;
+    if (Number.isFinite(parsed)) return parsed;
   }
 
-  throw new Error(`${label} must be number or null`);
+  throw new Error(`${label} must be finite number or null`);
 }
 
 function validateNullableNumber(value, label) {
-  if (value !== null && (typeof value !== "number" || Number.isNaN(value))) {
-    throw new Error(`${label} must be number or null`);
+  if (value !== null && (typeof value !== "number" || !Number.isFinite(value))) {
+    throw new Error(`${label} must be finite number or null`);
   }
 }
 
