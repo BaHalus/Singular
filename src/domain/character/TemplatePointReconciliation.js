@@ -19,12 +19,12 @@ const RECONCILIATION_STATUSES = [
 
 export function evaluateTemplatePointReconciliation(template) {
   validateTemplate(template);
-  return reconcilePointValues({
+  return deepFreeze(reconcilePointValues({
     scope: "template",
     templateId: template.id,
     importedPoints: template.importedPoints,
     calculatedPoints: template.calculatedPoints,
-  });
+  }));
 }
 
 export function evaluateTemplateCompositionPointReconciliation(
