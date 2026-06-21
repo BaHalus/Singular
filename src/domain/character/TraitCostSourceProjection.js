@@ -1,6 +1,6 @@
 import { validateCharacter } from "./Character.js";
 import {
-  serializeTraitAlternativeGroupPolicies,
+  projectTraitAlternativeGroupPolicies,
 } from "./TraitAlternativeGroupPolicies.js";
 import { serializeTrait } from "./Traits.js";
 
@@ -10,7 +10,7 @@ export function createTraitCostSourceProjection(character, options = {}) {
     characterId: character.identity.id,
     percentageMode: options.percentageMode ?? "additive",
     traits: character.traits.map(projectTraitSource),
-    groupPolicies: serializeTraitAlternativeGroupPolicies(
+    groupPolicies: projectTraitAlternativeGroupPolicies(
       character.traitAlternativeGroups,
     ),
   };
@@ -55,7 +55,6 @@ function projectTraitSource(trait) {
   return {
     id: value.id,
     role: value.role,
-    source: value.source,
     points: value.points,
     levels: value.levels,
     pointValue: {
