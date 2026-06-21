@@ -19,22 +19,25 @@ import {
   serializeState,
 } from "./State.js";
 import {
-  createAdvantages,
+  createTraitsFromCharacterInput,
+  validateTraits,
+  serializeTraits,
+  projectTraitsByRole,
+  validateTraitProjections,
+} from "./Traits.js";
+import {
   validateAdvantages,
   serializeAdvantages,
 } from "./Advantages.js";
 import {
-  createPerks,
   validatePerks,
   serializePerks,
 } from "./Perks.js";
 import {
-  createDisadvantages,
   validateDisadvantages,
   serializeDisadvantages,
 } from "./Disadvantages.js";
 import {
-  createQuirks,
   validateQuirks,
   serializeQuirks,
 } from "./Quirks.js";
@@ -93,6 +96,8 @@ import {
 } from "./MorphProfile.js";
 
 export function createCharacter(input = {}) {
+  const traits = createTraitsFromCharacterInput(input);
+  const traitProjections = projectTraitsByRole(traits);
   const character = {
     identity: input.identity ?? createDefaultIdentity(),
 
@@ -102,10 +107,11 @@ export function createCharacter(input = {}) {
     pools: createPools(input.pools),
     state: createState(input.state),
 
-    advantages: createAdvantages(input.advantages),
-    perks: createPerks(input.perks),
-    disadvantages: createDisadvantages(input.disadvantages),
-    quirks: createQuirks(input.quirks),
+    traits,
+    advantages: traitProjections.advantages,
+    perks: traitProjections.perks,
+    disadvantages: traitProjections.disadvantages,
+    quirks: traitProjections.quirks,
 
     skills: createSkills(input.skills),
     techniques: createTechniques(input.techniques),
@@ -145,10 +151,17 @@ export function validateCharacter(character) {
   validatePools(character.pools);
   validateState(character.state);
 
+  validateTraits(character.traits);
   validateAdvantages(character.advantages);
   validatePerks(character.perks);
   validateDisadvantages(character.disadvantages);
   validateQuirks(character.quirks);
+  validateTraitProjections(character.traits, {
+    advantages: character.advantages,
+    perks: character.perks,
+    disadvantages: character.disadvantages,
+    quirks: character.quirks,
+  });
 
   validateSkills(character.skills);
   validateTechniques(character.techniques);
@@ -184,6 +197,7 @@ export function serializeCharacter(character) {
     pools: serializePools(character.pools),
     state: serializeState(character.state),
 
+    traits: serializeTraits(character.traits),
     advantages: serializeAdvantages(character.advantages),
     perks: serializePerks(character.perks),
     disadvantages: serializeDisadvantages(character.disadvantages),
