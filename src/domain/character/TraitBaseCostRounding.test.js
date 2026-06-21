@@ -24,3 +24,17 @@ test("preserves fractions and applies explicit rounding", () => {
   assert.equal(rounded.calculatedPoints, 4);
   assert.equal(rounded.rounding.applied, true);
 });
+
+test("rounds negative values with explicit direction", () => {
+  const pointValue = value({
+    mode: "total",
+    declaredPoints: -3.75,
+  });
+
+  assert.equal(calculateTraitBaseCost(pointValue, {
+    roundingPolicy: "toward-zero",
+  }).calculatedPoints, -3);
+  assert.equal(calculateTraitBaseCost(pointValue, {
+    roundingPolicy: "away-from-zero",
+  }).calculatedPoints, -4);
+});
