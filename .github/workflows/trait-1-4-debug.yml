@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - feature/dom-trait-1.4
+  pull_request:
+    branches:
+      - main
   workflow_dispatch:
 
 permissions:
