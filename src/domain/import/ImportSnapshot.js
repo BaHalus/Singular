@@ -42,6 +42,7 @@ function createEmptyImportedTraits() {
     perks: [],
     disadvantages: [],
     quirks: [],
+    alternativeGroups: [],
     languageNodes: [],
     familiarityNodes: [],
     containers: [],

@@ -26,6 +26,14 @@ import {
   validateTraitProjections,
 } from "./Traits.js";
 import {
+  createTraitAlternativeGroupPolicies,
+  validateTraitAlternativeGroupsForCharacter,
+  serializeTraitAlternativeGroupPolicies,
+} from "./TraitAlternativeGroupPolicies.js";
+import {
+  validateTraitFinalCostAuthority,
+} from "./TraitFinalCostAuthority.js";
+import {
   validateAdvantages,
   serializeAdvantages,
 } from "./Advantages.js";
@@ -98,6 +106,10 @@ import {
 export function createCharacter(input = {}) {
   const traits = createTraitsFromCharacterInput(input);
   const traitProjections = projectTraitsByRole(traits);
+  const traitAlternativeGroups = createTraitAlternativeGroupPolicies(
+    input.traitAlternativeGroups,
+    traits,
+  );
   const character = {
     identity: input.identity ?? createDefaultIdentity(),
 
@@ -108,6 +120,7 @@ export function createCharacter(input = {}) {
     state: createState(input.state),
 
     traits,
+    traitAlternativeGroups,
     advantages: traitProjections.advantages,
     perks: traitProjections.perks,
     disadvantages: traitProjections.disadvantages,
@@ -152,6 +165,11 @@ export function validateCharacter(character) {
   validateState(character.state);
 
   validateTraits(character.traits);
+  validateTraitAlternativeGroupsForCharacter(
+    character.traitAlternativeGroups,
+    character.traits,
+  );
+  validateTraitFinalCostAuthorities(character);
   validateAdvantages(character.advantages);
   validatePerks(character.perks);
   validateDisadvantages(character.disadvantages);
@@ -198,6 +216,8 @@ export function serializeCharacter(character) {
     state: serializeState(character.state),
 
     traits: serializeTraits(character.traits),
+    traitAlternativeGroups:
+      serializeTraitAlternativeGroupPolicies(character.traitAlternativeGroups),
     advantages: serializeAdvantages(character.advantages),
     perks: serializePerks(character.perks),
     disadvantages: serializeDisadvantages(character.disadvantages),
@@ -220,6 +240,28 @@ export function serializeCharacter(character) {
 
     metadata: character.metadata,
   };
+}
+
+function validateTraitFinalCostAuthorities(character) {
+  for (const trait of character.traits) {
+    const authority = trait.pointValue.finalCostAuthority ?? null;
+    if (authority === null) continue;
+    validateTraitFinalCostAuthority(authority);
+    if (authority.characterId !== character.identity.id) {
+      throw new Error(
+        `Trait ${trait.id} final cost authority belongs to another character`,
+      );
+    }
+    if (authority.traitId !== trait.id) {
+      throw new Error(`Trait ${trait.id} final cost authority id mismatch`);
+    }
+    if (!Object.is(
+      trait.pointValue.calculatedPoints,
+      authority.contributionPoints,
+    )) {
+      throw new Error(`Trait ${trait.id} calculated points diverge from authority`);
+    }
+  }
 }
 
 function createDefaultIdentity() {

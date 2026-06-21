@@ -6,11 +6,10 @@ export function importTraits(source = []) {
     : normalizeGcsTraitTree(source);
 
   const result = createEmptyTraitsImport();
-
   importTraitNodes(tree, result, {
     containerIds: [],
   });
-
+  finalizeAlternativeGroups(result);
   return result;
 }
 
@@ -20,6 +19,7 @@ function createEmptyTraitsImport() {
     perks: [],
     disadvantages: [],
     quirks: [],
+    alternativeGroups: [],
     languageNodes: [],
     familiarityNodes: [],
     containers: [],
@@ -40,7 +40,6 @@ function importTraitNode(node, result, context) {
     importTraitNodes(node.children, result, {
       containerIds: [...context.containerIds, node.id],
     });
-
     return;
   }
 
@@ -76,7 +75,6 @@ function importTraitNode(node, result, context) {
         result.unknownNodes.push(mapUnknownNode(node, context));
         break;
     }
-
     return;
   }
 
@@ -220,23 +218,23 @@ function mapSpecialNode(node, context, specialKind) {
 }
 
 function mapContainerNode(node, context) {
+  const raw = isPlainObject(node.raw) ? node.raw : {};
   return {
     id: node.id,
     externalIds: { ...node.externalIds },
     name: node.name,
     containerType: node.containerType,
-    ancestry: node.raw?.ancestry ?? null,
-    reference: node.reference ?? node.raw?.reference ?? null,
+    ancestry: raw.ancestry ?? null,
+    reference: node.reference ?? raw.reference ?? null,
     points: node.points,
-    calc: node.calc ?? node.raw?.calc ?? null,
+    roundCostDown: typeof raw.round_down === "boolean" ? raw.round_down : false,
+    calc: node.calc ?? raw.calc ?? null,
     tags: buildTraitTags(node),
-
     importMeta: {
       source: "gcs",
       nodeKind: node.nodeKind,
       containerIds: [...context.containerIds],
     },
-
     raw: node.raw,
   };
 }
@@ -253,14 +251,71 @@ function mapUnknownNode(node, context) {
     points: node.points,
     calc: node.calc ?? node.raw?.calc ?? null,
     tags: buildTraitTags(node),
-
     importMeta: {
       source: "gcs",
       containerIds: [...context.containerIds],
     },
-
     raw: node.raw,
   };
+}
+
+function finalizeAlternativeGroups(result) {
+  const alternativeContainers = new Map(
+    result.containers
+      .filter(isExplicitAlternativeContainer)
+      .map(container => [container.id, container]),
+  );
+
+  result.alternativeGroups = [...alternativeContainers.values()].map(container => ({
+    id: container.id,
+    externalIds: { ...container.externalIds },
+    alternativeFactor: 0.2,
+    roundCostDown: container.roundCostDown,
+    source: {
+      kind: "imported",
+      provider: "gcs",
+      format: "gcs",
+      reference: container.reference,
+      version: null,
+    },
+    importMeta: {
+      source: "gcs",
+      containerType: container.containerType,
+      containerIds: [...container.importMeta.containerIds],
+      reference: container.reference,
+    },
+    raw: container.raw,
+  }));
+
+  for (const trait of allImportedTraits(result)) {
+    const containerIds = trait.importMeta?.containerIds ?? [];
+    const groupId = [...containerIds]
+      .reverse()
+      .find(id => alternativeContainers.has(id)) ?? null;
+    if (groupId === null) continue;
+    trait.alternateGroupId = groupId;
+    trait.isPrimaryAlternative = null;
+  }
+}
+
+function isExplicitAlternativeContainer(container) {
+  const raw = isPlainObject(container.raw) ? container.raw : {};
+  const declared = raw.containerType ?? raw.container_type ?? null;
+  const normalized = String(declared ?? "")
+    .trim()
+    .toLowerCase()
+    .replaceAll("-", "_");
+  return normalized === "alternativeabilities" ||
+    normalized === "alternative_abilities";
+}
+
+function allImportedTraits(result) {
+  return [
+    ...result.advantages,
+    ...result.perks,
+    ...result.disadvantages,
+    ...result.quirks,
+  ];
 }
 
 function buildTraitTags(node) {
@@ -276,7 +331,6 @@ function normalizeNotes(value) {
   if (value === undefined || value === null) return "";
   if (typeof value === "string") return value;
   if (Array.isArray(value)) return value.map(String).join("\n");
-
   return String(value);
 }
 

@@ -116,6 +116,7 @@ export function importCharacterWithDiagnostics(source = {}, options = {}) {
     perks: snapshot.traits.perks,
     disadvantages: snapshot.traits.disadvantages,
     quirks: snapshot.traits.quirks,
+    traitAlternativeGroups: snapshot.traits.alternativeGroups,
 
     skills: snapshot.skills,
     techniques: snapshot.techniques,
