@@ -56,7 +56,7 @@ export function executeTraitCostAuthorityPlan(character, plan, options = {}) {
 
   const executedAt = normalizeTimestamp(options.now ?? plan.plannedAt);
   if (current.status === "no-op") {
-    return deepFreeze({
+    return freezeResult({
       character,
       plan,
       changed: false,
@@ -134,7 +134,7 @@ export function executeTraitCostAuthorityPlan(character, plan, options = {}) {
   validateCharacter(nextCharacter);
   const afterTargetFingerprint = createTraitCostTargetFingerprint(nextCharacter);
 
-  return deepFreeze({
+  return freezeResult({
     character: nextCharacter,
     plan,
     changed: true,
@@ -157,7 +157,7 @@ function createReceipt({
   authorities,
   afterTargetFingerprint,
 }) {
-  return {
+  return deepFreeze({
     operationId: plan.operationId,
     planId: plan.id,
     characterId: character.identity.id,
@@ -169,7 +169,11 @@ function createReceipt({
     analysisFingerprint: plan.analysisFingerprint,
     planFingerprint: plan.planFingerprint,
     authorities: authorities.map(serializeTraitFinalCostAuthority),
-  };
+  });
+}
+
+function freezeResult(value) {
+  return Object.freeze(value);
 }
 
 function normalizeTimestamp(value) {
