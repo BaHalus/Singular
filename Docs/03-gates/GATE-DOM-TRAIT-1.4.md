@@ -28,30 +28,30 @@
 
 ## Critérios obrigatórios
 
-- [ ] tabelas conhecidas de autocontrole cobertas integralmente;
-- [ ] tabelas conhecidas de frequência cobertas integralmente;
-- [ ] valores desconhecidos preservados sem aproximação;
-- [ ] ajustes operacionais separados da matemática de pontos;
-- [ ] escolhas por chave e obrigatoriedade auditável;
-- [ ] ausência de associação por nome ou posição;
-- [ ] `TraitModifierCost` consumido com arredondamento `none`;
-- [ ] autocontrole e frequência aplicados antes do único arredondamento final;
-- [ ] semântica positiva e negativa de `roundCostDown` coberta;
-- [ ] estados incompleto, conflito e não suportado propagados;
-- [ ] importação preserva os campos GCS relevantes;
-- [ ] projeções históricas permanecem estáveis com valores neutros;
-- [ ] nenhuma autoridade persistente ou pipeline paralelo criado;
-- [ ] suíte integral verde;
-- [ ] CI canônica verde no head final;
-- [ ] nenhuma revisão bloqueante ou thread aberta;
-- [ ] integração à `main` somente após validação final.
+- [x] tabelas conhecidas de autocontrole cobertas integralmente;
+- [x] tabelas conhecidas de frequência cobertas integralmente;
+- [x] valores desconhecidos preservados sem aproximação;
+- [x] ajustes operacionais separados da matemática de pontos;
+- [x] escolhas por chave e obrigatoriedade auditável;
+- [x] ausência de associação por nome ou posição;
+- [x] `TraitModifierCost` consumido com arredondamento `none`;
+- [x] autocontrole e frequência aplicados antes do único arredondamento final;
+- [x] semântica positiva e negativa de `roundCostDown` coberta;
+- [x] estados incompleto, conflito e não suportado propagados;
+- [x] importação preserva os campos GCS relevantes;
+- [x] projeções históricas permanecem estáveis com valores neutros;
+- [x] nenhuma autoridade persistente ou pipeline paralelo criado;
+- [x] suíte integral verde;
+- [x] CI canônica verde no head final;
+- [x] nenhuma revisão bloqueante ou thread aberta;
+- [x] integração à `main` somente após validação final.
 
 ## Evidências finais
 
-Devem ser registradas na PR:
+A PR do bloco registra:
 
 - SHA final revisado;
 - execução canônica de `Tests` concluída com sucesso;
 - estado das revisões e threads;
 - confirmação de que a base é a `main` atual;
-- confirmação de que a PR foi integrada sem commits posteriores não validados.
+- confirmação de que a integração ocorreu sem commits posteriores não validados.
