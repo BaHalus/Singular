@@ -26,67 +26,48 @@ jobs:
         with:
           node-version: 22
 
-      - name: Run full test suite
-        id: tests
+      - name: TraitControl unit
+        id: control
         continue-on-error: true
-        run: npm test > trait-1-4-test-output.log 2>&1
+        run: node --test src/domain/character/TraitControl.test.js
 
-      - name: Extract compact diagnostics
-        id: diagnostics
-        if: always()
-        shell: bash
-        run: |
-          python - <<'PY'
-          import os
-          import re
+      - name: TraitChoices unit
+        id: choices
+        continue-on-error: true
+        run: node --test src/domain/character/TraitChoices.test.js
 
-          with open("trait-1-4-test-output.log", encoding="utf-8") as handle:
-              lines = handle.read().splitlines()
+      - name: TraitFinalCost unit
+        id: final_cost
+        continue-on-error: true
+        run: node --test src/domain/character/TraitFinalCost.test.js
 
-          markers = (
-              "not ok", "AssertionError", "SyntaxError", "ReferenceError",
-              "TypeError", "ERR_", "error:", "failureType:", "expected:",
-              "actual:", "operator:", "testCodeFailure",
-          )
-          interesting = []
-          for line in lines:
-              text = line.strip()
-              if any(marker.lower() in text.lower() for marker in markers):
-                  text = re.sub(r"\s+", " ", text)
-                  if text and text not in interesting:
-                      interesting.append(text)
+      - name: Trait aggregate integration
+        id: integration
+        continue-on-error: true
+        run: node --test src/domain/character/TraitControl.integration.test.js
 
-          selected = interesting[-9:]
-          chunks = [" | ".join(selected[index:index + 3]) for index in range(0, 9, 3)]
-          while len(chunks) < 3:
-              chunks.append("no-additional-diagnostic")
+      - name: Trait choices gate
+        id: choices_gate
+        continue-on-error: true
+        run: node --test src/domain/character/TraitChoices.gate.test.js
 
-          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
-              for index, chunk in enumerate(chunks[:3], 1):
-                  safe = chunk.replace("%", " percent ").replace("\r", " ").replace("\n", " ")
-                  output.write(f"message{index}={safe[:700]}\n")
-          PY
+      - name: Trait final cost gate
+        id: final_gate
+        continue-on-error: true
+        run: node --test src/domain/character/TraitFinalCost.gate.test.js
 
-      - name: "DIAGNOSTIC 1 — ${{ steps.diagnostics.outputs.message1 }}"
-        if: always()
-        run: true
-
-      - name: "DIAGNOSTIC 2 — ${{ steps.diagnostics.outputs.message2 }}"
-        if: always()
-        run: true
-
-      - name: "DIAGNOSTIC 3 — ${{ steps.diagnostics.outputs.message3 }}"
-        if: always()
-        run: true
-
-      - name: Upload test output
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: trait-1-4-test-output
-          path: trait-1-4-test-output.log
-          retention-days: 1
+      - name: Traits importer control
+        id: importer
+        continue-on-error: true
+        run: node --test src/domain/import/importers/TraitsImporter.control.test.js
 
       - name: Propagate test result
-        if: steps.tests.outcome == 'failure'
-        run: exit 1
+        if: always()
+        run: |
+          test "${{ steps.control.outcome }}" = success
+          test "${{ steps.choices.outcome }}" = success
+          test "${{ steps.final_cost.outcome }}" = success
+          test "${{ steps.integration.outcome }}" = success
+          test "${{ steps.choices_gate.outcome }}" = success
+          test "${{ steps.final_gate.outcome }}" = success
+          test "${{ steps.importer.outcome }}" = success
