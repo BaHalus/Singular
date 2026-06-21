@@ -262,7 +262,7 @@ function mapUnknownNode(node, context) {
 function finalizeAlternativeGroups(result) {
   const alternativeContainers = new Map(
     result.containers
-      .filter(container => container.containerType === "alternativeAbilities")
+      .filter(isExplicitAlternativeContainer)
       .map(container => [container.id, container]),
   );
 
@@ -296,6 +296,17 @@ function finalizeAlternativeGroups(result) {
     trait.alternateGroupId = groupId;
     trait.isPrimaryAlternative = null;
   }
+}
+
+function isExplicitAlternativeContainer(container) {
+  const raw = isPlainObject(container.raw) ? container.raw : {};
+  const declared = raw.containerType ?? raw.container_type ?? null;
+  const normalized = String(declared ?? "")
+    .trim()
+    .toLowerCase()
+    .replaceAll("-", "_");
+  return normalized === "alternativeabilities" ||
+    normalized === "alternative_abilities";
 }
 
 function allImportedTraits(result) {
