@@ -1,9 +1,4 @@
 import {
-  createTraitChoices,
-  serializeTraitChoices,
-  validateTraitChoices,
-} from "./TraitChoices.js";
-import {
   createTraitFrequency,
   createTraitSelfControl,
   serializeTraitFrequency,
@@ -25,9 +20,6 @@ export function createTraitRecord(input = {}, generateId) {
   const roundCostDownInput = hasOwn(input, "roundCostDown")
     ? input.roundCostDown
     : input.round_down;
-  const choicesInput = hasOwn(input, "choices")
-    ? input.choices
-    : input.replacements ?? null;
 
   return {
     id: input.id ?? generateId(),
@@ -45,7 +37,6 @@ export function createTraitRecord(input = {}, generateId) {
     ),
     frequency: createTraitFrequency(frequencyInput),
     roundCostDown: normalizeBoolean(roundCostDownInput, false),
-    choices: createTraitChoices(choicesInput),
 
     modifiers: normalizeArray(input.modifiers, "Trait modifiers must be array"),
     features: normalizeArray(input.features, "Trait features must be array"),
@@ -94,7 +85,6 @@ export function validateTraitRecord(record, label) {
   if (typeof record.roundCostDown !== "boolean") {
     throw new Error(`${label} roundCostDown must be boolean`);
   }
-  validateTraitChoices(record.choices);
 
   if (!Array.isArray(record.modifiers)) {
     throw new Error(`${label} modifiers must be array`);
@@ -157,9 +147,6 @@ export function serializeTraitRecord(record, label) {
       ? { frequency: serializeTraitFrequency(record.frequency) }
       : {}),
     ...(record.roundCostDown ? { roundCostDown: true } : {}),
-    ...(record.choices.length > 0
-      ? { choices: serializeTraitChoices(record.choices) }
-      : {}),
 
     modifiers: [...record.modifiers],
     features: [...record.features],
