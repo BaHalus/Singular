@@ -44,10 +44,15 @@ export function createTraitSelfControl(input = null, adjustmentInput = null) {
   const adjustmentType = normalizeAdjustmentType(
     source.adjustment ?? adjustmentInput,
   );
+  const adjustmentStatus = (
+    status === "unsupported" || adjustmentType === "unknown"
+  )
+    ? "unsupported"
+    : "ready";
   const adjustment = {
     type: adjustmentType,
-    status: adjustmentType === "unknown" ? "unsupported" : "ready",
-    value: adjustmentType === "unknown"
+    status: adjustmentStatus,
+    value: adjustmentStatus === "unsupported"
       ? null
       : calculateAdjustmentValue(adjustmentType, penalty, roll),
   };
@@ -152,18 +157,27 @@ export function getKnownFrequencyRolls() {
   return [...FREQUENCY_MULTIPLIERS.keys()];
 }
 
+export function getKnownSelfControlAdjustmentTypes() {
+  return [...ADJUSTMENT_TYPES];
+}
+
 function createExpectedSelfControl(roll, adjustmentType) {
   const status = roll === 0
     ? "none"
     : SELF_CONTROL_MULTIPLIERS.has(roll) ? "ready" : "unsupported";
   const penalty = status === "ready" ? selfControlPenalty(roll) : 0;
+  const adjustmentStatus = (
+    status === "unsupported" || adjustmentType === "unknown"
+  )
+    ? "unsupported"
+    : "ready";
   return {
     status,
     multiplier: SELF_CONTROL_MULTIPLIERS.get(roll) ?? null,
     penalty,
     adjustment: {
-      status: adjustmentType === "unknown" ? "unsupported" : "ready",
-      value: adjustmentType === "unknown"
+      status: adjustmentStatus,
+      value: adjustmentStatus === "unsupported"
         ? null
         : calculateAdjustmentValue(adjustmentType, penalty, roll),
     },
@@ -201,11 +215,19 @@ function normalizeControlInput(input) {
   if (isPlainObject(input)) {
     return {
       roll: input.roll ?? input.value ?? input.cr ?? 0,
-      adjustment: input.adjustment ?? input.adjustmentType ?? input.cr_adj,
+      adjustment: readAdjustmentInput(input),
       raw: input.raw ?? input,
     };
   }
   return { roll: input, adjustment: null, raw: input };
+}
+
+function readAdjustmentInput(input) {
+  const candidate = input.adjustment ?? input.adjustmentType ?? input.cr_adj;
+  if (isPlainObject(candidate)) {
+    return candidate.type ?? candidate.value ?? candidate.key ?? null;
+  }
+  return candidate;
 }
 
 function normalizeFrequencyInput(input) {
