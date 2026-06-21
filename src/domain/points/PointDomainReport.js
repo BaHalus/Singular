@@ -111,7 +111,10 @@ function validateStatusComposition(report) {
   if (report.status === "pending" && (readyCount > 0 || unsupportedCount > 0)) {
     throw new Error("Pending point domain report cannot contain ready or unsupported contributions");
   }
-  if (report.status === "unsupported" && (readyCount > 0 || unsupportedCount === 0)) {
+  if (
+    report.status === "unsupported" &&
+    report.contributions.some(item => item.status !== "unsupported")
+  ) {
     throw new Error("Unsupported point domain report requires unsupported contributions only");
   }
   if (report.status === "excluded" && total > 0) {
