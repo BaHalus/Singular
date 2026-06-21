@@ -76,8 +76,9 @@
 - [x] documento arquitetural público foi criado;
 - [x] suíte integral verde no head final;
 - [x] CI canônica verde no head final;
-- [ ] nenhuma revisão bloqueante ou thread aberta;
-- [ ] PR pronta e integrada à `main`;
+- [x] nenhuma revisão bloqueante, comentário ou thread aberta;
+- [x] PR pronta para integração;
+- [ ] PR integrada à `main`;
 - [ ] `main` confirmada idêntica ao merge final.
 
 ## APIs congeladas ao encerrar
@@ -103,6 +104,6 @@ Próximo domínio — DOM-POINTS-1.0
 
 ## Evidências finais
 
-- head final e execução canônica serão registrados na PR após a revisão;
-- branch alinhada à `main` antes da revisão final;
-- estado de revisões, SHA do merge e confirmação pós-merge serão registrados na PR.
+- a PR não possui revisões bloqueantes, comentários ou threads abertas;
+- a branch está alinhada à `main` antes da integração;
+- o SHA do merge e a confirmação pós-merge serão registrados na PR e no relatório de encerramento.
