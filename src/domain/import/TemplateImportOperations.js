@@ -165,33 +165,35 @@ export function executeTemplateImportPlan(source = [], plan, options = {}) {
     );
   }
 
+  const approvedAnalysis = plan.analysis;
+  validateTemplateImportAnalysis(approvedAnalysis);
   const executedAt = normalizeTimestamp(options.now ?? plan.plannedAt);
-  const templates = createTemplates(currentAnalysis.templates);
-  const opaqueTemplates = createTemplates(currentAnalysis.opaqueTemplates);
-  const allTemplates = createTemplates(currentAnalysis.allTemplates);
+  const templates = createTemplates(approvedAnalysis.templates);
+  const opaqueTemplates = createTemplates(approvedAnalysis.opaqueTemplates);
+  const allTemplates = createTemplates(approvedAnalysis.allTemplates);
   const receipt = deepFreeze({
     id: plan.operationId,
     executedAt,
-    status: currentAnalysis.status,
-    sourceKind: currentAnalysis.sourceKind,
-    sourceFingerprint: currentAnalysis.sourceFingerprint,
-    analysisFingerprint: currentAnalysis.analysisFingerprint,
+    status: approvedAnalysis.status,
+    sourceKind: approvedAnalysis.sourceKind,
+    sourceFingerprint: approvedAnalysis.sourceFingerprint,
+    analysisFingerprint: approvedAnalysis.analysisFingerprint,
     planFingerprint: plan.planFingerprint,
-    recognizedTemplateIds: [...currentAnalysis.recognizedTemplateIds],
-    opaqueTemplateIds: [...currentAnalysis.opaqueTemplateIds],
+    recognizedTemplateIds: [...approvedAnalysis.recognizedTemplateIds],
+    opaqueTemplateIds: [...approvedAnalysis.opaqueTemplateIds],
     recognizedCount: templates.length,
     opaqueCount: opaqueTemplates.length,
-    diagnosticCount: currentAnalysis.diagnostics.length,
+    diagnosticCount: approvedAnalysis.diagnostics.length,
   });
 
   return deepFreeze({
-    status: currentAnalysis.status,
+    status: approvedAnalysis.status,
     templates,
     opaqueTemplates,
     allTemplates,
-    unknownNodes: cloneValue(currentAnalysis.unknownNodes),
-    diagnostics: cloneValue(currentAnalysis.diagnostics),
-    report: createImportReport(currentAnalysis, receipt),
+    unknownNodes: cloneValue(approvedAnalysis.unknownNodes),
+    diagnostics: cloneValue(approvedAnalysis.diagnostics),
+    report: createImportReport(approvedAnalysis, receipt),
     receipt,
     plan,
   });
@@ -618,9 +620,17 @@ function createAnalysisFingerprint(analysis) {
     sourceKind: analysis.sourceKind,
     sourceFingerprint: analysis.sourceFingerprint,
     options: analysis.options,
-    templates: analysis.templates,
-    opaqueTemplates: analysis.opaqueTemplates,
-    unknownNodes: analysis.unknownNodes,
+    recognizedTemplateIds: analysis.recognizedTemplateIds,
+    opaqueTemplateIds: analysis.opaqueTemplateIds,
+    importDefinitions: [
+      ...analysis.templates,
+      ...analysis.opaqueTemplates,
+    ].map(template => ({
+      id: template.id,
+      importFingerprint: template.importMeta?.importFingerprint ?? null,
+      opaque: template.importMeta?.opaque === true,
+      sourceVersion: template.source?.version ?? null,
+    })),
     diagnostics: analysis.diagnostics,
   });
 }
