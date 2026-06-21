@@ -88,13 +88,7 @@ export function validateTraitRecord(record, label) {
 
   validateNullableNumber(record.points, `${label} points must be number or null`);
   validateNullableNumber(record.levels, `${label} levels must be number or null`);
-  validateTraitSelfControl(record.selfControl);
-  validateTraitFrequency(record.frequency);
-
-  if (typeof record.roundCostDown !== "boolean") {
-    throw new Error(`${label} roundCostDown must be boolean`);
-  }
-  validateTraitChoices(record.choices);
+  validateControlFields(record, label);
 
   if (!Array.isArray(record.modifiers)) {
     throw new Error(`${label} modifiers must be array`);
@@ -150,14 +144,14 @@ export function serializeTraitRecord(record, label) {
     points: record.points,
     levels: record.levels,
 
-    ...(shouldSerializeSelfControl(record.selfControl)
+    ...(hasOwn(record, "selfControl") && shouldSerializeSelfControl(record.selfControl)
       ? { selfControl: serializeTraitSelfControl(record.selfControl) }
       : {}),
-    ...(shouldSerializeFrequency(record.frequency)
+    ...(hasOwn(record, "frequency") && shouldSerializeFrequency(record.frequency)
       ? { frequency: serializeTraitFrequency(record.frequency) }
       : {}),
-    ...(record.roundCostDown ? { roundCostDown: true } : {}),
-    ...(record.choices.length > 0
+    ...(record.roundCostDown === true ? { roundCostDown: true } : {}),
+    ...(Array.isArray(record.choices) && record.choices.length > 0
       ? { choices: serializeTraitChoices(record.choices) }
       : {}),
 
@@ -173,6 +167,36 @@ export function serializeTraitRecord(record, label) {
 
     raw: record.raw,
   };
+}
+
+function validateControlFields(record, label) {
+  const canonical = label === "Trait";
+
+  if (hasOwn(record, "selfControl")) {
+    validateTraitSelfControl(record.selfControl);
+  } else if (canonical) {
+    throw new Error("Trait selfControl must be present");
+  }
+
+  if (hasOwn(record, "frequency")) {
+    validateTraitFrequency(record.frequency);
+  } else if (canonical) {
+    throw new Error("Trait frequency must be present");
+  }
+
+  if (hasOwn(record, "roundCostDown")) {
+    if (typeof record.roundCostDown !== "boolean") {
+      throw new Error(`${label} roundCostDown must be boolean`);
+    }
+  } else if (canonical) {
+    throw new Error("Trait roundCostDown must be present");
+  }
+
+  if (hasOwn(record, "choices")) {
+    validateTraitChoices(record.choices);
+  } else if (canonical) {
+    throw new Error("Trait choices must be present");
+  }
 }
 
 function shouldSerializeSelfControl(value) {
