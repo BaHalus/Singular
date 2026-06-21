@@ -26,6 +26,11 @@ import {
   validateTraitProjections,
 } from "./Traits.js";
 import {
+  createTraitAlternativeGroupPolicies,
+  validateTraitAlternativeGroupsForCharacter,
+  serializeTraitAlternativeGroupPolicies,
+} from "./TraitAlternativeGroupPolicies.js";
+import {
   validateAdvantages,
   serializeAdvantages,
 } from "./Advantages.js";
@@ -98,6 +103,10 @@ import {
 export function createCharacter(input = {}) {
   const traits = createTraitsFromCharacterInput(input);
   const traitProjections = projectTraitsByRole(traits);
+  const traitAlternativeGroups = createTraitAlternativeGroupPolicies(
+    input.traitAlternativeGroups,
+    traits,
+  );
   const character = {
     identity: input.identity ?? createDefaultIdentity(),
 
@@ -108,6 +117,7 @@ export function createCharacter(input = {}) {
     state: createState(input.state),
 
     traits,
+    traitAlternativeGroups,
     advantages: traitProjections.advantages,
     perks: traitProjections.perks,
     disadvantages: traitProjections.disadvantages,
@@ -152,6 +162,10 @@ export function validateCharacter(character) {
   validateState(character.state);
 
   validateTraits(character.traits);
+  validateTraitAlternativeGroupsForCharacter(
+    character.traitAlternativeGroups,
+    character.traits,
+  );
   validateAdvantages(character.advantages);
   validatePerks(character.perks);
   validateDisadvantages(character.disadvantages);
@@ -198,6 +212,8 @@ export function serializeCharacter(character) {
     state: serializeState(character.state),
 
     traits: serializeTraits(character.traits),
+    traitAlternativeGroups:
+      serializeTraitAlternativeGroupPolicies(character.traitAlternativeGroups),
     advantages: serializeAdvantages(character.advantages),
     perks: serializePerks(character.perks),
     disadvantages: serializeDisadvantages(character.disadvantages),
