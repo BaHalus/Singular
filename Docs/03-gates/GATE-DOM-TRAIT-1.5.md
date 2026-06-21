@@ -46,6 +46,7 @@
 - [x] empate sem primária é resolvido deterministicamente sem nome;
 - [x] estados incompleto, conflito e não suportado são propagados;
 - [x] container GCS `alternative_abilities` é importado por identidade estrutural;
+- [x] nome do container isolado não estabelece identidade de grupo;
 - [x] container alternativo ancestral mais próximo possui o membro;
 - [x] IDs externos, referência, `round_down`, metadados e `raw` são preservados;
 - [x] importador não calcula nem promove custo;
@@ -56,9 +57,11 @@
 - [x] reconciliação divergente é preservada;
 - [x] autoridade final é autovalidável;
 - [x] `validateCharacter` confere identidade e contribuição da autoridade;
+- [x] análise incorporada ao plano é autovalidável;
 - [x] análise não altera o Character;
 - [x] plano é efêmero, imutável e fingerprintado;
 - [x] fonte mecânica e alvo persistente possuem fingerprints distintos;
+- [x] metadados não mecânicos não alteram o fingerprint da fonte;
 - [x] mudança de fonte invalida plano;
 - [x] mudança somente no alvo também invalida plano;
 - [x] execução é atômica;
@@ -71,8 +74,8 @@
 - [x] nenhuma regra foi movida para a UI;
 - [x] ADR-0040 registra as decisões;
 - [x] documento arquitetural público foi criado;
-- [ ] suíte integral verde no head final;
-- [ ] CI canônica verde no head final;
+- [x] suíte integral verde no head final;
+- [x] CI canônica verde no head final — `Tests #580`;
 - [ ] nenhuma revisão bloqueante ou thread aberta;
 - [ ] PR pronta e integrada à `main`;
 - [ ] `main` confirmada idêntica ao merge final.
@@ -98,11 +101,9 @@ DOM-TRAIT — fechado, em manutenção
 Próximo domínio — DOM-POINTS-1.0
 ```
 
-## Evidências finais a registrar na PR
+## Evidências finais
 
-- SHA final revisado;
-- execução canônica de `Tests` concluída com sucesso;
-- estado de revisões e threads;
-- confirmação de alinhamento com `main`;
-- SHA do merge;
-- confirmação pós-merge de igualdade com `main`.
+- head final de implementação validado: `f0dae4be919240e070664d800bb315c9c017b8b3`;
+- execução canônica: `Tests #580` concluída com sucesso;
+- branch alinhada à `main` antes da revisão final;
+- estado de revisões, SHA do merge e confirmação pós-merge serão registrados na PR.
