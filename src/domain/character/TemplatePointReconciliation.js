@@ -33,6 +33,11 @@ export function evaluateTemplateCompositionPointReconciliation(
 ) {
   validateTemplates(templates);
   validateResolvedTemplateComposition(resolution);
+  if (resolution.status !== "ready") {
+    throw new Error(
+      "Template composition point reconciliation requires ready resolution",
+    );
+  }
 
   const byId = new Map(templates.map(template => [template.id, template]));
   const evaluations = resolution.orderedTemplateIds.map(templateId => {
