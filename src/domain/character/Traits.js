@@ -216,6 +216,10 @@ function mergeLegacyTraitInput(existing, incoming) {
         ) {
           pointValue.declaredPoints = incomingPoints;
         }
+
+        if (pointValue.mode === "unknown") {
+          delete pointValue.mode;
+        }
       }
     }
 
