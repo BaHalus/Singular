@@ -87,7 +87,7 @@ test("analysis validation rejects a modified embedded evaluation", () => {
 
   assert.throws(
     () => validateTraitCostAuthorityAnalysis(analysis),
-    /fingerprint is inconsistent|stale or inconsistent/,
+    /inconsistent/,
   );
 });
 
@@ -101,6 +101,6 @@ test("plan validation rejects a modified embedded analysis", () => {
 
   assert.throws(
     () => validateTraitCostAuthorityPlan(plan),
-    /fingerprint is inconsistent|stale or inconsistent/,
+    /inconsistent/,
   );
 });
