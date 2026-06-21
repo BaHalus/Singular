@@ -33,5 +33,8 @@ jobs:
           node --version
           npm --version
 
+      - name: Diagnose Point Ledger tests
+        run: node --test src/domain/points/*.test.js src/domain/import/PointBudgetImporter.test.js
+
       - name: Run full test suite
         run: npm test
