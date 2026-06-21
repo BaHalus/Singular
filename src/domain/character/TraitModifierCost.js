@@ -143,7 +143,7 @@ export function evaluateTraitModifierCost(trait, options = {}) {
 export function projectTraitCostModifiers(trait) {
   validateTrait(trait);
   const projected = [];
-  flattenModifiers(trait.modifiers, trait, [], projected);
+  flattenModifiers(trait.modifiers, trait, [], projected, true);
   return deepFreeze(projected);
 }
 
@@ -388,29 +388,47 @@ function evaluateComponent(component, percentageMode) {
   };
 }
 
-function flattenModifiers(modifiers, trait, path, projected) {
+function flattenModifiers(
+  modifiers,
+  trait,
+  path,
+  projected,
+  ancestorEnabled = true,
+) {
   for (let index = 0; index < modifiers.length; index += 1) {
     const modifier = modifiers[index];
     const modifierPath = [...path, index];
 
     if (isPlainObject(modifier) && Array.isArray(modifier.children)) {
-      projected.push(createContainerProjection(modifier, modifierPath));
-      flattenModifiers(modifier.children, trait, modifierPath, projected);
+      const enabled = ancestorEnabled && isModifierEnabled(modifier);
+      projected.push(createContainerProjection(modifier, modifierPath, enabled));
+      flattenModifiers(
+        modifier.children,
+        trait,
+        modifierPath,
+        projected,
+        enabled,
+      );
       continue;
     }
 
-    projected.push(normalizeModifier(modifier, trait, modifierPath));
+    projected.push(normalizeModifier(
+      modifier,
+      trait,
+      modifierPath,
+      ancestorEnabled,
+    ));
   }
 }
 
-function createContainerProjection(modifier, path) {
+function createContainerProjection(modifier, path, enabled) {
   return {
     id: normalizeModifierId(modifier.id, path),
     name: typeof modifier.name === "string" ? modifier.name : "",
     kind: "container",
     value: null,
     affects: "total",
-    enabled: modifier.disabled !== true && modifier.enabled !== false,
+    enabled,
     levelMultiplier: 1,
     costExpression: null,
     sourceFormat: "container",
@@ -418,7 +436,7 @@ function createContainerProjection(modifier, path) {
   };
 }
 
-function normalizeModifier(modifier, trait, path) {
+function normalizeModifier(modifier, trait, path, ancestorEnabled = true) {
   if (typeof modifier === "string") {
     const parsed = parseCostExpression(modifier);
     const textual = parsed.kind === "unsupported";
@@ -429,7 +447,7 @@ function normalizeModifier(modifier, trait, path) {
         ? { kind: "textual", value: null, costExpression: null }
         : parsed,
       name: textual ? modifier : "",
-      enabled: true,
+      enabled: ancestorEnabled,
       affects: "total",
       levelMultiplier: 1,
       sourceFormat: textual ? "textual" : "cost-expression",
@@ -447,7 +465,7 @@ function normalizeModifier(modifier, trait, path) {
         costExpression: String(modifier),
       },
       name: "",
-      enabled: true,
+      enabled: ancestorEnabled,
       affects: "total",
       levelMultiplier: 1,
       sourceFormat: "unsupported",
@@ -503,12 +521,16 @@ function normalizeModifier(modifier, trait, path) {
     path,
     parsed,
     name: typeof modifier.name === "string" ? modifier.name : "",
-    enabled: modifier.disabled !== true && modifier.enabled !== false,
+    enabled: ancestorEnabled && isModifierEnabled(modifier),
     affects: normalizeAffects(modifier.affects),
     levelMultiplier,
     sourceFormat,
     raw: modifier,
   });
+}
+
+function isModifierEnabled(modifier) {
+  return modifier.disabled !== true && modifier.enabled !== false;
 }
 
 function createProjection({
