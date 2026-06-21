@@ -30,6 +30,7 @@ export function createImportSnapshot(input = {}) {
 
     templates: input.templates ?? [],
     unknownTemplateNodes: input.unknownTemplateNodes ?? [],
+    templateImportReport: input.templateImportReport ?? null,
 
     raw: input.raw ?? {},
   };
