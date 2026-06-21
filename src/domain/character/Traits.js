@@ -16,6 +16,12 @@ const KNOWN_TRAIT_ROLES = [
   "quirk",
 ];
 
+const EXTERNAL_SOURCE_KINDS = new Set([
+  "imported",
+  "embedded",
+  "external",
+]);
+
 const LEGACY_COLLECTIONS = [
   { key: "advantages", role: "advantage", label: "Advantage" },
   { key: "perks", role: "perk", label: "Perk" },
@@ -186,10 +192,44 @@ export function isKnownTraitRole(role) {
 }
 
 function mergeLegacyTraitInput(existing, incoming) {
-  return {
+  const incomingClone = cloneValue(incoming);
+  const merged = {
     ...serializeTrait(existing),
-    ...cloneValue(incoming),
+    ...incomingClone,
   };
+
+  if (!hasOwn(incomingClone, "pointValue")) {
+    const pointValue = cloneValue(existing.pointValue);
+    const sourceKind = isPlainObject(merged.source)
+      ? merged.source.kind
+      : existing.source.kind;
+
+    if (hasOwn(incomingClone, "points")) {
+      const incomingPoints = normalizeLegacyNullableNumber(incomingClone.points);
+      if (!Object.is(incomingPoints, existing.points)) {
+        pointValue.legacyPoints = incomingPoints;
+
+        if (
+          pointValue.declaredPoints !== null ||
+          sourceKind === "singular" ||
+          EXTERNAL_SOURCE_KINDS.has(sourceKind)
+        ) {
+          pointValue.declaredPoints = incomingPoints;
+        }
+      }
+    }
+
+    if (hasOwn(incomingClone, "levels")) {
+      const incomingLevels = normalizeLegacyNullableNumber(incomingClone.levels);
+      if (!Object.is(incomingLevels, existing.levels)) {
+        pointValue.levels = incomingLevels;
+      }
+    }
+
+    merged.pointValue = pointValue;
+  }
+
+  return merged;
 }
 
 function legacyRoleEquivalent(current, incoming, descriptor) {
@@ -272,6 +312,16 @@ function normalizeSourceVersion(value) {
     throw new Error("Trait source version must be string, number or null");
   }
   return value;
+}
+
+function normalizeLegacyNullableNumber(value) {
+  if (value === undefined || value === null || value === "") return null;
+  if (typeof value === "number") return Number.isNaN(value) ? null : value;
+  if (typeof value === "string" && value.trim() !== "") {
+    const parsed = Number(value.trim());
+    return Number.isNaN(parsed) ? null : parsed;
+  }
+  return null;
 }
 
 function generateTraitId(role) {
