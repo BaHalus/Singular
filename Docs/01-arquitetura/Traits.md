@@ -1,23 +1,23 @@
 # Traits — Domínio soberano
 
-**Código:** DOM-TRAIT-1.0 a 1.2  
+**Código:** DOM-TRAIT-1.0 a 1.3  
 **Status:** Implementado mediante CI canônica verde  
 **Camada:** Domain  
-**Tipo:** Agregado canônico, identidade, papéis, autoridades de valor e custo-base  
-**Decisões:** ADR-0035, ADR-0036 e ADR-0037
+**Tipo:** Agregado canônico, identidade, papéis, autoridades de valor, custo-base e interpretação de modificadores  
+**Decisões:** ADR-0035 a ADR-0038
 
 Traits representa vantagens, qualidades, desvantagens, peculiaridades e futuras categorias compatíveis sem manter quatro autoridades persistentes independentes.
 
 ## Regra central
 
 ```text
-Trait declara identidade, papel, origem e evidências de valor.
+Trait declara identidade, papel, origem, evidências de valor e modificadores.
 O domínio proprietário calcula quando possuir regra suficiente.
 O Point Ledger agrega somente resultados autorizados.
 A UI apresenta e despacha intenção.
 ```
 
-DOM-TRAIT-1.0 a 1.2 não calcula custo final modificado, não interpreta modificadores e não escolhe silenciosamente qual valor é efetivo.
+DOM-TRAIT-1.0 a 1.3 calcula o custo-base e interpreta modificadores conhecidos, mas ainda não estabelece o custo final completo após autocontrole, frequência e grupos alternativos. Nenhuma etapa escolhe silenciosamente qual autoridade divergente deve vencer.
 
 ## Autoridade canônica
 
@@ -65,6 +65,8 @@ permanecem temporariamente como projeções derivadas por `role`. Elas não cons
 ```
 
 `points` e `levels` continuam como campos de compatibilidade. A estrutura soberana de autoridades é `pointValue`.
+
+`modifiers` é a autoridade declarativa dos modificadores. Projeções normalizadas usadas no cálculo são derivadas e não persistem uma segunda coleção canônica.
 
 ## Identidade
 
@@ -266,7 +268,7 @@ rounding.policy = none
 
 O custo-base preserva integralmente resultados negativos e fracionários.
 
-Nenhum arredondamento ocorre antes da interpretação dos modificadores. A regra de arredondamento do custo final pertence ao bloco proprietário de enhancements, limitations e demais modificadores.
+Nenhum arredondamento ocorre antes da interpretação dos modificadores.
 
 ### Aplicação
 
@@ -281,6 +283,112 @@ Nenhum arredondamento ocorre antes da interpretação dos modificadores. A regra
 Avaliações incompletas, conflitantes ou não suportadas não são aplicadas.
 
 Documento decisório: ADR-0037.
+
+## DOM-TRAIT-1.3 — Interpretação soberana de modificadores
+
+`TraitModifierCost` consome o resultado de `TraitBaseCost` e interpreta somente modificadores de custo conhecidos.
+
+A avaliação permanece pura, imutável e explicável. Ela não altera o Trait e não persiste uma projeção normalizada de modificadores.
+
+### Tipos reconhecidos
+
+```text
+addition
+percentage
+percentage-multiplier
+multiplier
+textual
+container
+unsupported
+```
+
+- `addition`: ajuste plano em pontos;
+- `percentage`: enhancement ou limitation;
+- `percentage-multiplier`: multiplicador expresso em percentual;
+- `multiplier`: multiplicador direto;
+- `textual`: informação sem efeito mecânico;
+- `container`: agrupamento estrutural;
+- `unsupported`: declaração mecânica não compreendida.
+
+Modificadores textuais e desabilitados são preservados e não afetam o custo. Um modificador mecânico desconhecido e habilitado bloqueia a avaliação em vez de receber uma fórmula inventada.
+
+### Escopos
+
+```text
+total
+base
+levels
+```
+
+Percentuais `total` atingem as parcelas base e por níveis.
+
+Adições `levels` alteram o custo unitário por nível antes da multiplicação. Adições `base` e `total` alteram a parcela-base.
+
+### Ordem mecânica
+
+```text
+1. custo-base estrutural
+2. adições planas
+3. percentuais
+4. multiplicadores
+5. arredondamento da etapa
+```
+
+### Percentuais
+
+O padrão é aditivo:
+
+```text
+enhancements + limitations
+```
+
+O modo multiplicativo é uma política explícita:
+
+```text
+(1 + enhancements) × (1 + limitations)
+```
+
+A limitation agregada aplicável a cada parcela é limitada a `-80%`.
+
+### Modificadores por nível
+
+O valor de um modificador pode ser escalado por seus próprios níveis ou pelos níveis do Trait quando `use_level_from_trait` estiver declarado.
+
+### Arredondamento
+
+Políticas:
+
+```text
+up
+down
+none
+```
+
+`up` é o padrão:
+
+- positivo fracionário avança para o inteiro superior;
+- negativo fracionário avança em direção a zero.
+
+`down` usa o inteiro inferior e `none` preserva a fração. A avaliação registra entrada, saída e diferença.
+
+### Compatibilidade de formato
+
+A projeção derivada reconhece estruturas atuais do GCS, aliases camelCase necessários e a forma histórica `cost` + `cost_type`.
+
+```text
+compatibilidade de leitura ≠ schema canônico paralelo
+```
+
+O importador continua preservando dados. O cálculo pertence exclusivamente ao domínio de Traits.
+
+### Autoridade calculada
+
+DOM-TRAIT-1.3 expõe `calculatedPoints` apenas dentro de sua avaliação derivada.
+
+Ele não sobrescreve `Trait.pointValue.calculatedPoints`, porque ainda faltam autocontrole, frequência, grupos alternativos e a definição formal da autoridade final de custo.
+
+Documento detalhado: `TraitModifierCost.md`.  
+Documento decisório: ADR-0038.
 
 ## Compatibilidade
 
@@ -298,7 +406,7 @@ Quando código legado altera `points`:
 - em Trait importado, o valor importado original permanece e a edição vira declaração local;
 - o sentinela `mode: unknown` é reinferido quando a edição passa a fornecer pontos;
 - a divergência é registrada, não apagada;
-- `calculatedPoints` permanece intacto até uma aplicação explícita do calculador.
+- `calculatedPoints` permanece intacto até uma aplicação explícita de uma autoridade calculadora.
 
 Depois da reconstrução:
 
@@ -311,7 +419,7 @@ Divergência posterior causada por mutação direta é detectada por validação
 
 ## Imutabilidade
 
-Traits canônicos, `pointValue` e avaliações de custo-base são profundamente imutáveis e clonam os dados recebidos.
+Traits canônicos, `pointValue`, avaliações de custo-base e avaliações de modificadores são profundamente imutáveis e clonam os dados recebidos.
 
 Objetos pertencentes ao chamador não são congelados.
 
@@ -329,15 +437,17 @@ disadvantages         → projeção de compatibilidade
 quirks                 → projeção de compatibilidade
 ```
 
-`traits` preserva `pointValue`, autoridades, diferenças, origem e dados desconhecidos.
+`traits` preserva `pointValue`, autoridades, diferenças, origem, modificadores e dados desconhecidos.
 
 As projeções históricas mantêm a forma anterior e não expõem `pointValue`.
 
-Resultados aplicados em `calculatedPoints` sobrevivem a save/load e são reconciliados novamente na reconstrução.
+Resultados aplicados em `pointValue.calculatedPoints` sobrevivem a save/load e são reconciliados novamente na reconstrução.
+
+Avaliações derivadas de `TraitModifierCost` não são automaticamente persistidas.
 
 No round trip, representações equivalentes são unificadas.
 
-A remoção das projeções persistidas exige migração explícita e não pertence ao DOM-TRAIT-1.2.
+A remoção das projeções persistidas exige migração explícita e não pertence ao DOM-TRAIT-1.3.
 
 ## Relação com Templates
 
@@ -355,46 +465,50 @@ Nenhum vínculo passa a ser realizado por nome além das regras já congeladas n
 
 ## Relação com Point Ledger
 
-O Point Ledger ainda não deve calcular diretamente a partir de `points`.
+O Point Ledger ainda não deve calcular diretamente a partir de `points` ou reinterpretar `modifiers`.
 
 DOM-TRAIT já estabelece:
 
 - autoridades declarada, importada e calculada separadas;
 - custo fixo estrutural;
 - cálculo por níveis;
-- reconciliação explicável.
+- reconciliação explicável;
+- interpretação de adições, percentuais e multiplicadores;
+- limitação percentual e arredondamento explícitos.
 
 Antes da abertura do Point Ledger, Traits ainda precisa estabelecer:
 
-- interpretação de modificadores;
+- autocontrole e frequência quando aplicáveis;
 - grupos alternativos;
-- autocontrole quando aplicável;
 - autoridade final de custo após todas as regras proprietárias.
 
 ## Não responsabilidades
 
-DOM-TRAIT-1.0 a 1.2 não:
+DOM-TRAIT-1.0 a 1.3 não:
 
-- interpretam enhancements ou limitations;
-- resolvem autocontrole;
-- resolvem pré-requisitos;
-- aplicam features a atributos ou perícias;
-- criam ataques derivados;
-- calculam grupos alternativos;
-- escolhem um valor efetivo em caso de divergência;
-- arredondam custo final modificado;
-- agregam o total de pontos do Character;
-- alteram DOM-TEMPLATE, Morfose ou Forma Alternativa;
-- calculam na UI.
+- resolve autocontrole ou frequência;
+- resolve pré-requisitos;
+- aplica features a atributos ou perícias;
+- cria ataques derivados;
+- calcula grupos alternativos;
+- escolhe um valor efetivo em caso de divergência;
+- promove o custo modificado a autoridade final persistente;
+- agrega o total de pontos do Character;
+- altera DOM-TEMPLATE, Morfose ou Forma Alternativa;
+- calcula na UI.
 
-## Critério de conclusão do DOM-TRAIT-1.2
+## Critério de conclusão do DOM-TRAIT-1.3
 
-- custo fixo, por nível e base mais níveis avaliados pelo domínio;
-- entradas ausentes e conflitos explícitos;
-- modos futuros preservados como não suportados;
-- política de ausência de arredondamento registrada;
-- aplicação imutável somente para avaliação pronta;
-- reconciliação refeita após aplicação;
+- custo-base consumido como única base mecânica;
+- adições, percentuais e multiplicadores interpretados pelo domínio;
+- escopos base, níveis e total distintos;
+- limitation limitada a `-80%`;
+- modos percentual aditivo e multiplicativo explícitos;
+- modificadores por nível suportados;
+- arredondamento final da etapa auditável;
+- formatos atuais e históricos relevantes projetados sem mutar a origem;
+- itens textuais e desabilitados preservados sem efeito;
+- desconhecidos ativos bloqueados sem adivinhação;
+- nenhuma autoridade persistente paralela;
 - projeções históricas estáveis;
-- save/load sem perda;
 - suíte integral verde.
