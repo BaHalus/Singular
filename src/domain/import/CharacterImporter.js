@@ -17,11 +17,17 @@ import { importSpells } from "./importers/SpellsImporter.js";
 import { importLanguages } from "./importers/LanguagesImporter.js";
 import { importFamiliarities } from "./importers/FamiliaritiesImporter.js";
 import { importEquipment } from "./importers/EquipmentImporter.js";
-import { importTemplates } from "./importers/TemplatesImporter.js";
+import { importTemplateCatalog } from "./TemplateImportOperations.js";
 
-export function createSnapshotFromGcs(source = {}) {
+export function createSnapshotFromGcs(source = {}, options = {}) {
   const standaloneTemplate = isStandaloneTemplateSource(source);
-  const importedTemplates = importTemplates(readTemplatesSource(source));
+  const templateImportOptions = {
+    ...(options.templateImport ?? {}),
+  };
+  if (options.now !== undefined) {
+    templateImportOptions.now = options.now;
+  }
+  const importedTemplates = importTemplateCatalog(source, templateImportOptions);
   const importedTraits = importTraits(standaloneTemplate ? [] : source);
   const importedSkills = importSkills(
     standaloneTemplate ? [] : readSkillsSource(source),
@@ -89,6 +95,7 @@ export function createSnapshotFromGcs(source = {}) {
 
     templates: importedTemplates.templates,
     unknownTemplateNodes: importedTemplates.unknownNodes,
+    templateImportReport: importedTemplates.report,
 
     raw: source,
   });
@@ -99,7 +106,7 @@ export function importCharacter(source = {}, options = {}) {
 }
 
 export function importCharacterWithDiagnostics(source = {}, options = {}) {
-  const snapshot = createSnapshotFromGcs(source);
+  const snapshot = createSnapshotFromGcs(source, options);
   const character = createCharacter({
     identity: snapshot.identity,
     attributes: snapshot.attributes,
@@ -152,6 +159,7 @@ export function importCharacterWithDiagnostics(source = {}, options = {}) {
   return {
     character: transitionResolved.character,
     snapshot,
+    templateImportReport: snapshot.templateImportReport,
     alternateFormLinkReport: linked.report,
     formStatePolicyResolutions: stateResolved.resolutions,
     formTransitionRulesResolutions: transitionResolved.resolutions,
@@ -221,15 +229,6 @@ function readEquipmentSource(source) {
   }
 
   return result;
-}
-
-function readTemplatesSource(source) {
-  if (isStandaloneTemplateSource(source)) return [source];
-  if (Array.isArray(source.templates)) return source.templates;
-  if (Array.isArray(source.templateRows)) return source.templateRows;
-  if (Array.isArray(source.template_rows)) return source.template_rows;
-
-  return [];
 }
 
 function isStandaloneTemplateSource(source) {
