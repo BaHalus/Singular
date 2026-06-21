@@ -74,12 +74,7 @@ export function validatePointDomainReport(report) {
   if (!Object.is(report.totalPoints, expectedTotal)) {
     throw new Error("Point domain report totalPoints is inconsistent");
   }
-  if (report.status === "ready" && report.contributions.some(item => item.status !== "ready")) {
-    throw new Error("Ready point domain report has non-ready contributions");
-  }
-  if (report.status === "excluded" && report.contributions.length > 0) {
-    throw new Error("Excluded point domain report cannot have contributions");
-  }
+  validateStatusComposition(report);
   if (report.sourceFingerprint !== null && typeof report.sourceFingerprint !== "string") {
     throw new Error("Point domain report sourceFingerprint must be string or null");
   }
@@ -99,6 +94,32 @@ export function serializePointDomainReport(report) {
 
 export function getPointDomainReportStatuses() {
   return [...REPORT_STATUSES];
+}
+
+function validateStatusComposition(report) {
+  const readyCount = report.contributions.filter(item => item.status === "ready").length;
+  const pendingCount = report.contributions.filter(item => item.status === "pending").length;
+  const unsupportedCount = report.contributions.filter(item => item.status === "unsupported").length;
+  const total = report.contributions.length;
+
+  if (report.status === "ready" && readyCount !== total) {
+    throw new Error("Ready point domain report has non-ready contributions");
+  }
+  if (report.status === "partial" && !(readyCount > 0 && readyCount < total)) {
+    throw new Error("Partial point domain report requires ready and non-ready contributions");
+  }
+  if (report.status === "pending" && (readyCount > 0 || unsupportedCount > 0)) {
+    throw new Error("Pending point domain report cannot contain ready or unsupported contributions");
+  }
+  if (report.status === "unsupported" && (readyCount > 0 || unsupportedCount === 0)) {
+    throw new Error("Unsupported point domain report requires unsupported contributions only");
+  }
+  if (report.status === "excluded" && total > 0) {
+    throw new Error("Excluded point domain report cannot have contributions");
+  }
+  if (report.status === "pending" && total > 0 && pendingCount !== total) {
+    throw new Error("Pending point domain report requires pending contributions");
+  }
 }
 
 function deriveStatus(contributions, explicitStatus) {
