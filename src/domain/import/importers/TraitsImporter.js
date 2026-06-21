@@ -121,7 +121,6 @@ function mapTraitNode(node, context) {
     selfControl: mapSelfControl(node),
     frequency: mapFrequency(node),
     roundCostDown: mapRoundCostDown(node),
-    choices: mapChoices(node),
 
     modifiers: [...node.modifiers],
     features: [...node.features],
@@ -183,14 +182,6 @@ function mapRoundCostDown(node) {
   if (typeof node.roundCostDown === "boolean") return node.roundCostDown;
   const raw = isPlainObject(node.raw) ? node.raw : {};
   return hasOwn(raw, "round_down") ? raw.round_down : false;
-}
-
-function mapChoices(node) {
-  if (node.choices !== undefined && node.choices !== null) {
-    return node.choices;
-  }
-  const raw = isPlainObject(node.raw) ? node.raw : {};
-  return hasOwn(raw, "replacements") ? raw.replacements : null;
 }
 
 function mapSpecialNode(node, context, specialKind) {
