@@ -3,6 +3,11 @@ import {
   validateTraitRecord,
   serializeTraitRecord,
 } from "./TraitFields.js";
+import {
+  createTraitPointValue,
+  validateTraitPointValue,
+  serializeTraitPointValue,
+} from "./TraitPointValue.js";
 
 const KNOWN_TRAIT_ROLES = [
   "advantage",
@@ -10,6 +15,12 @@ const KNOWN_TRAIT_ROLES = [
   "disadvantage",
   "quirk",
 ];
+
+const EXTERNAL_SOURCE_KINDS = new Set([
+  "imported",
+  "embedded",
+  "external",
+]);
 
 const LEGACY_COLLECTIONS = [
   { key: "advantages", role: "advantage", label: "Advantage" },
@@ -36,10 +47,16 @@ export function createTrait(input = {}, explicitRole = null) {
   const clonedInput = cloneValue(input);
   const role = normalizeTraitRole(explicitRole ?? clonedInput.role ?? "unknown");
   const record = createTraitRecord(clonedInput, () => generateTraitId(role));
+  const source = normalizeTraitSource(clonedInput.source, clonedInput.importMeta);
   const trait = {
     ...record,
     role,
-    source: normalizeTraitSource(clonedInput.source, clonedInput.importMeta),
+    source,
+    pointValue: createTraitPointValue(clonedInput.pointValue, {
+      points: record.points,
+      levels: record.levels,
+      sourceKind: source.kind,
+    }),
   };
 
   validateTrait(trait);
@@ -60,10 +77,18 @@ export function createTraitsFromCharacterInput(input = {}) {
       throw new Error(`${capitalize(descriptor.key)} must be an array`);
     }
 
-    const incoming = input[descriptor.key].map(item => (
-      createTrait(item, descriptor.role)
-    ));
     const current = traits.filter(trait => trait.role === descriptor.role);
+    const currentById = new Map(current.map(trait => [trait.id, trait]));
+    const incoming = input[descriptor.key].map(item => {
+      const existing = isPlainObject(item) && item.id
+        ? currentById.get(item.id)
+        : null;
+      const mergedInput = existing
+        ? mergeLegacyTraitInput(existing, item)
+        : item;
+
+      return createTrait(mergedInput, descriptor.role);
+    });
 
     if (!hasCanonicalTraits || !legacyRoleEquivalent(current, incoming, descriptor)) {
       traits = [
@@ -103,6 +128,7 @@ export function validateTrait(trait) {
     throw new Error("Trait source must be object");
   }
   validateTraitSource(trait.source);
+  validateTraitPointValue(trait.pointValue);
 
   return true;
 }
@@ -118,6 +144,7 @@ export function serializeTrait(trait) {
     ...serializeTraitRecord(trait, "Trait"),
     role: trait.role,
     source: cloneValue(trait.source),
+    pointValue: serializeTraitPointValue(trait.pointValue),
   };
 }
 
@@ -162,6 +189,47 @@ export function getKnownTraitRoles() {
 
 export function isKnownTraitRole(role) {
   return KNOWN_TRAIT_ROLES.includes(role);
+}
+
+function mergeLegacyTraitInput(existing, incoming) {
+  const incomingClone = cloneValue(incoming);
+  const merged = {
+    ...serializeTrait(existing),
+    ...incomingClone,
+  };
+
+  if (!hasOwn(incomingClone, "pointValue")) {
+    const pointValue = cloneValue(existing.pointValue);
+    const sourceKind = isPlainObject(merged.source)
+      ? merged.source.kind
+      : existing.source.kind;
+
+    if (hasOwn(incomingClone, "points")) {
+      const incomingPoints = normalizeLegacyNullableNumber(incomingClone.points);
+      if (!Object.is(incomingPoints, existing.points)) {
+        pointValue.legacyPoints = incomingPoints;
+
+        if (
+          pointValue.declaredPoints !== null ||
+          sourceKind === "singular" ||
+          EXTERNAL_SOURCE_KINDS.has(sourceKind)
+        ) {
+          pointValue.declaredPoints = incomingPoints;
+        }
+      }
+    }
+
+    if (hasOwn(incomingClone, "levels")) {
+      const incomingLevels = normalizeLegacyNullableNumber(incomingClone.levels);
+      if (!Object.is(incomingLevels, existing.levels)) {
+        pointValue.levels = incomingLevels;
+      }
+    }
+
+    merged.pointValue = pointValue;
+  }
+
+  return merged;
 }
 
 function legacyRoleEquivalent(current, incoming, descriptor) {
@@ -244,6 +312,16 @@ function normalizeSourceVersion(value) {
     throw new Error("Trait source version must be string, number or null");
   }
   return value;
+}
+
+function normalizeLegacyNullableNumber(value) {
+  if (value === undefined || value === null || value === "") return null;
+  if (typeof value === "number") return Number.isNaN(value) ? null : value;
+  if (typeof value === "string" && value.trim() !== "") {
+    const parsed = Number(value.trim());
+    return Number.isNaN(parsed) ? null : parsed;
+  }
+  return null;
 }
 
 function generateTraitId(role) {
