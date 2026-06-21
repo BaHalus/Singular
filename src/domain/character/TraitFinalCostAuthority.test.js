@@ -94,13 +94,13 @@ test("enforces standalone and grouped role invariants", () => {
     () => createTraitFinalCostAuthority(authorityInput({
       groupId: "group-1",
     })),
-    /Standalone Trait final cost authority cannot have groupId/,
+    /cannot have group data/,
   );
   assert.throws(
     () => createTraitFinalCostAuthority(authorityInput({
       groupRole: "primary",
     })),
-    /Grouped Trait final cost authority requires groupId/,
+    /requires groupId/,
   );
   assert.throws(
     () => createTraitFinalCostAuthority(authorityInput({
@@ -110,7 +110,7 @@ test("enforces standalone and grouped role invariants", () => {
   );
 });
 
-test("rejects invalid timestamps, roles and policy snapshots", () => {
+test("rejects invalid timestamps, roles, choices and policy snapshots", () => {
   assert.throws(
     () => createTraitFinalCostAuthority(authorityInput({ appliedAt: "not-a-date" })),
     /appliedAt must be timestamp/,
@@ -121,11 +121,50 @@ test("rejects invalid timestamps, roles and policy snapshots", () => {
   );
   assert.throws(
     () => createTraitFinalCostAuthority(authorityInput({
+      groupId: "group-invalid",
+      groupRole: "alternative",
+      contributionPoints: 2,
       groupPolicy: {
         alternativeFactor: 1.2,
         roundCostDown: false,
       },
     })),
     /groupPolicy is invalid/,
+  );
+  const incompleteChoices = evaluateTraitChoices(createTraitChoices([
+    { key: "especializacao", value: null, required: true },
+  ]));
+  assert.throws(
+    () => createTraitFinalCostAuthority(authorityInput({
+      choices: incompleteChoices,
+    })),
+    /requires ready choices/,
+  );
+});
+
+test("validates primary and alternative contributions against the group policy", () => {
+  assert.throws(
+    () => createTraitFinalCostAuthority(authorityInput({
+      groupId: "group-primary",
+      groupRole: "primary",
+      contributionPoints: 2,
+      groupPolicy: {
+        alternativeFactor: 0.2,
+        roundCostDown: false,
+      },
+    })),
+    /Primary Trait contribution is inconsistent/,
+  );
+  assert.throws(
+    () => createTraitFinalCostAuthority(authorityInput({
+      groupId: "group-alternative",
+      groupRole: "alternative",
+      contributionPoints: 3,
+      groupPolicy: {
+        alternativeFactor: 0.2,
+        roundCostDown: false,
+      },
+    })),
+    /Alternative Trait contribution is inconsistent/,
   );
 });
