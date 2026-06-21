@@ -43,25 +43,50 @@ export function validateTraitFinalCostAuthority(value) {
       throw new Error(`Trait final cost authority ${field} must be finite number`);
     }
   }
+
   validateTraitFinalCost(value.finalCost);
   validateTraitChoicesEvaluation(value.choices);
+  if (value.finalCost.status !== "ready") {
+    throw new Error("Trait final cost authority requires ready finalCost");
+  }
+  if (value.choices.status !== "ready") {
+    throw new Error("Trait final cost authority requires ready choices");
+  }
   if (value.finalCost.traitId !== value.traitId) {
     throw new Error("Trait final cost authority traitId mismatch");
   }
   if (!Object.is(value.individualPoints, value.finalCost.calculatedPoints)) {
     throw new Error("Trait final cost authority individualPoints is inconsistent");
   }
+
   if (value.groupRole === "standalone") {
-    if (value.groupId !== null) {
-      throw new Error("Standalone Trait final cost authority cannot have groupId");
+    if (value.groupId !== null || value.groupPolicy !== null) {
+      throw new Error("Standalone Trait final cost authority cannot have group data");
     }
     if (!Object.is(value.contributionPoints, value.individualPoints)) {
       throw new Error("Standalone Trait contribution is inconsistent");
     }
-  } else if (value.groupId === null) {
-    throw new Error("Grouped Trait final cost authority requires groupId");
+  } else {
+    if (value.groupId === null) {
+      throw new Error("Grouped Trait final cost authority requires groupId");
+    }
+    validatePolicy(value.groupPolicy);
+    if (value.groupRole === "primary" && !Object.is(
+      value.contributionPoints,
+      value.individualPoints,
+    )) {
+      throw new Error("Primary Trait contribution is inconsistent");
+    }
+    if (value.groupRole === "alternative") {
+      const expected = roundAlternative(
+        value.individualPoints * value.groupPolicy.alternativeFactor,
+        value.groupPolicy.roundCostDown,
+      );
+      if (!Object.is(value.contributionPoints, expected)) {
+        throw new Error("Alternative Trait contribution is inconsistent");
+      }
+    }
   }
-  validatePolicy(value.groupPolicy);
   return true;
 }
 
@@ -71,7 +96,6 @@ export function serializeTraitFinalCostAuthority(value) {
 }
 
 function validatePolicy(value) {
-  if (value === null) return;
   if (!plain(value)) throw new Error("Trait final cost groupPolicy is invalid");
   if (
     typeof value.alternativeFactor !== "number" ||
@@ -82,6 +106,12 @@ function validatePolicy(value) {
   ) {
     throw new Error("Trait final cost groupPolicy is invalid");
   }
+}
+
+function roundAlternative(value, roundCostDown) {
+  const normalized = Number(value.toFixed(12));
+  const rounded = roundCostDown ? Math.floor(normalized) : Math.ceil(normalized);
+  return Object.is(rounded, -0) ? 0 : rounded;
 }
 
 function cloneValue(value) {
