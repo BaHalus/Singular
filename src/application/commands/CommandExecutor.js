@@ -3,6 +3,11 @@ import {
   createApplicationHistoryEntry,
 } from "../history/ApplicationHistory.js";
 import {
+  generateId,
+  readClock,
+  validateApplicationRuntime,
+} from "../ports/RuntimePorts.js";
+import {
   createApplicationSession,
   nextApplicationSessionRevision,
   validateApplicationSession,
@@ -15,9 +20,10 @@ import {
 
 const EXECUTION_STATUSES = ["applied", "no-op", "rejected", "failed"];
 
-export function executeCommand(session, commandInput, registry) {
+export function executeCommand(session, commandInput, registry, runtime) {
   validateApplicationSession(session);
   validateCommandRegistry(registry);
+  validateApplicationRuntime(runtime);
 
   let command;
   try {
@@ -64,7 +70,7 @@ export function executeCommand(session, commandInput, registry) {
 
   try {
     const handlerResult = normalizeHandlerResult(handler({ session, command }));
-    const processedAt = new Date().toISOString();
+    const processedAt = readClock(runtime.clock);
 
     if (handlerResult.status === "no-op") {
       const receipt = createReceipt(
@@ -91,7 +97,7 @@ export function executeCommand(session, commandInput, registry) {
       nextRevision,
     );
     const historyEntry = createApplicationHistoryEntry({
-      id: `${session.id}:transition:${nextRevision}:${command.id}`,
+      id: generateId(runtime.idGenerator, "transition"),
       commandId: command.id,
       commandType: command.type,
       issuedAt: command.issuedAt,
