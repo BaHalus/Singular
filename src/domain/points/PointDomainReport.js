@@ -105,17 +105,17 @@ function validateStatusComposition(report) {
   if (report.status === "ready" && readyCount !== total) {
     throw new Error("Ready point domain report has non-ready contributions");
   }
-  if (report.status === "partial" && !(readyCount > 0 && readyCount < total)) {
-    throw new Error("Partial point domain report requires ready and non-ready contributions");
+  if (
+    report.status === "partial" &&
+    !(readyCount > 0 && pendingCount > 0 && unsupportedCount === 0)
+  ) {
+    throw new Error("Partial point domain report requires ready and pending contributions");
   }
   if (report.status === "pending" && (readyCount > 0 || unsupportedCount > 0)) {
     throw new Error("Pending point domain report cannot contain ready or unsupported contributions");
   }
-  if (
-    report.status === "unsupported" &&
-    report.contributions.some(item => item.status !== "unsupported")
-  ) {
-    throw new Error("Unsupported point domain report requires unsupported contributions only");
+  if (report.status === "unsupported" && total > 0 && unsupportedCount === 0) {
+    throw new Error("Unsupported point domain report requires an unsupported contribution");
   }
   if (report.status === "excluded" && total > 0) {
     throw new Error("Excluded point domain report cannot have contributions");
@@ -136,8 +136,8 @@ function deriveStatus(contributions, explicitStatus) {
   const readyCount = contributions.filter(item => item.status === "ready").length;
   const unsupportedCount = contributions.filter(item => item.status === "unsupported").length;
   if (readyCount === contributions.length) return "ready";
-  if (readyCount > 0) return "partial";
   if (unsupportedCount > 0) return "unsupported";
+  if (readyCount > 0) return "partial";
   return "pending";
 }
 
