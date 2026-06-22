@@ -161,6 +161,6 @@ test("rejects inconsistent capabilities and foreign ledgers", () => {
         characterId: "another-character",
       },
     }),
-    /belongs to another Character/,
+    /belongs to another character/i,
   );
 });
