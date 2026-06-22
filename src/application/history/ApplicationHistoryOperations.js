@@ -2,6 +2,11 @@ import {
   restoreCharacterFromHistorySnapshot,
 } from "./ApplicationHistory.js";
 import {
+  generateId,
+  readClock,
+  validateApplicationRuntime,
+} from "../ports/RuntimePorts.js";
+import {
   createApplicationSession,
   nextApplicationSessionRevision,
   validateApplicationSession,
@@ -9,12 +14,12 @@ import {
 
 const OPERATION_STATUSES = ["undone", "redone", "no-op", "rejected", "failed"];
 
-export function undoApplicationSession(session, options = {}) {
-  return executeHistoryOperation("undo", session, options);
+export function undoApplicationSession(session, options = {}, runtime) {
+  return executeHistoryOperation("undo", session, options, runtime);
 }
 
-export function redoApplicationSession(session, options = {}) {
-  return executeHistoryOperation("redo", session, options);
+export function redoApplicationSession(session, options = {}, runtime) {
+  return executeHistoryOperation("redo", session, options, runtime);
 }
 
 export function validateApplicationHistoryOperationResult(result) {
@@ -42,9 +47,10 @@ export function getApplicationHistoryOperationStatuses() {
   return [...OPERATION_STATUSES];
 }
 
-function executeHistoryOperation(type, session, options) {
+function executeHistoryOperation(type, session, options, runtime) {
   validateApplicationSession(session);
   requirePlainObject(options, "Application history operation options");
+  validateApplicationRuntime(runtime);
 
   const expectedRevision = normalizeExpectedRevision(
     options.expectedRevision ?? session.revision,
@@ -69,7 +75,7 @@ function executeHistoryOperation(type, session, options) {
     return createResult({
       status: "no-op",
       session,
-      receipt: createNoOpReceipt(type, session, options),
+      receipt: createNoOpReceipt(type, session, runtime),
       diagnostics: [{
         code: `application-history-${type}-empty`,
         severity: "info",
@@ -80,14 +86,15 @@ function executeHistoryOperation(type, session, options) {
   try {
     const entry = source.at(-1);
     const revision = nextApplicationSessionRevision(session);
-    const processedAt = normalizeTimestamp(options.now);
+    const processedAt = readClock(runtime.clock);
+    const operationId = generateId(runtime.idGenerator, type);
     const receipt = createAppliedReceipt(
       type,
       session,
       entry,
       revision,
       processedAt,
-      options.operationId,
+      operationId,
     );
     const undo = type === "undo";
     const nextSession = createApplicationSession({
@@ -136,10 +143,7 @@ function createAppliedReceipt(
   operationId,
 ) {
   return deepFreeze({
-    operationId: normalizeOperationId(
-      operationId,
-      `${type}:${session.id}:${revision}`,
-    ),
+    operationId,
     operationType: type,
     status: type === "undo" ? "undone" : "redone",
     processedAt,
@@ -154,15 +158,12 @@ function createAppliedReceipt(
   });
 }
 
-function createNoOpReceipt(type, session, options) {
+function createNoOpReceipt(type, session, runtime) {
   return deepFreeze({
-    operationId: normalizeOperationId(
-      options.operationId,
-      `${type}:${session.id}:${session.revision}:no-op`,
-    ),
+    operationId: generateId(runtime.idGenerator, type),
     operationType: type,
     status: "no-op",
-    processedAt: normalizeTimestamp(options.now),
+    processedAt: readClock(runtime.clock),
     transitionId: null,
     commandId: null,
     commandType: null,
@@ -190,27 +191,6 @@ function normalizeExpectedRevision(value) {
     );
   }
   return value;
-}
-
-function normalizeOperationId(value, fallback) {
-  const normalized = value ?? fallback;
-  if (typeof normalized !== "string" || normalized.trim() === "") {
-    throw new Error("Application history operationId must be non-empty string");
-  }
-  return normalized;
-}
-
-function normalizeTimestamp(value) {
-  if (value === undefined || value === null) return new Date().toISOString();
-  const normalized = value instanceof Date ? value.toISOString() : value;
-  if (
-    typeof normalized !== "string" ||
-    normalized === "" ||
-    Number.isNaN(Date.parse(normalized))
-  ) {
-    throw new Error("Application history operation time must be valid timestamp");
-  }
-  return normalized;
 }
 
 function clonePlainValue(value) {
