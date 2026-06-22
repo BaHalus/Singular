@@ -20,6 +20,18 @@ import {
 } from "./ApplicationHistoryOperations.js";
 import { createApplicationSession } from "../session/ApplicationSession.js";
 
+function runtime() {
+  let counter = 0;
+  return {
+    clock: {
+      now: () => "2026-06-22T13:10:00.000Z",
+    },
+    idGenerator: {
+      next: prefix => `${prefix}:${++counter}`,
+    },
+  };
+}
+
 function character(name) {
   return createCharacter({
     identity: {
@@ -65,66 +77,64 @@ function registry() {
   }]);
 }
 
-function rename(session, name, id) {
+function rename(session, name, id, appRuntime) {
   const result = executeCommand(session, {
     id,
     type: "character.rename",
     expectedRevision: session.revision,
     issuedAt: "2026-06-22T13:00:00.000Z",
     payload: { name },
-  }, registry());
+  }, registry(), appRuntime);
   assert.equal(result.status, "applied");
   return result.session;
 }
 
 test("undoes and redoes multiple transitions with monotonic revisions", () => {
-  const afterB = rename(baseSession(), "B", "command-b");
-  const afterC = rename(afterB, "C", "command-c");
+  const appRuntime = runtime();
+  const afterB = rename(baseSession(), "B", "command-b", appRuntime);
+  const afterC = rename(afterB, "C", "command-c", appRuntime);
 
   const undoC = undoApplicationSession(afterC, {
     expectedRevision: 2,
-    operationId: "undo-c",
-    now: "2026-06-22T13:10:00.000Z",
-  });
+  }, appRuntime);
   assert.equal(undoC.status, "undone");
   assert.equal(undoC.session.revision, 3);
   assert.equal(undoC.session.character.identity.name, "B");
   assert.equal(undoC.session.history.length, 1);
   assert.equal(undoC.session.future.length, 1);
+  assert.equal(undoC.receipt.operationId, "undo:3");
+  assert.equal(undoC.receipt.processedAt, "2026-06-22T13:10:00.000Z");
   assert.equal(undoC.receipt.commandId, "command-c");
 
   const undoB = undoApplicationSession(undoC.session, {
     expectedRevision: 3,
-    operationId: "undo-b",
-    now: "2026-06-22T13:11:00.000Z",
-  });
+  }, appRuntime);
   assert.equal(undoB.status, "undone");
   assert.equal(undoB.session.revision, 4);
   assert.equal(undoB.session.character.identity.name, "A");
   assert.equal(undoB.session.history.length, 0);
   assert.equal(undoB.session.future.length, 2);
+  assert.equal(undoB.receipt.operationId, "undo:4");
 
   const redoB = redoApplicationSession(undoB.session, {
     expectedRevision: 4,
-    operationId: "redo-b",
-    now: "2026-06-22T13:12:00.000Z",
-  });
+  }, appRuntime);
   assert.equal(redoB.status, "redone");
   assert.equal(redoB.session.revision, 5);
   assert.equal(redoB.session.character.identity.name, "B");
   assert.equal(redoB.session.history.length, 1);
   assert.equal(redoB.session.future.length, 1);
+  assert.equal(redoB.receipt.operationId, "redo:5");
 
   const redoC = redoApplicationSession(redoB.session, {
     expectedRevision: 5,
-    operationId: "redo-c",
-    now: "2026-06-22T13:13:00.000Z",
-  });
+  }, appRuntime);
   assert.equal(redoC.status, "redone");
   assert.equal(redoC.session.revision, 6);
   assert.equal(redoC.session.character.identity.name, "C");
   assert.equal(redoC.session.history.length, 2);
   assert.equal(redoC.session.future.length, 0);
+  assert.equal(redoC.receipt.operationId, "redo:6");
   assert.equal(validateApplicationHistoryOperationResult(redoC), true);
   assert.equal(Object.isFrozen(redoC), true);
 
@@ -133,31 +143,31 @@ test("undoes and redoes multiple transitions with monotonic revisions", () => {
 });
 
 test("returns no-op when the requested stack is empty", () => {
+  const appRuntime = runtime();
   const initial = baseSession();
   const undo = undoApplicationSession(initial, {
     expectedRevision: 0,
-    operationId: "undo-empty",
-    now: "2026-06-22T13:20:00.000Z",
-  });
+  }, appRuntime);
   const redo = redoApplicationSession(initial, {
     expectedRevision: 0,
-    operationId: "redo-empty",
-    now: "2026-06-22T13:20:01.000Z",
-  });
+  }, appRuntime);
 
   assert.equal(undo.status, "no-op");
   assert.equal(redo.status, "no-op");
   assert.equal(undo.session, initial);
   assert.equal(redo.session, initial);
+  assert.equal(undo.receipt.operationId, "undo:1");
+  assert.equal(redo.receipt.operationId, "redo:2");
   assert.equal(undo.receipt.revision, 0);
   assert.equal(redo.receipt.revision, 0);
 });
 
 test("rejects stale revisions without moving either stack", () => {
-  const afterB = rename(baseSession(), "B", "command-b");
+  const appRuntime = runtime();
+  const afterB = rename(baseSession(), "B", "command-b", appRuntime);
   const result = undoApplicationSession(afterB, {
     expectedRevision: 0,
-  });
+  }, appRuntime);
 
   assert.equal(result.status, "rejected");
   assert.equal(result.session, afterB);
@@ -168,17 +178,16 @@ test("rejects stale revisions without moving either stack", () => {
 });
 
 test("a new command after undo clears the redo branch", () => {
-  const afterB = rename(baseSession(), "B", "command-b");
-  const afterC = rename(afterB, "C", "command-c");
+  const appRuntime = runtime();
+  const afterB = rename(baseSession(), "B", "command-b", appRuntime);
+  const afterC = rename(afterB, "C", "command-c", appRuntime);
   const undone = undoApplicationSession(afterC, {
     expectedRevision: 2,
-    operationId: "undo-c",
-    now: "2026-06-22T13:30:00.000Z",
-  });
-  const branched = rename(undone.session, "D", "command-d");
+  }, appRuntime);
+  const branched = rename(undone.session, "D", "command-d", appRuntime);
   const redo = redoApplicationSession(branched, {
     expectedRevision: 4,
-  });
+  }, appRuntime);
 
   assert.equal(branched.character.identity.name, "D");
   assert.equal(branched.history.length, 2);
@@ -209,12 +218,19 @@ test("fails atomically when revision is exhausted", () => {
   });
   const result = undoApplicationSession(exhausted, {
     expectedRevision: Number.MAX_SAFE_INTEGER,
-  });
+  }, runtime());
 
   assert.equal(result.status, "failed");
   assert.equal(result.session, exhausted);
   assert.equal(result.receipt, null);
   assert.match(result.diagnostics[0].message, /revision exhausted/);
+});
+
+test("requires a valid runtime", () => {
+  assert.throws(
+    () => undoApplicationSession(baseSession(), {}, null),
+    /Application runtime must be a plain object/,
+  );
 });
 
 test("publishes canonical history operation statuses", () => {
