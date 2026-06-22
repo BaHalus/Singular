@@ -3,6 +3,12 @@ import {
   serializeCharacter,
   validateCharacter,
 } from "../../domain/character/Character.js";
+import {
+  createApplicationHistory,
+  serializeApplicationHistory,
+  validateApplicationHistory,
+  validateApplicationHistoryPosition,
+} from "../history/ApplicationHistory.js";
 
 export function createApplicationSession(input = {}) {
   requirePlainObject(input, "Application session input");
@@ -15,8 +21,8 @@ export function createApplicationSession(input = {}) {
     id: normalizeSessionId(input.id),
     revision: normalizeRevision(input.revision ?? 0),
     character: cloneCharacter(input.character),
-    history: cloneRecordArray(input.history ?? [], "Application session history"),
-    future: cloneRecordArray(input.future ?? [], "Application session future"),
+    history: createApplicationHistory(input.history ?? []),
+    future: createApplicationHistory(input.future ?? []),
     dirty: normalizeDirty(input.dirty ?? false),
     lastReceipt: cloneOptionalRecord(
       input.lastReceipt,
@@ -37,8 +43,14 @@ export function validateApplicationSession(session) {
   normalizeSessionId(session.id);
   normalizeRevision(session.revision);
   validateCharacter(session.character);
-  validateRecordArray(session.history, "Application session history");
-  validateRecordArray(session.future, "Application session future");
+  validateApplicationHistory(session.history);
+  validateApplicationHistory(session.future);
+  validateDistinctHistoryStacks(session.history, session.future);
+  validateApplicationHistoryPosition(
+    session.history,
+    session.future,
+    session.character,
+  );
   normalizeDirty(session.dirty);
 
   if (session.lastReceipt !== null) {
@@ -59,8 +71,8 @@ export function serializeApplicationSession(session) {
     id: session.id,
     revision: session.revision,
     character: cloneApplicationValue(serializeCharacter(session.character)),
-    history: cloneApplicationValue(session.history),
-    future: cloneApplicationValue(session.future),
+    history: serializeApplicationHistory(session.history),
+    future: serializeApplicationHistory(session.future),
     dirty: session.dirty,
     lastReceipt: cloneApplicationValue(session.lastReceipt),
     metadata: cloneApplicationValue(session.metadata),
@@ -81,6 +93,17 @@ function cloneCharacter(character) {
   validateCharacter(character);
   const serialized = cloneApplicationValue(serializeCharacter(character));
   return createCharacter(serialized);
+}
+
+function validateDistinctHistoryStacks(history, future) {
+  const historyIds = new Set(history.map(entry => entry.id));
+  for (const entry of future) {
+    if (historyIds.has(entry.id)) {
+      throw new Error(
+        `Application history entry cannot exist in history and future: ${entry.id}`,
+      );
+    }
+  }
 }
 
 function normalizeSessionId(value) {
@@ -117,21 +140,6 @@ function cloneOptionalRecord(value, label) {
 function cloneRecord(value, label) {
   requirePlainObject(value, label);
   return cloneApplicationValue(value);
-}
-
-function cloneRecordArray(value, label) {
-  validateRecordArray(value, label);
-  return value.map((entry, index) => cloneRecord(entry, `${label}[${index}]`));
-}
-
-function validateRecordArray(value, label) {
-  if (!Array.isArray(value)) {
-    throw new Error(`${label} must be an array`);
-  }
-
-  value.forEach((entry, index) => {
-    requirePlainObject(entry, `${label}[${index}]`);
-  });
 }
 
 function requirePlainObject(value, label) {
