@@ -1,12 +1,13 @@
 import { validateCharacter } from "../../domain/character/Character.js";
 import {
+  createApplicationHistoryEntry,
+} from "../history/ApplicationHistory.js";
+import {
   createApplicationSession,
   nextApplicationSessionRevision,
   validateApplicationSession,
 } from "../session/ApplicationSession.js";
-import {
-  createCommandEnvelope,
-} from "./CommandEnvelope.js";
+import { createCommandEnvelope } from "./CommandEnvelope.js";
 import {
   resolveCommandHandler,
   validateCommandRegistry,
@@ -63,9 +64,16 @@ export function executeCommand(session, commandInput, registry) {
 
   try {
     const handlerResult = normalizeHandlerResult(handler({ session, command }));
-    const receipt = createReceipt(command, session, handlerResult);
+    const processedAt = new Date().toISOString();
 
     if (handlerResult.status === "no-op") {
+      const receipt = createReceipt(
+        command,
+        session,
+        handlerResult,
+        processedAt,
+        session.revision,
+      );
       return createExecutionResult({
         status: "no-op",
         session,
@@ -74,11 +82,32 @@ export function executeCommand(session, commandInput, registry) {
       });
     }
 
+    const nextRevision = nextApplicationSessionRevision(session);
+    const receipt = createReceipt(
+      command,
+      session,
+      handlerResult,
+      processedAt,
+      nextRevision,
+    );
+    const historyEntry = createApplicationHistoryEntry({
+      id: `${session.id}:transition:${nextRevision}:${command.id}`,
+      commandId: command.id,
+      commandType: command.type,
+      issuedAt: command.issuedAt,
+      appliedAt: processedAt,
+      beforeRevision: session.revision,
+      afterRevision: nextRevision,
+      beforeCharacter: session.character,
+      afterCharacter: handlerResult.character,
+      commandPayload: command.payload,
+      receipt,
+    });
     const nextSession = createApplicationSession({
       id: session.id,
-      revision: nextApplicationSessionRevision(session),
+      revision: nextRevision,
       character: handlerResult.character,
-      history: session.history,
+      history: [...session.history, historyEntry],
       future: [],
       dirty: true,
       lastReceipt: receipt,
@@ -160,14 +189,18 @@ function normalizeHandlerResult(value) {
   };
 }
 
-function createReceipt(command, session, handlerResult) {
-  const nextRevision = handlerResult.status === "applied"
-    ? nextApplicationSessionRevision(session)
-    : session.revision;
+function createReceipt(
+  command,
+  session,
+  handlerResult,
+  processedAt,
+  nextRevision,
+) {
   return deepFreeze({
     commandId: command.id,
     commandType: command.type,
     issuedAt: command.issuedAt,
+    processedAt,
     status: handlerResult.status,
     previousRevision: session.revision,
     revision: nextRevision,
