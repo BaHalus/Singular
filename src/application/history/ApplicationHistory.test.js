@@ -135,6 +135,58 @@ test("validates current position against history and future tops", () => {
   );
 });
 
+test("rejects a disconnected history chain even when its top matches current", () => {
+  const first = transition({
+    id: "history-first",
+    beforeRevision: 0,
+    afterRevision: 1,
+    beforeCharacter: namedCharacter("Zero"),
+    afterCharacter: namedCharacter("Um"),
+  });
+  const disconnected = transition({
+    id: "history-disconnected",
+    beforeRevision: 1,
+    afterRevision: 2,
+    beforeCharacter: namedCharacter("Outro"),
+    afterCharacter: namedCharacter("Dois"),
+  });
+
+  assert.throws(
+    () => validateApplicationHistoryPosition(
+      createApplicationHistory([first, disconnected]),
+      createApplicationHistory(),
+      namedCharacter("Dois"),
+    ),
+    /Application history transitions at indexes 0 and 1 are disconnected/,
+  );
+});
+
+test("rejects a disconnected future chain even when its top matches current", () => {
+  const disconnected = transition({
+    id: "future-disconnected",
+    beforeRevision: 1,
+    afterRevision: 2,
+    beforeCharacter: namedCharacter("Outro"),
+    afterCharacter: namedCharacter("Dois"),
+  });
+  const next = transition({
+    id: "future-next",
+    beforeRevision: 0,
+    afterRevision: 1,
+    beforeCharacter: namedCharacter("Zero"),
+    afterCharacter: namedCharacter("Um"),
+  });
+
+  assert.throws(
+    () => validateApplicationHistoryPosition(
+      createApplicationHistory(),
+      createApplicationHistory([disconnected, next]),
+      namedCharacter("Zero"),
+    ),
+    /Application future transitions at indexes 0 and 1 are disconnected/,
+  );
+});
+
 test("rejects duplicate transition ids", () => {
   const first = transition({ id: "duplicate" });
   const second = transition({ id: "duplicate" });
