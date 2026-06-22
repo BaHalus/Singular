@@ -201,8 +201,12 @@ function normalizeNullableObject(value) {
 }
 
 function normalizeNullableFinite(value) {
-  if (value === undefined || value === null || value === "") return null;
-  const parsed = typeof value === "number" ? value : Number(String(value).trim());
+  if (value === undefined || value === null) return null;
+  const normalized = typeof value === "string" ? value.trim() : value;
+  if (normalized === "") return null;
+  const parsed = typeof normalized === "number"
+    ? normalized
+    : Number(String(normalized).trim());
   if (!Number.isFinite(parsed)) throw new Error("Point value must be finite or null");
   return parsed;
 }
