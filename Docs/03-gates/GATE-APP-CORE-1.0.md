@@ -1,6 +1,6 @@
 # GATE-APP-CORE-1.0 — Fundação da camada de aplicação
 
-**Status:** Candidato a fechamento  
+**Status:** Aprovado para integração  
 **Data:** 2026-06-22  
 **ADR:** ADR-0042
 
@@ -140,7 +140,31 @@ Cobertura específica:
 - integração com Point Ledger;
 - save/load entre aplicação, undo e redo.
 
-A suíte integral deve estar verde no head final da PR.
+### Execuções canônicas observadas
+
+```text
+Tests #625 — envelope e executor
+Tests #636 — histórico canônico
+Tests #639 — desfazer/refazer
+Tests #645 — persistência
+Tests #652 — portas de runtime
+Tests #656 — runtime injetado
+Tests #661 — projeção de leitura
+Tests #662 — fluxo vertical
+Tests #665 — documentação final
+```
+
+O head documental permaneceu verde e nenhuma regressão de domínio foi introduzida.
+
+## Auditoria final
+
+- nenhuma thread de revisão aberta;
+- nenhuma revisão bloqueante registrada;
+- nenhum workflow temporário no diff;
+- PR mergeável;
+- nenhuma API congelada foi reaberta;
+- nenhum segundo histórico, runtime, despachante ou Point Ledger foi criado;
+- persistência otimista entre múltiplos escritores permanece fora do escopo e pertence à etapa posterior de persistência completa.
 
 ## Regressões proibidas
 
@@ -164,6 +188,7 @@ APP-CORE-1.0 não inclui:
 - componentes visuais;
 - adaptador concreto de navegador;
 - fluxo completo dos modos Criação e Mesa;
+- persistência otimista entre múltiplos escritores;
 - catálogo completo de handlers dos domínios futuros;
 - DOM-SKILL;
 - DOM-EQUIPMENT;
@@ -171,15 +196,17 @@ APP-CORE-1.0 não inclui:
 - DOM-POWER;
 - DOM-MAGIC.
 
-## Critério de aprovação
+## Critério de fechamento
 
-O gate será aprovado quando:
+O gate será considerado **fechado** somente quando:
 
-- a PR estiver pronta para revisão;
-- a suíte integral estiver verde no head documental;
+- a PR deixar o estado de rascunho;
+- o head final permanecer verde;
 - não houver thread bloqueante;
-- nenhum workflow temporário estiver no diff;
-- o merge estiver confirmado na `main`.
+- o merge estiver confirmado na `main`;
+- a `main` estiver idêntica ao commit integrado.
+
+Até lá, o estado normativo é **aprovado para integração**.
 
 ## Próxima frente
 
