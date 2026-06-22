@@ -16,6 +16,18 @@ import {
   validateCommandExecutionResult,
 } from "./CommandExecutor.js";
 
+function runtime(initialValue = 0) {
+  let counter = initialValue;
+  return {
+    clock: {
+      now: () => "2026-06-22T11:00:01.000Z",
+    },
+    idGenerator: {
+      next: prefix => `${prefix}:${++counter}`,
+    },
+  };
+}
+
 function character(name = "Original") {
   return createCharacter({
     identity: {
@@ -95,7 +107,7 @@ test("applies one command atomically and records one transition", () => {
     handler: renameHandler,
   }]);
 
-  const result = executeCommand(original, command(), registry);
+  const result = executeCommand(original, command(), registry, runtime());
 
   assert.equal(result.status, "applied");
   assert.equal(result.session.revision, 5);
@@ -105,10 +117,12 @@ test("applies one command atomically and records one transition", () => {
   assert.deepEqual(result.session.future, []);
   assert.equal(result.receipt.previousRevision, 4);
   assert.equal(result.receipt.revision, 5);
+  assert.equal(result.receipt.processedAt, "2026-06-22T11:00:01.000Z");
   assert.equal(result.receipt.domainReceipt.previousName, "Original");
   assert.deepEqual(result.session.lastReceipt, result.receipt);
 
   const entry = result.session.history[0];
+  assert.equal(entry.id, "transition:1");
   assert.equal(entry.commandId, "command-rename");
   assert.equal(entry.commandType, "character.rename");
   assert.deepEqual(entry.commandPayload, { name: "Renomeado" });
@@ -138,7 +152,12 @@ test("rejects a stale revision without invoking the handler", () => {
     },
   }]);
 
-  const result = executeCommand(original, command({ expectedRevision: 3 }), registry);
+  const result = executeCommand(
+    original,
+    command({ expectedRevision: 3 }),
+    registry,
+    runtime(),
+  );
 
   assert.equal(result.status, "rejected");
   assert.equal(result.session, original);
@@ -159,11 +178,13 @@ test("rejects invalid envelopes and missing handlers atomically", () => {
     original,
     command({ payload: [] }),
     emptyRegistry,
+    runtime(),
   );
   const missing = executeCommand(
     original,
     command({ type: "character.missing" }),
     emptyRegistry,
+    runtime(),
   );
 
   assert.equal(invalid.status, "rejected");
@@ -188,7 +209,7 @@ test("preserves history future and revision for a no-op", () => {
     }),
   }]);
 
-  const result = executeCommand(original, command(), registry);
+  const result = executeCommand(original, command(), registry, runtime());
 
   assert.equal(result.status, "no-op");
   assert.equal(result.session, original);
@@ -197,6 +218,7 @@ test("preserves history future and revision for a no-op", () => {
   assert.equal(result.session.future.length, 1);
   assert.equal(result.receipt.previousRevision, 4);
   assert.equal(result.receipt.revision, 4);
+  assert.equal(result.receipt.processedAt, "2026-06-22T11:00:01.000Z");
   assert.equal(result.receipt.domainReceipt.reason, "already-current");
   assert.equal(original.lastReceipt, null);
 });
@@ -210,7 +232,7 @@ test("turns handler exceptions into failed results without partial state", () =>
     },
   }]);
 
-  const result = executeCommand(original, command(), registry);
+  const result = executeCommand(original, command(), registry, runtime());
 
   assert.equal(result.status, "failed");
   assert.equal(result.session, original);
@@ -240,7 +262,7 @@ test("rejects invalid handler results as failed without changing state", () => {
       type: "character.rename",
       handler: () => invalidResult,
     }]);
-    const result = executeCommand(original, command(), registry);
+    const result = executeCommand(original, command(), registry, runtime());
 
     assert.equal(result.status, "failed");
     assert.equal(result.session, original);
@@ -258,12 +280,23 @@ test("fails atomically when the revision cannot advance", () => {
     original,
     command({ expectedRevision: Number.MAX_SAFE_INTEGER }),
     registry,
+    runtime(),
   );
 
   assert.equal(result.status, "failed");
   assert.equal(result.session, original);
   assert.match(result.diagnostics[0].message, /revision exhausted/);
   assert.equal(original.history.length, 0);
+});
+
+test("requires a valid application runtime", () => {
+  const original = session();
+  const registry = createCommandRegistry();
+
+  assert.throws(
+    () => executeCommand(original, command(), registry, null),
+    /Application runtime must be a plain object/,
+  );
 });
 
 test("publishes the canonical execution status set", () => {
