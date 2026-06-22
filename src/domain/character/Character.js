@@ -102,6 +102,11 @@ import {
 import {
   validateMorphProfilesForCharacter,
 } from "./MorphProfile.js";
+import {
+  createPointBudget,
+  serializePointBudget,
+  validatePointBudget,
+} from "../points/PointBudget.js";
 
 export function createCharacter(input = {}) {
   const traits = createTraitsFromCharacterInput(input);
@@ -112,6 +117,7 @@ export function createCharacter(input = {}) {
   );
   const character = {
     identity: input.identity ?? createDefaultIdentity(),
+    pointBudget: createPointBudget(input.pointBudget),
 
     attributes: createAttributes(input.attributes),
     secondaryCharacteristics:
@@ -159,6 +165,7 @@ export function validateCharacter(character) {
     throw new Error("Character must have a valid identity.name");
   }
 
+  validatePointBudget(character.pointBudget);
   validateAttributes(character.attributes);
   validateSecondaryCharacteristics(character.secondaryCharacteristics);
   validatePools(character.pools);
@@ -208,6 +215,7 @@ export function serializeCharacter(character) {
 
   return {
     identity: character.identity,
+    pointBudget: serializePointBudget(character.pointBudget),
 
     attributes: serializeAttributes(character.attributes),
     secondaryCharacteristics:

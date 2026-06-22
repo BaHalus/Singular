@@ -6,6 +6,7 @@ import {
 } from "../character/FormTransitionRulesResolver.js";
 import { createImportSnapshot } from "./ImportSnapshot.js";
 import { importIdentity } from "./importers/IdentityImporter.js";
+import { importPointBudget } from "./importers/PointBudgetImporter.js";
 import {
   importAttributes,
   importSecondaryCharacteristics,
@@ -65,6 +66,7 @@ export function createSnapshotFromGcs(source = {}, options = {}) {
 
   return createImportSnapshot({
     identity,
+    pointBudget: importPointBudget(standaloneTemplate ? {} : source),
     attributes: importAttributes(standaloneTemplate ? {} : source),
     secondaryCharacteristics: importSecondaryCharacteristics(
       standaloneTemplate ? {} : source,
@@ -109,6 +111,7 @@ export function importCharacterWithDiagnostics(source = {}, options = {}) {
   const snapshot = createSnapshotFromGcs(source, options);
   const character = createCharacter({
     identity: snapshot.identity,
+    pointBudget: snapshot.pointBudget,
     attributes: snapshot.attributes,
     secondaryCharacteristics: snapshot.secondaryCharacteristics,
 
