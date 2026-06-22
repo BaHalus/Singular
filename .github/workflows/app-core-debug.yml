@@ -1,0 +1,41 @@
+name: App Core Debug
+
+on:
+  push:
+    branches:
+      - feature/app-core-1.0
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Run full suite and capture output
+        id: tests
+        continue-on-error: true
+        run: npm test > app-core-test-output.log 2>&1
+
+      - name: Upload test output
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-core-test-output
+          path: app-core-test-output.log
+          retention-days: 1
+
+      - name: Propagate test result
+        if: steps.tests.outcome == 'failure'
+        run: exit 1
