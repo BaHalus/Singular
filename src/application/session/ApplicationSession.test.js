@@ -7,6 +7,7 @@ import {
 } from "../../domain/character/Character.js";
 import {
   createApplicationHistoryEntry,
+  serializeApplicationHistory,
 } from "../history/ApplicationHistory.js";
 import {
   createApplicationSession,
@@ -54,13 +55,17 @@ function futureEntry() {
   });
 }
 
+function mutableEntry(entry) {
+  return serializeApplicationHistory([entry])[0];
+}
+
 function completeInput() {
   return {
     id: "session-a",
     revision: 7,
-    character: namedCharacter(),
-    history: [historyEntry()],
-    future: [futureEntry()],
+    character: structuredClone(serializeCharacter(namedCharacter())),
+    history: [mutableEntry(historyEntry())],
+    future: [mutableEntry(futureEntry())],
     dirty: true,
     lastReceipt: {
       commandId: "command-current",
