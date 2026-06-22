@@ -22,6 +22,11 @@ function character(name = "Original") {
       id: "character-command-executor",
       name,
     },
+    metadata: {
+      createdAt: "2026-06-22T11:00:00.000Z",
+      updatedAt: "2026-06-22T11:00:00.000Z",
+      source: "test",
+    },
   });
 }
 
