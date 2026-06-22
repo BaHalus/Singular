@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - feature/app-core-1.0
+  pull_request:
+    branches:
+      - main
   workflow_dispatch:
 
 permissions:
