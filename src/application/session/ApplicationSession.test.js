@@ -22,6 +22,11 @@ function namedCharacter(name = "Application Session") {
       id: "character-application-session",
       name,
     },
+    metadata: {
+      createdAt: "2026-06-22T12:00:00.000Z",
+      updatedAt: "2026-06-22T12:00:00.000Z",
+      source: "test",
+    },
   });
 }
 
