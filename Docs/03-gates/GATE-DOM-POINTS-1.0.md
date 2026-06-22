@@ -73,13 +73,13 @@
 - [x] nenhuma autoridade fechada foi reaberta;
 - [x] ADR-0041 registra as decisões;
 - [x] documento arquitetural público foi criado;
-- [ ] suíte integral verde no head documental final;
-- [ ] CI canônica verde no head documental final;
-- [ ] nenhuma revisão bloqueante, comentário ou thread aberta;
-- [ ] PR integrada à `main`;
-- [ ] `main` confirmada idêntica ao merge final.
+- [x] suíte integral verde no head documental final;
+- [x] CI canônica verde no head documental final;
+- [x] nenhuma revisão bloqueante ou thread aberta;
+- [x] PR integrada à `main`;
+- [x] `main` confirmada idêntica ao merge final.
 
-## APIs a congelar ao encerrar
+## APIs congeladas ao encerrar
 
 ```text
 PointBudget.js
@@ -95,18 +95,19 @@ CharacterPointLedger.js
 
 Novos domínios devem fornecer relatórios e contribuições. Não deve surgir outro agregador total, outro orçamento persistente ou cálculo mecânico paralelo dentro do ledger.
 
-## Estado pretendido após o gate
+## Estado após o gate
 
 ```text
 DOM-POINTS-1.0 — fechado, em manutenção
 Próxima frente — APP-CORE-1.0
 ```
 
-## Evidências pendentes
+## Evidências finais
 
 - PR funcional: `#36`;
-- head final: pendente após documentação;
-- CI final: pendente;
-- revisões finais: pendentes;
-- merge: pendente;
-- comparação pós-merge: pendente.
+- head funcional e documental validado: `190870851f57ce811e3d4d446728720bfdbcd305`;
+- CI canônica final: `Tests #613`, concluída com sucesso;
+- revisão automática: duas observações P2 corrigidas e respectivas threads resolvidas;
+- merge funcional: `3c0f7e075faf6062f84271fa178fd3fcd5f811ef`;
+- comparação pós-merge: `main` idêntica ao merge funcional, sem commits à frente ou atrás;
+- este registro documental não altera código nem reabre DOM-POINTS.
