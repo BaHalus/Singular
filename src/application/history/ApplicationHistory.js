@@ -131,6 +131,8 @@ export function fingerprintApplicationCharacter(character) {
 export function validateApplicationHistoryPosition(history, future, character) {
   validateApplicationHistory(history);
   validateApplicationHistory(future);
+  validateHistoryContinuity(history);
+  validateFutureContinuity(future);
   validateCharacter(character);
   const current = fingerprintApplicationCharacter(character);
   const historyTop = history.at(-1) ?? null;
@@ -143,6 +145,30 @@ export function validateApplicationHistoryPosition(history, future, character) {
     throw new Error("Application future does not match current character");
   }
   return true;
+}
+
+function validateHistoryContinuity(history) {
+  for (let index = 0; index < history.length - 1; index += 1) {
+    const current = history[index];
+    const next = history[index + 1];
+    if (current.afterFingerprint !== next.beforeFingerprint) {
+      throw new Error(
+        `Application history transitions at indexes ${index} and ${index + 1} are disconnected`,
+      );
+    }
+  }
+}
+
+function validateFutureContinuity(future) {
+  for (let index = 0; index < future.length - 1; index += 1) {
+    const current = future[index];
+    const next = future[index + 1];
+    if (current.beforeFingerprint !== next.afterFingerprint) {
+      throw new Error(
+        `Application future transitions at indexes ${index} and ${index + 1} are disconnected`,
+      );
+    }
+  }
 }
 
 function normalizeCharacterSnapshot(value, label) {
