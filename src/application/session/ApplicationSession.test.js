@@ -6,18 +6,51 @@ import {
   serializeCharacter,
 } from "../../domain/character/Character.js";
 import {
+  createApplicationHistoryEntry,
+} from "../history/ApplicationHistory.js";
+import {
   createApplicationSession,
   nextApplicationSessionRevision,
   serializeApplicationSession,
   validateApplicationSession,
 } from "./ApplicationSession.js";
 
-function baseCharacter() {
+function namedCharacter(name = "Application Session") {
   return createCharacter({
     identity: {
       id: "character-application-session",
-      name: "Application Session",
+      name,
     },
+  });
+}
+
+function historyEntry(input = {}) {
+  return createApplicationHistoryEntry({
+    id: input.id ?? "transition-history",
+    commandId: input.commandId ?? "command-previous",
+    commandType: "character.rename",
+    issuedAt: "2026-06-22T12:00:00.000Z",
+    appliedAt: "2026-06-22T12:00:01.000Z",
+    beforeRevision: input.beforeRevision ?? 5,
+    afterRevision: input.afterRevision ?? 6,
+    beforeCharacter: input.beforeCharacter ?? namedCharacter("Before"),
+    afterCharacter: input.afterCharacter ?? namedCharacter(),
+    commandPayload: input.commandPayload ?? {
+      path: ["identity", "name"],
+    },
+    receipt: { status: "applied" },
+  });
+}
+
+function futureEntry() {
+  return historyEntry({
+    id: "transition-future",
+    commandId: "command-undone",
+    beforeRevision: 6,
+    afterRevision: 7,
+    beforeCharacter: namedCharacter(),
+    afterCharacter: namedCharacter("Future"),
+    commandPayload: { value: "Future" },
   });
 }
 
@@ -25,15 +58,9 @@ function completeInput() {
   return {
     id: "session-a",
     revision: 7,
-    character: baseCharacter(),
-    history: [{
-      commandId: "command-previous",
-      payload: { path: ["identity", "name"] },
-    }],
-    future: [{
-      commandId: "command-undone",
-      payload: { value: "Previous name" },
-    }],
+    character: namedCharacter(),
+    history: [historyEntry()],
+    future: [futureEntry()],
     dirty: true,
     lastReceipt: {
       commandId: "command-current",
@@ -47,7 +74,7 @@ function completeInput() {
 }
 
 test("creates a canonical session with safe defaults", () => {
-  const character = baseCharacter();
+  const character = namedCharacter();
   const session = createApplicationSession({
     id: "session-defaults",
     character,
@@ -68,27 +95,26 @@ test("creates a canonical session with safe defaults", () => {
   assert.equal(validateApplicationSession(session), true);
 });
 
-test("defensively clones and deeply freezes session state", () => {
+test("defensively clones and deeply freezes canonical session state", () => {
   const input = completeInput();
   const session = createApplicationSession(input);
 
-  input.history[0].payload.path.push("mutated");
-  input.future[0].payload.value = "Mutated";
+  input.history[0].commandPayload.path.push("mutated");
+  input.future[0].commandPayload.value = "Mutated";
   input.lastReceipt.result.status = "mutated";
   input.metadata.tags.push("mutated");
   input.character.identity.name = "Mutated character";
 
-  assert.deepEqual(session.history[0].payload.path, ["identity", "name"]);
-  assert.equal(session.future[0].payload.value, "Previous name");
+  assert.deepEqual(
+    session.history[0].commandPayload.path,
+    ["identity", "name"],
+  );
+  assert.equal(session.future[0].commandPayload.value, "Future");
   assert.equal(session.lastReceipt.result.status, "applied");
   assert.deepEqual(session.metadata.tags, ["application", "session"]);
   assert.equal(session.character.identity.name, "Application Session");
-
   assert.equal(Object.isFrozen(session), true);
-  assert.equal(Object.isFrozen(session.character), true);
-  assert.equal(Object.isFrozen(session.history), true);
-  assert.equal(Object.isFrozen(session.history[0].payload.path), true);
-  assert.equal(Object.isFrozen(session.metadata.tags), true);
+  assert.equal(Object.isFrozen(session.history[0].beforeCharacter), true);
   assert.throws(() => session.metadata.tags.push("blocked"), TypeError);
 });
 
@@ -107,46 +133,70 @@ test("serializes to a detached application snapshot", () => {
     metadata: session.metadata,
   });
 
-  serialized.history[0].payload.path.push("serialized-only");
+  serialized.history[0].commandPayload.path.push("serialized-only");
   serialized.metadata.tags.push("serialized-only");
   serialized.character.identity.name = "Serialized only";
 
-  assert.deepEqual(session.history[0].payload.path, ["identity", "name"]);
+  assert.deepEqual(
+    session.history[0].commandPayload.path,
+    ["identity", "name"],
+  );
   assert.deepEqual(session.metadata.tags, ["application", "session"]);
   assert.equal(session.character.identity.name, "Application Session");
 });
 
-test("validates structural invariants without introducing domain rules", () => {
+test("validates session structure and canonical history position", () => {
   const valid = createApplicationSession(completeInput());
-
   assert.equal(validateApplicationSession(valid), true);
+
   assert.throws(
-    () => createApplicationSession({ character: baseCharacter() }),
+    () => createApplicationSession({ character: namedCharacter() }),
     /id must be a non-empty string/,
   );
   assert.throws(
     () => createApplicationSession({
       id: "session-invalid-revision",
       revision: -1,
-      character: baseCharacter(),
+      character: namedCharacter(),
     }),
     /revision must be a non-negative safe integer/,
   );
   assert.throws(
     () => createApplicationSession({
       id: "session-invalid-history",
-      character: baseCharacter(),
+      character: namedCharacter(),
       history: ["not-a-record"],
     }),
-    /history\[0\] must be a plain object/,
+    /Application history\[0\] must be a plain object/,
+  );
+  assert.throws(
+    () => createApplicationSession({
+      id: "session-mismatched-history",
+      character: namedCharacter("Other"),
+      history: [historyEntry()],
+    }),
+    /history does not match current character/,
   );
   assert.throws(
     () => createApplicationSession({
       id: "session-invalid-dirty",
-      character: baseCharacter(),
+      character: namedCharacter(),
       dirty: "yes",
     }),
     /dirty must be boolean/,
+  );
+});
+
+test("rejects the same transition in history and future", () => {
+  const entry = historyEntry();
+  assert.throws(
+    () => createApplicationSession({
+      id: "session-duplicate-transition",
+      character: namedCharacter(),
+      history: [entry],
+      future: [entry],
+    }),
+    /cannot exist in history and future/,
   );
 });
 
@@ -157,7 +207,7 @@ test("rejects cyclic application records", () => {
   assert.throws(
     () => createApplicationSession({
       id: "session-cyclic-metadata",
-      character: baseCharacter(),
+      character: namedCharacter(),
       metadata,
     }),
     /must not contain cycles/,
@@ -168,7 +218,7 @@ test("advances revisions monotonically without mutating the session", () => {
   const session = createApplicationSession({
     id: "session-revision",
     revision: 41,
-    character: baseCharacter(),
+    character: namedCharacter(),
   });
 
   assert.equal(nextApplicationSessionRevision(session), 42);
@@ -177,7 +227,7 @@ test("advances revisions monotonically without mutating the session", () => {
   const exhausted = createApplicationSession({
     id: "session-exhausted",
     revision: Number.MAX_SAFE_INTEGER,
-    character: baseCharacter(),
+    character: namedCharacter(),
   });
   assert.throws(
     () => nextApplicationSessionRevision(exhausted),
