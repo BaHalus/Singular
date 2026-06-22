@@ -9,9 +9,15 @@ export function createSequentialIdGenerator(options = {}) {
     throw new Error("Sequential ID generator options must be a plain object");
   }
 
-  let counter = normalizeCounter(options.initialValue ?? 0);
-  const separator = normalizeSeparator(options.separator ?? ":");
-  const width = normalizeWidth(options.width ?? 0);
+  let counter = normalizeCounter(
+    hasOwn(options, "initialValue") ? options.initialValue : 0,
+  );
+  const separator = normalizeSeparator(
+    hasOwn(options, "separator") ? options.separator : ":",
+  );
+  const width = normalizeWidth(
+    hasOwn(options, "width") ? options.width : 0,
+  );
 
   const generator = {
     next(prefix) {
@@ -54,4 +60,8 @@ function normalizeWidth(value) {
     throw new Error("Sequential ID width must be a non-negative safe integer");
   }
   return value;
+}
+
+function hasOwn(value, key) {
+  return Object.prototype.hasOwnProperty.call(value, key);
 }
