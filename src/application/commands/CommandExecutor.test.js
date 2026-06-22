@@ -6,11 +6,10 @@ import {
   serializeCharacter,
 } from "../../domain/character/Character.js";
 import {
-  createApplicationSession,
-} from "../session/ApplicationSession.js";
-import {
-  createCommandRegistry,
-} from "./CommandRegistry.js";
+  createApplicationHistoryEntry,
+} from "../history/ApplicationHistory.js";
+import { createApplicationSession } from "../session/ApplicationSession.js";
+import { createCommandRegistry } from "./CommandRegistry.js";
 import {
   executeCommand,
   getCommandExecutionStatuses,
@@ -26,13 +25,29 @@ function character(name = "Original") {
   });
 }
 
+function futureTransition() {
+  return createApplicationHistoryEntry({
+    id: "transition-future",
+    commandId: "command-future",
+    commandType: "character.rename",
+    issuedAt: "2026-06-22T10:00:00.000Z",
+    appliedAt: "2026-06-22T10:00:01.000Z",
+    beforeRevision: 4,
+    afterRevision: 5,
+    beforeCharacter: character("Original"),
+    afterCharacter: character("Future"),
+    commandPayload: { name: "Future" },
+    receipt: { status: "applied" },
+  });
+}
+
 function session(input = {}) {
   return createApplicationSession({
     id: "session-command-executor",
     revision: input.revision ?? 4,
     character: input.character ?? character(),
-    history: input.history ?? [{ revision: 3 }],
-    future: input.future ?? [{ revision: 5 }],
+    history: input.history ?? [],
+    future: input.future ?? [futureTransition()],
     dirty: input.dirty ?? false,
     lastReceipt: input.lastReceipt ?? null,
     metadata: { source: "test" },
@@ -68,7 +83,7 @@ function renameHandler({ session: current, command: currentCommand }) {
   };
 }
 
-test("applies one command atomically and advances one revision", () => {
+test("applies one command atomically and records one transition", () => {
   const original = session();
   const registry = createCommandRegistry([{
     type: "character.rename",
@@ -81,18 +96,30 @@ test("applies one command atomically and advances one revision", () => {
   assert.equal(result.session.revision, 5);
   assert.equal(result.session.character.identity.name, "Renomeado");
   assert.equal(result.session.dirty, true);
-  assert.deepEqual(result.session.history, original.history);
+  assert.equal(result.session.history.length, 1);
   assert.deepEqual(result.session.future, []);
   assert.equal(result.receipt.previousRevision, 4);
   assert.equal(result.receipt.revision, 5);
   assert.equal(result.receipt.domainReceipt.previousName, "Original");
   assert.deepEqual(result.session.lastReceipt, result.receipt);
+
+  const entry = result.session.history[0];
+  assert.equal(entry.commandId, "command-rename");
+  assert.equal(entry.commandType, "character.rename");
+  assert.deepEqual(entry.commandPayload, { name: "Renomeado" });
+  assert.equal(entry.beforeRevision, 4);
+  assert.equal(entry.afterRevision, 5);
+  assert.equal(entry.beforeCharacter.identity.name, "Original");
+  assert.equal(entry.afterCharacter.identity.name, "Renomeado");
+  assert.deepEqual(entry.receipt, result.receipt);
+
   assert.equal(original.revision, 4);
   assert.equal(original.character.identity.name, "Original");
-  assert.deepEqual(original.future, [{ revision: 5 }]);
+  assert.equal(original.history.length, 0);
+  assert.equal(original.future.length, 1);
   assert.equal(validateCommandExecutionResult(result), true);
   assert.equal(Object.isFrozen(result), true);
-  assert.equal(Object.isFrozen(result.receipt), true);
+  assert.equal(Object.isFrozen(entry), true);
 });
 
 test("rejects a stale revision without invoking the handler", () => {
@@ -145,7 +172,7 @@ test("rejects invalid envelopes and missing handlers atomically", () => {
   );
 });
 
-test("preserves the session and revision for a no-op", () => {
+test("preserves history future and revision for a no-op", () => {
   const original = session();
   const registry = createCommandRegistry([{
     type: "character.rename",
@@ -161,6 +188,8 @@ test("preserves the session and revision for a no-op", () => {
   assert.equal(result.status, "no-op");
   assert.equal(result.session, original);
   assert.equal(result.session.revision, 4);
+  assert.equal(result.session.history.length, 0);
+  assert.equal(result.session.future.length, 1);
   assert.equal(result.receipt.previousRevision, 4);
   assert.equal(result.receipt.revision, 4);
   assert.equal(result.receipt.domainReceipt.reason, "already-current");
@@ -187,6 +216,7 @@ test("turns handler exceptions into failed results without partial state", () =>
   );
   assert.match(result.diagnostics[0].message, /domain operation failed/);
   assert.equal(original.character.identity.name, "Original");
+  assert.equal(original.history.length, 0);
 });
 
 test("rejects invalid handler results as failed without changing state", () => {
@@ -228,6 +258,7 @@ test("fails atomically when the revision cannot advance", () => {
   assert.equal(result.status, "failed");
   assert.equal(result.session, original);
   assert.match(result.diagnostics[0].message, /revision exhausted/);
+  assert.equal(original.history.length, 0);
 });
 
 test("publishes the canonical execution status set", () => {
