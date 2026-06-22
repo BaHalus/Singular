@@ -20,6 +20,11 @@ function namedCharacter(name) {
       id: "character-history",
       name,
     },
+    metadata: {
+      createdAt: "2026-06-22T12:00:00.000Z",
+      updatedAt: "2026-06-22T12:00:00.000Z",
+      source: "test",
+    },
   });
 }
 
@@ -68,7 +73,7 @@ test("serializes and restores detached validated characters", () => {
   assert.equal(history[0].afterCharacter.identity.name, "Depois");
   assert.deepEqual(
     serializeCharacter(restored),
-    serializeCharacter(namedCharacter("Depois")),
+    history[0].afterCharacter,
   );
 });
 
