@@ -71,19 +71,19 @@ function executeHistoryOperation(type, session, options, runtime) {
   }
 
   const source = type === "undo" ? session.history : session.future;
-  if (source.length === 0) {
-    return createResult({
-      status: "no-op",
-      session,
-      receipt: createNoOpReceipt(type, session, runtime),
-      diagnostics: [{
-        code: `application-history-${type}-empty`,
-        severity: "info",
-      }],
-    });
-  }
-
   try {
+    if (source.length === 0) {
+      return createResult({
+        status: "no-op",
+        session,
+        receipt: createNoOpReceipt(type, session, runtime),
+        diagnostics: [{
+          code: `application-history-${type}-empty`,
+          severity: "info",
+        }],
+      });
+    }
+
     const entry = source.at(-1);
     const revision = nextApplicationSessionRevision(session);
     const processedAt = readClock(runtime.clock);
