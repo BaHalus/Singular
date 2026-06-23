@@ -167,6 +167,29 @@ O próximo passo estrutural deve identificar os documentos concretos que precisa
 
 Este passo apenas define como documentação antiga será reconciliada. Nenhuma regra de GURPS, fórmula de NH, custo, default, limite de técnica, vínculo automático ou integração com Point Ledger foi introduzida.
 
+## Auditoria estrutural — Passo 6
+
+### Documentos concretos para reconciliação
+
+- A reconciliação normativa desta rodada permanece concentrada em `Docs/03-gates/DOM-SKILL-1.0.md`, porque este é o documento novo e específico da frente aberta.
+- Nenhum documento antigo foi alterado neste passo; a auditoria ainda não confirmou um alvo documental concreto cuja correção seja segura sem reabrir frentes fechadas.
+- Qualquer correção futura em documento antigo deve ser pequena, citando explicitamente que `Character.skills` e `Character.techniques` já são coleções canônicas observadas, sem declarar cálculo mecânico resolvido.
+- Se uma busca posterior encontrar documento antigo contraditório, a correção deve ser feita em rodada própria e limitada a essa reconciliação documental.
+
+### Limite desta reconciliação
+
+- Este passo não promove o gate a contrato funcional de GURPS.
+- Este passo não corrige documentação fora do gate sem confirmação concreta do arquivo e do trecho contraditório.
+- Este passo não altera código, testes, schema, importadores, UI ou Point Ledger.
+
+### Próxima lacuna auditável
+
+O próximo passo estrutural deve confirmar a situação da branch em relação à `main` e decidir se a auditoria documental já pode ser fechada como PR de gate ou se ainda precisa de uma última revisão textual antes de sair de rascunho.
+
+### Decisão explícita deste passo
+
+Este passo apenas registra que a reconciliação documental concreta permanece limitada ao gate inicial até existir alvo documental específico e seguro. Nenhuma regra de GURPS, fórmula de NH, custo, default, limite de técnica, vínculo automático ou integração com Point Ledger foi introduzida.
+
 ## Critério para avançar além da auditoria
 
 Só avançar para contrato mecânico quando este gate tiver identificado, no mínimo:
