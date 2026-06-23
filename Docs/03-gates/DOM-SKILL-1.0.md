@@ -143,6 +143,30 @@ O próximo passo estrutural deve reconciliar documentos antigos que ainda tratem
 
 Este passo apenas registra a fronteira da cobertura de testes esperada e as lacunas que ainda precisam ser confirmadas. Nenhum teste novo, regra de GURPS, fórmula de NH, custo, default, limite de técnica, vínculo automático ou integração com Point Ledger foi introduzido.
 
+## Auditoria estrutural — Passo 5
+
+### Reconciliação documental inicial
+
+- Documentos antigos que descrevam perícias e técnicas como ausentes, pendentes ou ainda não canônicas devem ser tratados como obsoletos em relação ao estado observado desta frente.
+- A reconciliação documental deve preferir correções localizadas e explícitas, sem reescrever decisões arquiteturais de frentes já fechadas.
+- Qualquer documento que descreva cálculo de NH, defaults, limites de técnica ou custo como já resolvido deve ser marcado como prematuro até existir contrato mecânico soberano.
+- Referências a UI calculando NH, vínculo por nome ou associação implícita entre técnica e perícia devem ser removidas ou rebaixadas para hipótese rejeitada.
+
+### Critério mínimo para atualizar documentação antiga
+
+- Manter `Character.skills` e `Character.techniques` como coleções canônicas.
+- Registrar `Skills.js` e `Techniques.js` como normalizadores estruturais, não como motor mecânico soberano.
+- Preservar a distinção entre dado importado/declarado e valor calculado.
+- Não transformar documentação de auditoria em contrato funcional de GURPS.
+
+### Próxima lacuna auditável
+
+O próximo passo estrutural deve identificar os documentos concretos que precisam de reconciliação ou confirmar que a reconciliação pode permanecer limitada a este gate inicial.
+
+### Decisão explícita deste passo
+
+Este passo apenas define como documentação antiga será reconciliada. Nenhuma regra de GURPS, fórmula de NH, custo, default, limite de técnica, vínculo automático ou integração com Point Ledger foi introduzida.
+
 ## Critério para avançar além da auditoria
 
 Só avançar para contrato mecânico quando este gate tiver identificado, no mínimo:
