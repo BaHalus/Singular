@@ -119,6 +119,30 @@ O próximo passo estrutural deve mapear testes existentes que protegem normaliza
 
 Este passo apenas identifica operações estruturais já existentes. Nenhuma regra de GURPS, fórmula de NH, custo, default, limite de técnica, vínculo automático ou integração com Point Ledger foi introduzida.
 
+## Auditoria estrutural — Passo 4
+
+### Cobertura de testes a proteger antes de cálculo mecânico
+
+- Os testes do DOM-SKILL devem continuar restritos a normalização, validação, serialização e preservação estrutural das coleções canônicas.
+- A cobertura necessária para esta auditoria deve exercitar `skills` e `techniques` por meio das entradas estruturais existentes, sem criar API paralela para edição isolada.
+- Casos de regressão devem proteger preservação de identificadores externos, metadados importados, defaults declarados, features, armas, pré-requisitos e campos auxiliares.
+- Falhas de forma ou tipo devem permanecer bloqueadas pela validação, mas sem transformar dados importados em decisão soberana de NH, default, limite ou custo.
+
+### Lacunas de teste ainda abertas
+
+- Confirmar quais arquivos de teste existentes já cobrem `createSkills`, `createTechniques`, `validateSkills`, `validateTechniques`, `serializeSkills` e `serializeTechniques`.
+- Confirmar se a criação, validação e serialização de `Character` cobrem as coleções completas de perícias e técnicas.
+- Identificar lacunas de regressão para payloads importados incompletos, campos opcionais ausentes e metadados desconhecidos que ainda devem ser preservados.
+- Evitar adicionar testes de NH final, resolução de defaults, limite de técnica ou integração com Point Ledger antes de ADR ou contrato mecânico próprio.
+
+### Próxima lacuna auditável
+
+O próximo passo estrutural deve reconciliar documentos antigos que ainda tratem perícias e técnicas como pendentes, incompletas ou fora das coleções canônicas atuais.
+
+### Decisão explícita deste passo
+
+Este passo apenas registra a fronteira da cobertura de testes esperada e as lacunas que ainda precisam ser confirmadas. Nenhum teste novo, regra de GURPS, fórmula de NH, custo, default, limite de técnica, vínculo automático ou integração com Point Ledger foi introduzido.
+
 ## Critério para avançar além da auditoria
 
 Só avançar para contrato mecânico quando este gate tiver identificado, no mínimo:
