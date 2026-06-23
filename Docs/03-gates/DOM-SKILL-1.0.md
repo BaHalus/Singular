@@ -87,6 +87,38 @@ O próximo passo estrutural deve identificar, em arquivos e testes existentes, q
 
 Este passo apenas registra fronteiras arquiteturais e regras negativas para impedir expansão indevida do domínio. Nenhuma regra de GURPS, fórmula de NH, custo, default, limite de técnica ou integração com Point Ledger foi introduzida.
 
+## Auditoria estrutural — Passo 3
+
+### Operações estruturais identificadas
+
+- `createCharacter(input)` consome `input.skills` e `input.techniques` e delega a normalização para `createSkills` e `createTechniques`.
+- `validateCharacter(character)` delega a validação das coleções para `validateSkills` e `validateTechniques`.
+- `serializeCharacter(character)` delega a persistência serializável para `serializeSkills` e `serializeTechniques`.
+- `createSkills(input)` e `createTechniques(input)` aceitam arrays e normalizam cada item individualmente.
+- `createSkill(input)` e `createTechnique(input)` constroem os itens estruturais e preenchem campos ausentes com valores neutros.
+- `validateSkill(skill)` e `validateTechnique(technique)` validam forma e tipos, mas não calculam NH, defaults, limites ou custo final.
+- `serializeSkills(skills)` e `serializeTechniques(techniques)` preservam a estrutura serializável das coleções existentes.
+
+### Escritas atualmente observadas
+
+- A criação de personagem é a entrada estrutural primária para inserir ou substituir coleções de perícias e técnicas.
+- A serialização de personagem é a saída estrutural primária para persistir essas coleções.
+- Não foi registrada neste passo uma operação específica de aplicação para editar uma perícia ou técnica isolada.
+
+### Limites explícitos desta auditoria
+
+- A presença de `skillId`, `skillName` e `skillSpecialization` em técnicas não autoriza associação mecânica automática por nome.
+- A presença de `importedLevel`, `importedRelativeLevel`, `defaultPenalty` e `maximumRelativeLevel` registra dados importados ou declarados, mas ainda não estabelece autoridade soberana de cálculo.
+- A geração local de IDs em `Skills.js` e `Techniques.js` é comportamento estrutural legado observado; este passo não altera a política de IDs nem a integra ao runtime da aplicação.
+
+### Próxima lacuna auditável
+
+O próximo passo estrutural deve mapear testes existentes que protegem normalização, validação e serialização de `skills` e `techniques`, sem acrescentar regras mecânicas novas.
+
+### Decisão explícita deste passo
+
+Este passo apenas identifica operações estruturais já existentes. Nenhuma regra de GURPS, fórmula de NH, custo, default, limite de técnica, vínculo automático ou integração com Point Ledger foi introduzida.
+
 ## Critério para avançar além da auditoria
 
 Só avançar para contrato mecânico quando este gate tiver identificado, no mínimo:
