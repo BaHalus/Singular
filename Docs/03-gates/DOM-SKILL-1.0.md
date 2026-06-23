@@ -30,7 +30,8 @@ Esta frente começa como auditoria estrutural do domínio de perícias e técnic
 - A UI apenas apresenta informações e coleta entrada do usuário.
 - Não criar autoridade paralela para perícias ou técnicas.
 - Não criar pipeline paralelo de importação, normalização ou cálculo.
-- Não inferir vínculo entre perícia e técnica por nome quando um identificador canônico ou externo não estiver disponível.
+- Não introduzir novo vínculo entre perícia e técnica por nome quando um identificador canônico ou externo não estiver disponível.
+- O fallback legado por nome já observado no importador de técnicas deve ser tratado como lacuna a reconciliar, não como contrato novo do DOM-SKILL.
 
 ## Auditoria estrutural — Passo 1
 
@@ -74,7 +75,8 @@ Este passo apenas registra o inventário estrutural inicial. Nenhuma regra de GU
 
 ### Regras negativas registradas
 
-- Não criar busca por nome como mecanismo de associação entre técnica e perícia-mãe.
+- Não criar nova busca por nome como mecanismo de associação entre técnica e perícia-mãe.
+- O comportamento legado de importação que retorna `status: "resolvedByName"` quando encontra uma perícia única por nome deve permanecer registrado como dívida/compatibilidade observada até ADR ou correção própria.
 - Não derivar dificuldade, atributo-base, pontos, defaults ou limites a partir de rótulos textuais.
 - Não usar importador, schema ou UI como autoridade mecânica temporária enquanto o motor soberano ainda não existir.
 - Não mover responsabilidade de Traits, equipamentos, combate, Poderes ou Magia para o DOM-SKILL como atalho de implementação.
@@ -98,16 +100,19 @@ Este passo apenas registra fronteiras arquiteturais e regras negativas para impe
 - `createSkill(input)` e `createTechnique(input)` constroem os itens estruturais e preenchem campos ausentes com valores neutros.
 - `validateSkill(skill)` e `validateTechnique(technique)` validam forma e tipos, mas não calculam NH, defaults, limites ou custo final.
 - `serializeSkills(skills)` e `serializeTechniques(techniques)` preservam a estrutura serializável das coleções existentes.
+- `src/domain/character/SkillsOperations.js` expõe operações isoladas atuais como `addSkill`, `removeSkill`, `renameSkill` e `setSkillPoints`.
+- `src/domain/character/TechniquesOperations.js` expõe operações isoladas atuais análogas, incluindo edição estrutural de técnica e `setTechniqueSkillReference`.
 
 ### Escritas atualmente observadas
 
-- A criação de personagem é a entrada estrutural primária para inserir ou substituir coleções de perícias e técnicas.
+- A criação de personagem é uma entrada estrutural para inserir ou substituir coleções de perícias e técnicas.
 - A serialização de personagem é a saída estrutural primária para persistir essas coleções.
-- Não foi registrada neste passo uma operação específica de aplicação para editar uma perícia ou técnica isolada.
+- As operações isoladas de `SkillsOperations.js` e `TechniquesOperations.js` já são caminhos reais de mutação das coleções canônicas e devem ser cobertas por qualquer contrato futuro do DOM-SKILL.
+- Essas operações atuais são estruturais; este gate não as transforma em autoridade de NH, default, limite ou custo.
 
 ### Limites explícitos desta auditoria
 
-- A presença de `skillId`, `skillName` e `skillSpecialization` em técnicas não autoriza associação mecânica automática por nome.
+- A presença de `skillId`, `skillName` e `skillSpecialization` em técnicas não autoriza novo mecanismo de associação mecânica automática por nome.
 - A presença de `importedLevel`, `importedRelativeLevel`, `defaultPenalty` e `maximumRelativeLevel` registra dados importados ou declarados, mas ainda não estabelece autoridade soberana de cálculo.
 - A geração local de IDs em `Skills.js` e `Techniques.js` é comportamento estrutural legado observado; este passo não altera a política de IDs nem a integra ao runtime da aplicação.
 
@@ -124,7 +129,7 @@ Este passo apenas identifica operações estruturais já existentes. Nenhuma reg
 ### Cobertura de testes a proteger antes de cálculo mecânico
 
 - Os testes do DOM-SKILL devem continuar restritos a normalização, validação, serialização e preservação estrutural das coleções canônicas.
-- A cobertura necessária para esta auditoria deve exercitar `skills` e `techniques` por meio das entradas estruturais existentes, sem criar API paralela para edição isolada.
+- A cobertura necessária para esta auditoria deve exercitar `skills` e `techniques` por meio das entradas estruturais e operações isoladas existentes, sem criar API paralela para edição isolada.
 - Casos de regressão devem proteger preservação de identificadores externos, metadados importados, defaults declarados, features, armas, pré-requisitos e campos auxiliares.
 - Falhas de forma ou tipo devem permanecer bloqueadas pela validação, mas sem transformar dados importados em decisão soberana de NH, default, limite ou custo.
 
@@ -132,6 +137,7 @@ Este passo apenas identifica operações estruturais já existentes. Nenhuma reg
 
 - Confirmar quais arquivos de teste existentes já cobrem `createSkills`, `createTechniques`, `validateSkills`, `validateTechniques`, `serializeSkills` e `serializeTechniques`.
 - Confirmar se a criação, validação e serialização de `Character` cobrem as coleções completas de perícias e técnicas.
+- Confirmar a cobertura existente de `SkillsOperations.js`, `TechniquesOperations.js` e do fallback legado `resolvedByName` do importador de técnicas.
 - Identificar lacunas de regressão para payloads importados incompletos, campos opcionais ausentes e metadados desconhecidos que ainda devem ser preservados.
 - Evitar adicionar testes de NH final, resolução de defaults, limite de técnica ou integração com Point Ledger antes de ADR ou contrato mecânico próprio.
 
@@ -150,7 +156,7 @@ Este passo apenas registra a fronteira da cobertura de testes esperada e as lacu
 - Documentos antigos que descrevam perícias e técnicas como ausentes, pendentes ou ainda não canônicas devem ser tratados como obsoletos em relação ao estado observado desta frente.
 - A reconciliação documental deve preferir correções localizadas e explícitas, sem reescrever decisões arquiteturais de frentes já fechadas.
 - Qualquer documento que descreva cálculo de NH, defaults, limites de técnica ou custo como já resolvido deve ser marcado como prematuro até existir contrato mecânico soberano.
-- Referências a UI calculando NH, vínculo por nome ou associação implícita entre técnica e perícia devem ser removidas ou rebaixadas para hipótese rejeitada.
+- Referências a UI calculando NH, novo vínculo por nome ou associação implícita entre técnica e perícia devem ser removidas ou rebaixadas para hipótese rejeitada.
 
 ### Critério mínimo para atualizar documentação antiga
 
@@ -171,15 +177,16 @@ Este passo apenas define como documentação antiga será reconciliada. Nenhuma 
 
 ### Documentos concretos para reconciliação
 
-- A reconciliação normativa desta rodada permanece concentrada em `Docs/03-gates/DOM-SKILL-1.0.md`, porque este é o documento novo e específico da frente aberta.
-- Nenhum documento antigo foi alterado neste passo; a auditoria ainda não confirmou um alvo documental concreto cuja correção seja segura sem reabrir frentes fechadas.
-- Qualquer correção futura em documento antigo deve ser pequena, citando explicitamente que `Character.skills` e `Character.techniques` já são coleções canônicas observadas, sem declarar cálculo mecânico resolvido.
-- Se uma busca posterior encontrar documento antigo contraditório, a correção deve ser feita em rodada própria e limitada a essa reconciliação documental.
+- `Docs/03-gates/GATE-DOM-SKILL-1.0.md` já registra que a documentação antiga de Skills e Techniques está desatualizada e deve ser tratada como alvo de reconciliação.
+- `Docs/01-arquitetura/Skills.md` é alvo documental concreto porque ainda contém checklist/estado que pode contradizer a existência atual de `Character.skills`, `Skills.js` e operações estruturais associadas.
+- `Docs/01-arquitetura/Techniques.md` é alvo documental concreto porque ainda contém checklist/estado que pode contradizer a existência atual de `Character.techniques`, `Techniques.js`, operações estruturais associadas e importação preservada.
+- Nenhum documento antigo foi alterado neste passo; a correção desses alvos deve ocorrer em rodada própria e limitada à reconciliação documental.
+- Qualquer correção futura nesses documentos deve citar explicitamente que `Character.skills` e `Character.techniques` já são coleções canônicas observadas, sem declarar cálculo mecânico resolvido.
 
 ### Limite desta reconciliação
 
 - Este passo não promove o gate a contrato funcional de GURPS.
-- Este passo não corrige documentação fora do gate sem confirmação concreta do arquivo e do trecho contraditório.
+- Este passo não corrige documentação fora do gate sem rodada própria para cada alvo documental concreto.
 - Este passo não altera código, testes, schema, importadores, UI ou Point Ledger.
 
 ### Próxima lacuna auditável
@@ -188,7 +195,7 @@ O próximo passo estrutural deve confirmar a situação da branch em relação �
 
 ### Decisão explícita deste passo
 
-Este passo apenas registra que a reconciliação documental concreta permanece limitada ao gate inicial até existir alvo documental específico e seguro. Nenhuma regra de GURPS, fórmula de NH, custo, default, limite de técnica, vínculo automático ou integração com Point Ledger foi introduzida.
+Este passo apenas registra os alvos documentais concretos já conhecidos para reconciliação futura. Nenhuma regra de GURPS, fórmula de NH, custo, default, limite de técnica, novo vínculo automático ou integração com Point Ledger foi introduzida.
 
 ## Critério para avançar além da auditoria
 
