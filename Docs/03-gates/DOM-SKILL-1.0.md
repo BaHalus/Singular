@@ -63,6 +63,30 @@ Esta frente começa como auditoria estrutural do domínio de perícias e técnic
 
 Este passo apenas registra o inventário estrutural inicial. Nenhuma regra de GURPS, fórmula de NH, custo, default, limite de técnica ou vínculo automático foi introduzido.
 
+## Auditoria estrutural — Passo 2
+
+### Fronteiras iniciais do domínio
+
+- Perícias e técnicas pertencem ao personagem como dados estruturais persistidos, não como resultado derivado de UI.
+- Normalizadores podem aceitar, preservar e estabilizar payloads importados, mas não devem decidir NH final, custo final ou vínculo mecânico entre itens.
+- Operações futuras do domínio devem escrever nas coleções canônicas existentes, sem criar coleção espelho, cache autoritativo ou lista paralela para cálculo.
+- Integrações futuras com Point Ledger devem consumir um contrato explícito do domínio; este gate ainda não define esse contrato.
+
+### Regras negativas registradas
+
+- Não criar busca por nome como mecanismo de associação entre técnica e perícia-mãe.
+- Não derivar dificuldade, atributo-base, pontos, defaults ou limites a partir de rótulos textuais.
+- Não usar importador, schema ou UI como autoridade mecânica temporária enquanto o motor soberano ainda não existir.
+- Não mover responsabilidade de Traits, equipamentos, combate, Poderes ou Magia para o DOM-SKILL como atalho de implementação.
+
+### Próxima lacuna auditável
+
+O próximo passo estrutural deve identificar, em arquivos e testes existentes, quais operações atuais conseguem inserir, alterar, normalizar ou preservar `skills` e `techniques`. Essa identificação ainda não deve alterar comportamento.
+
+### Decisão explícita deste passo
+
+Este passo apenas registra fronteiras arquiteturais e regras negativas para impedir expansão indevida do domínio. Nenhuma regra de GURPS, fórmula de NH, custo, default, limite de técnica ou integração com Point Ledger foi introduzida.
+
 ## Critério para avançar além da auditoria
 
 Só avançar para contrato mecânico quando este gate tiver identificado, no mínimo:
