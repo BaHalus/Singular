@@ -32,6 +32,37 @@ Esta frente começa como auditoria estrutural do domínio de perícias e técnic
 - Não criar pipeline paralelo de importação, normalização ou cálculo.
 - Não inferir vínculo entre perícia e técnica por nome quando um identificador canônico ou externo não estiver disponível.
 
+## Auditoria estrutural — Passo 1
+
+### Entradas canônicas já reconhecidas
+
+- `Character.skills` é a coleção canônica de perícias no personagem.
+- `Character.techniques` é a coleção canônica de técnicas no personagem.
+- `Skills.js` e `Techniques.js` são os normalizadores atuais observados para preservação de dados importados.
+
+### Campos importados que devem permanecer preservados durante a auditoria
+
+- Identificadores externos.
+- Dados brutos ou metadados de importação.
+- Defaults declarados.
+- Features declaradas.
+- Armas associadas quando já vierem da importação.
+- Pré-requisitos e metadados auxiliares já existentes.
+
+### Lacunas ainda não resolvidas
+
+- Autoridade soberana de NH final.
+- Resolução de defaults.
+- Limites de técnicas.
+- Integração com Point Ledger.
+- Lista completa de operações que podem alterar perícias e técnicas.
+- Cobertura de testes existente e lacunas de regressão.
+- Documentos antigos que ainda descrevem perícias e técnicas como pendentes.
+
+### Decisão explícita deste passo
+
+Este passo apenas registra o inventário estrutural inicial. Nenhuma regra de GURPS, fórmula de NH, custo, default, limite de técnica ou vínculo automático foi introduzido.
+
 ## Critério para avançar além da auditoria
 
 Só avançar para contrato mecânico quando este gate tiver identificado, no mínimo:
