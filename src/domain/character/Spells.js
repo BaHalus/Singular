@@ -1,6 +1,10 @@
 const SPELL_TYPES = ["standard", "ritualMagic"];
 
 export function createSpells(input = []) {
+  if (!Array.isArray(input)) {
+    throw new Error("Spells must be an array");
+  }
+
   const spells = input.map(createSpell);
 
   validateSpells(spells);
