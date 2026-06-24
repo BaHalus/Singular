@@ -145,3 +145,10 @@ test("rejects invalid rich spell fields", () => {
     ]);
   });
 });
+
+test("rejects non-array spell collections explicitly", () => {
+  assert.throws(
+    () => createSpells("Bola de Ácido"),
+    /Spells must be an array/,
+  );
+});
