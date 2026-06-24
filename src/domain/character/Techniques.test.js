@@ -149,7 +149,7 @@ test("serializes techniques without calculating levels", () => {
 test("throws when techniques is not array", () => {
   assert.throws(
     () => createTechniques("Arm Lock"),
-    /input.map is not a function/,
+    /Techniques must be an array/,
   );
 });
 

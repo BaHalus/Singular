@@ -1,4 +1,8 @@
 export function createTechniques(input = []) {
+  if (!Array.isArray(input)) {
+    throw new Error("Techniques must be an array");
+  }
+
   const techniques = input.map(createTechnique);
 
   validateTechniques(techniques);
