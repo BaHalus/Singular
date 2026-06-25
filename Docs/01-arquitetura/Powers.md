@@ -1,7 +1,7 @@
 # Powers
 
 **Código:** DOM-POWER-1.0  
-**Status:** Em implementação  
+**Status:** Fechado estruturalmente  
 **Camada:** Domain  
 **Tipo:** Agregado de agrupamento  
 **Decisão:** ADR-0043
@@ -20,7 +20,7 @@ A UI não calcula.
 
 Powers não contém cópias de Traits e não contribui diretamente ao Point Ledger.
 
-## Estrutura canônica inicial
+## Estrutura canônica
 
 ```js
 {
@@ -70,18 +70,41 @@ Powers não é responsável por:
 
 `talentTraitId` e `memberTraitIds` usam somente `Trait.id` interno exato.
 
-Associação por nome é proibida.
+O `Character` valida que todas as referências apontam para Traits canônicos existentes. Associação por nome é proibida.
 
 ## Modificador de poder
 
 `powerModifier` é declaração estrutural para auditoria, importação e apresentação. Não altera custos e não substitui os modificadores canônicos dos Traits membros.
 
+## Operações estruturais
+
+`PowersOperations` fornece transformações imutáveis para:
+
+- adicionar e remover agrupamentos;
+- editar nome, notas e fonte;
+- declarar ou limpar modificador de poder;
+- associar ou limpar o Trait de talento;
+- adicionar e remover Traits membros preservando ordem e unicidade;
+- adicionar e remover tags.
+
+Essas operações não alteram Traits implicitamente e não calculam regras GURPS.
+
+## Itens posteriores
+
+Permanecem para etapas próprias:
+
+- comandos atômicos da camada de aplicação;
+- importação de agrupamentos e resolução de IDs externos;
+- diagnóstico entre modificador declarado e modificadores dos Traits;
+- apresentação visual e edição pela UI;
+- regras mecânicas de poderes, quando pertencentes ao motor.
+
 ## Checklist
 
 - [x] Aprovar ADR-0043
-- [ ] Criar Powers.js
-- [ ] Criar Powers.test.js
-- [ ] Integrar com Character
-- [ ] Criar PowersOperations.js
-- [ ] Criar PowersOperations.test.js
-- [ ] Registrar gate de fechamento estrutural
+- [x] Criar Powers.js
+- [x] Criar Powers.test.js
+- [x] Integrar com Character
+- [x] Criar PowersOperations.js
+- [x] Criar PowersOperations.test.js
+- [x] Registrar gate de fechamento estrutural
