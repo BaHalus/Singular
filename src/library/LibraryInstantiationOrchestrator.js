@@ -75,6 +75,19 @@ export function orchestrateLibraryInstantiation(input = {}) {
     analysisResults,
     context,
   });
+  const serializedPlan = serializeLibraryInstantiationPlan(plan);
+
+  if (plan.status === "blocked") {
+    return freezeOrchestrationResult({
+      status: "blocked",
+      rootDefinitionIds,
+      analysisResults,
+      diagnostics: [...analysisDiagnostics, ...plan.diagnostics],
+      plan: serializedPlan,
+      execution: null,
+    });
+  }
+
   const execution = executeLibraryInstantiationPlan(plan, adapterRegistry, context);
 
   return freezeOrchestrationResult({
@@ -82,7 +95,7 @@ export function orchestrateLibraryInstantiation(input = {}) {
     rootDefinitionIds,
     analysisResults,
     diagnostics: [...analysisDiagnostics, ...execution.diagnostics],
-    plan: serializeLibraryInstantiationPlan(plan),
+    plan: serializedPlan,
     execution,
   });
 }
