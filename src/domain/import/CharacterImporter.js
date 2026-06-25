@@ -12,6 +12,7 @@ import {
   importSecondaryCharacteristics,
 } from "./importers/AttributesImporter.js";
 import { importTraits } from "./importers/TraitsImporter.js";
+import { importPowers } from "./importers/PowersImporter.js";
 import { importSkills } from "./importers/SkillsImporter.js";
 import { importTechniques } from "./importers/TechniquesImporter.js";
 import { importSpells } from "./importers/SpellsImporter.js";
@@ -30,6 +31,7 @@ export function createSnapshotFromGcs(source = {}, options = {}) {
   }
   const importedTemplates = importTemplateCatalog(source, templateImportOptions);
   const importedTraits = importTraits(standaloneTemplate ? [] : source);
+  const importedPowers = importPowers(importedTraits);
   const importedSkills = importSkills(
     standaloneTemplate ? [] : readSkillsSource(source),
   );
@@ -84,6 +86,9 @@ export function createSnapshotFromGcs(source = {}, options = {}) {
     spellContainers: importedSpells.containers,
     unknownSpellNodes: importedSpells.unknownNodes,
 
+    powers: importedPowers.powers,
+    unresolvedPowerLinks: importedPowers.unresolvedLinks,
+
     languages: importedLanguages.languages,
     languageNodes,
     unknownLanguageNodes: importedLanguages.unknownNodes,
@@ -124,6 +129,7 @@ export function importCharacterWithDiagnostics(source = {}, options = {}) {
     skills: snapshot.skills,
     techniques: snapshot.techniques,
     spells: snapshot.spells,
+    powers: snapshot.powers,
     languages: snapshot.languages,
     familiarities: snapshot.familiarities,
     equipment: snapshot.equipment,
