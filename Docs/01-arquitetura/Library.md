@@ -216,7 +216,7 @@ A orquestração:
 
 ## Integração com o App Core
 
-LIB-CORE-1.8 registra o comando canônico:
+LIB-CORE-1.8 define o comando canônico:
 
 ```text
 library.instantiate
@@ -254,6 +254,8 @@ O comando:
 - emite recibo de domínio com raízes, plano, orquestração e recibo específico da aplicação.
 
 `applyInstantiation` é uma fronteira injetada. Ela deve compor exclusivamente APIs públicas dos domínios proprietários; não pode implementar patch genérico, normalizador paralelo ou regra GURPS na aplicação.
+
+A composição concreta da aplicação deve registrar o handler exportado no `CommandRegistry` usado pelo `CommandExecutor`. LIB-CORE-1.8 não cria um registry global nem assume registro automático fora da composição que monta a aplicação.
 
 ## Catálogos especializados
 
