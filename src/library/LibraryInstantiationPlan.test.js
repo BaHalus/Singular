@@ -85,7 +85,7 @@ test("creates warning plans as executable and blocked plans as non-executable", 
     id: "plan-blocked",
     status: "blocked",
     rootDefinitionIds: ["spell-blocked"],
-    resolvedDefinitionIds: [],
+    resolvedDefinitionIds: ["spell-blocked"],
     diagnostics: [
       {
         code: "library-required-dependency-missing",
@@ -190,6 +190,43 @@ test("rejects actions for unresolved definitions and blocked action plans", () =
       ],
     }),
     /Blocked Library instantiation plan must not contain actions/,
+  );
+});
+
+test("rejects executable plans with unresolved roots", () => {
+  assert.throws(
+    () => createLibraryInstantiationPlan({
+      id: "plan-unresolved-root",
+      rootDefinitionIds: ["root"],
+      resolvedDefinitionIds: [],
+    }),
+    /root references unresolved definition: root/,
+  );
+});
+
+test("rejects cyclic action dependency graphs", () => {
+  assert.throws(
+    () => createLibraryInstantiationPlan({
+      id: "plan-cyclic-actions",
+      resolvedDefinitionIds: ["definition-a", "definition-b"],
+      actions: [
+        {
+          id: "action-a",
+          definitionId: "definition-a",
+          domain: "trait",
+          type: "trait.create",
+          dependsOnActionIds: ["action-b"],
+        },
+        {
+          id: "action-b",
+          definitionId: "definition-b",
+          domain: "trait",
+          type: "trait.create",
+          dependsOnActionIds: ["action-a"],
+        },
+      ],
+    }),
+    /action dependency cycle detected/,
   );
 });
 
