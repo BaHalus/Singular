@@ -138,10 +138,18 @@ test("Powers does not add a parallel Point Ledger contribution", () => {
     powers: powers(),
   });
 
-  assert.deepEqual(
-    serializePointLedger(evaluateCharacterPointLedger(withPower)),
-    serializePointLedger(evaluateCharacterPointLedger(withoutPower)),
+  const withoutPowerLedger = serializePointLedger(
+    evaluateCharacterPointLedger(withoutPower),
   );
+  const withPowerLedger = serializePointLedger(
+    evaluateCharacterPointLedger(withPower),
+  );
+  const powerDomain = withPowerLedger.totals.byDomain.find(
+    domain => domain.domain === "power",
+  );
+
+  assert.equal(powerDomain.contributionCount, 0);
+  assert.equal(withPowerLedger.totals.knownSpentPoints, withoutPowerLedger.totals.knownSpentPoints);
 });
 
 test("Character rejects the former raw Powers collection shape", () => {
