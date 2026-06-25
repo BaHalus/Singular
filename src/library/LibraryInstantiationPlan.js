@@ -168,6 +168,7 @@ function validateActions(actions) {
 
   validateActionUniqueness(actions);
   validateActionDependencyReferences(actions);
+  validateActionDependencyGraph(actions);
 }
 
 function validateActionUniqueness(actions) {
@@ -194,6 +195,32 @@ function validateActionDependencyReferences(actions) {
       }
     }
   }
+}
+
+function validateActionDependencyGraph(actions) {
+  const visiting = new Set();
+  const visited = new Set();
+  const actionsById = new Map(actions.map(action => [action.id, action]));
+
+  for (const action of actions) {
+    visitActionDependency(action, actionsById, visiting, visited);
+  }
+}
+
+function visitActionDependency(action, actionsById, visiting, visited) {
+  if (visited.has(action.id)) return;
+  if (visiting.has(action.id)) {
+    throw new Error(
+      `Library instantiation plan action dependency cycle detected: ${action.id}`,
+    );
+  }
+
+  visiting.add(action.id);
+  for (const dependencyId of action.dependsOnActionIds) {
+    visitActionDependency(actionsById.get(dependencyId), actionsById, visiting, visited);
+  }
+  visiting.delete(action.id);
+  visited.add(action.id);
 }
 
 function normalizeDiagnostics(value) {
@@ -244,6 +271,14 @@ function validateDiagnostics(diagnostics) {
 
 function validatePlanCoverage(plan) {
   const resolved = new Set(plan.resolvedDefinitionIds);
+  for (const rootDefinitionId of plan.rootDefinitionIds) {
+    if (!resolved.has(rootDefinitionId)) {
+      throw new Error(
+        `Library instantiation plan root references unresolved definition: ${rootDefinitionId}`,
+      );
+    }
+  }
+
   for (const action of plan.actions) {
     if (!resolved.has(action.definitionId)) {
       throw new Error(
