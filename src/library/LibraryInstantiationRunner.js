@@ -18,10 +18,14 @@ export function executeLibraryInstantiationPlan(plan, adapterRegistry, context =
   }
 
   const orderedActions = orderActionsByDependencies(plan.actions);
+  const executableAdaptersByDomain = preflightExecutableAdapters(
+    adapterRegistry,
+    orderedActions,
+  );
   const actionResults = [];
 
   for (const action of orderedActions) {
-    const adapter = requireExecutableAdapter(adapterRegistry, action.domain);
+    const adapter = executableAdaptersByDomain.get(action.domain);
     const result = adapter.executeInstantiationPlan({
       plan: serializeLibraryInstantiationPlan(plan),
       action: clonePortableValue(action, `Library instantiation action ${action.id}`),
@@ -41,6 +45,21 @@ export function executeLibraryInstantiationPlan(plan, adapterRegistry, context =
     actionResults: deepFreeze(actionResults),
     diagnostics: deepFreeze(collectPlanDiagnostics(plan)),
   });
+}
+
+function preflightExecutableAdapters(adapterRegistry, actions) {
+  const adaptersByDomain = new Map();
+
+  for (const action of actions) {
+    if (!adaptersByDomain.has(action.domain)) {
+      adaptersByDomain.set(
+        action.domain,
+        requireExecutableAdapter(adapterRegistry, action.domain),
+      );
+    }
+  }
+
+  return adaptersByDomain;
 }
 
 function requireExecutableAdapter(adapterRegistry, domain) {
