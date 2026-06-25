@@ -58,7 +58,11 @@ function createSpellDefinition() {
   };
 }
 
-function createInstantiationAdapter(calls, analyzeInstantiation) {
+function createInstantiationAdapter(
+  calls,
+  analyzeInstantiation,
+  planInstantiation,
+) {
   return createLibraryAdapter({
     domain: "spell",
     validateDefinitionPayload: () => true,
@@ -76,6 +80,7 @@ function createInstantiationAdapter(calls, analyzeInstantiation) {
     },
     planInstantiation: args => {
       calls.push({ phase: "plan", definitionId: args.definition.id });
+      if (planInstantiation) return planInstantiation(args);
       return {
         status: "ready",
         actions: [
@@ -214,7 +219,7 @@ test("returns no-op without calling the application boundary when analysis block
     adapterRegistry,
     applyInstantiation: () => {
       applicationCalls += 1;
-      throw new Error("must not apply blocked orchestration");
+      throw new Error("unexpected application call");
     },
   });
 
@@ -231,6 +236,49 @@ test("returns no-op without calling the application boundary when analysis block
   assert.deepEqual(result.diagnostics, [
     {
       code: "library-choice-required",
+      severity: "blocked",
+    },
+  ]);
+});
+
+test("returns no-op without calling the application boundary when planning blocks", () => {
+  const calls = [];
+  const adapterRegistry = createLibraryAdapterRegistry([
+    createInstantiationAdapter(calls, null, () => ({
+      status: "blocked",
+      diagnostics: [
+        {
+          code: "library-plan-choice-required",
+          severity: "blocked",
+        },
+      ],
+    })),
+  ]);
+  let applicationCalls = 0;
+
+  const { result, session } = executeLibraryCommand({
+    adapterRegistry,
+    applyInstantiation: () => {
+      applicationCalls += 1;
+      throw new Error("unexpected application call");
+    },
+  });
+
+  assert.equal(result.status, "no-op");
+  assert.equal(result.session, session);
+  assert.equal(result.session.revision, 0);
+  assert.equal(result.session.history.length, 0);
+  assert.equal(result.receipt.domainReceipt.status, "blocked");
+  assert.equal(result.receipt.domainReceipt.plan.status, "blocked");
+  assert.equal(result.receipt.domainReceipt.application, null);
+  assert.equal(applicationCalls, 0);
+  assert.deepEqual(
+    calls.map(call => call.phase),
+    ["analyze", "plan"],
+  );
+  assert.deepEqual(result.diagnostics, [
+    {
+      code: "library-plan-choice-required",
       severity: "blocked",
     },
   ]);
