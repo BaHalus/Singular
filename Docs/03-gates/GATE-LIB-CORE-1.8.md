@@ -14,8 +14,8 @@ Certificar a passagem da instanciação da Library pela fronteira canônica de c
 
 - tipo `library.instantiate`;
 - handler construído por `createLibraryInstantiationCommandHandler`;
-- registro no `CommandRegistry` existente;
-- execução exclusivamente pelo `CommandExecutor`.
+- constante e handler exportados para composição no `CommandRegistry` da aplicação;
+- execução exclusivamente pelo `CommandExecutor` quando o handler estiver registrado pelo compositor da aplicação.
 
 ### Contexto de aplicação
 
@@ -79,6 +79,7 @@ Certificar a passagem da instanciação da Library pela fronteira canônica de c
 
 Este gate não certifica:
 
+- registro automático de `library.instantiate` em um `CommandRegistry` global já montado;
 - adapters concretos de inserção para todos os domínios;
 - importação/exportação modular da Library;
 - persistência concreta da Library em navegador ou arquivo;
@@ -91,4 +92,4 @@ Definir o contrato portátil de importação e exportação modular da Library, 
 
 ## Resultado
 
-A instanciação da Library está integrada à autoridade canônica do App Core. O próximo domínio aberto é a portabilidade modular do catálogo; UI e persistência concreta permanecem posteriores.
+A instanciação da Library possui comando, handler e fronteira de aplicação integrados à autoridade canônica do App Core. A composição concreta deve registrar o handler no `CommandRegistry` usado pela aplicação. O próximo domínio aberto é a portabilidade modular do catálogo; UI e persistência concreta permanecem posteriores.
