@@ -1,6 +1,6 @@
 # CharacterImporter
 
-**Código:** DOM-IMP-1.10  
+**Código:** DOM-IMP-1.11  
 **Status:** Aprovado  
 **Camada:** Domain / Import  
 **Tipo:** Import Pipeline
@@ -16,6 +16,7 @@ O importador:
 - preserva dados desconhecidos;
 - cria agregados válidos;
 - preserva templates `.gct`;
+- importa agrupamentos de Powers por ancestralidade explícita de IDs;
 - vincula Forma Alternativa somente quando a relação é segura;
 - resolve políticas de continuidade;
 - resolve regras declarativas de transição por forma;
@@ -49,6 +50,7 @@ O snapshot preserva:
 - traits;
 - perícias e técnicas;
 - mágicas;
+- Powers e vínculos explícitos não resolvidos;
 - idiomas;
 - familiaridades;
 - equipamento;
@@ -56,6 +58,35 @@ O snapshot preserva:
 - containers;
 - nós desconhecidos;
 - documento bruto.
+
+## Powers
+
+```text
+GCS trait containers com containerType "power"
+↓
+TraitsImporter preserva containers e ancestralidade
+↓
+PowersImporter associa membros pelo Power ancestral mais próximo
+↓
+ImportSnapshot.powers + unresolvedPowerLinks
+↓
+Character.powers
+```
+
+O `PowersImporter`:
+
+- consome somente Traits e containers já normalizados;
+- cria um Power para cada container explicitamente classificado como `power`;
+- associa cada Trait ao Power ancestral mais próximo por ID interno;
+- preserva a ordem dos Traits membros;
+- associa o talento somente quando existe um ID explícito válido;
+- preserva referências explícitas de talento não resolvidas em `unresolvedPowerLinks`;
+- preserva fonte, modificador declarado, tags editoriais, metadados e dados brutos;
+- não associa entidades por nome;
+- não duplica Traits dentro de Powers;
+- não calcula custos, níveis, efeitos ou regras GURPS.
+
+O modificador de poder importado permanece uma declaração estrutural. Os modificadores canônicos e os custos continuam sob autoridade de Traits.
 
 ## Templates GCT
 
@@ -148,11 +179,14 @@ Retorna:
 {
   character,
   snapshot,
+  templateImportReport,
   alternateFormLinkReport,
   formStatePolicyResolutions,
   formTransitionRulesResolutions
 }
 ```
+
+Diagnósticos de Powers ficam em `snapshot.unresolvedPowerLinks`.
 
 ## Opções
 
@@ -223,6 +257,8 @@ O importador não:
 - calcula atributos finais;
 - calcula máximos ou proporção de dano;
 - calcula NH, carga ou ataques;
+- aplica modificadores de poder aos Traits;
+- diagnostica divergências mecânicas entre Power e Traits;
 - implementa limites de Morfo.
 
 ## Checklist
@@ -234,6 +270,10 @@ O importador não:
 - [x] SkillsImporter
 - [x] TechniquesImporter
 - [x] SpellsImporter
+- [x] PowersImporter
+- [x] Integrar Powers ao ImportSnapshot
+- [x] Integrar Powers ao CharacterImporter
+- [x] Preservar vínculos explícitos de Powers não resolvidos
 - [x] LanguagesImporter
 - [x] FamiliaritiesImporter
 - [x] EquipmentImporter
