@@ -1,7 +1,7 @@
 # Library
 
-**Código:** LIB-CORE-1.0  
-**Status:** Em implementação  
+**Código:** LIB-CORE-1.0 a 1.4  
+**Status:** Fundação integrada; instanciação pendente  
 **Camada:** Library / Application boundary  
 **Tipo:** Registro federado de definições  
 **Decisão:** ADR-0044
@@ -54,7 +54,30 @@ A biblioteca não é:
 }
 ```
 
-A definição preserva dados portáveis. O adapter do domínio decide como validar ou instanciar o `payload`.
+`LibraryDefinition` valida o envelope e a portabilidade JSON, clona os dados recebidos e congela profundamente o resultado.
+
+O núcleo não interpreta `payload`. O adapter do domínio proprietário decide como validá-lo e serializá-lo.
+
+## Registro
+
+`LibraryRegistry` persiste somente:
+
+```js
+{
+  schemaVersion: 1,
+  definitions: []
+}
+```
+
+O registro:
+
+- exige IDs soberanos únicos;
+- trata registro equivalente como idempotente;
+- bloqueia definição divergente com o mesmo ID;
+- bloqueia colisão de identidade externa no mesmo domínio;
+- oferece consultas exatas por ID, domínio e tag;
+- deriva projeções sem persistir índices paralelos;
+- não interpreta payloads nem dependências.
 
 ## Domínios iniciais
 
@@ -82,20 +105,48 @@ Nomes são editoriais e nunca resolvem identidade.
 
 ## Adapters
 
-Cada adapter deverá expor contratos equivalentes a:
+O contrato atual exige:
 
 ```js
 {
   domain,
+  supportedSchemaVersions,
   validateDefinitionPayload(payload),
   serializeDefinitionPayload(payload),
-  analyzeInstantiation(definition, character, options),
-  planInstantiation(definition, character, options),
-  executeInstantiationPlan(definition, character, plan, options)
+  analyzeInstantiation,
+  planInstantiation,
+  executeInstantiationPlan
 }
 ```
 
-A fundação inicial implementará somente o registro e a forma comum da definição. Planejamento e execução serão blocos posteriores.
+Validação e serialização são obrigatórias.
+
+As três capacidades de instanciação são opcionais nesta fase, mas devem ser fornecidas juntas. O núcleo rejeita adapter parcial e não oferece fallback genérico.
+
+Validar ou serializar uma definição não executa análise, plano ou aplicação.
+
+## Dependências
+
+`LibraryDependencyResolver` analisa referências exatas entre definições e produz:
+
+```js
+{
+  status: "ready" | "ready-with-warnings" | "blocked",
+  resolvable,
+  rootDefinitionIds,
+  resolvedDefinitionIds,
+  missingRequired,
+  missingOptional,
+  cycles,
+  diagnostics
+}
+```
+
+A ordem resolvida é dependência-primeiro.
+
+Dependência obrigatória ausente e ciclo bloqueiam. Dependência opcional ausente produz aviso.
+
+Intervalos de versão permanecem declarações informativas; LIB-CORE-1.4 não interpreta semver.
 
 ## Catálogos especializados
 
@@ -107,7 +158,7 @@ A Library poderá federar consulta por adapters, referências ou projeções, se
 
 ## Persistência
 
-A biblioteca persistente será independente de saves do `Character`.
+A biblioteca persistente é independente de saves do `Character`.
 
 Salvar um personagem não incorpora automaticamente definições da biblioteca. Exportar uma definição não exporta estado transitório do personagem salvo.
 
@@ -132,15 +183,17 @@ Definition
 → Receipt
 ```
 
+Nenhuma API integrada até LIB-CORE-1.4 altera o `Character`.
+
 ## Checklist
 
 - [x] Aprovar ADR-0044
-- [ ] Criar LibraryDefinition.js
-- [ ] Criar LibraryDefinition.test.js
-- [ ] Criar LibraryRegistry.js
-- [ ] Criar LibraryRegistry.test.js
-- [ ] Criar contrato de adapters
-- [ ] Criar resolver de dependências
+- [x] Criar LibraryDefinition.js
+- [x] Criar LibraryDefinition.test.js
+- [x] Criar LibraryRegistry.js
+- [x] Criar LibraryRegistry.test.js
+- [x] Criar contrato de adapters
+- [x] Criar resolver de dependências
 - [ ] Criar plano de instanciação
 - [ ] Integrar com ApplicationSession
 - [ ] Criar importação/exportação modular
