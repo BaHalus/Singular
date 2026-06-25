@@ -65,6 +65,11 @@ import {
   serializeSpells,
 } from "./Spells.js";
 import {
+  createPowers,
+  validatePowers,
+  serializePowers,
+} from "./Powers.js";
+import {
   createLanguages,
   validateLanguages,
   serializeLanguages,
@@ -135,7 +140,7 @@ export function createCharacter(input = {}) {
     skills: createSkills(input.skills),
     techniques: createTechniques(input.techniques),
     spells: createSpells(input.spells),
-    powers: input.powers ?? [],
+    powers: createPowers(input.powers),
     equipment: createEquipment(input.equipment),
     attacks: input.attacks ?? [],
     languages: createLanguages(input.languages),
@@ -191,6 +196,8 @@ export function validateCharacter(character) {
   validateSkills(character.skills);
   validateTechniques(character.techniques);
   validateSpells(character.spells);
+  validatePowers(character.powers);
+  validatePowerReferencesForCharacter(character);
   validateLanguages(character.languages);
   validateFamiliarities(character.familiarities);
   validateEquipment(character.equipment);
@@ -234,7 +241,7 @@ export function serializeCharacter(character) {
     skills: serializeSkills(character.skills),
     techniques: serializeTechniques(character.techniques),
     spells: serializeSpells(character.spells),
-    powers: character.powers,
+    powers: serializePowers(character.powers),
     equipment: serializeEquipment(character.equipment),
     attacks: character.attacks,
     languages: serializeLanguages(character.languages),
@@ -248,6 +255,26 @@ export function serializeCharacter(character) {
 
     metadata: character.metadata,
   };
+}
+
+function validatePowerReferencesForCharacter(character) {
+  const traitIds = new Set(character.traits.map(trait => trait.id));
+
+  for (const power of character.powers) {
+    if (power.talentTraitId !== null && !traitIds.has(power.talentTraitId)) {
+      throw new Error(
+        `Power ${power.id} references missing talent Trait: ${power.talentTraitId}`,
+      );
+    }
+
+    for (const traitId of power.memberTraitIds) {
+      if (!traitIds.has(traitId)) {
+        throw new Error(
+          `Power ${power.id} references missing member Trait: ${traitId}`,
+        );
+      }
+    }
+  }
 }
 
 function validateTraitFinalCostAuthorities(character) {
