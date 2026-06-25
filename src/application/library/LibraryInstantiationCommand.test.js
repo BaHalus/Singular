@@ -269,7 +269,7 @@ test("returns no-op without calling the application boundary when planning block
   assert.equal(result.session.revision, 0);
   assert.equal(result.session.history.length, 0);
   assert.equal(result.receipt.domainReceipt.status, "blocked");
-  assert.equal(result.receipt.domainReceipt.plan.status, "blocked");
+  assert.equal(result.receipt.domainReceipt.orchestration.plan.status, "blocked");
   assert.equal(result.receipt.domainReceipt.application, null);
   assert.equal(applicationCalls, 0);
   assert.deepEqual(
