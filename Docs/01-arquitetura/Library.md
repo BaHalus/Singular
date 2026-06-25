@@ -1,7 +1,7 @@
 # Library
 
-**Código:** LIB-CORE-1.0 a 1.4  
-**Status:** Fundação integrada; instanciação pendente  
+**Código:** LIB-CORE-1.0 a 1.7  
+**Status:** Instanciação planejada e orquestrada; integração com `ApplicationSession` pendente  
 **Camada:** Library / Application boundary  
 **Tipo:** Registro federado de definições  
 **Decisão:** ADR-0044
@@ -121,7 +121,7 @@ O contrato atual exige:
 
 Validação e serialização são obrigatórias.
 
-As três capacidades de instanciação são opcionais nesta fase, mas devem ser fornecidas juntas. O núcleo rejeita adapter parcial e não oferece fallback genérico.
+As três capacidades de instanciação são opcionais, mas devem ser fornecidas juntas. O núcleo rejeita adapter parcial e não oferece fallback genérico.
 
 Validar ou serializar uma definição não executa análise, plano ou aplicação.
 
@@ -146,7 +146,73 @@ A ordem resolvida é dependência-primeiro.
 
 Dependência obrigatória ausente e ciclo bloqueiam. Dependência opcional ausente produz aviso.
 
-Intervalos de versão permanecem declarações informativas; LIB-CORE-1.4 não interpreta semver.
+Intervalos de versão permanecem declarações informativas; LIB-CORE-1.7 não interpreta semver.
+
+## Plano de instanciação
+
+`LibraryInstantiationPlan` é o contrato efêmero e serializável entre planejamento e execução.
+
+```js
+{
+  schemaVersion: 1,
+  id,
+  status: "ready" | "ready-with-warnings" | "blocked",
+  executable,
+  rootDefinitionIds: [],
+  resolvedDefinitionIds: [],
+  actions: [],
+  diagnostics: []
+}
+```
+
+Cada ação declara identidade própria, definição, domínio, tipo, payload, dependências entre ações e diagnósticos.
+
+O plano:
+
+- exige IDs de ações únicos;
+- bloqueia referências de ação ausentes;
+- bloqueia ciclos entre ações;
+- exige que raízes e ações pertençam às definições resolvidas;
+- não permite ações quando o status é `blocked`;
+- preserva somente valores JSON portáveis.
+
+## Execução
+
+`LibraryInstantiationRunner` consome exclusivamente o plano validado.
+
+Antes de executar qualquer ação, o runner:
+
+- valida o plano, o registro de adapters e o contexto;
+- ordena as ações por dependência;
+- faz preflight de todos os domínios exigidos;
+- rejeita adapter ausente ou sem capacidade completa de instanciação.
+
+Somente após o preflight o runner despacha as ações aos adapters proprietários e coleta resultados portáveis.
+
+O runner não conhece o schema interno do `Character` e não implementa fallback genérico.
+
+## Orquestração
+
+`LibraryInstantiationOrchestrator` compõe:
+
+```text
+Definitions
+→ Adapter validation
+→ Adapter preflight
+→ Analysis
+→ Plan
+→ Runner
+→ Portable execution result
+```
+
+A orquestração:
+
+- valida todas as definições com os adapters proprietários;
+- interrompe o fluxo quando qualquer análise retorna `blocked`;
+- produz o plano a partir das raízes solicitadas;
+- delega a execução ao runner;
+- agrega diagnósticos de análise, plano e execução;
+- não altera o `Character` diretamente.
 
 ## Catálogos especializados
 
@@ -168,33 +234,34 @@ Fontes externas passam pelos parsers e importadores existentes. O adapter conver
 
 Não haverá normalizador genérico paralelo.
 
-## Inserção
+## Inserção no Character
 
-A inserção futura será explícita, planejada, revalidada e atômica.
+Até LIB-CORE-1.7, o fluxo termina em resultado portátil do adapter. Nenhuma API integrada altera o `Character`.
+
+A integração futura deve acrescentar uma fronteira explícita de aplicação:
 
 ```text
-Definition
-→ Domain Adapter
-→ Analysis
-→ Plan
-→ Revalidation
-→ Application Command
-→ Character
+Portable execution result
+→ ApplicationSession command
+→ Revalidation against current Character
+→ Atomic Character mutation
 → Receipt
 ```
 
-Nenhuma API integrada até LIB-CORE-1.4 altera o `Character`.
+A aplicação deve impedir mutação parcial, preservar IDs soberanos e emitir recibo suficiente para histórico, desfazer/refazer e diagnóstico.
 
 ## Checklist
 
 - [x] Aprovar ADR-0044
-- [x] Criar LibraryDefinition.js
-- [x] Criar LibraryDefinition.test.js
-- [x] Criar LibraryRegistry.js
-- [x] Criar LibraryRegistry.test.js
+- [x] Criar `LibraryDefinition`
+- [x] Criar `LibraryRegistry`
 - [x] Criar contrato de adapters
 - [x] Criar resolver de dependências
-- [ ] Criar plano de instanciação
-- [ ] Integrar com ApplicationSession
+- [x] Criar plano de instanciação
+- [x] Criar runner de planos
+- [x] Criar orquestrador de instanciação
+- [x] Registrar gate intermediário de LIB-CORE-1.7
+- [ ] Integrar com `ApplicationSession`
+- [ ] Criar recibo de aplicação no `Character`
 - [ ] Criar importação/exportação modular
-- [ ] Registrar gate de fechamento
+- [ ] Registrar gate de fechamento da Library
