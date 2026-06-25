@@ -1,7 +1,7 @@
 # Library
 
-**Código:** LIB-CORE-1.0 a 1.8  
-**Status:** Instanciação integrada ao App Core; importação/exportação modular pendente  
+**Código:** LIB-CORE-1.0 a 1.9  
+**Status:** Instanciação integrada ao App Core; pacote portátil inicial definido  
 **Camada:** Library / Application boundary  
 **Tipo:** Registro federado de definições  
 **Decisão:** ADR-0044
@@ -79,6 +79,33 @@ O registro:
 - deriva projeções sem persistir índices paralelos;
 - não interpreta payloads nem dependências.
 
+## Pacote portátil
+
+LIB-CORE-1.9 introduz o envelope mínimo de transporte modular:
+
+```js
+{
+  kind: "singular-library-package",
+  schemaVersion: 1,
+  metadata: {},
+  registry: {
+    schemaVersion: 1,
+    definitions: []
+  }
+}
+```
+
+O pacote:
+
+- transporta um `LibraryRegistry` serializado;
+- valida e congela profundamente o conteúdo importado;
+- aceita somente metadados JSON portáveis;
+- reaproveita as regras soberanas de conflito e identidade externa do registro;
+- não interpreta payloads proprietários;
+- não executa parser externo, persistência, merge incremental ou UI.
+
+`exportLibraryPackage(registry, options)` cria o envelope portátil a partir de um registro validado. `importLibraryPackage(package)` devolve um novo `LibraryRegistry` validado a partir do envelope recebido.
+
 ## Domínios iniciais
 
 O registro aceitará adapters para:
@@ -146,7 +173,7 @@ A ordem resolvida é dependência-primeiro.
 
 Dependência obrigatória ausente e ciclo bloqueiam. Dependência opcional ausente produz aviso.
 
-Intervalos de versão permanecem declarações informativas; LIB-CORE-1.8 não interpreta semver.
+Intervalos de versão permanecem declarações informativas; LIB-CORE-1.9 não interpreta semver.
 
 ## Plano de instanciação
 
@@ -275,6 +302,8 @@ Salvar um personagem não incorpora automaticamente definições da biblioteca. 
 
 Fontes externas passam pelos parsers e importadores existentes. O adapter converte o resultado canônico em definição portátil.
 
+Importar um pacote Singular não aciona parser externo; apenas valida o envelope `singular-library-package` e recria o `LibraryRegistry` canônico.
+
 Não haverá normalizador genérico paralelo.
 
 ## Inserção no Character
@@ -310,5 +339,5 @@ A Library não escreve diretamente no `Character`. A fronteira injetada constró
 - [x] Integrar com `ApplicationSession`
 - [x] Criar recibo de aplicação no `Character`
 - [x] Registrar gate intermediário de LIB-CORE-1.8
-- [ ] Criar importação/exportação modular
+- [x] Criar importação/exportação modular inicial
 - [ ] Registrar gate de fechamento da Library
