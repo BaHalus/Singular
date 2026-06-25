@@ -211,6 +211,38 @@ test("rejects blocked plans and missing executable adapters", () => {
   );
 });
 
+test("preflights all executable adapters before executing any action", () => {
+  const calls = [];
+  const adapterRegistry = createLibraryAdapterRegistry([
+    createExecutableAdapter("trait", calls),
+  ]);
+  const plan = createLibraryInstantiationPlan({
+    id: "plan-runner-preflight-adapters",
+    rootDefinitionIds: ["trait-combat-reflexes"],
+    resolvedDefinitionIds: ["trait-combat-reflexes", "spell-light"],
+    actions: [
+      {
+        id: "action-create-trait",
+        definitionId: "trait-combat-reflexes",
+        domain: "trait",
+        type: "trait.create",
+      },
+      {
+        id: "action-create-spell",
+        definitionId: "spell-light",
+        domain: "spell",
+        type: "spell.create",
+      },
+    ],
+  });
+
+  assert.throws(
+    () => executeLibraryInstantiationPlan(plan, adapterRegistry),
+    /adapter not found for domain: spell/,
+  );
+  assert.deepEqual(calls, []);
+});
+
 test("rejects adapters without the complete instantiation capability", () => {
   const adapterRegistry = createLibraryAdapterRegistry([
     createLibraryAdapter({
