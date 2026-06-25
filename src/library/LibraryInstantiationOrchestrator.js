@@ -2,11 +2,11 @@ import {
   findLibraryAdapter,
   hasLibraryInstantiationCapability,
   validateLibraryAdapterRegistry,
+  validateLibraryDefinitionWithAdapter,
 } from "./LibraryAdapter.js";
 import {
   createLibraryDefinitions,
   serializeLibraryDefinitions,
-  validateLibraryDefinitionWithAdapter,
 } from "./LibraryDefinition.js";
 import {
   createLibraryInstantiationPlan,
