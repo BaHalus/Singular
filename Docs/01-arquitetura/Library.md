@@ -1,7 +1,7 @@
 # Library
 
-**Código:** LIB-CORE-1.0 a 1.7  
-**Status:** Instanciação planejada e orquestrada; integração com `ApplicationSession` pendente  
+**Código:** LIB-CORE-1.0 a 1.8  
+**Status:** Instanciação integrada ao App Core; importação/exportação modular pendente  
 **Camada:** Library / Application boundary  
 **Tipo:** Registro federado de definições  
 **Decisão:** ADR-0044
@@ -146,7 +146,7 @@ A ordem resolvida é dependência-primeiro.
 
 Dependência obrigatória ausente e ciclo bloqueiam. Dependência opcional ausente produz aviso.
 
-Intervalos de versão permanecem declarações informativas; LIB-CORE-1.7 não interpreta semver.
+Intervalos de versão permanecem declarações informativas; LIB-CORE-1.8 não interpreta semver.
 
 ## Plano de instanciação
 
@@ -208,11 +208,52 @@ Definitions
 A orquestração:
 
 - valida todas as definições com os adapters proprietários;
-- interrompe o fluxo quando qualquer análise retorna `blocked`;
+- interrompe o fluxo quando análise ou planejamento retornam `blocked`;
 - produz o plano a partir das raízes solicitadas;
-- delega a execução ao runner;
+- delega a execução ao runner somente quando o plano é executável;
 - agrega diagnósticos de análise, plano e execução;
 - não altera o `Character` diretamente.
+
+## Integração com o App Core
+
+LIB-CORE-1.8 registra o comando canônico:
+
+```text
+library.instantiate
+```
+
+O handler `createLibraryInstantiationCommandHandler` recebe:
+
+```js
+{
+  adapterRegistry,
+  applyInstantiation
+}
+```
+
+Fluxo:
+
+```text
+CommandEnvelope
+→ LibraryInstantiationOrchestrator
+→ portable orchestration result
+→ injected application boundary
+→ validated candidate Character
+→ CommandExecutor
+→ revision + history + receipt
+```
+
+O comando:
+
+- entrega à análise o ID e a revisão atuais da sessão e um snapshot serializado do `Character`;
+- trata bloqueio de análise ou planejamento como `no-op` diagnosticado;
+- não chama a fronteira de aplicação quando a orquestração está bloqueada;
+- exige que resultado `applied` devolva um `Character` válido;
+- delega commit, incremento de revisão, histórico, desfazer/refazer e atomicidade ao `CommandExecutor`;
+- preserva a sessão original quando a aplicação lança erro ou devolve resultado inválido;
+- emite recibo de domínio com raízes, plano, orquestração e recibo específico da aplicação.
+
+`applyInstantiation` é uma fronteira injetada. Ela deve compor exclusivamente APIs públicas dos domínios proprietários; não pode implementar patch genérico, normalizador paralelo ou regra GURPS na aplicação.
 
 ## Catálogos especializados
 
@@ -236,19 +277,22 @@ Não haverá normalizador genérico paralelo.
 
 ## Inserção no Character
 
-Até LIB-CORE-1.7, o fluxo termina em resultado portátil do adapter. Nenhuma API integrada altera o `Character`.
-
-A integração futura deve acrescentar uma fronteira explícita de aplicação:
+A inserção integrada é explícita e passa pelo comando `library.instantiate`.
 
 ```text
-Portable execution result
-→ ApplicationSession command
-→ Revalidation against current Character
-→ Atomic Character mutation
+Definition
+→ Domain Adapter
+→ Analysis
+→ Plan
+→ Portable execution result
+→ Application boundary
+→ Validated candidate Character
+→ CommandExecutor
+→ ApplicationSession
 → Receipt
 ```
 
-A aplicação deve impedir mutação parcial, preservar IDs soberanos e emitir recibo suficiente para histórico, desfazer/refazer e diagnóstico.
+A Library não escreve diretamente no `Character`. A fronteira injetada constrói um candidato por APIs soberanas de domínio, e o `CommandExecutor` é a única autoridade que efetiva a transição da sessão.
 
 ## Checklist
 
@@ -261,7 +305,8 @@ A aplicação deve impedir mutação parcial, preservar IDs soberanos e emitir r
 - [x] Criar runner de planos
 - [x] Criar orquestrador de instanciação
 - [x] Registrar gate intermediário de LIB-CORE-1.7
-- [ ] Integrar com `ApplicationSession`
-- [ ] Criar recibo de aplicação no `Character`
+- [x] Integrar com `ApplicationSession`
+- [x] Criar recibo de aplicação no `Character`
+- [x] Registrar gate intermediário de LIB-CORE-1.8
 - [ ] Criar importação/exportação modular
 - [ ] Registrar gate de fechamento da Library
