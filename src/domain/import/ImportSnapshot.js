@@ -18,6 +18,9 @@ export function createImportSnapshot(input = {}) {
     spellContainers: input.spellContainers ?? [],
     unknownSpellNodes: input.unknownSpellNodes ?? [],
 
+    powers: input.powers ?? [],
+    unresolvedPowerLinks: input.unresolvedPowerLinks ?? [],
+
     languages: input.languages ?? [],
     languageNodes: input.languageNodes ?? [],
     unknownLanguageNodes: input.unknownLanguageNodes ?? [],
