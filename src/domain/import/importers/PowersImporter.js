@@ -16,6 +16,7 @@ export function importPowers(importedTraits = {}) {
   const membersByPowerId = new Map(
     powerContainers.map(container => [container.id, []]),
   );
+  const knownTraitIds = new Set(traits.map(trait => trait.id));
 
   for (const trait of traits) {
     const containerIds = Array.isArray(trait.importMeta?.containerIds)
@@ -34,7 +35,6 @@ export function importPowers(importedTraits = {}) {
   const powers = powerContainers.map(container => {
     const raw = isPlainObject(container.raw) ? container.raw : {};
     const explicitTalentTraitId = readExplicitTalentTraitId(raw);
-    const knownTraitIds = new Set(traits.map(trait => trait.id));
     const talentTraitId = explicitTalentTraitId !== null &&
       knownTraitIds.has(explicitTalentTraitId)
       ? explicitTalentTraitId
@@ -61,11 +61,7 @@ export function importPowers(importedTraits = {}) {
       talentTraitId,
       memberTraitIds,
       notes: normalizeNotes(raw.notes ?? raw.local_notes),
-      tags: [
-        ...normalizeStringArray(container.tags),
-        "import:gcs",
-        "node:power",
-      ],
+      tags: buildPowerTags(container.tags),
       importMeta: {
         source: "gcs",
         containerIds: Array.isArray(container.importMeta?.containerIds)
@@ -129,6 +125,24 @@ function readPowerModifier(raw) {
     ),
     notes: normalizeNotes(candidate.notes ?? candidate.local_notes),
   };
+}
+
+function buildPowerTags(value) {
+  const tags = normalizeStringArray(value).filter(tag => {
+    const normalized = tag.trim().toLowerCase();
+    return normalized !== "node:container" && normalized !== "role:unknown";
+  });
+  const result = [];
+  const seen = new Set();
+
+  for (const tag of [...tags, "import:gcs", "node:power"]) {
+    const key = tag.toLocaleLowerCase("pt-BR");
+    if (seen.has(key)) continue;
+    seen.add(key);
+    result.push(tag);
+  }
+
+  return result;
 }
 
 function normalizeNullableFiniteNumber(value) {
