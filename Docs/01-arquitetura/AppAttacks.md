@@ -1,7 +1,7 @@
 # App Attacks
 
 **Código:** APP-ATTACK-1.0  
-**Status:** Em validação  
+**Status:** Aprovado  
 **Camada:** Application  
 **Dependências:** APP-CORE-1.0 e DOM-ATTACK-1.1
 
@@ -52,7 +52,7 @@ UI futura
 - `attack.remove` remove a entrada identificada;
 - `attack.reorder` move a entrada para um índice válido.
 
-Atualização sem mudança e reordenação para o índice atual produzem `no-op`, preservando revisão e histórico.
+Atualização estruturalmente idêntica e reordenação para o índice atual produzem `no-op`, preservando revisão e histórico. A igualdade portátil independe da ordem de chaves em objetos JSON.
 
 ## Recibos
 
@@ -73,7 +73,7 @@ APP-ATTACK não calcula ou interpreta NH, dano, tipo de dano, reach, alcance, pr
 
 ## Atomicidade
 
-Payload inválido, ID ausente, patch não suportado, índice inválido ou entrada não portátil geram falha pelo executor e preservam a sessão anterior. Revisões obsoletas são rejeitadas antes do handler.
+Payload inválido, ID ausente, ID duplicado, patch não suportado, índice inválido ou entrada não portátil geram falha pelo executor e preservam a sessão anterior. Revisões obsoletas são rejeitadas antes do handler.
 
 ## Fronteiras
 
