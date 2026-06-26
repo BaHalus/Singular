@@ -257,7 +257,10 @@ function traitLabel(role) {
 }
 
 function formatNamedSpecialization(name, specialization) {
-  return specialization === "" ? name : `${name} (${specialization})`;
+  if (specialization === null || specialization === undefined || specialization === "") {
+    return name;
+  }
+  return `${name} (${specialization})`;
 }
 
 function validateToolbar(toolbar) {
