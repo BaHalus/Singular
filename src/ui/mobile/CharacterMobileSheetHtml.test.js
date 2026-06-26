@@ -126,8 +126,8 @@ test("renders declared traits, skills and techniques as readable mobile cards", 
   assert.match(html, /<dt>Vantagem<\/dt><dd>Reflexos em Combate <small>15 pts · Reação rápida<\/small><\/dd>/);
   assert.match(html, /<dt>Desvantagem<\/dt><dd>Código de Honra <small>-10 pts<\/small><\/dd>/);
   assert.match(html, /data-card="skills-techniques" data-status="declared-only"/);
-  assert.match(html, /<dt>Perícia<\/dt><dd>Espada Curta <small>4 pts · DX\/A · NH 13 · rel \+1<\/small><\/dd>/);
-  assert.match(html, /<dt>Técnica<\/dt><dd>Corte no Pescoço <small>2 pts · D · NH 11 · base Espada Curta · pd -5<\/small><\/dd>/);
+  assert.match(html, /<dt>Perícia<\/dt><dd>Espada Curta <small>4 pts · DX\/A · NH importado 13 · rel\. importado \+1<\/small><\/dd>/);
+  assert.match(html, /<dt>Técnica<\/dt><dd>Corte no Pescoço <small>2 pts · D · NH importado 11 · base Espada Curta · pd -5<\/small><\/dd>/);
 });
 
 test("renders a semantic mobile sheet and preserves existing sections", () => {
