@@ -1,8 +1,8 @@
 # Techniques
 
-**Código:** DOM-TECH-1.0 a 1.5  
-**Status:** Estrutura canônica e progressão mecânica inicial implementadas  
-**Camada:** Domain + Engine  
+**Código:** DOM-TECH-1.0 a 1.5 / APP-SKILL-1.4  
+**Status:** Estrutura canônica, progressão mecânica e resolução global implementadas  
+**Camada:** Domain + Engine + Application  
 **Tipo:** Agregado estrutural com resolução mecânica derivada
 
 Techniques representa a lista de técnicas do personagem em GURPS 4e.
@@ -48,7 +48,7 @@ Estrutura atual:
 
 ## Autoridade mecânica
 
-`src/engine/skills/TechniqueResolver.js` é a autoridade inicial de NH para Techniques comuns baseadas em uma única Skill treinada.
+`src/engine/skills/TechniqueResolver.js` é a autoridade de NH para Techniques comuns baseadas em uma única Skill treinada.
 
 Entrada:
 
@@ -82,7 +82,7 @@ A Skill-base precisa:
 - estar resolvida;
 - possuir `basis.kind = "trained"`.
 
-Uma Skill conhecida somente por default não alimenta uma Technique nesta etapa.
+Uma Skill conhecida somente por default não alimenta uma Technique.
 
 ### Nível padrão
 
@@ -119,6 +119,22 @@ Ultrapassar o teto gera diagnóstico informativo. Um teto abaixo do default decl
 
 Divergências geram avisos. O valor importado não substitui o cálculo soberano.
 
+## Resolução global
+
+`SkillMechanicsGlobalExecutor` recebe um `SkillMechanicsResolutionPlan` validado.
+
+A execução:
+
+1. resolve todas as Skills treinadas;
+2. avalia e seleciona os resultados finais das Skills;
+3. cria um mapa somente com `trainedResult`;
+4. resolve cada Technique na ordem declarada;
+5. produz `techniqueResults` portáteis e imutáveis.
+
+Mesmo quando uma Skill obtém resultado final resolvido por default, sua Technique recebe o resultado treinado bloqueado e também fica bloqueada. Isso impede que defaults sejam promovidos silenciosamente a treinamento.
+
+Uma referência de Skill-base ausente produz diagnóstico local e não impede a resolução das demais Techniques.
+
 ## Limites ainda abertos
 
 - Techniques com múltiplas Skills-base;
@@ -126,7 +142,7 @@ Divergências geram avisos. O valor importado não substitui o cálculo soberano
 - Techniques baseadas em atributo, defesa ativa, aparar, bloqueio ou outra grandeza;
 - melhoria de Technique quando a Skill-base foi comprada a partir de default melhor;
 - modificadores externos;
-- resolução em lote no Character;
+- projeção dedicada de leitura do relatório global;
 - integração com Application Read Model;
 - projeção na UI;
 - remoção ou confinamento final do fallback legado `resolvedByName` no importador.
@@ -137,10 +153,12 @@ Divergências geram avisos. O valor importado não substitui o cálculo soberano
 2. NH calculado não é persistido como segunda autoridade.
 3. A Skill-base usa identidade explícita.
 4. Nomes não resolvem vínculo mecânico.
-5. O motor calcula.
-6. A aplicação orquestra.
-7. A UI não calcula.
-8. Resultados são portáteis, imutáveis e diagnosticáveis.
+5. Techniques usam somente o resultado treinado da Skill-base.
+6. O motor calcula.
+7. A aplicação orquestra.
+8. A UI não calcula.
+9. Resultados são portáteis, imutáveis e diagnosticáveis.
+10. Bloqueios locais permitem resultados independentes.
 
 ## Cobertura de regressão
 
@@ -153,6 +171,9 @@ A cobertura inclui:
 - Skill-base ausente, bloqueada, divergente ou não treinada;
 - entradas numéricas inválidas;
 - divergências importadas;
+- resolução global em ordem declarada;
+- proibição de usar resultado final por default como fonte;
+- resultados parciais;
 - imutabilidade e portabilidade dos resultados.
 
 Checklist:
@@ -165,8 +186,8 @@ Checklist:
 - [x] Aplicação de defaultPenalty
 - [x] Aplicação de maximumRelativeLevel
 - [x] Exigência de Skill-base treinada
+- [x] Resolução global do Character
 - [ ] Defaults especiais e múltiplas bases
 - [ ] Modificadores canônicos externos
-- [ ] Resolução global do Character
 - [ ] Projeção no Application Read Model
 - [ ] UI
