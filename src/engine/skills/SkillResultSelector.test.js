@@ -45,11 +45,6 @@ function blockedDefault(overrides = {}) {
     entityId: "skill-stealth",
     entityType: "skill",
     status: "blocked",
-    basis: {
-      kind: "default",
-      sourceId: null,
-      attribute: "DX",
-    },
     diagnostics: [{
       code: "SKILL_DEFAULT_SOURCE_LEVEL_INVALID",
       severity: "blocked",
