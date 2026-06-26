@@ -41,11 +41,11 @@ test("preserves custom imported trait roles through the mobile read pipeline", (
   assert.equal(trait.value, "Dom Ancestral");
 });
 
-test("marks Equipment as pending integration instead of an external active front", () => {
+test("marks an empty canonical equipment collection as empty", () => {
   const character = createCharacter({
     identity: {
-      id: "character-equipment-coordination",
-      name: "Coordenação Atual",
+      id: "character-equipment-empty",
+      name: "Sem Equipamentos",
     },
   });
 
@@ -54,5 +54,6 @@ test("marks Equipment as pending integration instead of an external active front
     section => section.id === "equipment",
   );
 
-  assert.equal(equipmentSection.status, "pending");
+  assert.equal(equipmentSection.status, "empty");
+  assert.deepEqual(projection.equipment.items, []);
 });
