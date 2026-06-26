@@ -153,7 +153,7 @@ test("bootstraps the executable page with a canonical session and persistence ac
   assert.deepEqual(await mounted.repositories.session.listIds(), [mounted.session.id]);
 });
 
-test("restores the last valid session before completing the executable bootstrap", async () => {
+test("restores the last valid session with an injected root and no document", async () => {
   const root = rootFixture();
   const storage = createMemoryStorage();
   const namespace = "test.mobile.restore";
@@ -168,7 +168,6 @@ test("restores the last valid session before completing the executable bootstrap
 
   const mounted = await bootstrapCharacterMobileApp({
     root,
-    document: { querySelector: () => root },
     storage,
     namespace,
     runtime: runtime(),
