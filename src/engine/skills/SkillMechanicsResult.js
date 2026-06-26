@@ -6,9 +6,7 @@ const BASIS_KINDS = ["trained", "default", "technique"];
 const DIAGNOSTIC_SEVERITIES = ["info", "warning", "blocked"];
 
 export function createSkillMechanicsResult(input = {}) {
-  if (!isPlainObject(input)) {
-    throw new Error("Skill mechanics result must be an object");
-  }
+  requirePlainObject(input, "Skill mechanics result");
 
   const result = {
     schemaVersion: normalizePositiveInteger(
@@ -19,8 +17,16 @@ export function createSkillMechanicsResult(input = {}) {
       input.entityId,
       "Skill mechanics result entityId",
     ),
-    entityType: normalizeEntityType(input.entityType),
-    status: normalizeStatus(input.status),
+    entityType: normalizeEnum(
+      input.entityType,
+      ENTITY_TYPES,
+      "Skill mechanics result entityType",
+    ),
+    status: normalizeEnum(
+      input.status,
+      RESULT_STATUSES,
+      "Skill mechanics result status",
+    ),
     level: normalizeNullableFiniteNumber(
       input.level,
       "Skill mechanics result level",
@@ -42,17 +48,23 @@ export function createSkillMechanicsResult(input = {}) {
 }
 
 export function validateSkillMechanicsResult(result) {
-  if (!isPlainObject(result)) {
-    throw new Error("Skill mechanics result must be an object");
-  }
+  requirePlainObject(result, "Skill mechanics result");
 
   normalizePositiveInteger(
     result.schemaVersion,
     "Skill mechanics result schemaVersion",
   );
   normalizeRequiredString(result.entityId, "Skill mechanics result entityId");
-  normalizeEntityType(result.entityType);
-  const status = normalizeStatus(result.status);
+  normalizeEnum(
+    result.entityType,
+    ENTITY_TYPES,
+    "Skill mechanics result entityType",
+  );
+  const status = normalizeEnum(
+    result.status,
+    RESULT_STATUSES,
+    "Skill mechanics result status",
+  );
   normalizeNullableFiniteNumber(result.level, "Skill mechanics result level");
   normalizeNullableFiniteNumber(
     result.relativeLevel,
@@ -65,8 +77,8 @@ export function validateSkillMechanicsResult(result) {
   );
   validateDiagnostics(result.diagnostics);
   validateStatusConsistency(result, status);
-
   clonePortableValue(result, "Skill mechanics result");
+
   return true;
 }
 
@@ -79,28 +91,16 @@ export function getSkillMechanicsResultSchemaVersion() {
   return SKILL_MECHANICS_RESULT_SCHEMA_VERSION;
 }
 
-function normalizeEntityType(value) {
-  if (!ENTITY_TYPES.includes(value)) {
-    throw new Error("Skill mechanics result entityType is invalid");
-  }
-  return value;
-}
-
-function normalizeStatus(value) {
-  if (!RESULT_STATUSES.includes(value)) {
-    throw new Error("Skill mechanics result status is invalid");
-  }
-  return value;
-}
-
 function normalizeBasis(value) {
   if (value === undefined || value === null) return null;
-  if (!isPlainObject(value)) {
-    throw new Error("Skill mechanics result basis must be an object or null");
-  }
+  requirePlainObject(value, "Skill mechanics result basis");
 
   const basis = {
-    kind: normalizeBasisKind(value.kind),
+    kind: normalizeEnum(
+      value.kind,
+      BASIS_KINDS,
+      "Skill mechanics result basis kind",
+    ),
     sourceId: normalizeNullableString(
       value.sourceId,
       "Skill mechanics result basis sourceId",
@@ -117,11 +117,12 @@ function normalizeBasis(value) {
 
 function validateBasis(value) {
   if (value === null) return;
-  if (!isPlainObject(value)) {
-    throw new Error("Skill mechanics result basis must be an object or null");
-  }
-
-  normalizeBasisKind(value.kind);
+  requirePlainObject(value, "Skill mechanics result basis");
+  normalizeEnum(
+    value.kind,
+    BASIS_KINDS,
+    "Skill mechanics result basis kind",
+  );
   normalizeNullableString(
     value.sourceId,
     "Skill mechanics result basis sourceId",
@@ -132,74 +133,42 @@ function validateBasis(value) {
   );
 }
 
-function normalizeBasisKind(value) {
-  if (!BASIS_KINDS.includes(value)) {
-    throw new Error("Skill mechanics result basis kind is invalid");
-  }
-  return value;
-}
-
 function normalizeDiagnostics(value) {
   if (value === undefined || value === null) return [];
-  if (!Array.isArray(value)) {
-    throw new Error("Skill mechanics result diagnostics must be an array");
-  }
-
+  validateDenseArray(value, "Skill mechanics result diagnostics");
   return value.map((diagnostic, index) =>
     normalizeDiagnostic(diagnostic, index),
   );
 }
 
 function normalizeDiagnostic(diagnostic, index) {
-  if (!isPlainObject(diagnostic)) {
-    throw new Error(
-      `Skill mechanics result diagnostic[${index}] must be an object`,
-    );
-  }
+  const label = `Skill mechanics result diagnostic[${index}]`;
+  requirePlainObject(diagnostic, label);
+  const normalized = clonePortableValue(diagnostic, label);
 
-  const normalized = clonePortableValue(
-    diagnostic,
-    `Skill mechanics result diagnostic[${index}]`,
+  normalizeRequiredString(normalized.code, `${label} code`);
+  normalizeEnum(
+    normalized.severity,
+    DIAGNOSTIC_SEVERITIES,
+    `${label} severity`,
   );
-
-  normalizeRequiredString(
-    normalized.code,
-    `Skill mechanics result diagnostic[${index}] code`,
-  );
-  if (!DIAGNOSTIC_SEVERITIES.includes(normalized.severity)) {
-    throw new Error(
-      `Skill mechanics result diagnostic[${index}] severity is invalid`,
-    );
-  }
 
   return normalized;
 }
 
 function validateDiagnostics(diagnostics) {
-  if (!Array.isArray(diagnostics)) {
-    throw new Error("Skill mechanics result diagnostics must be an array");
-  }
+  validateDenseArray(diagnostics, "Skill mechanics result diagnostics");
 
   diagnostics.forEach((diagnostic, index) => {
-    if (!isPlainObject(diagnostic)) {
-      throw new Error(
-        `Skill mechanics result diagnostic[${index}] must be an object`,
-      );
-    }
-
-    normalizeRequiredString(
-      diagnostic.code,
-      `Skill mechanics result diagnostic[${index}] code`,
+    const label = `Skill mechanics result diagnostic[${index}]`;
+    requirePlainObject(diagnostic, label);
+    normalizeRequiredString(diagnostic.code, `${label} code`);
+    normalizeEnum(
+      diagnostic.severity,
+      DIAGNOSTIC_SEVERITIES,
+      `${label} severity`,
     );
-    if (!DIAGNOSTIC_SEVERITIES.includes(diagnostic.severity)) {
-      throw new Error(
-        `Skill mechanics result diagnostic[${index}] severity is invalid`,
-      );
-    }
-    clonePortableValue(
-      diagnostic,
-      `Skill mechanics result diagnostic[${index}]`,
-    );
+    clonePortableValue(diagnostic, label);
   });
 }
 
@@ -241,6 +210,13 @@ function validateStatusConsistency(result, status) {
   }
 }
 
+function normalizeEnum(value, allowed, label) {
+  if (!allowed.includes(value)) {
+    throw new Error(`${label} is invalid`);
+  }
+  return value;
+}
+
 function normalizePositiveInteger(value, label) {
   if (!Number.isInteger(value) || value < 1) {
     throw new Error(`${label} must be a positive integer`);
@@ -273,9 +249,7 @@ function normalizeNullableFiniteNumber(value, label) {
 
 function normalizeUniqueStringArray(value, label) {
   if (value === undefined || value === null) return [];
-  if (!Array.isArray(value)) {
-    throw new Error(`${label} must be an array`);
-  }
+  validateDenseArray(value, label);
 
   const normalized = value.map((item, index) =>
     normalizeRequiredString(item, `${label}[${index}]`),
@@ -285,9 +259,7 @@ function normalizeUniqueStringArray(value, label) {
 }
 
 function validateUniqueStringArray(value, label) {
-  if (!Array.isArray(value)) {
-    throw new Error(`${label} must be an array`);
-  }
+  validateDenseArray(value, label);
 
   value.forEach((item, index) =>
     normalizeRequiredString(item, `${label}[${index}]`),
@@ -298,44 +270,74 @@ function validateUniqueStringArray(value, label) {
   }
 }
 
-function clonePortableValue(value, label) {
-  let serialized;
-  try {
-    serialized = JSON.stringify(value);
-  } catch {
-    throw new Error(`${label} must be JSON portable`);
+function validateDenseArray(value, label) {
+  if (!Array.isArray(value)) {
+    throw new Error(`${label} must be an array`);
   }
 
-  if (serialized === undefined) {
-    throw new Error(`${label} must be JSON portable`);
+  for (let index = 0; index < value.length; index += 1) {
+    if (!Object.prototype.hasOwnProperty.call(value, index)) {
+      throw new Error(`${label} must not contain sparse entries`);
+    }
   }
 
-  const cloned = JSON.parse(serialized);
-  if (!deepEqualPortable(value, cloned)) {
-    throw new Error(`${label} must be JSON portable`);
+  const expectedKeys = new Set(
+    Array.from({ length: value.length }, (_, index) => String(index)),
+  );
+  for (const key of Object.keys(value)) {
+    if (!expectedKeys.has(key)) {
+      throw new Error(`${label} must not contain non-index properties`);
+    }
   }
-  return cloned;
 }
 
-function deepEqualPortable(left, right) {
-  if (Object.is(left, right)) return true;
-  if (typeof left !== typeof right) return false;
-  if (left === null || right === null) return false;
-  if (Array.isArray(left) || Array.isArray(right)) {
-    if (!Array.isArray(left) || !Array.isArray(right)) return false;
-    if (left.length !== right.length) return false;
-    return left.every((item, index) => deepEqualPortable(item, right[index]));
-  }
-  if (typeof left !== "object") return false;
+function clonePortableValue(value, label) {
+  assertPortableValue(value, label, new WeakSet());
+  return JSON.parse(JSON.stringify(value));
+}
 
-  const leftKeys = Object.keys(left);
-  const rightKeys = Object.keys(right);
-  if (leftKeys.length !== rightKeys.length) return false;
-  return leftKeys.every(
-    key =>
-      Object.prototype.hasOwnProperty.call(right, key) &&
-      deepEqualPortable(left[key], right[key]),
-  );
+function assertPortableValue(value, label, ancestors) {
+  if (value === null) return;
+
+  const type = typeof value;
+  if (type === "string" || type === "boolean") return;
+  if (type === "number") {
+    if (!Number.isFinite(value)) {
+      throw new Error(`${label} must be JSON portable`);
+    }
+    return;
+  }
+  if (type !== "object") {
+    throw new Error(`${label} must be JSON portable`);
+  }
+
+  if (ancestors.has(value)) {
+    throw new Error(`${label} must be JSON portable`);
+  }
+  ancestors.add(value);
+
+  if (Array.isArray(value)) {
+    validateDenseArray(value, label);
+    value.forEach((item, index) =>
+      assertPortableValue(item, `${label}[${index}]`, ancestors),
+    );
+    ancestors.delete(value);
+    return;
+  }
+
+  if (!isPlainObject(value)) {
+    throw new Error(`${label} must be JSON portable`);
+  }
+  for (const [key, item] of Object.entries(value)) {
+    assertPortableValue(item, `${label}.${key}`, ancestors);
+  }
+  ancestors.delete(value);
+}
+
+function requirePlainObject(value, label) {
+  if (!isPlainObject(value)) {
+    throw new Error(`${label} must be an object`);
+  }
 }
 
 function isPlainObject(value) {
