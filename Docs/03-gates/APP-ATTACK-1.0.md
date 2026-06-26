@@ -1,6 +1,6 @@
 # Gate — APP-ATTACK-1.0
 
-**Status:** Em validação  
+**Status:** Aprovado  
 **Data:** 2026-06-26  
 **Frente:** SINGULAR — Contratos de Aplicação da Alpha  
 **Branch:** `feature/app-attack-commands-1.0`  
@@ -42,7 +42,8 @@ A `main` vigente contém UI-MOBILE 0.8. A PR #115 da frente principal está aber
 - [x] comando para reordenar;
 - [x] payloads superiores estritos;
 - [x] novo Character canônico em resultados aplicados;
-- [x] no-op para atualização ou posição redundante;
+- [x] no-op estrutural para atualização ou posição redundante;
+- [x] igualdade portátil independente da ordem de chaves;
 - [x] recibos com identidade e índices relevantes;
 - [x] revisão e histórico somente em `applied`;
 - [x] revisão obsoleta rejeitada antes do handler;
@@ -50,14 +51,20 @@ A `main` vigente contém UI-MOBILE 0.8. A PR #115 da frente principal está aber
 - [x] ID duplicado falha atomicamente;
 - [x] persistência, undo e redo cobertos pelo App Core existente.
 
-## Condições pendentes
+## Evidência
 
-- [ ] PR própria aberta;
-- [ ] suíte integral verde no head final;
-- [ ] nenhuma revisão bloqueante da própria PR;
-- [ ] nenhuma thread aberta da própria PR;
-- [ ] branch atualizada após a integração serializada da PR #115;
-- [ ] merge em `main`.
+GitHub Actions `Tests`, execução `28267616777`, concluiu com sucesso no commit `ed6519ef8295a20eadc272583d8565535e922039`, já contendo a implementação final e a regressão de igualdade estrutural. O commit documental de fechamento deve repetir a suíte integral antes do merge.
+
+## Integração
+
+- [x] PR própria única: #116;
+- [x] branch sem atraso em relação à `main` na abertura;
+- [x] nenhuma sobreposição com a PR #115;
+- [x] CI integral verde no head de implementação;
+- [x] nenhuma revisão bloqueante observada;
+- [x] nenhuma thread própria aberta observada;
+- [ ] CI integral verde no commit documental final;
+- [ ] merge serializado em `main`.
 
 ## Próxima etapa automática
 
