@@ -42,10 +42,8 @@ export function handleAddEquipmentCommand(context) {
     EQUIPMENT_COMMAND_TYPES.ADD,
   );
   validateExactPayloadKeys(command.payload, ["item"]);
-  const nextEquipment = addEquipment(
-    session.character.equipment,
-    command.payload.item,
-  );
+  const itemInput = requireExplicitEquipmentIds(command.payload.item, "item");
+  const nextEquipment = addEquipment(session.character.equipment, itemInput);
   const added = nextEquipment.at(-1);
 
   return appliedResult(session.character, nextEquipment, {
@@ -63,10 +61,11 @@ export function handleAddChildEquipmentCommand(context) {
   );
   validateExactPayloadKeys(command.payload, ["containerId", "item"]);
   const containerId = normalizeItemId(command.payload.containerId, "containerId");
+  const itemInput = requireExplicitEquipmentIds(command.payload.item, "item");
   const nextEquipment = addChildEquipment(
     session.character.equipment,
     containerId,
-    command.payload.item,
+    itemInput,
   );
   const container = findEquipmentItem(nextEquipment, containerId);
   const added = container.children.at(-1);
@@ -86,11 +85,12 @@ export function handleRenameEquipmentCommand(context) {
   );
   validateExactPayloadKeys(command.payload, ["itemId", "name"]);
   const itemId = normalizeItemId(command.payload.itemId, "itemId");
+  const name = normalizeEquipmentName(command.payload.name);
   const previous = requireItem(session.character.equipment, itemId);
   const nextEquipment = renameEquipment(
     session.character.equipment,
     itemId,
-    command.payload.name,
+    name,
   );
   const current = requireItem(nextEquipment, itemId);
 
@@ -256,6 +256,19 @@ function validateExactPayloadKeys(payload, expectedKeys) {
   }
 }
 
+function requireExplicitEquipmentIds(item, label) {
+  requirePlainObject(item, `Equipment command ${label}`);
+  normalizeItemId(item.id, `${label}.id`);
+  if (item.children !== undefined) {
+    if (!Array.isArray(item.children)) {
+      throw new Error(`Equipment command ${label}.children must be an array`);
+    }
+    item.children.forEach((child, index) =>
+      requireExplicitEquipmentIds(child, `${label}.children[${index}]`));
+  }
+  return item;
+}
+
 function requireItem(equipment, itemId) {
   const item = findEquipmentItem(equipment, itemId);
   if (item === null) throw new Error("Equipment item not found");
@@ -292,6 +305,13 @@ function normalizeItemId(value, field) {
 function normalizeNullableItemId(value, field) {
   if (value === null) return null;
   return normalizeItemId(value, field);
+}
+
+function normalizeEquipmentName(value) {
+  if (typeof value !== "string") {
+    throw new Error("Equipment command name must be a string");
+  }
+  return value;
 }
 
 function portableEqual(left, right) {
