@@ -1,21 +1,19 @@
 # Skills
 
-**Código:** DOM-SKILL-1.0 a 1.2  
-**Status:** Estrutura canônica e cobertura de regressão reconciliadas  
-**Camada:** Domain  
-**Tipo:** Agregado
+**Código:** DOM-SKILL-1.0 a 1.9  
+**Status:** Estrutura canônica e fundação mecânica local implementadas  
+**Camada:** Domain + Engine  
+**Tipo:** Agregado estrutural com resolução mecânica derivada
 
 Skills representa a lista de perícias do personagem em GURPS 4e.
 
 Na interface em português, Skills será exibido como Perícias.
 
-## Estado estrutural observado
+## Autoridade estrutural
 
-`Character.skills` é a coleção canônica de perícias do personagem.
+`Character.skills` é a coleção persistente canônica.
 
-`src/domain/character/Skills.js` é o normalizador estrutural de perícias. Ele preserva dados declarados ou importados, mas não é autoridade mecânica de NH, defaults, bônus ou custo final.
-
-`src/domain/character/SkillsOperations.js` contém transformações imutáveis sobre a coleção canônica. Essas operações não criam pipeline paralelo nem substituem o futuro contrato soberano do motor.
+`src/domain/character/Skills.js` cria, valida e serializa a estrutura declarada. `SkillsOperations.js` contém transformações imutáveis sobre essa coleção.
 
 Estrutura atual de cada perícia:
 
@@ -42,38 +40,115 @@ Estrutura atual de cada perícia:
 }
 ```
 
-`points` armazena os pontos investidos na perícia.
+Os campos importados preservam evidência externa. Eles não são autoridade mecânica da SINGULAR.
 
-`importedLevel` e `importedRelativeLevel` preservam valores recebidos de fontes externas, como GCS. Eles não são tratados como resultados calculados pela SINGULAR.
+## Autoridade mecânica
 
-`defaults`, `features`, `weapons`, `prereqs`, `importMeta` e `raw` preservam estrutura e proveniência sem interpretação mecânica local.
+A autoridade de NH pertence ao Skill Mechanics Engine.
 
-O motor da SINGULAR calculará o NH final. Skills não calcula NH, não aplica bônus, não resolve defaults e não interpreta regras GURPS.
+Componentes implementados:
 
-Identificadores externos seguem ADR-0004.  
-Dados importados do GCS seguem ADR-0003.
+- `SkillMechanicsResult`: resultado portátil, imutável e diagnosticável;
+- `SkillTrainedResolver`: progressão treinada para `E`, `A`, `H` e `VH`;
+- `SkillDefaultCandidate`: contrato canônico de default por atributo ou Skill explícita;
+- `SkillDefaultResolver`: avaliação unitária de um candidato;
+- `SkillDefaultTrainedSourceResolver`: impede default a partir de Skill conhecida somente por default;
+- `SkillResultSelector`: escolhe o maior nível resolvido, com desempate treinado antes de default;
+- `SkillResolutionOrchestrator`: coordenação local na camada de aplicação, sem fórmulas próprias.
+
+## Regras certificadas
+
+### Progressão treinada
+
+| Dificuldade | 1 ponto | 2 pontos | 4 pontos | 8 pontos |
+|---|---:|---:|---:|---:|
+| `E` | A+0 | A+1 | A+2 | A+3 |
+| `A` | A−1 | A+0 | A+1 | A+2 |
+| `H` | A−2 | A−1 | A+0 | A+1 |
+| `VH` | A−3 | A−2 | A−1 | A+0 |
+
+Depois de 4 pontos, cada bloco completo adicional de 4 aumenta o NH relativo em +1.
+
+Zero pontos não produz nível treinado.
+
+### Defaults
+
+- candidatos mecânicos exigem identidade explícita;
+- nomes e especializações não resolvem identidade;
+- default por atributo recebe o nível da fonte explicitamente;
+- default por Skill exige resultado-fonte resolvido por treinamento;
+- uma Skill conhecida somente por default não alimenta outro default;
+- o maior resultado resolvido vence;
+- em empate, o resultado treinado vence sobre default;
+- em empate entre defaults, a ordem de entrada preserva determinismo.
+
+## Valores importados
+
+`importedLevel` e `importedRelativeLevel` são comparados com o resultado calculado.
+
+Divergências geram diagnósticos de aviso. Valores importados nunca substituem silenciosamente o cálculo soberano.
+
+## Aplicação
+
+`SkillResolutionOrchestrator` coordena, para uma única Skill:
+
+1. resultado treinado;
+2. avaliações de defaults já canônicos;
+3. seleção do resultado final;
+4. relatório efêmero, portátil e imutável.
+
+A aplicação não replica tabelas ou fórmulas.
+
+## Limites ainda abertos
+
+- transformação dos payloads opacos de `Skill.defaults` em candidatos canônicos;
+- resolução de IDs externos na fronteira de importação;
+- resolução em lote para o `Character` inteiro;
+- obtenção soberana dos níveis de atributo;
+- política completa de Skills compradas a partir de defaults melhores;
+- modificadores provenientes de Traits, equipamentos e outras fontes;
+- integração com `ApplicationReadModel`;
+- projeção na UI;
+- integração contábil adicional além dos pontos já declarados ao Point Ledger.
+
+## Invariantes
+
+1. `Character.skills` permanece a fonte persistente.
+2. NH calculado não é persistido como segunda autoridade.
+3. O motor calcula e seleciona.
+4. A aplicação apenas orquestra.
+5. O importador preserva e transforma, mas não calcula.
+6. A UI não calcula.
+7. Nomes não possuem autoridade mecânica.
+8. Resultados são determinísticos, portáteis e diagnosticáveis.
 
 ## Cobertura de regressão
 
-`Skills.test.js` protege:
+A cobertura inclui:
 
-- valores neutros da estrutura;
-- preservação integral de payload estrutural importado;
-- roundtrip por `serializeSkills` sem cálculo de NH;
-- rejeição de tipos inválidos em campos escalares, coleções e metadados.
-
-`SkillsOperations.test.js` protege as transformações imutáveis já existentes sobre a coleção.
-
-## Limite deste documento
-
-Este documento registra somente o contrato estrutural observado. Ele não define fórmula de NH, resolução de defaults, limite de técnica, integração com Point Ledger nem qualquer cálculo mecânico novo.
+- estrutura e serialização de Skills;
+- progressão treinada e patamares intermediários;
+- valores altos e entradas bloqueantes;
+- candidatos de default e identidade explícita;
+- avaliação de defaults por atributo e Skill;
+- proibição de encadeamento por fonte não treinada;
+- seleção determinística;
+- orquestração local e consistência do relatório;
+- portabilidade JSON estrita e imutabilidade.
 
 Checklist:
 
-- [x] Criar Skills.md
-- [x] Criar Skills.js
-- [x] Criar Skills.test.js
-- [x] Criar SkillsOperations.js
-- [x] Criar SkillsOperations.test.js
-- [x] Integrar com Character
-- [x] Cobrir preservação estrutural importada
+- [x] Estrutura canônica de Skills
+- [x] Operações imutáveis
+- [x] Integração estrutural com Character
+- [x] Contrato portátil de resultado
+- [x] Progressão treinada
+- [x] Candidato canônico de default
+- [x] Avaliação unitária de default
+- [x] Seleção de resultado final
+- [x] Proibição de default a partir de fonte não treinada
+- [x] Orquestração local na aplicação
+- [ ] Resolução global do Character
+- [ ] Modificadores canônicos externos
+- [ ] Projeção no Application Read Model
+- [ ] UI
