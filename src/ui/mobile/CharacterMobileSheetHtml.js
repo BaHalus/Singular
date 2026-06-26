@@ -2,7 +2,7 @@ import {
   serializeCharacterMobileSheetRenderModel,
 } from "./CharacterMobileSheetRenderModel.js";
 
-const HTML_SHELL_SCHEMA_VERSION = 2;
+const HTML_SHELL_SCHEMA_VERSION = 3;
 
 /**
  * Renderiza o shell HTML portátil para a ficha mobile.
@@ -18,7 +18,7 @@ export function renderCharacterMobileSheetHtml(renderModel, options = {}) {
     `<article class="singular-mobile-sheet" data-schema-version="${HTML_SHELL_SCHEMA_VERSION}" data-mode="${shellMode}">`,
     renderToolbar(model.toolbar, shellMode),
     renderSummary(model.summary),
-    renderCards(model.cards),
+    renderCards(model.cards, shellMode),
     renderSections(model.sections),
     "</article>",
   ].join("");
@@ -104,19 +104,54 @@ function renderPoolControl(pool) {
   ].join("");
 }
 
-function renderCards(cards) {
+function renderCards(cards, mode) {
   return [
     "<main class=\"singular-mobile-sheet__cards\">",
-    cards.map(card => [
-      `<section class="singular-mobile-sheet__card" data-card="${escapeAttribute(card.id)}" data-status="${escapeAttribute(card.status)}">`,
-      `<h2>${escapeText(card.title)}</h2>`,
-      "<dl>",
-      card.items.map(renderCardItem).join(""),
-      "</dl>",
-      "</section>",
-    ].join("")).join(""),
+    cards.map(card => renderCard(card, mode)).join(""),
     "</main>",
   ].join("");
+}
+
+function renderCard(card, mode) {
+  const body = card.id === "identity" && mode === "creation"
+    ? renderIdentityEditor(card)
+    : ["<dl>", card.items.map(renderCardItem).join(""), "</dl>"].join("");
+
+  return [
+    `<section class="singular-mobile-sheet__card" data-card="${escapeAttribute(card.id)}" data-status="${escapeAttribute(card.status)}">`,
+    `<h2>${escapeText(card.title)}</h2>`,
+    body,
+    "</section>",
+  ].join("");
+}
+
+function renderIdentityEditor(card) {
+  const name = findCardItem(card, "name");
+  const concept = findCardItem(card, "concept");
+  const readOnlyItems = card.items.filter(item => !["name", "concept"].includes(item.id));
+
+  return [
+    '<div class="singular-mobile-sheet__identity-editor" data-role="identity-editor">',
+    '<label>Nome',
+    `<input type="text" data-role="identity-name" value="${escapeAttribute(name.value)}" autocomplete="off">`,
+    "</label>",
+    '<label>Conceito',
+    `<input type="text" data-role="identity-concept" value="${escapeAttribute(concept.value)}" autocomplete="off">`,
+    "</label>",
+    '<button type="button" data-action="identity-save">Aplicar identidade</button>',
+    "</div>",
+    readOnlyItems.length === 0
+      ? ""
+      : ["<dl>", readOnlyItems.map(renderCardItem).join(""), "</dl>"].join(""),
+  ].join("");
+}
+
+function findCardItem(card, id) {
+  const item = card.items.find(candidate => candidate.id === id);
+  if (!item) {
+    throw new Error(`Character mobile identity card is missing item: ${id}`);
+  }
+  return item;
 }
 
 function renderSections(sections) {
