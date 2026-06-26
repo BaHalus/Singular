@@ -1,5 +1,6 @@
 import {
   createApplicationSession,
+  serializeApplicationSession,
   validateApplicationSession,
 } from "../session/ApplicationSession.js";
 import {
@@ -9,6 +10,7 @@ import {
 } from "../ports/RuntimePorts.js";
 import {
   createBrowserLocalCharacterRepository,
+  createBrowserLocalPersistenceAdapter,
   createBrowserLocalSessionRepository,
   createSingularCharacterExport,
   inspectBrowserLocalPersistence,
@@ -41,9 +43,23 @@ export function createAlphaMobilePersistenceBootstrap(options = {}) {
   const sessionRepository = createBrowserLocalSessionRepository(
     persistenceOptions,
   );
+  const rollbackAdapter = createBrowserLocalPersistenceAdapter(
+    persistenceOptions,
+  );
   const inspectPersistence = () => inspectBrowserLocalPersistence(
     persistenceOptions,
   );
+  const rollbackSessionSave = ({ id, previousSession }) => {
+    if (previousSession === null) {
+      rollbackAdapter.remove("session", id);
+      return;
+    }
+    rollbackAdapter.save(
+      "session",
+      id,
+      serializeApplicationSession(previousSession),
+    );
+  };
 
   const createImportedSession = options.createImportedSession ?? ((input) => {
     const importedAt = readClock(runtime.clock);
@@ -68,6 +84,7 @@ export function createAlphaMobilePersistenceBootstrap(options = {}) {
     initialSession: options.initialSession,
     characterRepository,
     sessionRepository,
+    rollbackSessionSave,
     inspectPersistence,
     createCharacterExport: createSingularCharacterExport,
     parseCharacterExport: parseSingularCharacterExport,
