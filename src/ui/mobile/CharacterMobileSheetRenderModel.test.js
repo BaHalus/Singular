@@ -61,7 +61,7 @@ test("creates the mobile render model with an empty equipment card", () => {
     quantity: 0,
     weightKg: 0,
     cost: 0,
-    authority: "domain",
+    authority: "engine.equipment",
   });
   assert.equal(model.sections.find(section => section.id === "equipment").status, "empty");
   assert.equal(validateCharacterMobileSheetRenderModel(model), true);
@@ -101,7 +101,7 @@ test("creates a hierarchical equipment card without recalculating totals", () =>
     quantity: 11,
     weightKg: 1.1,
     cost: 30,
-    authority: "domain",
+    authority: "engine.equipment",
   });
   assert.deepEqual(
     equipment.items.map(item => [item.id, item.parentId, item.depth, item.state]),
