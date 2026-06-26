@@ -1,13 +1,13 @@
 # App Attacks
 
-**Código:** APP-ATTACK-1.1  
+**Código:** APP-ATTACK-1.2  
 **Status:** Aprovado  
 **Camada:** Application  
-**Dependências:** APP-CORE-1.0, DOM-ATTACK-1.1 e APP-ATTACK-1.0
+**Dependências:** APP-CORE-1.1, DOM-ATTACK-1.1, APP-ATTACK-1.0 e APP-ATTACK-1.1
 
 ## Objetivo
 
-APP-ATTACK conecta intenções estruturais de edição ao agregado canônico de ataques e oferece uma projeção portátil de leitura. A aplicação não calcula regras de combate: delega alterações a `AttacksOperations` e projeta somente o snapshot declarado e validado pelo domínio.
+APP-ATTACK conecta intenções estruturais de edição ao agregado canônico de ataques, oferece uma projeção portátil de leitura e permite anexá-la explicitamente ao `ApplicationReadModel`. A aplicação não calcula regras de combate.
 
 ## Comandos
 
@@ -27,12 +27,12 @@ Payloads:
 { attackId, targetIndex }
 ```
 
-Payloads com propriedades adicionais são rejeitados. Edição, remoção e reordenação usam exclusivamente identidade canônica por ID.
+Edição, remoção e reordenação usam exclusivamente identidade canônica por ID. Payloads adicionais são rejeitados.
 
 ## Fluxo de escrita
 
 ```text
-UI futura
+intenção futura
 → CommandEnvelope
 → CommandRegistry
 → AttackCommandHandlers
@@ -43,16 +43,16 @@ UI futura
 → persistência, undo e redo
 ```
 
-`createAttackCommandHandlerEntries()` produz entradas isoladas para o registro existente. Não existe segundo executor, sessão ou histórico.
+Não existe segundo executor, sessão ou histórico.
 
 ## Operações
 
-- `attack.add` acrescenta uma entrada canônica ao final da ordem declarada;
-- `attack.update` aplica somente o patch aceito por `AttacksOperations` e preserva o ID;
+- `attack.add` acrescenta uma entrada canônica ao final;
+- `attack.update` aplica o patch aceito pelo domínio e preserva o ID;
 - `attack.remove` remove a entrada identificada;
-- `attack.reorder` move a entrada para um índice válido.
+- `attack.reorder` move a entrada para índice válido.
 
-Atualização estruturalmente idêntica e reordenação para o índice atual produzem `no-op`, preservando revisão e histórico. A igualdade portátil independe da ordem de chaves em objetos JSON.
+Atualização estruturalmente idêntica e posição já vigente produzem `no-op`. A igualdade portátil independe da ordem de chaves.
 
 ## Projeção de leitura
 
@@ -66,42 +66,57 @@ Atualização estruturalmente idêntica e reordenação para o índice atual pro
 }
 ```
 
-`attacks` preserva a ordem canônica e todos os campos serializados pelo domínio:
+A coleção preserva ordem, IDs, origem, dano declarado, reach, range, notas, `importMeta` e `raw`. A projeção é validada, profundamente congelada e serializável para snapshot destacado. Ela não resolve referências e não acrescenta campos mecânicos.
 
-- identidade e IDs externos;
-- nome e categoria;
-- referência opcional a Skill por ID;
-- origem declarada por tipo e ID;
-- dano declarado, tipo e autoridade `declared`;
-- reach e range textuais;
-- notas;
-- `importMeta` e `raw` portáteis.
+## Integração ao ApplicationReadModel
 
-A projeção é validada, profundamente congelada e serializável para um snapshot destacado. Ela não resolve referências, não copia entidades de outros agregados e não adiciona NH, dano calculado ou qualquer campo mecânico.
+O read model v2 recebe uma opção independente:
+
+```js
+createApplicationReadModel(session, {
+  skillMechanics,
+  attackProjection,
+})
+```
+
+As duas opções podem ser omitidas, fornecidas isoladamente ou combinadas. Modelos novos sempre emitem:
+
+```js
+{
+  schemaVersion: 2,
+  session,
+  character,
+  pointLedger,
+  skillMechanics,
+  attackProjection,
+}
+```
+
+`attackProjection` é uma `AttackReadProjection` validada e pertencente ao mesmo `Character`, ou `null`. O read model não cria a projeção automaticamente e não usa o `Character` como fallback mecânico.
+
+A extensão é retrocompatível: snapshots v2 antigos sem `attackProjection` continuam válidos. Campo presente com valor `undefined` é inválido. Propriedades desconhecidas permanecem proibidas e `skillMechanics` continua obrigatório no shape v2 histórico.
 
 ## Autoridades
 
 - `Attacks` declara e valida os dados;
 - `AttacksOperations` altera a coleção;
 - `Character` permanece o Aggregate Root;
-- `ApplicationSession` permanece a sessão autoritativa;
-- `CommandExecutor` permanece a autoridade de revisão, atomicidade e histórico;
-- `AttackReadProjection` é somente uma fronteira portátil de leitura;
-- a UI futura apenas emitirá intenção e apresentará projeções.
+- `CommandExecutor` controla revisão, atomicidade e histórico;
+- `AttackReadProjection` protege o snapshot específico de leitura;
+- `ApplicationReadModel` apenas anexa projeções já prontas;
+- UI e bootstrap permanecem fora desta etapa.
 
 ## Ausência de mecânica
 
-APP-ATTACK não calcula ou interpreta NH, dano, tipo de dano, reach, alcance, precisão, Aparar, recuo, cadência ou qualquer regra de combate. Valores declarados permanecem com autoridade `declared` definida pelo domínio.
+APP-ATTACK não calcula ou interpreta NH, dano, tipo, reach, alcance, precisão, Aparar, recuo, cadência ou defesa. A autoridade do dano permanece `declared`.
 
 ## Atomicidade e portabilidade
 
-Payload inválido, ID ausente, ID duplicado, patch não suportado, índice inválido ou entrada não portátil geram falha pelo executor e preservam a sessão anterior. Revisões obsoletas são rejeitadas antes do handler.
-
-A projeção rejeita schema incorreto, propriedades extras, IDs duplicados, arrays esparsos, autoridade diferente de `declared`, ciclos e valores não finitos. Valores finitos, inclusive `-0`, são preservados sem roundtrip por JSON textual.
+Comandos inválidos falham sem alterar a sessão. A projeção rejeita schema incorreto, propriedades extras, IDs duplicados, arrays esparsos, autoridade diferente de `declared`, ciclos e valores não finitos. Números finitos, inclusive `-0`, são preservados.
 
 ## Fronteiras
 
-APP-ATTACK 1.1 não altera UI, `CommandRegistry`, composition roots, `ApplicationReadModel`, persistência concreta, `Character.js`, Attacks, Equipment, Skills, Spells, Powers ou outros domínios.
+APP-ATTACK 1.2 não altera UI, bootstrap, domínio, persistência concreta, `Character.js`, Equipamentos, Skills, Spells, Powers ou motores. Também não calcula nem gera a projeção automaticamente.
 
 ## API
 
@@ -117,4 +132,6 @@ createAttackReadProjection(character)
 validateAttackReadProjection(projection)
 serializeAttackReadProjection(projection)
 getAttackReadProjectionSchemaVersion()
+
+createApplicationReadModel(session, { attackProjection })
 ```
