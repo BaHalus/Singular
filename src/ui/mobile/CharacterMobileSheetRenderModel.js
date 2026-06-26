@@ -2,7 +2,7 @@ import {
   serializeCharacterMobileProjection,
 } from "./CharacterMobileProjection.js";
 
-const RENDER_MODEL_SCHEMA_VERSION = 2;
+const RENDER_MODEL_SCHEMA_VERSION = 3;
 const RENDER_MODEL_KEYS = Object.freeze([
   "schemaVersion",
   "title",
@@ -21,13 +21,6 @@ const CARD_STATUSES = Object.freeze([
 ]);
 const TOOLBAR_ACTION_STATUSES = Object.freeze(["pending"]);
 
-/**
- * Prepara a primeira estrutura portátil para renderização da ficha mobile.
- *
- * Esta camada não calcula regra, ponto, nível, carga ou derivado de GURPS.
- * Ela apenas reorganiza uma CharacterMobileProjection já validada em blocos
- * consumíveis por uma futura tela visual.
- */
 export function createCharacterMobileSheetRenderModel(projection) {
   const serializedProjection = serializeCharacterMobileProjection(projection);
   const model = {
@@ -47,7 +40,6 @@ export function createCharacterMobileSheetRenderModel(projection) {
 export function validateCharacterMobileSheetRenderModel(model) {
   requirePlainObject(model, "Character mobile sheet render model");
   validateExactKeys(model, RENDER_MODEL_KEYS, "Character mobile sheet render model");
-
   if (model.schemaVersion !== RENDER_MODEL_SCHEMA_VERSION) {
     throw new Error("Character mobile sheet render model schemaVersion is invalid");
   }
@@ -58,7 +50,6 @@ export function validateCharacterMobileSheetRenderModel(model) {
   validateSummary(model.summary);
   validateCards(model.cards);
   validateSections(model.sections);
-
   return true;
 }
 
@@ -75,21 +66,9 @@ function createToolbar(projection) {
   return {
     title: projection.identity.name,
     actions: [
-      {
-        id: "mode-creation",
-        label: "Criação",
-        status: "pending",
-      },
-      {
-        id: "mode-table",
-        label: "Mesa",
-        status: "pending",
-      },
-      {
-        id: "save",
-        label: "Salvar",
-        status: "pending",
-      },
+      { id: "mode-creation", label: "Criação", status: "pending" },
+      { id: "mode-table", label: "Mesa", status: "pending" },
+      { id: "save", label: "Salvar", status: "pending" },
     ],
   };
 }
@@ -170,6 +149,7 @@ function createCards(projection) {
     },
     createTraitsCard(projection.traits),
     createSkillsTechniquesCard(projection.skills, projection.techniques),
+    createEquipmentCard(projection.equipment),
   ];
 }
 
@@ -230,6 +210,32 @@ function createSkillsTechniquesCard(skills, techniques) {
   };
 }
 
+function createEquipmentCard(equipment) {
+  return {
+    id: "equipment",
+    title: "Equipamentos",
+    status: equipment.items.length === 0 ? "empty" : "declared-only",
+    totals: cloneValue(equipment.totals),
+    items: equipment.items.map(item => ({
+      id: item.id,
+      label: item.kind === "container" ? "Recipiente" : "Item",
+      value: item.name || "Equipamento sem nome",
+      parentId: item.parentId,
+      depth: item.depth,
+      kind: item.kind,
+      containerKind: item.containerKind,
+      quantity: item.quantity,
+      weightKg: item.weightKg,
+      cost: item.cost,
+      state: item.state,
+      uses: item.uses,
+      maxUses: item.maxUses,
+      notes: item.notes,
+      status: item.status,
+    })),
+  };
+}
+
 function createSections(sections) {
   return sections.map(section => ({
     id: section.id,
@@ -274,9 +280,7 @@ function validateToolbar(toolbar) {
     requireString(action.id, "Character mobile sheet toolbar action id");
     requireString(action.label, "Character mobile sheet toolbar action label");
     if (!TOOLBAR_ACTION_STATUSES.includes(action.status)) {
-      throw new Error(
-        `Character mobile sheet toolbar action ${action.id} status is invalid`,
-      );
+      throw new Error(`Character mobile sheet toolbar action ${action.id} status is invalid`);
     }
   }
 }
@@ -294,7 +298,6 @@ function validateCards(cards) {
   if (!Array.isArray(cards) || cards.length === 0) {
     throw new Error("Character mobile sheet cards must be a non-empty array");
   }
-
   for (const card of cards) {
     requirePlainObject(card, "Character mobile sheet card");
     requireString(card.id, "Character mobile sheet card id");
@@ -303,6 +306,24 @@ function validateCards(cards) {
     if (!Array.isArray(card.items)) {
       throw new Error(`Character mobile sheet card ${card.id} items must be an array`);
     }
+    if (card.id === "equipment") validateEquipmentCard(card);
+  }
+}
+
+function validateEquipmentCard(card) {
+  requirePlainObject(card.totals, "Character mobile equipment totals");
+  for (const key of ["quantity", "weightKg", "cost"]) {
+    if (!Number.isFinite(card.totals[key]) || card.totals[key] < 0) {
+      throw new Error(`Character mobile equipment total ${key} is invalid`);
+    }
+  }
+  if (card.totals.authority !== "domain") {
+    throw new Error("Character mobile equipment totals authority is invalid");
+  }
+  for (const item of card.items) {
+    if (!Number.isInteger(item.depth) || item.depth < 0) {
+      throw new Error(`Character mobile equipment item ${item.id} depth is invalid`);
+    }
   }
 }
 
@@ -310,7 +331,6 @@ function validateSections(sections) {
   if (!Array.isArray(sections) || sections.length === 0) {
     throw new Error("Character mobile sheet sections must be a non-empty array");
   }
-
   for (const section of sections) {
     requirePlainObject(section, "Character mobile sheet section");
     requireString(section.id, "Character mobile sheet section id");
@@ -323,9 +343,7 @@ function validateSections(sections) {
 }
 
 function validateStatus(status, label) {
-  if (!CARD_STATUSES.includes(status)) {
-    throw new Error(`${label} is invalid`);
-  }
+  if (!CARD_STATUSES.includes(status)) throw new Error(`${label} is invalid`);
 }
 
 function validateExactKeys(value, expectedKeys, label) {
