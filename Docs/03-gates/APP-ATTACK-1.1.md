@@ -1,6 +1,6 @@
 # Gate — APP-ATTACK-1.1
 
-**Status:** Em validação  
+**Status:** Aprovado  
 **Data:** 2026-06-26  
 **Frente:** SINGULAR — Contratos de Aplicação da Alpha  
 **Branch:** `feature/app-attack-read-projection-1.1`  
@@ -47,14 +47,20 @@ APP-ATTACK 1.0 foi integrado pela PR #116. A PR #115 permanece restrita a `src/u
 - [x] preserva números finitos, inclusive `-0`;
 - [x] projeta o `Character` resultante de comandos APP-ATTACK 1.0.
 
-## Condições pendentes
+## Evidência
 
-- [ ] PR própria única aberta;
-- [ ] suíte integral verde no head final;
-- [ ] nenhuma revisão bloqueante;
-- [ ] nenhuma thread própria aberta;
-- [ ] branch atualizada em relação à `main` vigente;
-- [ ] merge serializado.
+GitHub Actions `Tests`, execução `28267919916`, concluiu com sucesso no commit `f422f97fd6c1e55cd1c9004132ffecbd6fbf4292`, contendo implementação, testes, ADR e gate inicial.
+
+## Integração
+
+- [x] PR própria única: #117;
+- [x] branch sem atraso em relação à `main` na abertura;
+- [x] nenhuma sobreposição com a PR #115;
+- [x] CI integral verde no head de implementação;
+- [x] nenhuma revisão bloqueante observada;
+- [x] nenhuma thread própria aberta observada;
+- [ ] CI integral verde no commit documental final;
+- [ ] merge serializado em `main`.
 
 ## Próxima etapa automática
 
