@@ -53,7 +53,7 @@ export async function bootstrapCharacterMobileApp(options = {}) {
   requirePlainObject(options, "Character mobile bootstrap options");
 
   const root = options.root ?? resolveMobileRoot(options.document);
-  requireMountRoot(root);
+  requireInteractiveMountRoot(root);
 
   const mode = normalizeMode(options.mode ?? "creation");
   const initialSession = createInitialSession(options);
@@ -201,6 +201,10 @@ function requireMountRoot(root) {
   ) {
     throw new Error("Character mobile app root must support innerHTML");
   }
+}
+
+function requireInteractiveMountRoot(root) {
+  requireMountRoot(root);
   if (typeof root.addEventListener !== "function") {
     throw new Error("Character mobile app root must support addEventListener");
   }
