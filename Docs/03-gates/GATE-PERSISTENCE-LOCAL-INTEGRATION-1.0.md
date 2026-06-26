@@ -40,7 +40,8 @@ Compartilhados com UI-MOBILE 0.4:
 - [x] corrupção não quebra a aplicação nem apaga dados;
 - [x] salvar usa SessionRepository;
 - [x] falha de salvamento preserva a sessão ativa;
-- [x] falha do ponteiro de última sessão compensa registro e índice parciais;
+- [x] falha do ponteiro compensa registro e índice parciais;
+- [x] rollback de sessão existente preserva o ponteiro anterior de última sessão;
 - [x] salvamentos podem ser listados, abertos e excluídos;
 - [x] falha de abertura preserva a sessão ativa;
 - [x] exportação usa `createSingularCharacterExport`;
@@ -56,7 +57,7 @@ Compartilhados com UI-MOBILE 0.4:
 
 ## Testes executados
 
-A suíte integral canônica `npm test` passou na CI da PR com **1.433 testes aprovados e zero falhas**.
+A suíte integral canônica `npm test` passou na CI da PR com **1.434 testes aprovados e zero falhas**.
 
 A cobertura específica inclui:
 
@@ -65,6 +66,7 @@ A cobertura específica inclui:
 - ponteiro ausente ou corrompido;
 - salvar e falha de storage;
 - rollback quando a gravação do ponteiro `last-session` falha;
+- restauração de sessão existente sem alterar o ponteiro anterior;
 - listar, abrir e excluir;
 - falha de abertura preservando sessão;
 - exportar Character;
@@ -80,9 +82,9 @@ A cobertura específica inclui:
 
 ## Evidências
 
-- CI verde no workflow **Tests #884**, sobre o código e ADR aceito;
+- CI verde no workflow **Tests #888**, sobre o código com preservação do ponteiro;
 - feedback P2 de atomicidade corrigido com compensação e teste dedicado;
-- thread de revisão respondida e resolvida;
+- feedback P2 sobre preservação do ponteiro corrigido com o adaptador canônico e teste dedicado;
 - feedback P1 sobre root injetado corrigido no código e coberto pelo teste vertical;
 - branch baseada no head `d6d179b` da `main`;
 - PR #108 é a única PR aberta;
