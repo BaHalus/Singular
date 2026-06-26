@@ -13,19 +13,27 @@ import {
   validateApplicationSession,
 } from "../session/ApplicationSession.js";
 import {
+  serializeAttackReadProjection,
+  validateAttackReadProjection,
+} from "./AttackReadProjection.js";
+import {
   serializeSkillMechanicsReadProjection,
   validateSkillMechanicsReadProjection,
 } from "./SkillMechanicsReadProjection.js";
 
 const SCHEMA_VERSION = 2;
-const MODEL_KEYS = Object.freeze([
+const REQUIRED_MODEL_KEYS = Object.freeze([
   "schemaVersion",
   "session",
   "character",
   "pointLedger",
   "skillMechanics",
 ]);
-const OPTIONS_KEYS = Object.freeze(["skillMechanics"]);
+const OPTIONAL_MODEL_KEYS = Object.freeze(["attackProjection"]);
+const OPTIONS_KEYS = Object.freeze([
+  "skillMechanics",
+  "attackProjection",
+]);
 
 export function createApplicationReadModel(session, options = {}) {
   validateApplicationSession(session);
@@ -35,6 +43,10 @@ export function createApplicationReadModel(session, options = {}) {
   const character = cloneValue(serializeCharacter(session.character));
   const skillMechanics = normalizeSkillMechanicsProjection(
     options.skillMechanics,
+    character.identity.id,
+  );
+  const attackProjection = normalizeAttackProjection(
+    options.attackProjection,
     character.identity.id,
   );
   const model = {
@@ -52,6 +64,7 @@ export function createApplicationReadModel(session, options = {}) {
     character,
     pointLedger: serializePointLedger(pointLedger),
     skillMechanics,
+    attackProjection,
   };
 
   validateApplicationReadModel(model);
@@ -60,7 +73,7 @@ export function createApplicationReadModel(session, options = {}) {
 
 export function validateApplicationReadModel(model) {
   requirePlainObject(model, "Application read model");
-  validateExactKeys(model, MODEL_KEYS, "Application read model");
+  validateModelKeys(model);
   if (model.schemaVersion !== SCHEMA_VERSION) {
     throw new Error("Application read model schemaVersion is invalid");
   }
@@ -109,6 +122,22 @@ export function validateApplicationReadModel(model) {
     }
   }
 
+  if (Object.hasOwn(model, "attackProjection")) {
+    if (model.attackProjection === undefined) {
+      throw new Error(
+        "Application read model Attack projection must be a projection or null",
+      );
+    }
+    if (model.attackProjection !== null) {
+      validateAttackReadProjection(model.attackProjection);
+      if (model.attackProjection.characterId !== character.identity.id) {
+        throw new Error(
+          "Application read model Attack projection belongs to another Character",
+        );
+      }
+    }
+  }
+
   return true;
 }
 
@@ -133,22 +162,38 @@ function normalizeSkillMechanicsProjection(value, characterId) {
   return serializeSkillMechanicsReadProjection(value);
 }
 
-function validateReadModelOptions(options) {
-  requirePlainObject(options, "Application read model options");
-  validateExactKeys(
-    options,
-    Object.keys(options).length === 0 ? [] : OPTIONS_KEYS,
-    "Application read model options",
-  );
+function normalizeAttackProjection(value, characterId) {
+  if (value === undefined || value === null) return null;
+
+  validateAttackReadProjection(value);
+  if (value.characterId !== characterId) {
+    throw new Error(
+      "Application read model Attack projection belongs to another Character",
+    );
+  }
+  return serializeAttackReadProjection(value);
 }
 
-function validateExactKeys(value, expectedKeys, label) {
-  const keys = Reflect.ownKeys(value);
+function validateReadModelOptions(options) {
+  requirePlainObject(options, "Application read model options");
+  const keys = Reflect.ownKeys(options);
   if (
-    keys.length !== expectedKeys.length ||
-    keys.some(key => typeof key !== "string" || !expectedKeys.includes(key))
+    keys.some(key => typeof key !== "string" || !OPTIONS_KEYS.includes(key))
   ) {
-    throw new Error(`${label} contains unsupported properties`);
+    throw new Error(
+      "Application read model options contains unsupported properties",
+    );
+  }
+}
+
+function validateModelKeys(model) {
+  const keys = Reflect.ownKeys(model);
+  const allowed = new Set([...REQUIRED_MODEL_KEYS, ...OPTIONAL_MODEL_KEYS]);
+  if (
+    REQUIRED_MODEL_KEYS.some(key => !Object.hasOwn(model, key)) ||
+    keys.some(key => typeof key !== "string" || !allowed.has(key))
+  ) {
+    throw new Error("Application read model contains unsupported properties");
   }
 }
 
