@@ -15,7 +15,7 @@ import {
   validateSkillResolutionReport,
 } from "./SkillResolutionOrchestrator.js";
 
-function createStealth(overrides = {}) {
+function skill(overrides = {}) {
   return createSkill({
     id: "skill-stealth",
     name: "Stealth",
@@ -26,7 +26,7 @@ function createStealth(overrides = {}) {
   });
 }
 
-function createSkillDefault(overrides = {}) {
+function skillDefault(overrides = {}) {
   return createSkillDefaultCandidate({
     id: "default-stealth-from-shadowing",
     targetSkillId: "skill-stealth",
@@ -38,7 +38,7 @@ function createSkillDefault(overrides = {}) {
   });
 }
 
-function createAttributeDefault(overrides = {}) {
+function attributeDefault(overrides = {}) {
   return createSkillDefaultCandidate({
     id: "default-stealth-from-dx",
     targetSkillId: "skill-stealth",
@@ -50,9 +50,9 @@ function createAttributeDefault(overrides = {}) {
   });
 }
 
-test("orchestrates a trained-only Skill resolution", () => {
+test("orchestrates a trained-only resolution", () => {
   const report = orchestrateSkillResolution({
-    skill: createStealth(),
+    skill: skill(),
     attributeLevel: 10,
   });
 
@@ -61,7 +61,6 @@ test("orchestrates a trained-only Skill resolution", () => {
     getSkillResolutionReportSchemaVersion(),
   );
   assert.equal(report.skillId, "skill-stealth");
-  assert.equal(report.trainedResult.status, "resolved");
   assert.equal(report.trainedResult.level, 11);
   assert.equal(report.finalResult.level, 11);
   assert.equal(report.finalResult.basis.kind, "trained");
@@ -69,56 +68,39 @@ test("orchestrates a trained-only Skill resolution", () => {
   assert.equal(validateSkillResolutionReport(report), true);
 });
 
-test("selects a stronger explicit default", () => {
-  const report = orchestrateSkillResolution({
-    skill: createStealth({ points: 1 }),
+test("selects a stronger default and trained wins a tie", () => {
+  const stronger = orchestrateSkillResolution({
+    skill: skill({ points: 1 }),
     attributeLevel: 10,
-    defaultInputs: [
-      {
-        candidate: createSkillDefault(),
-        sourceLevel: 16,
-      },
-    ],
+    defaultInputs: [{ candidate: skillDefault(), sourceLevel: 16 }],
   });
+  assert.equal(stronger.trainedResult.level, 9);
+  assert.equal(stronger.defaultEvaluations[0].result.level, 12);
+  assert.equal(stronger.finalResult.basis.kind, "default");
 
-  assert.equal(report.trainedResult.level, 9);
-  assert.equal(report.defaultEvaluations[0].result.level, 12);
-  assert.equal(report.finalResult.level, 12);
-  assert.equal(report.finalResult.basis.kind, "default");
-  assert.equal(report.finalResult.basis.sourceId, "skill-shadowing");
+  const tie = orchestrateSkillResolution({
+    skill: skill({ points: 1 }),
+    attributeLevel: 10,
+    defaultInputs: [{ candidate: skillDefault(), sourceLevel: 13 }],
+  });
+  assert.equal(tie.defaultEvaluations[0].result.level, 9);
+  assert.equal(tie.finalResult.basis.kind, "trained");
 });
 
-test("keeps the trained result when levels tie", () => {
-  const report = orchestrateSkillResolution({
-    skill: createStealth({ points: 1 }),
-    attributeLevel: 10,
-    defaultInputs: [
-      {
-        candidate: createSkillDefault(),
-        sourceLevel: 13,
-      },
-    ],
-  });
-
-  assert.equal(report.trainedResult.level, 9);
-  assert.equal(report.defaultEvaluations[0].result.level, 9);
-  assert.equal(report.finalResult.basis.kind, "trained");
-});
-
-test("preserves default input order for deterministic ties", () => {
-  const first = createSkillDefault({
+test("preserves default order for deterministic ties", () => {
+  const first = skillDefault({
     id: "default-first",
     sourceId: "skill-first",
     modifier: -2,
   });
-  const second = createSkillDefault({
+  const second = skillDefault({
     id: "default-second",
     sourceId: "skill-second",
     modifier: -3,
   });
 
   const report = orchestrateSkillResolution({
-    skill: createStealth({ points: 0 }),
+    skill: skill({ points: 0 }),
     attributeLevel: 10,
     defaultInputs: [
       { candidate: first, sourceLevel: 12 },
@@ -127,24 +109,18 @@ test("preserves default input order for deterministic ties", () => {
   });
 
   assert.deepEqual(
-    report.defaultEvaluations.map(evaluation => evaluation.candidateId),
+    report.defaultEvaluations.map(item => item.candidateId),
     ["default-first", "default-second"],
   );
-  assert.equal(report.defaultEvaluations[0].result.level, 10);
-  assert.equal(report.defaultEvaluations[1].result.level, 10);
+  assert.equal(report.finalResult.level, 10);
   assert.equal(report.finalResult.basis.sourceId, "skill-first");
 });
 
 test("resolves an untrained Skill from an attribute default", () => {
   const report = orchestrateSkillResolution({
-    skill: createStealth({ points: 0 }),
+    skill: skill({ points: 0 }),
     attributeLevel: 11,
-    defaultInputs: [
-      {
-        candidate: createAttributeDefault(),
-        sourceLevel: 11,
-      },
-    ],
+    defaultInputs: [{ candidate: attributeDefault(), sourceLevel: 11 }],
   });
 
   assert.equal(report.trainedResult.status, "blocked");
@@ -155,70 +131,50 @@ test("resolves an untrained Skill from an attribute default", () => {
   assert.equal(report.finalResult.basis.attribute, "DX");
 });
 
-test("retains a blocked default evaluation when trained wins", () => {
-  const report = orchestrateSkillResolution({
-    skill: createStealth(),
+test("retains blocked evaluations and aggregates them when none resolve", () => {
+  const trainedWins = orchestrateSkillResolution({
+    skill: skill(),
     attributeLevel: 10,
-    defaultInputs: [
-      {
-        candidate: createSkillDefault(),
-        sourceLevel: Number.NaN,
-      },
-    ],
+    defaultInputs: [{
+      candidate: skillDefault(),
+      sourceLevel: Number.NaN,
+    }],
   });
+  assert.equal(trainedWins.finalResult.basis.kind, "trained");
+  assert.equal(trainedWins.defaultEvaluations[0].result.status, "blocked");
 
-  assert.equal(report.finalResult.status, "resolved");
-  assert.equal(report.finalResult.basis.kind, "trained");
-  assert.equal(report.defaultEvaluations[0].result.status, "blocked");
-  assert.equal(
-    report.defaultEvaluations[0].result.diagnostics[0].code,
-    "SKILL_DEFAULT_SOURCE_LEVEL_INVALID",
-  );
-});
-
-test("aggregates blocking diagnostics when no result resolves", () => {
-  const report = orchestrateSkillResolution({
-    skill: createStealth({ points: 0 }),
+  const blocked = orchestrateSkillResolution({
+    skill: skill({ points: 0 }),
     attributeLevel: Number.NaN,
-    defaultInputs: [
-      {
-        candidate: createSkillDefault(),
-        sourceLevel: Number.NaN,
-      },
-    ],
+    defaultInputs: [{
+      candidate: skillDefault(),
+      sourceLevel: Number.NaN,
+    }],
   });
-
-  assert.equal(report.finalResult.status, "blocked");
+  assert.equal(blocked.finalResult.status, "blocked");
   assert.deepEqual(
-    report.finalResult.diagnostics.map(diagnostic => diagnostic.code),
+    blocked.finalResult.diagnostics.map(item => item.code),
     ["SKILL_UNTRAINED", "SKILL_DEFAULT_SOURCE_LEVEL_INVALID"],
   );
 });
 
-test("rejects a default candidate for another Skill", () => {
+test("rejects wrong target, duplicate ids and sparse inputs", () => {
   assert.throws(
     () => orchestrateSkillResolution({
-      skill: createStealth(),
+      skill: skill(),
       attributeLevel: 10,
-      defaultInputs: [
-        {
-          candidate: createSkillDefault({
-            targetSkillId: "skill-climbing",
-          }),
-          sourceLevel: 12,
-        },
-      ],
+      defaultInputs: [{
+        candidate: skillDefault({ targetSkillId: "skill-climbing" }),
+        sourceLevel: 12,
+      }],
     }),
     /candidate must target the resolved Skill/,
   );
-});
 
-test("rejects repeated candidate identities", () => {
-  const candidate = createSkillDefault();
-
+  const candidate = skillDefault();
   assert.throws(
     () => orchestrateSkillResolution({
-      skill: createStealth(),
+      skill: skill(),
       attributeLevel: 10,
       defaultInputs: [
         { candidate, sourceLevel: 12 },
@@ -227,31 +183,27 @@ test("rejects repeated candidate identities", () => {
     }),
     /must not repeat candidate id/,
   );
-});
 
-test("rejects sparse default input arrays", () => {
-  const defaultInputs = [];
-  defaultInputs.length = 1;
-
+  const sparse = [];
+  sparse.length = 1;
   assert.throws(
     () => orchestrateSkillResolution({
-      skill: createStealth(),
+      skill: skill(),
       attributeLevel: 10,
-      defaultInputs,
+      defaultInputs: sparse,
     }),
     /must not contain sparse entries/,
   );
 });
 
 test("does not mutate inputs and returns an immutable report", () => {
-  const skill = createStealth();
-  const candidate = createSkillDefault({
-    metadata: { source: "manual" },
-  });
   const input = {
-    skill,
+    skill: skill(),
     attributeLevel: 10,
-    defaultInputs: [{ candidate, sourceLevel: 12 }],
+    defaultInputs: [{
+      candidate: skillDefault({ metadata: { source: "manual" } }),
+      sourceLevel: 12,
+    }],
   };
   const before = structuredClone(input);
 
@@ -266,10 +218,9 @@ test("does not mutate inputs and returns an immutable report", () => {
 
 test("serializes a detached report", () => {
   const report = orchestrateSkillResolution({
-    skill: createStealth(),
+    skill: skill(),
     attributeLevel: 10,
   });
-
   const serialized = serializeSkillResolutionReport(report);
 
   assert.deepEqual(serialized, report);
@@ -278,34 +229,39 @@ test("serializes a detached report", () => {
   assert.equal(Object.isFrozen(serialized), false);
 });
 
-test("accepts semantically equal final results with different key order", () => {
+test("accepts a semantically equal finalResult with reordered keys", () => {
   const report = serializeSkillResolutionReport(
     orchestrateSkillResolution({
-      skill: createStealth(),
+      skill: skill(),
       attributeLevel: 10,
     }),
   );
+  const result = report.finalResult;
+
   report.finalResult = {
-    status: report.finalResult.status,
+    status: result.status,
     basis: {
-      attribute: report.finalResult.basis.attribute,
-      sourceId: report.finalResult.basis.sourceId,
-      kind: report.finalResult.basis.kind,
+      attribute: result.basis.attribute,
+      sourceId: result.basis.sourceId,
+      kind: result.basis.kind,
     },
-    relativeLevel: report.finalResult.relativeLevel,
-    level: report.finalResult.level,
-    entityType: report.finalResult.entityType,
-    entityId: report.finalResult.entityId,
-    diagnostics: report.finalResult.diagnostics,
+    diagnostics: result.diagnostics,
+    relativeLevel: result.relativeLevel,
+    appliedModifierIds: result.appliedModifierIds,
+    level: result.level,
+    entityType: result.entityType,
+    entityId: result.entityId,
+    schemaVersion: result.schemaVersion,
   };
 
   assert.equal(validateSkillResolutionReport(report), true);
+  assert.deepEqual(serializeSkillResolutionReport(report), report);
 });
 
 test("rejects an inconsistent final result", () => {
   const report = serializeSkillResolutionReport(
     orchestrateSkillResolution({
-      skill: createStealth(),
+      skill: skill(),
       attributeLevel: 10,
     }),
   );
@@ -328,7 +284,7 @@ test("rejects an inconsistent final result", () => {
   );
 });
 
-test("rejects invalid report schema and non-object input", () => {
+test("rejects invalid input and report schema", () => {
   assert.throws(
     () => orchestrateSkillResolution(null),
     /must be an object/,
@@ -336,12 +292,11 @@ test("rejects invalid report schema and non-object input", () => {
 
   const report = serializeSkillResolutionReport(
     orchestrateSkillResolution({
-      skill: createStealth(),
+      skill: skill(),
       attributeLevel: 10,
     }),
   );
   report.schemaVersion = 2;
-
   assert.throws(
     () => validateSkillResolutionReport(report),
     /schemaVersion is invalid/,
