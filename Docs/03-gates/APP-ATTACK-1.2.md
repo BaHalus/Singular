@@ -33,18 +33,21 @@ Certificar a integração opcional da `AttackReadProjection` ao `ApplicationRead
 
 ## Coordenação
 
-A PR #115 foi integrada em `b5c925c` e alterou exclusivamente `src/ui/mobile/*`. A entrega foi reaplicada sobre esse head em um único commit, sem sobreposição.
+A PR #115 foi integrada em `b5c925c` e alterou exclusivamente `src/ui/mobile/*`. A entrega foi reaplicada sobre esse head, sem sobreposição.
 
 ## Evidência
 
-GitHub Actions `Tests`, execução `28269692272`, concluiu com sucesso no commit reaplicado `9a30396e96cda29e7e8c7758b18b3fed1550f0c0` da PR #120. A correção do P2 e sua regressão fazem parte desse mesmo commit limpo.
+- execução `28269692272`: sucesso no commit reaplicado `9a30396e96cda29e7e8c7758b18b3fed1550f0c0`;
+- execução `28269787080`: sucesso no commit documental `4d31b8698d16c829a813b51a970efc674969cf26`;
+- correção P2 para `attackProjection: undefined` e regressão dedicada incluídas;
+- PR #120 sem revisão bloqueante e sem thread própria aberta.
 
 ## Integração
 
 - [x] PR própria única: #120;
-- [x] branch 1 commit à frente e 0 atrás na abertura;
-- [x] CI integral verde no head reaplicado;
+- [x] branch atualizada em relação à `main` pós-#115;
+- [x] CI integral verde no head funcional e documental;
 - [x] nenhuma revisão bloqueante observada;
 - [x] nenhuma thread própria aberta observada;
-- [ ] CI integral verde no commit documental final;
+- [ ] CI integral verde no commit final de certificação;
 - [ ] merge serializado.
