@@ -188,11 +188,11 @@ test("rejects non-finite numeric values before JSON serialization", () => {
   );
 });
 
-test("keeps equipment as an external-front section while the parallel domain is active", () => {
+test("marks equipment as pending mobile integration after its domain was integrated", () => {
   const character = createCharacter({
     identity: {
       id: "char_mobile_equipment_boundary",
-      name: "Sem Equipamento Integrado",
+      name: "Equipamento Ainda Não Ligado",
       concept: "",
       playerId: null,
       campaignId: null,
@@ -204,5 +204,5 @@ test("keeps equipment as an external-front section while the parallel domain is 
     section => section.id === "equipment",
   );
 
-  assert.equal(equipmentSection.status, "external-front");
+  assert.equal(equipmentSection.status, "pending");
 });
