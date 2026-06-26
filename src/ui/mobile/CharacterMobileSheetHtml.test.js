@@ -41,15 +41,15 @@ function renderModel(overrides = {}) {
   );
 }
 
-test("exposes the creation-mode mobile sheet HTML schema version", () => {
-  assert.equal(getCharacterMobileSheetHtmlSchemaVersion(), 3);
+test("exposes the primary-attribute mobile sheet HTML schema version", () => {
+  assert.equal(getCharacterMobileSheetHtmlSchemaVersion(), 4);
 });
 
 test("renders the character summary editor only in creation mode", () => {
   const creation = renderCharacterMobileSheetHtml(renderModel(), { mode: "creation" });
   const table = renderCharacterMobileSheetHtml(renderModel(), { mode: "table" });
 
-  assert.match(creation, /data-schema-version="3"/);
+  assert.match(creation, /data-schema-version="4"/);
   assert.match(creation, /data-mode="creation"/);
   assert.match(creation, /data-role="character-summary-editor"/);
   assert.match(creation, /data-role="character-name" value="Ayla &lt;Exploradora&gt;"/);
@@ -63,13 +63,29 @@ test("renders the character summary editor only in creation mode", () => {
   assert.match(table, /<dt>Conceito<\/dt><dd>Batedora &amp; cartógrafa<\/dd>/);
 });
 
+test("renders primary attribute controls only in creation mode", () => {
+  const creation = renderCharacterMobileSheetHtml(renderModel(), { mode: "creation" });
+  const table = renderCharacterMobileSheetHtml(renderModel(), { mode: "table" });
+
+  assert.match(creation, /role="group" aria-label="Atributos principais"/);
+  assert.match(creation, /data-attribute="ST"/);
+  assert.match(creation, /data-attribute-key="ST" data-attribute-adjust="-1" aria-label="Diminuir ST"/);
+  assert.match(creation, /<dt>ST<\/dt><dd>11<\/dd>/);
+  assert.match(creation, /data-attribute-key="ST" data-attribute-adjust="1" aria-label="Aumentar ST"/);
+  assert.match(creation, /data-attribute-key="DX" data-attribute-adjust="1"/);
+  assert.match(creation, /data-attribute-key="IQ" data-attribute-adjust="1"/);
+  assert.match(creation, /data-attribute-key="HT" data-attribute-adjust="1"/);
+
+  assert.match(table, /data-attribute="ST"/);
+  assert.match(table, /<dt>ST<\/dt><dd>11<\/dd>/);
+  assert.doesNotMatch(table, /data-attribute-adjust=/);
+});
+
 test("renders a semantic mobile sheet and preserves existing sections", () => {
   const html = renderCharacterMobileSheetHtml(renderModel(), { mode: "creation" });
 
   assert.match(html, /^<article class="singular-mobile-sheet"/);
   assert.match(html, /class="singular-mobile-sheet__toolbar"/);
-  assert.match(html, /aria-label="Atributos principais"/);
-  assert.match(html, /<dt>ST<\/dt><dd>11<\/dd>/);
   assert.match(html, /data-section="traits" data-status="pending"/);
   assert.match(html, /data-section="equipment" data-status="external-front"/);
 });
