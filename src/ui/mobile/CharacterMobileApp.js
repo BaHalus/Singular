@@ -11,17 +11,15 @@ import { renderCharacterMobileSheetHtml } from "./CharacterMobileSheetHtml.js";
 import {
   mountAlphaMobilePersistenceUi,
 } from "./AlphaMobilePersistenceUi.js";
+import {
+  mountCharacterMobileInteractionController,
+} from "./CharacterMobileInteractionController.js";
 
 const MOBILE_ROOT_SELECTOR = "[data-singular-mobile-root]";
 const MOBILE_MODES = Object.freeze(["creation", "table"]);
 
-/**
- * Montagem estática preservada para testes e consumidores que já fornecem
- * um Character canônico. Não cria sessão nem persistência paralela.
- */
 export function mountCharacterMobileApp(options = {}) {
   requirePlainObject(options, "Character mobile app options");
-
   const root = options.root;
   requireMountRoot(root);
 
@@ -30,35 +28,21 @@ export function mountCharacterMobileApp(options = {}) {
   const html = renderCharacterMobileApp(character, { mode });
 
   root.innerHTML = html;
-  if (typeof root.setAttribute === "function") {
-    root.setAttribute("data-singular-mounted", "true");
-    root.setAttribute("data-character-id", character.identity.id);
-    root.setAttribute("data-mode", mode);
-  }
+  setRootAttribute(root, "data-singular-mounted", "true");
+  setRootAttribute(root, "data-character-id", character.identity.id);
+  setRootAttribute(root, "data-mode", mode);
 
-  return Object.freeze({
-    character,
-    mode,
-    html,
-  });
+  return Object.freeze({ character, mode, html });
 }
 
-/**
- * Bootstrap executável canônico da Alpha mobile.
- *
- * Cria uma única ApplicationSession inicial, compõe persistência e comandos,
- * restaura a última sessão válida e liga os controles transitórios de PV/PF.
- */
 export async function bootstrapCharacterMobileApp(options = {}) {
   requirePlainObject(options, "Character mobile bootstrap options");
-
   const root = options.root ?? resolveMobileRoot(options.document);
   requireInteractiveMountRoot(root);
 
-  const mode = normalizeMode(options.mode ?? "creation");
-  const initialSession = createInitialSession(options);
+  let mode = normalizeMode(options.mode ?? "creation");
   const application = createAlphaMobilePersistenceBootstrap({
-    initialSession,
+    initialSession: createInitialSession(options),
     storage: options.storage,
     namespace: options.namespace,
     runtime: options.runtime,
@@ -68,10 +52,10 @@ export async function bootstrapCharacterMobileApp(options = {}) {
     root,
     persistence: application.persistence,
     downloadText: options.downloadText,
-    mode,
+    getMode: () => mode,
   });
 
-  const renderActiveSession = () => {
+  const render = () => {
     root.innerHTML = ui.render({ mode });
     const activeSession = application.persistence.getActiveSession();
     setRootAttribute(root, "data-singular-mounted", "true");
@@ -80,26 +64,17 @@ export async function bootstrapCharacterMobileApp(options = {}) {
     setRootAttribute(root, "data-mode", mode);
   };
 
-  const handlePoolAdjustment = event => {
-    const target = findPoolAdjustmentTarget(event?.target);
-    if (target === null) return null;
-    event.preventDefault?.();
-
-    if (ui.getState().busy) {
-      setRootAttribute(root, "data-last-command-status", "busy");
-      return null;
-    }
-
-    const poolKey = readDataset(target, "poolKey");
-    const delta = Number(readDataset(target, "poolAdjust"));
-    const result = application.commands.adjustPoolCurrent({ poolKey, delta });
-    setRootAttribute(root, "data-last-command-status", result.status);
-    renderActiveSession();
-    return result;
-  };
-
-  root.addEventListener("click", handlePoolAdjustment);
-  renderActiveSession();
+  const interactions = mountCharacterMobileInteractionController({
+    root,
+    commands: application.commands,
+    ui,
+    getMode: () => mode,
+    setMode(nextMode) {
+      mode = normalizeMode(nextMode);
+    },
+    render,
+  });
+  render();
 
   return Object.freeze({
     get character() {
@@ -111,7 +86,10 @@ export async function bootstrapCharacterMobileApp(options = {}) {
     get html() {
       return root.innerHTML;
     },
-    mode,
+    get mode() {
+      return mode;
+    },
+    interactions,
     ui,
     persistence: application.persistence,
     commands: application.commands,
@@ -165,26 +143,6 @@ function createInitialSession(options) {
   });
 }
 
-function findPoolAdjustmentTarget(target) {
-  let current = target ?? null;
-  while (current !== null) {
-    if (
-      readDataset(current, "poolKey") !== null &&
-      readDataset(current, "poolAdjust") !== null
-    ) {
-      return current;
-    }
-    current = current.parentElement ?? null;
-  }
-  return null;
-}
-
-function readDataset(target, key) {
-  if (!target || typeof target !== "object") return null;
-  const value = target.dataset?.[key];
-  return typeof value === "string" && value !== "" ? value : null;
-}
-
 function normalizeMode(value) {
   if (!MOBILE_MODES.includes(value)) {
     throw new Error("Character mobile app mode is invalid");
@@ -193,11 +151,7 @@ function normalizeMode(value) {
 }
 
 function requireMountRoot(root) {
-  if (
-    root === null ||
-    typeof root !== "object" ||
-    !("innerHTML" in root)
-  ) {
+  if (root === null || typeof root !== "object" || !("innerHTML" in root)) {
     throw new Error("Character mobile app root must support innerHTML");
   }
 }
@@ -210,9 +164,7 @@ function requireInteractiveMountRoot(root) {
 }
 
 function setRootAttribute(root, name, value) {
-  if (typeof root.setAttribute === "function") {
-    root.setAttribute(name, value);
-  }
+  root.setAttribute?.(name, value);
 }
 
 function requirePlainObject(value, label) {
