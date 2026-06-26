@@ -1,7 +1,7 @@
 # Library
 
-**Código:** LIB-CORE-1.0 a 1.9  
-**Status:** Instanciação integrada ao App Core; pacote portátil inicial definido  
+**Código:** LIB-CORE-1.0 a 1.10  
+**Status:** Fundação LIB-CORE concluída; adapters concretos, persistência e UI seguem em frentes posteriores  
 **Camada:** Library / Application boundary  
 **Tipo:** Registro federado de definições  
 **Decisão:** ADR-0044
@@ -102,9 +102,39 @@ O pacote:
 - aceita somente metadados JSON portáveis;
 - reaproveita as regras soberanas de conflito e identidade externa do registro;
 - não interpreta payloads proprietários;
-- não executa parser externo, persistência, merge incremental ou UI.
+- não executa parser externo, persistência ou UI.
 
 `exportLibraryPackage(registry, options)` cria o envelope portátil a partir de um registro validado. `importLibraryPackage(package)` devolve um novo `LibraryRegistry` validado a partir do envelope recebido.
+
+## Merge incremental de pacote
+
+LIB-CORE-1.10 adiciona `mergeLibraryPackageIntoRegistry(registry, package)` como composição estrita e aditiva.
+
+O merge:
+
+- valida o registro alvo e o pacote antes de compor;
+- canonicaliza o alvo em uma cópia destacada;
+- adiciona somente definições ausentes;
+- trata definições integralmente equivalentes como `no-op` idempotente;
+- bloqueia definição divergente com o mesmo ID soberano;
+- bloqueia identidade externa conflitante no mesmo domínio;
+- nunca sobrescreve, renomeia ou resolve conflitos automaticamente;
+- não interpreta payloads;
+- preserva integralmente o objeto recebido pelo chamador, inclusive em `no-op` e falha.
+
+O recibo é imutável e contém:
+
+```js
+{
+  schemaVersion: 1,
+  status: "merged" | "no-op",
+  registry,
+  addedDefinitionIds: [],
+  unchangedDefinitionIds: []
+}
+```
+
+Conflitos abortam a operação inteira. Nenhum estado intermediário é exposto.
 
 ## Domínios iniciais
 
@@ -173,7 +203,7 @@ A ordem resolvida é dependência-primeiro.
 
 Dependência obrigatória ausente e ciclo bloqueiam. Dependência opcional ausente produz aviso.
 
-Intervalos de versão permanecem declarações informativas; LIB-CORE-1.9 não interpreta semver.
+Intervalos de versão permanecem declarações informativas; LIB-CORE-1.10 não interpreta semver.
 
 ## Plano de instanciação
 
@@ -298,11 +328,13 @@ A biblioteca persistente é independente de saves do `Character`.
 
 Salvar um personagem não incorpora automaticamente definições da biblioteca. Exportar uma definição não exporta estado transitório do personagem salvo.
 
+Persistência concreta em navegador, arquivo ou nuvem não pertence à fundação LIB-CORE e exige fronteira própria de infraestrutura.
+
 ## Importação
 
 Fontes externas passam pelos parsers e importadores existentes. O adapter converte o resultado canônico em definição portátil.
 
-Importar um pacote Singular não aciona parser externo; apenas valida o envelope `singular-library-package` e recria o `LibraryRegistry` canônico.
+Importar um pacote Singular não aciona parser externo; apenas valida o envelope `singular-library-package` e recria ou compõe um `LibraryRegistry` canônico.
 
 Não haverá normalizador genérico paralelo.
 
@@ -325,6 +357,14 @@ Definition
 
 A Library não escreve diretamente no `Character`. A fronteira injetada constrói um candidato por APIs soberanas de domínio, e o `CommandExecutor` é a única autoridade que efetiva a transição da sessão.
 
+## Fechamento da fundação
+
+LIB-CORE-1.10 fecha a fundação transversal da Library.
+
+O fechamento certifica contratos comuns de definição, registro, adapters, dependências, planejamento, execução, orquestração, aplicação atômica, pacote portátil e merge incremental estrito.
+
+Não certifica implementação concreta de todos os adapters, persistência de infraestrutura, picker, busca visual ou UI. Essas entregas dependem da composição dos domínios e de frentes posteriores, sem reabrir as invariantes do núcleo.
+
 ## Checklist
 
 - [x] Aprovar ADR-0044
@@ -340,4 +380,5 @@ A Library não escreve diretamente no `Character`. A fronteira injetada constró
 - [x] Criar recibo de aplicação no `Character`
 - [x] Registrar gate intermediário de LIB-CORE-1.8
 - [x] Criar importação/exportação modular inicial
-- [ ] Registrar gate de fechamento da Library
+- [x] Criar merge incremental estrito de pacote
+- [x] Registrar gate de fechamento da fundação LIB-CORE-1.10
