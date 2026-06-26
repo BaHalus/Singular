@@ -1,7 +1,7 @@
 # Library
 
-**Código:** LIB-CORE-1.0 a 1.9  
-**Status:** Instanciação integrada ao App Core; pacote portátil inicial definido  
+**Código:** LIB-CORE-1.0 a 1.10  
+**Status:** Instanciação integrada ao App Core; pacote portátil e merge incremental estrito definidos  
 **Camada:** Library / Application boundary  
 **Tipo:** Registro federado de definições  
 **Decisão:** ADR-0044
@@ -102,9 +102,34 @@ O pacote:
 - aceita somente metadados JSON portáveis;
 - reaproveita as regras soberanas de conflito e identidade externa do registro;
 - não interpreta payloads proprietários;
-- não executa parser externo, persistência, merge incremental ou UI.
+- não executa parser externo, persistência concreta ou UI.
 
 `exportLibraryPackage(registry, options)` cria o envelope portátil a partir de um registro validado. `importLibraryPackage(package)` devolve um novo `LibraryRegistry` validado a partir do envelope recebido.
+
+## Merge incremental
+
+LIB-CORE-1.10 define composição estrita entre pacote importado e registro existente:
+
+```text
+Target LibraryRegistry
++ LibraryPackage
+→ validated package registry
+→ strict additive merge
+→ merged LibraryRegistry + receipt
+```
+
+O merge:
+
+- canonicaliza o registro alvo antes de compor;
+- adiciona somente definições novas;
+- preserva definições equivalentes como `unchanged`;
+- rejeita definição divergente com mesmo ID;
+- rejeita colisão de identidade externa no mesmo domínio;
+- aborta a operação inteira em qualquer conflito;
+- retorna recibo imutável com IDs adicionados, inalterados e contagens;
+- não congela nem muta objetos recebidos do chamador em caminho `no-op`.
+
+O merge não resolve conflitos automaticamente, não renomeia IDs, não interpreta payloads e não chama adapters de domínio.
 
 ## Domínios iniciais
 
@@ -173,7 +198,7 @@ A ordem resolvida é dependência-primeiro.
 
 Dependência obrigatória ausente e ciclo bloqueiam. Dependência opcional ausente produz aviso.
 
-Intervalos de versão permanecem declarações informativas; LIB-CORE-1.9 não interpreta semver.
+Intervalos de versão permanecem declarações informativas; LIB-CORE-1.10 não interpreta semver.
 
 ## Plano de instanciação
 
@@ -304,7 +329,7 @@ Fontes externas passam pelos parsers e importadores existentes. O adapter conver
 
 Importar um pacote Singular não aciona parser externo; apenas valida o envelope `singular-library-package` e recria o `LibraryRegistry` canônico.
 
-Não haverá normalizador genérico paralelo.
+Mesclar pacote Singular com registro existente exige o merge incremental estrito de LIB-CORE-1.10; não há substituição silenciosa nem normalizador genérico paralelo.
 
 ## Inserção no Character
 
@@ -340,4 +365,7 @@ A Library não escreve diretamente no `Character`. A fronteira injetada constró
 - [x] Criar recibo de aplicação no `Character`
 - [x] Registrar gate intermediário de LIB-CORE-1.8
 - [x] Criar importação/exportação modular inicial
+- [x] Registrar gate intermediário de LIB-CORE-1.9
+- [x] Criar merge incremental estrito
+- [x] Registrar gate intermediário de LIB-CORE-1.10
 - [ ] Registrar gate de fechamento da Library
