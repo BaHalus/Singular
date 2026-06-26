@@ -85,6 +85,11 @@ import {
   serializeEquipment,
 } from "./Equipment.js";
 import {
+  createAttacks,
+  validateAttacks,
+  serializeAttacks,
+} from "./Attacks.js";
+import {
   createTemplates,
   validateTemplates,
   serializeTemplates,
@@ -142,7 +147,7 @@ export function createCharacter(input = {}) {
     spells: createSpells(input.spells),
     powers: createPowers(input.powers),
     equipment: createEquipment(input.equipment),
-    attacks: input.attacks ?? [],
+    attacks: createAttacks(input.attacks),
     languages: createLanguages(input.languages),
     familiarities: createFamiliarities(input.familiarities),
     templates: createTemplates(input.templates),
@@ -201,6 +206,7 @@ export function validateCharacter(character) {
   validateLanguages(character.languages);
   validateFamiliarities(character.familiarities);
   validateEquipment(character.equipment);
+  validateAttacks(character.attacks);
   validateTemplates(character.templates);
   validateTemplateApplications(character.templateApplications);
   validateAlternateFormSets(character.alternateFormSets);
@@ -243,7 +249,7 @@ export function serializeCharacter(character) {
     spells: serializeSpells(character.spells),
     powers: serializePowers(character.powers),
     equipment: serializeEquipment(character.equipment),
-    attacks: character.attacks,
+    attacks: serializeAttacks(character.attacks),
     languages: serializeLanguages(character.languages),
     familiarities: serializeFamiliarities(character.familiarities),
     templates: serializeTemplates(character.templates),
