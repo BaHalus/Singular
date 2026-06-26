@@ -13,6 +13,7 @@ const RENDER_MODEL_KEYS = Object.freeze([
   "sections",
 ]);
 const CARD_STATUSES = Object.freeze(["available", "declared-only", "pending", "external-front"]);
+const TOOLBAR_ACTION_STATUSES = Object.freeze(["pending"]);
 
 /**
  * Prepara a primeira estrutura portátil para renderização da ficha mobile.
@@ -192,7 +193,11 @@ function validateToolbar(toolbar) {
     requirePlainObject(action, "Character mobile sheet toolbar action");
     requireString(action.id, "Character mobile sheet toolbar action id");
     requireString(action.label, "Character mobile sheet toolbar action label");
-    requireString(action.status, "Character mobile sheet toolbar action status");
+    if (!TOOLBAR_ACTION_STATUSES.includes(action.status)) {
+      throw new Error(
+        `Character mobile sheet toolbar action ${action.id} status is invalid`,
+      );
+    }
   }
 }
 
