@@ -185,9 +185,10 @@ function validateAttributesProjection(attributes) {
     if (!["resolved", "blocked"].includes(attribute.status)) {
       throw new Error(`Mobile attribute projection ${key} status is invalid`);
     }
-    if (attribute.level !== null && typeof attribute.level !== "number") {
-      throw new Error(`Mobile attribute projection ${key} level is invalid`);
-    }
+    requireNullableFiniteNumber(
+      attribute.level,
+      `Mobile attribute projection ${key} level`,
+    );
     if (!["base", "override"].includes(attribute.source)) {
       throw new Error(`Mobile attribute projection ${key} source is invalid`);
     }
@@ -219,11 +220,11 @@ function validateSecondaryCharacteristicsProjection(secondaryCharacteristics) {
         `Mobile secondary characteristic projection ${key} status is invalid`,
       );
     }
-    requireNullableNumber(
+    requireNullableFiniteNumber(
       characteristic.base,
       `Mobile secondary characteristic projection ${key} base`,
     );
-    requireNullableNumber(
+    requireNullableFiniteNumber(
       characteristic.override,
       `Mobile secondary characteristic projection ${key} override`,
     );
@@ -242,8 +243,14 @@ function validatePoolsProjection(pools) {
     if (pool.key !== key) {
       throw new Error(`Mobile pool projection ${key} key mismatch`);
     }
-    requireNullableNumber(pool.current, `Mobile pool projection ${key} current`);
-    requireNullableNumber(pool.maximum, `Mobile pool projection ${key} maximum`);
+    requireNullableFiniteNumber(
+      pool.current,
+      `Mobile pool projection ${key} current`,
+    );
+    requireNullableFiniteNumber(
+      pool.maximum,
+      `Mobile pool projection ${key} maximum`,
+    );
   }
 }
 
@@ -272,9 +279,9 @@ function requireString(value, label) {
   }
 }
 
-function requireNullableNumber(value, label) {
-  if (value !== null && typeof value !== "number") {
-    throw new Error(`${label} must be a number or null`);
+function requireNullableFiniteNumber(value, label) {
+  if (value !== null && !Number.isFinite(value)) {
+    throw new Error(`${label} must be a finite number or null`);
   }
 }
 
