@@ -93,6 +93,29 @@ html, body {
   color: #71d2b4;
 }
 
+.singular-mobile-sheet__pool {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 0.35rem;
+  align-items: center;
+  min-width: 0;
+}
+
+.singular-mobile-sheet__pool dl {
+  display: grid;
+  place-items: center;
+  gap: 0.1rem;
+  min-width: 0;
+}
+
+.singular-mobile-sheet__pool-adjust {
+  min-width: 2.75rem;
+  min-height: 2.75rem;
+  padding: 0.35rem;
+  font-size: 1.2rem;
+  touch-action: manipulation;
+}
+
 .singular-alpha-mobile__persistence {
   margin: 0.75rem;
 }
@@ -147,6 +170,12 @@ html, body {
 .singular-mobile-sheet h1,
 .singular-mobile-sheet h2,
 .singular-mobile-sheet p { overflow-wrap: anywhere; }
+
+@media (max-width: 25rem) {
+  .singular-mobile-sheet__pool-strip {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
 
 @media (min-width: 42rem) {
   .singular-mobile-sheet__cards {
