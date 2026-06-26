@@ -82,6 +82,35 @@ test("serializes the mobile projection without exposing mutable state", () => {
   assert.equal(projection.identity.name, "Personagem Serializado");
 });
 
+test("rejects non-finite numeric values before JSON serialization", () => {
+  const character = createCharacter({
+    identity: {
+      id: "char_mobile_non_finite",
+      name: "Personagem Não Finito",
+      concept: "",
+      playerId: null,
+      campaignId: null,
+    },
+  });
+
+  const projection = projectCharacterForMobileSheet(character);
+  const invalidProjection = {
+    ...serializeCharacterMobileProjection(projection),
+    pools: {
+      ...projection.pools,
+      HP: {
+        ...projection.pools.HP,
+        current: Number.NaN,
+      },
+    },
+  };
+
+  assert.throws(
+    () => serializeCharacterMobileProjection(invalidProjection),
+    /Mobile pool projection HP current must be a finite number or null/,
+  );
+});
+
 test("keeps equipment as an external-front section while the parallel domain is active", () => {
   const character = createCharacter({
     identity: {
