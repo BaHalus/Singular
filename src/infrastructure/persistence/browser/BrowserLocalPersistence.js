@@ -24,15 +24,16 @@ const LAST_SESSION_KIND = "last-session";
 
 export function createBrowserLocalCharacterRepository(options = {}) {
   const adapter = createBrowserLocalPersistenceAdapter(options);
-
   const repository = {
     async load(id) {
-      const result = adapter.load(CHARACTER_KIND, normalizeId(id, "Character repository id"));
+      const result = adapter.load(
+        CHARACTER_KIND,
+        normalizeId(id, "Character repository id"),
+      );
       return result.status === "loaded"
         ? createCharacter(cloneJsonValue(result.snapshot))
         : null;
     },
-
     async save(character) {
       validateCharacter(character);
       const snapshot = cloneJsonValue(serializeCharacter(character));
@@ -40,31 +41,32 @@ export function createBrowserLocalCharacterRepository(options = {}) {
       adapter.save(CHARACTER_KIND, normalized.identity.id, snapshot);
       return createCharacter(cloneJsonValue(snapshot));
     },
-
     async remove(id) {
-      return adapter.remove(CHARACTER_KIND, normalizeId(id, "Character repository id"));
+      return adapter.remove(
+        CHARACTER_KIND,
+        normalizeId(id, "Character repository id"),
+      );
     },
-
     async listIds() {
       return Object.freeze(adapter.listIds(CHARACTER_KIND));
     },
   };
-
   validateCharacterRepository(repository);
   return Object.freeze(repository);
 }
 
 export function createBrowserLocalSessionRepository(options = {}) {
   const adapter = createBrowserLocalPersistenceAdapter(options);
-
   const repository = {
     async load(id) {
-      const result = adapter.load(SESSION_KIND, normalizeId(id, "Session repository id"));
+      const result = adapter.load(
+        SESSION_KIND,
+        normalizeId(id, "Session repository id"),
+      );
       return result.status === "loaded"
         ? createApplicationSession(cloneJsonValue(result.snapshot))
         : null;
     },
-
     async save(session) {
       validateApplicationSession(session);
       const snapshot = cloneJsonValue(serializeApplicationSession(session));
@@ -73,7 +75,6 @@ export function createBrowserLocalSessionRepository(options = {}) {
       adapter.savePointer(LAST_SESSION_KIND, normalized.id);
       return createApplicationSession(cloneJsonValue(snapshot));
     },
-
     async remove(id) {
       const normalizedId = normalizeId(id, "Session repository id");
       const removed = adapter.remove(SESSION_KIND, normalizedId);
@@ -82,11 +83,9 @@ export function createBrowserLocalSessionRepository(options = {}) {
       }
       return removed;
     },
-
     async listIds() {
       return Object.freeze(adapter.listIds(SESSION_KIND));
     },
-
     async loadLastSession() {
       const id = adapter.loadPointer(LAST_SESSION_KIND);
       if (id === null) return null;
@@ -96,7 +95,6 @@ export function createBrowserLocalSessionRepository(options = {}) {
         : null;
     },
   };
-
   validateSessionRepository(repository);
   return Object.freeze(repository);
 }
@@ -107,7 +105,6 @@ export function createSingularCharacterExport(character, options = {}) {
     options.exportedAt,
     "Character export exportedAt",
   ) ?? new Date().toISOString();
-
   return deepFreeze({
     format: CHARACTER_EXPORT_FORMAT,
     version: CHARACTER_EXPORT_VERSION,
@@ -122,30 +119,38 @@ export function parseSingularCharacterExport(input) {
   if (parsed === null) {
     return freezeImportResult({ status: "rejected", character: null, diagnostics });
   }
-
   if (!isPlainObject(parsed)) {
-    diagnostics.push(createDiagnostic("invalid-document", "Export document must be an object"));
+    diagnostics.push(createDiagnostic(
+      "invalid-document",
+      "Export document must be an object",
+    ));
     return freezeImportResult({ status: "rejected", character: null, diagnostics });
   }
-
   if (parsed.format !== CHARACTER_EXPORT_FORMAT) {
-    diagnostics.push(createDiagnostic("invalid-format", "Export format must be singular-character-export"));
+    diagnostics.push(createDiagnostic(
+      "invalid-format",
+      "Export format must be singular-character-export",
+    ));
   }
   if (parsed.version !== CHARACTER_EXPORT_VERSION) {
-    diagnostics.push(createDiagnostic("unsupported-version", "Character export version must be 1"));
+    diagnostics.push(createDiagnostic(
+      "unsupported-version",
+      "Character export version must be 1",
+    ));
   }
   if (!isPlainObject(parsed.character)) {
-    diagnostics.push(createDiagnostic("missing-character", "Export must contain a character object"));
+    diagnostics.push(createDiagnostic(
+      "missing-character",
+      "Export must contain a character object",
+    ));
   }
-  if (diagnostics.some(diagnostic => diagnostic.severity === "blocking")) {
+  if (diagnostics.some(item => item.severity === "blocking")) {
     return freezeImportResult({ status: "rejected", character: null, diagnostics });
   }
-
   try {
-    const character = createCharacter(cloneJsonValue(parsed.character));
     return freezeImportResult({
       status: "accepted",
-      character,
+      character: createCharacter(cloneJsonValue(parsed.character)),
       diagnostics,
     });
   } catch (error) {
@@ -183,10 +188,11 @@ export function createBrowserLocalPersistenceAdapter(options = {}) {
       const indexKey = keyForIndex(namespace, normalizedKind);
       const previousRecord = storage.getItem(recordKey);
       const previousIndex = storage.getItem(indexKey);
+      const index = readIndex(storage, indexKey, { strict: true });
 
       try {
         storage.setItem(recordKey, JSON.stringify(record));
-        storage.setItem(indexKey, JSON.stringify(addId(readIndex(storage, indexKey), normalizedId)));
+        storage.setItem(indexKey, JSON.stringify(addId(index, normalizedId)));
       } catch (error) {
         restoreKey(storage, recordKey, previousRecord);
         restoreKey(storage, indexKey, previousIndex);
@@ -197,8 +203,9 @@ export function createBrowserLocalPersistenceAdapter(options = {}) {
     load(kind, id) {
       const normalizedKind = normalizeKind(kind);
       const normalizedId = normalizeId(id, `${normalizedKind} id`);
-      const key = keyForRecord(namespace, normalizedKind, normalizedId);
-      const raw = storage.getItem(key);
+      const raw = storage.getItem(
+        keyForRecord(namespace, normalizedKind, normalizedId),
+      );
       if (raw === null) {
         return deepFreeze({
           status: "missing",
@@ -206,17 +213,22 @@ export function createBrowserLocalPersistenceAdapter(options = {}) {
           diagnostics: [],
         });
       }
-
       const diagnostics = [];
-      const record = parseJsonDocument(raw, diagnostics, `${normalizedKind}:${normalizedId}`);
-      if (record === null || !isValidStorageRecord(record, normalizedKind, normalizedId)) {
+      const record = parseJsonDocument(
+        raw,
+        diagnostics,
+        `${normalizedKind}:${normalizedId}`,
+      );
+      if (
+        record === null ||
+        !isValidStorageRecord(record, normalizedKind, normalizedId)
+      ) {
         diagnostics.push(createDiagnostic(
           "invalid-storage-record",
           `Stored ${normalizedKind} record is invalid: ${normalizedId}`,
         ));
         return deepFreeze({ status: "invalid", snapshot: null, diagnostics });
       }
-
       return deepFreeze({
         status: "loaded",
         snapshot: cloneJsonValue(record.snapshot),
@@ -229,10 +241,10 @@ export function createBrowserLocalPersistenceAdapter(options = {}) {
       const normalizedId = normalizeId(id, `${normalizedKind} id`);
       const recordKey = keyForRecord(namespace, normalizedKind, normalizedId);
       const indexKey = keyForIndex(namespace, normalizedKind);
+      const index = readIndex(storage, indexKey, { strict: true });
       const existed = storage.getItem(recordKey) !== null;
-      const nextIndex = removeId(readIndex(storage, indexKey), normalizedId);
       storage.removeItem(recordKey);
-      storage.setItem(indexKey, JSON.stringify(nextIndex));
+      storage.setItem(indexKey, JSON.stringify(removeId(index, normalizedId)));
       return existed;
     },
 
@@ -244,26 +256,21 @@ export function createBrowserLocalPersistenceAdapter(options = {}) {
     savePointer(kind, id) {
       const normalizedKind = normalizePointerKind(kind);
       const normalizedId = normalizeId(id, `${normalizedKind} id`);
-      storage.setItem(keyForPointer(namespace, normalizedKind), JSON.stringify({
-        format: STORAGE_FORMAT,
-        version: STORAGE_VERSION,
-        kind: normalizedKind,
-        id: normalizedId,
-      }));
+      storage.setItem(
+        keyForPointer(namespace, normalizedKind),
+        JSON.stringify({
+          format: STORAGE_FORMAT,
+          version: STORAGE_VERSION,
+          kind: normalizedKind,
+          id: normalizedId,
+        }),
+      );
     },
 
     loadPointer(kind) {
       const normalizedKind = normalizePointerKind(kind);
-      const raw = storage.getItem(keyForPointer(namespace, normalizedKind));
-      if (raw === null) return null;
-      const diagnostics = [];
-      const record = parseJsonDocument(raw, diagnostics, normalizedKind);
-      if (!isPlainObject(record) || record.kind !== normalizedKind) return null;
-      try {
-        return normalizeId(record.id, `${normalizedKind} id`);
-      } catch {
-        return null;
-      }
+      return readPointer(storage, keyForPointer(namespace, normalizedKind), normalizedKind)
+        .id;
     },
 
     removePointer(kind) {
@@ -273,8 +280,12 @@ export function createBrowserLocalPersistenceAdapter(options = {}) {
     inspectDiagnostics() {
       const diagnostics = [];
       for (const kind of [CHARACTER_KIND, SESSION_KIND]) {
-        for (const id of readIndex(storage, keyForIndex(namespace, kind))) {
-          const result = this.load(kind, id);
+        const ids = readIndex(storage, keyForIndex(namespace, kind), {
+          diagnostics,
+          context: `${kind} index`,
+        });
+        for (const id of ids) {
+          const result = adapter.load(kind, id);
           diagnostics.push(...result.diagnostics);
           if (result.status !== "loaded") {
             diagnostics.push(createDiagnostic(
@@ -284,11 +295,19 @@ export function createBrowserLocalPersistenceAdapter(options = {}) {
           }
         }
       }
-      const lastSessionId = this.loadPointer(LAST_SESSION_KIND);
-      if (lastSessionId !== null && this.load(SESSION_KIND, lastSessionId).status !== "loaded") {
+      const pointer = readPointer(
+        storage,
+        keyForPointer(namespace, LAST_SESSION_KIND),
+        LAST_SESSION_KIND,
+        diagnostics,
+      );
+      if (
+        pointer.id !== null &&
+        adapter.load(SESSION_KIND, pointer.id).status !== "loaded"
+      ) {
         diagnostics.push(createDiagnostic(
           "invalid-last-session-pointer",
-          `Last session pointer cannot be loaded: ${lastSessionId}`,
+          `Last session pointer cannot be loaded: ${pointer.id}`,
         ));
       }
       return diagnostics;
@@ -318,15 +337,70 @@ function isValidStorageRecord(record, kind, id) {
     && isPlainObject(record.snapshot);
 }
 
-function readIndex(storage, key) {
+function readIndex(storage, key, options = {}) {
   const raw = storage.getItem(key);
-  if (raw === null) return [];
+  if (raw === null) return Object.freeze([]);
+
+  let parsed;
   try {
-    const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return [];
-    return Object.freeze([...new Set(parsed.filter(item => typeof item === "string" && item.trim() !== ""))].sort());
+    parsed = JSON.parse(raw);
   } catch {
-    return [];
+    return handleInvalidIndex(
+      options,
+      `Stored persistence index is invalid JSON: ${options.context ?? key}`,
+    );
+  }
+  if (!Array.isArray(parsed)) {
+    return handleInvalidIndex(
+      options,
+      `Stored persistence index must be an array: ${options.context ?? key}`,
+    );
+  }
+
+  const invalidEntry = parsed.some(
+    item => typeof item !== "string" || item.trim() === "",
+  );
+  if (invalidEntry) {
+    return handleInvalidIndex(
+      options,
+      `Stored persistence index contains invalid ids: ${options.context ?? key}`,
+    );
+  }
+  return Object.freeze([...new Set(parsed)].sort());
+}
+
+function handleInvalidIndex(options, message) {
+  const diagnostic = createDiagnostic("invalid-storage-index", message);
+  options.diagnostics?.push(diagnostic);
+  if (options.strict) throw new Error(message);
+  return Object.freeze([]);
+}
+
+function readPointer(storage, key, kind, diagnostics = null) {
+  const raw = storage.getItem(key);
+  if (raw === null) return { id: null };
+  const localDiagnostics = diagnostics ?? [];
+  const record = parseJsonDocument(raw, localDiagnostics, kind);
+  if (
+    !isPlainObject(record) ||
+    record.format !== STORAGE_FORMAT ||
+    record.version !== STORAGE_VERSION ||
+    record.kind !== kind
+  ) {
+    diagnostics?.push(createDiagnostic(
+      "invalid-storage-pointer",
+      `Stored persistence pointer is invalid: ${kind}`,
+    ));
+    return { id: null };
+  }
+  try {
+    return { id: normalizeId(record.id, `${kind} id`) };
+  } catch {
+    diagnostics?.push(createDiagnostic(
+      "invalid-storage-pointer",
+      `Stored persistence pointer id is invalid: ${kind}`,
+    ));
+    return { id: null };
   }
 }
 
@@ -352,11 +426,7 @@ function parseJsonDocument(input, diagnostics, context) {
 }
 
 function createDiagnostic(code, message) {
-  return Object.freeze({
-    severity: "blocking",
-    code,
-    message,
-  });
+  return Object.freeze({ severity: "blocking", code, message });
 }
 
 function freezeImportResult(result) {
@@ -411,7 +481,7 @@ function validateStorage(storage) {
 }
 
 function keyForRecord(namespace, kind, id) {
-  return `${namespace}:v${STORAGE_VERSION}:${kind}:${encodeURIComponent(id)}`;
+  return `${namespace}:v${STORAGE_VERSION}:${kind}:record:${encodeURIComponent(id)}`;
 }
 
 function keyForIndex(namespace, kind) {
@@ -423,18 +493,17 @@ function keyForPointer(namespace, kind) {
 }
 
 function restoreKey(storage, key, previousValue) {
-  if (previousValue === null) {
-    storage.removeItem(key);
-  } else {
-    storage.setItem(key, previousValue);
-  }
+  if (previousValue === null) storage.removeItem(key);
+  else storage.setItem(key, previousValue);
 }
 
 function assertJsonValue(value, label, seen = new WeakSet()) {
   if (value === null) return;
   if (["string", "boolean"].includes(typeof value)) return;
   if (typeof value === "number") {
-    if (!Number.isFinite(value)) throw new Error(`${label} must contain only finite numbers`);
+    if (!Number.isFinite(value)) {
+      throw new Error(`${label} must contain only finite numbers`);
+    }
     return;
   }
   if (typeof value !== "object") {
@@ -443,10 +512,14 @@ function assertJsonValue(value, label, seen = new WeakSet()) {
   if (seen.has(value)) throw new Error(`${label} must not contain cycles`);
   seen.add(value);
   if (Array.isArray(value)) {
-    value.forEach((item, index) => assertJsonValue(item, `${label}[${index}]`, seen));
+    value.forEach((item, index) =>
+      assertJsonValue(item, `${label}[${index}]`, seen));
   } else {
-    if (!isPlainObject(value)) throw new Error(`${label} must contain only plain objects`);
-    Object.entries(value).forEach(([key, item]) => assertJsonValue(item, `${label}.${key}`, seen));
+    if (!isPlainObject(value)) {
+      throw new Error(`${label} must contain only plain objects`);
+    }
+    Object.entries(value).forEach(([key, item]) =>
+      assertJsonValue(item, `${label}.${key}`, seen));
   }
   seen.delete(value);
 }
@@ -469,7 +542,9 @@ function cloneJsonValue(value, seen = new WeakMap()) {
     seen.delete(value);
     return clone;
   }
-  if (!isPlainObject(value)) throw new Error("JSON value must contain only plain objects");
+  if (!isPlainObject(value)) {
+    throw new Error("JSON value must contain only plain objects");
+  }
   const clone = {};
   seen.set(value, clone);
   Object.entries(value).forEach(([key, item]) => {
@@ -480,7 +555,9 @@ function cloneJsonValue(value, seen = new WeakMap()) {
 }
 
 function isPlainObject(value) {
-  if (value === null || typeof value !== "object" || Array.isArray(value)) return false;
+  if (value === null || typeof value !== "object" || Array.isArray(value)) {
+    return false;
+  }
   const prototype = Object.getPrototypeOf(value);
   return prototype === Object.prototype || prototype === null;
 }
