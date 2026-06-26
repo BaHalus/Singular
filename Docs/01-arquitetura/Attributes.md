@@ -1,261 +1,146 @@
-Attributes
+# Attributes
 
-Código: DOM-ATTR-1.0
-Status: Aprovado
-Camada: Domain
-Tipo: Agregado
+**Código:** DOM-ATTR-1.0 a 1.1  
+**Status:** Estrutura canônica e nível efetivo implementados  
+**Camada:** Domain + Engine  
+**Tipo:** Agregado estrutural com projeção mecânica derivada
 
----
+Attributes representa os quatro atributos básicos de GURPS 4ª Edição: ST, DX, IQ e HT.
 
-1. Objetivo
+## Autoridade estrutural
 
-Attributes representa os quatro atributos básicos de GURPS 4ª Edição.
+`Character.attributes` é a fonte persistente canônica.
 
-Este agregado pertence ao Character e é responsável apenas pelo armazenamento estrutural dos atributos.
+`src/domain/character/Attributes.js` cria, valida e serializa a estrutura:
 
-Não contém cálculos.
-
-Não contém custos.
-
-Não contém regras de GURPS.
-
----
-
-2. Escopo Inicial
-
-A implementação inicial considera apenas:
-
-- ST
-- DX
-- IQ
-- HT
-
-Atributos alternativos, atributos adicionais e sistemas alternativos de custo não fazem parte da implementação inicial.
-
-A arquitetura deverá permitir futura expansão sem exigir alterações estruturais significativas.
-
----
-
-3. Responsabilidades
-
-Attributes é responsável por:
-
-- armazenar os atributos básicos;
-- preservar valores base;
-- preservar overrides;
-- fornecer serialização consistente;
-- garantir integridade estrutural mínima.
-
----
-
-4. Não Responsabilidades
-
-Attributes não é responsável por:
-
-- calcular custo em pontos;
-- calcular dano;
-- calcular carga;
-- calcular HP;
-- calcular FP;
-- calcular Will;
-- calcular Per;
-- calcular Basic Speed;
-- calcular Basic Move;
-- aplicar modificadores;
-- validar pré-requisitos.
-
-Essas responsabilidades pertencem ao módulo Rules.
-
----
-
-5. Estrutura
-
-A estrutura canônica é:
-
+```js
 {
-  ST: {
-    base: 10,
-    override: null
-  },
-
-  DX: {
-    base: 10,
-    override: null
-  },
-
-  IQ: {
-    base: 10,
-    override: null
-  },
-
-  HT: {
-    base: 10,
-    override: null
-  }
+  ST: { base: 10, override: null },
+  DX: { base: 10, override: null },
+  IQ: { base: 10, override: null },
+  HT: { base: 10, override: null }
 }
+```
 
----
+O domínio estrutural:
 
-6. ST
+- preserva `base`;
+- preserva `override`;
+- garante a presença dos quatro atributos;
+- garante tipos numéricos mínimos;
+- não calcula custo, derivados ou regras de GURPS.
 
-Strength.
+## Semântica de override
 
-Representa força física.
+`override` substitui somente o resultado final do atributo.
 
-Attributes apenas armazena o valor.
+Ele:
 
-O significado mecânico pertence às Rules.
+- não altera `base`;
+- não é somado ao valor-base;
+- não modifica fórmulas;
+- é considerado presente quando não é `null`;
+- pode ser zero.
 
----
+A regra de precedência é:
 
-7. DX
+```text
+nível efetivo = override, quando override não é null
+nível efetivo = base, caso contrário
+```
 
-Dexterity.
+## Autoridade mecânica
 
-Representa coordenação, agilidade e capacidade motora.
+`src/engine/attributes/AttributeLevelResolver.js` é a autoridade do nível efetivo.
 
-Attributes apenas armazena o valor.
+API:
 
-O significado mecânico pertence às Rules.
+```js
+resolveAttributeLevel({ attributeKey, attribute })
+resolveAttributeLevels(attributes)
+createAttributeLevelResult(input)
+validateAttributeLevelResult(result)
+serializeAttributeLevelResult(result)
+validateAttributeLevelsReport(report)
+serializeAttributeLevelsReport(report)
+```
 
----
+O resultado unitário contém:
 
-8. IQ
-
-Intelligence.
-
-Representa capacidade mental geral.
-
-Attributes apenas armazena o valor.
-
-O significado mecânico pertence às Rules.
-
----
-
-9. HT
-
-Health.
-
-Representa vigor físico e resistência.
-
-Attributes apenas armazena o valor.
-
-O significado mecânico pertence às Rules.
-
----
-
-10. Override
-
-Todo atributo pode possuir override.
-
-Exemplo:
-
+```js
 {
-  ST: {
-    base: 10,
-    override: 12
-  }
+  schemaVersion: 1,
+  attribute: "DX",
+  status: "resolved",
+  level: 12,
+  source: "override",
+  diagnostics: []
 }
+```
 
-Override substitui apenas o resultado final.
+Valores efetivos não finitos produzem resultado bloqueado com diagnóstico portátil. Um atributo bloqueado não impede que o relatório dos outros atributos seja produzido.
 
-Não altera a fórmula.
+## Infraestrutura compartilhada
 
-Não altera o valor base.
+A portabilidade e a imutabilidade usam `src/engine/EnginePortableValue.js`.
 
----
+O caminho histórico `src/engine/skills/SkillMechanicsPortableValue.js` permanece como reexport compatível da mesma implementação, sem criar validador paralelo.
 
-11. Invariantes Estruturais
+## Não responsabilidades
 
-Attributes válido deve possuir:
+Attributes e seu resolvedor não:
 
-- ST
-- DX
-- IQ
-- HT
+- calculam custo em pontos;
+- calculam dano, carga ou características secundárias;
+- aplicam modificadores de Traits, Templates, equipamentos ou condições;
+- validam pré-requisitos;
+- resolvem Skills ou Techniques;
+- alteram o Character;
+- persistem valores derivados;
+- projetam UI.
 
-Cada atributo deve possuir:
+## Relação com Skills e Techniques
 
-- base
-- override
+A resolução global futura poderá consumir somente resultados `resolved` de `resolveAttributeLevels`.
 
-base deve ser numérico.
+Skills e Techniques não devem ler `base` e `override` diretamente nem reproduzir sua precedência.
 
-override deve ser:
+## Invariantes
 
-- null
-- ou numérico.
+1. ST, DX, IQ e HT sempre existem na estrutura canônica.
+2. `base` permanece preservado.
+3. `override` permanece `null` ou numérico na estrutura.
+4. O motor decide o nível efetivo.
+5. Override zero é válido.
+6. Resultados derivados não são persistidos no Character.
+7. A aplicação orquestra; não decide precedência.
+8. A UI apresenta; não calcula.
 
-Essas invariantes não representam regras de GURPS.
+## Cobertura de regressão
 
-Representam apenas integridade estrutural.
+A cobertura protege:
 
----
+- criação e serialização estrutural;
+- uso do valor-base;
+- precedência do override;
+- override zero e normalização de zero negativo;
+- valores não finitos;
+- resolução agregada de ST, DX, IQ e HT;
+- resultados parcialmente bloqueados;
+- validação, serialização e imutabilidade;
+- compatibilidade do helper de portabilidade usado por Skills.
 
-12. Extensibilidade
-
-A arquitetura deverá permitir futuramente:
-
-- atributos alternativos;
-- atributos adicionais;
-- custos alternativos;
-- progressões alternativas;
-- sistemas derivados de suplementos.
-
-Essas extensões não fazem parte da implementação inicial.
-
----
-
-13. Serialização
-
-Attributes deve ser serializável para JSON sem perda estrutural.
-
-A serialização não deve conter:
-
-- métodos;
-- referências circulares;
-- dependências externas.
-
----
-
-14. Relação com Character
-
-Attributes não existe isoladamente.
-
-Ele pertence ao Character.
-
-Exemplo:
-
-Character
- └── Attributes
-      ├── ST
-      ├── DX
-      ├── IQ
-      └── HT
-
-Character continua sendo o Aggregate Root.
-
----
-
-15. Direção de Implementação
-
-A implementação deverá utilizar:
-
-- objetos simples;
-- composição;
-- funções puras;
-- serialização direta.
-
-A implementação não deverá utilizar classes.
-
----
-
-16. Checklist de Implementação
+Checklist:
 
 - [x] Criar Attributes.md
-- [ ] Criar Attributes.js
-- [ ] Criar AttributesOperations.js
-- [ ] Criar Attributes.test.js
-- [ ] Criar AttributesOperations.test.js
-- [ ] Integrar com Character
-- [ ] Aprovar Attributes v1.0
+- [x] Criar Attributes.js
+- [x] Criar Attributes.test.js
+- [x] Integrar com Character
+- [x] Definir autoridade do nível efetivo
+- [x] Implementar resolução de base e override
+- [x] Cobrir relatório dos quatro atributos
+- [ ] Aplicar modificadores canônicos externos
+- [ ] Calcular custos em pontos
+- [ ] Integrar ao plano global de Skills e Techniques
+- [ ] Projetar no Application Read Model
+- [ ] UI
