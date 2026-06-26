@@ -5,6 +5,10 @@ import {
   createCommandRegistry,
 } from "../commands/CommandRegistry.js";
 import {
+  createAttributeCommandHandlerEntries,
+  ATTRIBUTE_COMMAND_TYPES,
+} from "../attributes/AttributeCommandHandlers.js";
+import {
   createCharacterSummaryCommandHandlerEntries,
   CHARACTER_SUMMARY_COMMAND_TYPES,
 } from "../character/CharacterSummaryCommandHandlers.js";
@@ -111,6 +115,7 @@ export function createAlphaMobilePersistenceBootstrap(options = {}) {
   const registry = createCommandRegistry([
     ...createPoolCommandHandlerEntries(),
     ...createCharacterSummaryCommandHandlerEntries(),
+    ...createAttributeCommandHandlerEntries(),
   ]);
   const commands = createAlphaMobileCommands({
     persistence,
@@ -232,6 +237,14 @@ function createAlphaMobileCommands({ persistence, registry, runtime }) {
       return execute(CHARACTER_SUMMARY_COMMAND_TYPES.SET, {
         name: input.name,
         concept: input.concept,
+      });
+    },
+
+    adjustAttributeBase(input = {}) {
+      requirePlainObject(input, "Alpha mobile attribute adjustment");
+      return execute(ATTRIBUTE_COMMAND_TYPES.ADJUST_BASE, {
+        attributeKey: input.attributeKey,
+        delta: input.delta,
       });
     },
   });
