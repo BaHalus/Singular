@@ -55,7 +55,7 @@ export async function bootstrapCharacterMobileApp(options = {}) {
   const root = options.root ?? resolveMobileRoot(options.document);
   requireInteractiveMountRoot(root);
 
-  const mode = normalizeMode(options.mode ?? "creation");
+  let activeMode = normalizeMode(options.mode ?? "creation");
   const initialSession = createInitialSession(options);
   const application = createAlphaMobilePersistenceBootstrap({
     initialSession,
@@ -68,16 +68,39 @@ export async function bootstrapCharacterMobileApp(options = {}) {
     root,
     persistence: application.persistence,
     downloadText: options.downloadText,
-    mode,
+    mode: activeMode,
   });
 
   const renderActiveSession = () => {
-    root.innerHTML = ui.render({ mode });
+    root.innerHTML = ui.render({ mode: activeMode });
     const activeSession = application.persistence.getActiveSession();
     setRootAttribute(root, "data-singular-mounted", "true");
     setRootAttribute(root, "data-session-id", activeSession.id);
     setRootAttribute(root, "data-character-id", activeSession.character.identity.id);
-    setRootAttribute(root, "data-mode", mode);
+    setRootAttribute(root, "data-mode", activeMode);
+  };
+
+  const handleModeSwitch = event => {
+    const target = findActionTarget(event?.target);
+    const action = target === null ? null : readDataset(target, "action");
+    const nextMode = action === null ? null : modeFromAction(action);
+    if (nextMode === null) return null;
+    event.preventDefault?.();
+
+    if (ui.getState().busy) {
+      setRootAttribute(root, "data-last-mode-status", "busy");
+      return null;
+    }
+
+    if (activeMode === nextMode) {
+      setRootAttribute(root, "data-last-mode-status", "unchanged");
+      return Object.freeze({ status: "unchanged", mode: activeMode });
+    }
+
+    activeMode = nextMode;
+    setRootAttribute(root, "data-last-mode-status", "applied");
+    renderActiveSession();
+    return Object.freeze({ status: "applied", mode: activeMode });
   };
 
   const handlePoolAdjustment = event => {
@@ -98,6 +121,7 @@ export async function bootstrapCharacterMobileApp(options = {}) {
     return result;
   };
 
+  root.addEventListener("click", handleModeSwitch);
   root.addEventListener("click", handlePoolAdjustment);
   renderActiveSession();
 
@@ -111,7 +135,9 @@ export async function bootstrapCharacterMobileApp(options = {}) {
     get html() {
       return root.innerHTML;
     },
-    mode,
+    get mode() {
+      return activeMode;
+    },
     ui,
     persistence: application.persistence,
     commands: application.commands,
@@ -165,6 +191,15 @@ function createInitialSession(options) {
   });
 }
 
+function findActionTarget(target) {
+  let current = target ?? null;
+  while (current !== null) {
+    if (readDataset(current, "action") !== null) return current;
+    current = current.parentElement ?? null;
+  }
+  return null;
+}
+
 function findPoolAdjustmentTarget(target) {
   let current = target ?? null;
   while (current !== null) {
@@ -177,6 +212,12 @@ function findPoolAdjustmentTarget(target) {
     current = current.parentElement ?? null;
   }
   return null;
+}
+
+function modeFromAction(action) {
+  if (!action.startsWith("mode-")) return null;
+  const mode = action.slice("mode-".length);
+  return MOBILE_MODES.includes(mode) ? mode : null;
 }
 
 function readDataset(target, key) {
