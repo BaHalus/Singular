@@ -1,221 +1,86 @@
-Pools
+# Pools
 
-Código: DOM-POOL-1.0
-Status: Aprovado
-Camada: Domain
-Tipo: Agregado
+**Código:** DOM-POOL-1.1  
+**Status:** Aprovado  
+**Camada:** Domain  
+**Tipo:** Agregado operacional
 
----
+## Objetivo
 
-1. Objetivo
+`Pools` representa recursos consumíveis e transitórios do personagem durante o jogo.
 
-Pools representa recursos consumíveis do personagem durante o jogo.
+Diferentemente de Attributes e SecondaryCharacteristics, Pools armazena estado operacional. O agregado não interpreta o significado mecânico das alterações.
 
-Diferentemente de Attributes e SecondaryCharacteristics, Pools representa estado operacional.
+## Estrutura canônica
 
----
-
-2. Escopo Inicial
-
-A implementação inicial considera:
-
-- HP
-- FP
-
-E opcionalmente:
-
-- EnergyReserve
-
----
-
-3. Responsabilidades
-
-Pools é responsável por:
-
-- armazenar valores atuais;
-- armazenar capacidades máximas;
-- fornecer serialização consistente;
-- garantir integridade estrutural mínima.
-
----
-
-4. Não Responsabilidades
-
-Pools não é responsável por:
-
-- calcular HP máximo;
-- calcular FP máximo;
-- calcular Energy Reserve máxima;
-- validar morte;
-- validar inconsciência;
-- validar exaustão;
-- aplicar dano;
-- aplicar cura;
-- aplicar fadiga.
-
-Essas responsabilidades pertencem ao módulo Rules.
-
----
-
-5. Estrutura
-
-A estrutura canônica é:
-
+```js
 {
-  HP: {
-    current: null,
-    maximum: null
-  },
-
-  FP: {
-    current: null,
-    maximum: null
-  }
+  HP: { current: null, maximum: null },
+  FP: { current: null, maximum: null },
+  EnergyReserve: { current: null, maximum: null }
 }
+```
 
-Energy Reserve é opcional.
+`HP` e `FP` são obrigatórios. `EnergyReserve` é opcional. Pools adicionais importados podem ser preservados quando obedecem ao mesmo contrato estrutural.
 
-Exemplo:
+Todo pool operacional possui `current` e `maximum`, ambos números finitos ou `null`. `null` representa valor ainda desconhecido.
 
-{
-  HP: {
-    current: 10,
-    maximum: 10
-  },
+## Responsabilidades
 
-  FP: {
-    current: 12,
-    maximum: 12
-  },
+Pools armazena valores atuais e máximos, preserva pools opcionais/importados, fornece serialização consistente e oferece operações puras sobre o estado transitório.
 
-  EnergyReserve: {
-    current: 20,
-    maximum: 20
-  }
-}
+Pools não calcula máximos, não aplica dano, cura, gasto ou recuperação, não calcula morte, inconsciência ou exaustão e não limita o valor atual ao máximo.
 
----
+## Operações DOM-POOL-1.1
 
-6. HP
+`PoolsOperations.js` certifica:
 
-Representa os Pontos de Vida atuais.
+- `setPoolCurrent`;
+- `adjustPoolCurrent`;
+- `setPoolMaximum`;
+- `resetPoolCurrentToMaximum`;
+- `addPool`;
+- `removePool`;
+- `validateOperationalPools`.
 
-O significado mecânico pertence às Rules.
+Todas as operações são imutáveis.
 
----
+## Ajustes incrementais
 
-7. FP
+Um ajuste exige pool existente, valor atual conhecido, delta finito e resultado finito.
 
-Representa os Pontos de Fadiga atuais.
+Não há clamp. Um pool pode ficar abaixo de zero ou acima do máximo, pois a interpretação mecânica pertence a módulos de regras futuros.
 
-O significado mecânico pertence às Rules.
+## Pools obrigatórios e opcionais
 
----
+`HP` e `FP` não podem ser removidos. `EnergyReserve` e pools importados adicionais podem ser criados e removidos quando possuem `current` e `maximum` válidos.
 
-8. EnergyReserve
+## Relação com Equipment
 
-Representa reservas de energia inerentes ao personagem.
+Pools representa recursos inerentes ou diretamente associados ao personagem. Fontes externas de energia, como gemas, baterias, cristais ou itens carregáveis, pertencem a Equipment.
 
-É opcional.
+## Compatibilidade e serialização
 
-Pode ser criada por:
+Pools permanece composto por objetos simples e valores JSON portáteis. A serialização não deve conter métodos, referências circulares, dependências externas ou números não finitos.
 
-- vantagens;
-- poderes;
-- magias;
-- templates;
-- importação GCS.
+## Relação com Character
 
----
+Pools pertence ao `Character`, que continua sendo o Aggregate Root.
 
-9. Relação com Equipment
+## Direção de implementação
 
-Pools não representa fontes externas de energia.
+A implementação usa objetos simples, composição, funções puras, operações imutáveis e serialização direta. Não utiliza classes e não transfere cálculos para a UI.
 
-Exemplos:
+## Checklist DOM-POOL-1.1
 
-- gemas de energia;
-- cristais;
-- baterias mágicas;
-- itens carregáveis.
-
-Esses elementos pertencem ao agregado Equipment.
-
-A camada Presentation pode agrupá-los visualmente.
-
----
-
-10. Invariantes Estruturais
-
-Todo pool deve possuir:
-
-- current
-- maximum
-
-Ambos devem ser:
-
-- null
-- ou numéricos
-
-Essas invariantes representam apenas integridade estrutural.
-
----
-
-11. Compatibilidade GCS
-
-Dados adicionais de pools encontrados em arquivos GCS devem ser preservados conforme ADR-0003.
-
-A implementação inicial da SINGULAR não precisa compreender todos os tipos possíveis de pool.
-
----
-
-12. Serialização
-
-Pools deve ser serializável para JSON sem perda estrutural.
-
-Não deve conter:
-
-- métodos;
-- referências circulares;
-- dependências externas.
-
----
-
-13. Relação com Character
-
-Pools pertence ao Character.
-
-Exemplo:
-
-Character
-└── Pools
-├── HP
-├── FP
-└── EnergyReserve (opcional)
-
-Character continua sendo o Aggregate Root.
-
----
-
-14. Direção de Implementação
-
-A implementação deverá utilizar:
-
-- objetos simples;
-- composição;
-- funções puras;
-- serialização direta.
-
-A implementação não deverá utilizar classes.
-
----
-
-15. Checklist de Implementação
-
-- [x] Criar Pools.md
-- [ ] Criar Pools.js
-- [ ] Criar Pools.test.js
-- [ ] Criar PoolsOperations.js
-- [ ] Criar PoolsOperations.test.js
-- [ ] Integrar com Character
-- [ ] Aprovar Pools v1.0
+- [x] Agregado integrado ao Character.
+- [x] Testes estruturais do agregado.
+- [x] Operações de definição de atual e máximo.
+- [x] Adição e remoção de pools opcionais.
+- [x] Ajuste incremental do valor atual.
+- [x] Restauração do atual ao máximo conhecido.
+- [x] Validação de números finitos.
+- [x] Preservação de pools importados adicionais.
+- [x] ADR-0057 registrada.
+- [x] CI verde na base vigente.
+- [x] Ausência de revisão bloqueante.
