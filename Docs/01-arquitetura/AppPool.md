@@ -1,17 +1,15 @@
 # App Pool
 
 **Código:** APP-POOL-1.0  
-**Status:** Proposto para revisão  
+**Status:** Aprovado  
 **Camada:** Application  
 **Dependências:** APP-CORE-1.0 e DOM-POOL-1.1
 
 ## Objetivo
 
-APP-POOL conecta intenções de alteração de PV, PF e reservas ao App Core canônico.
+APP-POOL conecta alterações de PV, PF e reservas ao App Core canônico. A aplicação valida o payload, delega a alteração a `PoolsOperations` e devolve ao `CommandExecutor` um novo `Character` ou `no-op`.
 
-A aplicação não interpreta dano, cura, fadiga ou recuperação. Ela valida o payload do caso de uso, delega a alteração a `PoolsOperations` e devolve ao `CommandExecutor` um novo `Character` ou um `no-op`.
-
-## Tipos de comando
+## Comandos
 
 ```text
 pool.current.set
@@ -27,81 +25,41 @@ Payloads:
 { poolKey }
 ```
 
-Os payloads são estritos: propriedades adicionais são rejeitadas.
-
-## Registro
-
-`createPoolCommandHandlerEntries()` devolve entradas imutáveis compatíveis com o `CommandRegistry` existente.
-
-A frente não cria outro registro, executor, histórico ou sessão.
+Payloads com propriedades adicionais são rejeitados.
 
 ## Fluxo
 
 ```text
-UI coleta intenção
+UI
 → CommandEnvelope
 → CommandRegistry
 → PoolCommandHandlers
 → PoolsOperations
-→ Character canônico
+→ Character
 → CommandExecutor
-→ revisão + histórico + recibo
-→ persistência / undo / redo existentes
+→ revisão, histórico e recibo
+→ persistência, undo e redo
 ```
 
-## Estados do handler
+`createPoolCommandHandlerEntries()` usa o registro existente. Não existe segundo executor, sessão ou histórico.
 
-### applied
+## Resultados
 
-Produz novo `Character` quando o valor do pool muda.
+`applied` produz novo `Character` e recibo com operação, pool, valor anterior e valor resultante.
 
-O recibo de domínio registra:
-
-- operação;
-- `poolKey`;
-- valor anterior;
-- valor resultante;
-- delta ou máximo quando aplicável.
-
-### no-op
-
-Não cria revisão nem histórico quando:
-
-- o valor definido já é o atual;
-- o delta é zero e não altera o estado;
-- o pool já está no máximo durante a restauração.
+`no-op` preserva revisão e histórico quando set, ajuste ou restauração não altera o estado.
 
 ## Atomicidade
 
-Payload inválido, pool ausente, valor não finito, atual desconhecido em ajuste ou máximo desconhecido em restauração fazem o handler lançar erro.
-
-O `CommandExecutor` converte a falha em resultado `failed` e preserva integralmente a sessão recebida.
-
-Revisões obsoletas são rejeitadas pelo executor antes do handler.
+Payload inválido, pool ausente ou valor inválido geram `failed` pelo executor e preservam a sessão. Revisões obsoletas são rejeitadas antes do handler.
 
 ## Ausência de mecânica
 
-APP-POOL não:
-
-- limita o valor atual ao máximo;
-- impede valores negativos;
-- classifica a intenção como dano, cura, gasto ou recuperação;
-- calcula morte, inconsciência ou exaustão;
-- recalcula máximos;
-- altera pontos de personagem.
+APP-POOL não limita o valor atual ao máximo, não impede valores negativos, não classifica dano, cura, gasto ou recuperação e não recalcula máximos.
 
 ## Fronteiras
 
-Esta frente não modifica:
-
-- `Character.js`;
-- `Pools.js` ou `PoolsOperations.js`;
-- `ApplicationSession`;
-- `CommandExecutor`;
-- `CommandRegistry`;
-- histórico, persistência ou runtime;
-- UI mobile;
-- Equipment, Skills, Techniques, Magic, Power ou Combat.
+Não modifica `Character.js`, DOM-POOL, arquivos centrais do App Core, UI, Equipment, Skills, Techniques, Magic, Power ou Combat.
 
 ## API
 
@@ -115,13 +73,11 @@ handleResetPoolCurrentToMaximumCommand(context)
 
 ## Checklist
 
-- [x] Reutilizar o App Core canônico.
-- [x] Reutilizar DOM-POOL-1.1.
-- [x] Não criar segundo despachante.
-- [x] Definir, ajustar e restaurar valor atual.
+- [x] Reutilizar APP-CORE e DOM-POOL.
+- [x] Não criar autoridade paralela.
+- [x] Definir, ajustar e restaurar valores atuais.
 - [x] Produzir `no-op` determinístico.
-- [x] Registrar histórico pelo executor existente.
-- [x] Certificar persistência, undo e redo.
-- [x] Preservar atomicidade em falhas.
-- [ ] CI verde na base vigente.
-- [ ] Ausência de revisão bloqueante.
+- [x] Certificar histórico, persistência, undo e redo.
+- [x] Preservar atomicidade.
+- [x] CI verde na base vigente.
+- [x] Ausência de revisão bloqueante observada.
