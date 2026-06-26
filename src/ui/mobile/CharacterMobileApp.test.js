@@ -82,12 +82,18 @@ function rootFixture() {
       return attributes.get(name) ?? null;
     },
     addEventListener(type, listener) {
-      listeners.set(type, listener);
+      const entries = listeners.get(type) ?? [];
+      entries.push(listener);
+      listeners.set(type, entries);
     },
     querySelector() {
       return { value: "" };
     },
-    listeners,
+    async dispatch(type, event) {
+      for (const listener of listeners.get(type) ?? []) {
+        await listener(event);
+      }
+    },
   };
 }
 
@@ -99,7 +105,8 @@ test("renders a real canonical Character through the complete mobile pipeline", 
   assert.match(html, /<strong>Ayla<\/strong>/);
   assert.match(html, /<strong>Batedora<\/strong>/);
   assert.match(html, /<dt>DX<\/dt><dd>12<\/dd>/);
-  assert.match(html, /<dt>HP<\/dt><dd>9 \/ 11<\/dd>/);
+  assert.match(html, /<dt>PV<\/dt><dd>9 \/ 11<\/dd>/);
+  assert.match(html, /data-pool-key="HP" data-pool-adjust="-1"/);
 });
 
 test("preserves the static canonical Character mount", () => {
@@ -142,15 +149,63 @@ test("bootstraps the executable page with a canonical session and persistence ac
   assert.equal(mounted.mode, "creation");
   assert.match(root.innerHTML, /<strong>Unnamed<\/strong>/);
   assert.match(root.innerHTML, /data-action="persistence-save"/);
+  assert.match(root.innerHTML, /data-pool-key="HP" data-pool-adjust="-1"/);
   assert.equal(root.getAttribute("data-session-id"), mounted.session.id);
+  assert.equal(root.getAttribute("data-session-revision"), "0");
 
-  await root.listeners.get("click")({
+  await root.dispatch("click", {
     target: {
       dataset: { action: "persistence-save" },
       parentElement: null,
     },
   });
   assert.deepEqual(await mounted.repositories.session.listIds(), [mounted.session.id]);
+});
+
+test("adjusts PV through App Core, rerenders and saves only after manual save", async () => {
+  const root = rootFixture();
+  const storage = createMemoryStorage();
+  const mounted = await bootstrapCharacterMobileApp({
+    root,
+    character: character(),
+    sessionId: "session-pool-mobile",
+    storage,
+    namespace: "test.mobile.pool-controls",
+    runtime: runtime(),
+    mode: "table",
+  });
+  let prevented = false;
+
+  await root.dispatch("click", {
+    target: {
+      dataset: { poolKey: "HP", poolAdjust: "-1" },
+      parentElement: null,
+    },
+    preventDefault() {
+      prevented = true;
+    },
+  });
+
+  assert.equal(prevented, true);
+  assert.equal(mounted.session.revision, 1);
+  assert.equal(mounted.character.pools.HP.current, 8);
+  assert.equal(mounted.session.history.length, 1);
+  assert.equal(mounted.session.history[0].commandType, "pool.current.adjust");
+  assert.equal(root.getAttribute("data-session-revision"), "1");
+  assert.equal(root.getAttribute("data-last-command-status"), "applied");
+  assert.match(root.innerHTML, /<dt>PV<\/dt><dd>8 \/ 11<\/dd>/);
+  assert.deepEqual(await mounted.repositories.session.listIds(), []);
+
+  await root.dispatch("click", {
+    target: {
+      dataset: { action: "persistence-save" },
+      parentElement: null,
+    },
+  });
+  const saved = await mounted.repositories.session.load("session-pool-mobile");
+
+  assert.equal(saved.revision, 1);
+  assert.equal(saved.character.pools.HP.current, 8);
 });
 
 test("restores the last valid session with an injected root and no document", async () => {
@@ -177,6 +232,7 @@ test("restores the last valid session with an injected root and no document", as
   assert.equal(mounted.character.identity.name, "Restaurada");
   assert.match(root.innerHTML, /<strong>Restaurada<\/strong>/);
   assert.equal(root.getAttribute("data-session-id"), "session-restored");
+  assert.equal(root.getAttribute("data-session-revision"), "3");
 });
 
 test("rejects missing roots, documents and invalid modes", async () => {
@@ -227,6 +283,7 @@ test("ships an executable browser page wired to persistence and responsive style
   assert.match(css, /min-width: 320px/);
   assert.match(css, /grid-template-columns: repeat\(4/);
   assert.match(css, /singular-alpha-mobile__persistence/);
-  assert.match(css, /@media \(min-width: 42rem\)/);
+  assert.match(css, /singular-mobile-sheet__pool-adjust/);
+  assert.match(css, /@media \(max-width: 25rem\)/);
   assert.match(css, /min-height: 2\.75rem/);
 });
