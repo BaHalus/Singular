@@ -1,6 +1,6 @@
 # ADR-0063 — Comandos de aplicação para Attacks
 
-**Status:** Proposto  
+**Status:** Aceito  
 **Data:** 2026-06-26  
 **Decisão:** APP-ATTACK-1.0
 
@@ -46,7 +46,7 @@ Não existe segundo modelo de personagem nem mutação direta da sessão.
 
 ## No-op
 
-Atualização semanticamente idêntica e reordenação para o índice atual retornam `no-op`. O `CommandExecutor` preserva revisão, histórico, sessão e fila de redo.
+Atualização estruturalmente idêntica e reordenação para o índice atual retornam `no-op`. A comparação de valores portáteis é recursiva e independente da ordem das chaves de objetos. O `CommandExecutor` preserva revisão, histórico, sessão e fila de redo.
 
 ## Identidade e referências
 
@@ -64,7 +64,7 @@ Edição, remoção e reordenação usam `attackId`. Nenhuma associação usa no
 
 ## Falhas
 
-Erros de payload ou domínio propagam ao `CommandExecutor`, que produz `failed` e preserva a sessão original. Revisões obsoletas produzem `rejected` antes do handler.
+Erros de payload ou domínio propagam ao `CommandExecutor`, que produz `failed` e preserva a sessão original. Revisões obsoletas produzem `rejected` antes do handler. IDs duplicados e índices inválidos também falham atomicamente.
 
 ## Consequências
 
