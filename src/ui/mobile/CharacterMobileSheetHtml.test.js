@@ -136,7 +136,7 @@ test("renders a semantic mobile sheet and preserves existing sections", () => {
   assert.match(html, /^<article class="singular-mobile-sheet"/);
   assert.match(html, /class="singular-mobile-sheet__toolbar"/);
   assert.match(html, /data-section="traits" data-status="empty"/);
-  assert.match(html, /data-section="equipment" data-status="external-front"/);
+  assert.match(html, /data-section="equipment" data-status="pending"/);
 });
 
 test("renders accessible decrement and increment controls for PV and PF", () => {
