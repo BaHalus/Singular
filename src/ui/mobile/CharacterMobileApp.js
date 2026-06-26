@@ -76,7 +76,6 @@ export async function bootstrapCharacterMobileApp(options = {}) {
     const activeSession = application.persistence.getActiveSession();
     setRootAttribute(root, "data-singular-mounted", "true");
     setRootAttribute(root, "data-session-id", activeSession.id);
-    setRootAttribute(root, "data-session-revision", String(activeSession.revision));
     setRootAttribute(root, "data-character-id", activeSession.character.identity.id);
     setRootAttribute(root, "data-mode", mode);
   };
