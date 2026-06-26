@@ -13,6 +13,18 @@ import {
   validateCharacterMobileSheetRenderModel,
 } from "./CharacterMobileSheetRenderModel.js";
 
+function projectionFor(id, name) {
+  return projectCharacterForMobileSheet(createCharacter({
+    identity: {
+      id,
+      name,
+      concept: "",
+      playerId: null,
+      campaignId: null,
+    },
+  }));
+}
+
 test("creates the first render model for a mobile character sheet", () => {
   const character = createCharacter({
     identity: {
@@ -65,16 +77,9 @@ test("creates the first render model for a mobile character sheet", () => {
 });
 
 test("keeps the render model detached and immutable", () => {
-  const projection = projectCharacterForMobileSheet(createCharacter({
-    identity: {
-      id: "char-mobile-render-copy",
-      name: "Cópia Mobile",
-      concept: "",
-      playerId: null,
-      campaignId: null,
-    },
-  }));
-  const model = createCharacterMobileSheetRenderModel(projection);
+  const model = createCharacterMobileSheetRenderModel(
+    projectionFor("char-mobile-render-copy", "Cópia Mobile"),
+  );
   const serialized = serializeCharacterMobileSheetRenderModel(model);
 
   assert.equal(Object.isFrozen(model), true);
@@ -91,15 +96,7 @@ test("keeps the render model detached and immutable", () => {
 
 test("rejects malformed render models instead of hiding unsupported UI state", () => {
   const projection = serializeCharacterMobileProjection(
-    projectCharacterForMobileSheet(createCharacter({
-      identity: {
-        id: "char-mobile-render-invalid",
-        name: "Inválido Mobile",
-        concept: "",
-        playerId: null,
-        campaignId: null,
-      },
-    })),
+    projectionFor("char-mobile-render-invalid", "Inválido Mobile"),
   );
   const model = serializeCharacterMobileSheetRenderModel(
     createCharacterMobileSheetRenderModel(projection),
@@ -110,5 +107,24 @@ test("rejects malformed render models instead of hiding unsupported UI state", (
   assert.throws(
     () => validateCharacterMobileSheetRenderModel(model),
     /Character mobile sheet section identity status is invalid/,
+  );
+});
+
+test("rejects toolbar actions that advertise unsupported availability", () => {
+  const model = serializeCharacterMobileSheetRenderModel(
+    createCharacterMobileSheetRenderModel(
+      projectionFor("char-mobile-toolbar-invalid", "Toolbar Inválida"),
+    ),
+  );
+
+  model.toolbar.actions.find(action => action.id === "save").status = "available";
+
+  assert.throws(
+    () => validateCharacterMobileSheetRenderModel(model),
+    /Character mobile sheet toolbar action save status is invalid/,
+  );
+  assert.throws(
+    () => serializeCharacterMobileSheetRenderModel(model),
+    /Character mobile sheet toolbar action save status is invalid/,
   );
 });
