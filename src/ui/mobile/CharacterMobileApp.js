@@ -69,6 +69,7 @@ export async function bootstrapCharacterMobileApp(options = {}) {
   const modeSync = createCharacterMobileModeSync({
     root,
     getMode: () => mode,
+    render,
     MutationObserver: options.MutationObserver,
   });
   const interactions = mountCharacterMobileInteractionController({
