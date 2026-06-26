@@ -155,12 +155,26 @@ test("returns blocked diagnostics without throwing for structurally invalid tota
 });
 
 test("detects duplicate ids in report diagnostics", () => {
-  const equipment = createEquipment([
-    { id: "eq-dup", name: "Primeiro" },
-    { id: "eq-dup", name: "Segundo" },
+  const report = resolveEquipmentTotals([
+    {
+      id: "eq-dup",
+      name: "Primeiro",
+      quantity: 1,
+      cost: 0,
+      weightKg: 0,
+      state: "carried",
+      children: [],
+    },
+    {
+      id: "eq-dup",
+      name: "Segundo",
+      quantity: 1,
+      cost: 0,
+      weightKg: 0,
+      state: "carried",
+      children: [],
+    },
   ]);
-
-  const report = resolveEquipmentTotals(equipment);
 
   assert.equal(report.status, "blocked");
   assert.equal(report.entries[0].status, "resolved");
