@@ -1,221 +1,154 @@
-Pools
+# Pools
 
-Código: DOM-POOL-1.0
-Status: Aprovado
-Camada: Domain
-Tipo: Agregado
+**Código:** DOM-POOL-1.1  
+**Status:** Proposto para revisão  
+**Camada:** Domain  
+**Tipo:** Agregado operacional
 
----
+## Objetivo
 
-1. Objetivo
+`Pools` representa recursos consumíveis e transitórios do personagem durante o jogo.
 
-Pools representa recursos consumíveis do personagem durante o jogo.
+Diferentemente de Attributes e SecondaryCharacteristics, Pools armazena estado operacional. O agregado não interpreta o significado mecânico das alterações.
 
-Diferentemente de Attributes e SecondaryCharacteristics, Pools representa estado operacional.
+## Estrutura canônica
 
----
+```js
+{
+  HP: {
+    current: null,
+    maximum: null
+  },
+  FP: {
+    current: null,
+    maximum: null
+  },
+  EnergyReserve: {
+    current: null,
+    maximum: null
+  }
+}
+```
 
-2. Escopo Inicial
+`HP` e `FP` são obrigatórios. `EnergyReserve` é opcional. Pools adicionais importados podem ser preservados quando obedecem ao mesmo contrato estrutural.
 
-A implementação inicial considera:
+Todo pool operacional possui:
 
-- HP
-- FP
+- `current`: valor atual ou `null`;
+- `maximum`: capacidade máxima ou `null`.
 
-E opcionalmente:
+Valores numéricos operacionais precisam ser finitos. `null` representa valor ainda desconhecido.
 
-- EnergyReserve
-
----
-
-3. Responsabilidades
+## Responsabilidades
 
 Pools é responsável por:
 
 - armazenar valores atuais;
 - armazenar capacidades máximas;
+- preservar pools opcionais e importados;
 - fornecer serialização consistente;
+- oferecer operações puras sobre o estado transitório;
 - garantir integridade estrutural mínima.
 
----
+## Não responsabilidades
 
-4. Não Responsabilidades
+Pools não:
 
-Pools não é responsável por:
+- calcula HP, FP ou reservas máximas;
+- aplica regras de dano ou cura;
+- aplica regras de gasto ou recuperação;
+- calcula morte, inconsciência ou exaustão;
+- limita o valor atual ao máximo;
+- impede valores atuais negativos;
+- interpreta a origem de uma alteração.
 
-- calcular HP máximo;
-- calcular FP máximo;
-- calcular Energy Reserve máxima;
-- validar morte;
-- validar inconsciência;
-- validar exaustão;
-- aplicar dano;
-- aplicar cura;
-- aplicar fadiga.
+Essas responsabilidades pertencem a módulos de regras e à orquestração futura.
 
-Essas responsabilidades pertencem ao módulo Rules.
+## Operações DOM-POOL-1.1
 
----
+`PoolsOperations.js` certifica:
 
-5. Estrutura
+- `setPoolCurrent` — define o valor atual;
+- `adjustPoolCurrent` — soma um delta ao valor atual conhecido;
+- `setPoolMaximum` — define a capacidade máxima;
+- `resetPoolCurrentToMaximum` — copia o máximo conhecido para o atual;
+- `addPool` — acrescenta um pool opcional ou importado;
+- `removePool` — remove um pool não obrigatório;
+- `validateOperationalPools` — valida toda a estrutura operacional.
 
-A estrutura canônica é:
+Todas as operações são imutáveis.
 
-{
-  HP: {
-    current: null,
-    maximum: null
-  },
+## Ajustes incrementais
 
-  FP: {
-    current: null,
-    maximum: null
-  }
-}
+Um ajuste exige:
 
-Energy Reserve é opcional.
+1. pool existente;
+2. valor atual conhecido;
+3. delta finito;
+4. resultado finito.
 
-Exemplo:
+Não há clamp. Um pool pode ficar abaixo de zero ou acima do máximo. Essa decisão é intencional para impedir que o domínio estrutural antecipe regras mecânicas.
 
-{
-  HP: {
-    current: 10,
-    maximum: 10
-  },
+## Pools obrigatórios e opcionais
 
-  FP: {
-    current: 12,
-    maximum: 12
-  },
+`HP` e `FP` não podem ser removidos.
 
-  EnergyReserve: {
-    current: 20,
-    maximum: 20
-  }
-}
+`EnergyReserve` e pools importados adicionais podem ser criados e removidos. O domínio não precisa compreender semanticamente cada tipo de reserva para preservar seu estado.
 
----
+## Relação com Equipment
 
-6. HP
+Pools representa recursos inerentes ou diretamente associados ao personagem.
 
-Representa os Pontos de Vida atuais.
+Fontes externas de energia, como gemas, baterias, cristais ou itens carregáveis, pertencem a Equipment. A camada de apresentação pode agrupá-los visualmente, mas os agregados permanecem distintos.
 
-O significado mecânico pertence às Rules.
+## Compatibilidade e serialização
 
----
+Pools deve permanecer composto por objetos simples e valores JSON portáteis.
 
-7. FP
-
-Representa os Pontos de Fadiga atuais.
-
-O significado mecânico pertence às Rules.
-
----
-
-8. EnergyReserve
-
-Representa reservas de energia inerentes ao personagem.
-
-É opcional.
-
-Pode ser criada por:
-
-- vantagens;
-- poderes;
-- magias;
-- templates;
-- importação GCS.
-
----
-
-9. Relação com Equipment
-
-Pools não representa fontes externas de energia.
-
-Exemplos:
-
-- gemas de energia;
-- cristais;
-- baterias mágicas;
-- itens carregáveis.
-
-Esses elementos pertencem ao agregado Equipment.
-
-A camada Presentation pode agrupá-los visualmente.
-
----
-
-10. Invariantes Estruturais
-
-Todo pool deve possuir:
-
-- current
-- maximum
-
-Ambos devem ser:
-
-- null
-- ou numéricos
-
-Essas invariantes representam apenas integridade estrutural.
-
----
-
-11. Compatibilidade GCS
-
-Dados adicionais de pools encontrados em arquivos GCS devem ser preservados conforme ADR-0003.
-
-A implementação inicial da SINGULAR não precisa compreender todos os tipos possíveis de pool.
-
----
-
-12. Serialização
-
-Pools deve ser serializável para JSON sem perda estrutural.
-
-Não deve conter:
+A serialização não deve conter:
 
 - métodos;
 - referências circulares;
-- dependências externas.
+- dependências externas;
+- números não finitos.
 
----
+Dados adicionais importados podem ser preservados como pools opcionais quando possuem `current` e `maximum` válidos.
 
-13. Relação com Character
+## Relação com Character
 
-Pools pertence ao Character.
+Pools pertence ao `Character`, que continua sendo o Aggregate Root:
 
-Exemplo:
-
+```text
 Character
 └── Pools
-├── HP
-├── FP
-└── EnergyReserve (opcional)
+    ├── HP
+    ├── FP
+    ├── EnergyReserve (opcional)
+    └── outros pools importados (opcionais)
+```
 
-Character continua sendo o Aggregate Root.
+## Direção de implementação
 
----
-
-14. Direção de Implementação
-
-A implementação deverá utilizar:
+A implementação utiliza:
 
 - objetos simples;
 - composição;
 - funções puras;
+- operações imutáveis;
 - serialização direta.
 
-A implementação não deverá utilizar classes.
+Não utiliza classes e não transfere cálculos para a UI.
 
----
+## Checklist DOM-POOL-1.1
 
-15. Checklist de Implementação
-
-- [x] Criar Pools.md
-- [ ] Criar Pools.js
-- [ ] Criar Pools.test.js
-- [ ] Criar PoolsOperations.js
-- [ ] Criar PoolsOperations.test.js
-- [ ] Integrar com Character
-- [ ] Aprovar Pools v1.0
+- [x] Agregado `Pools` integrado ao Character.
+- [x] Testes estruturais do agregado.
+- [x] Operações de definição de atual e máximo.
+- [x] Adição e remoção de pools opcionais.
+- [x] Ajuste incremental do valor atual.
+- [x] Restauração do atual ao máximo conhecido.
+- [x] Validação de números finitos.
+- [x] Preservação de pools importados adicionais.
+- [x] ADR-0057 registrada.
+- [ ] CI verde na base vigente.
+- [ ] Ausência de revisão bloqueante.
