@@ -34,19 +34,20 @@ A PR #103 foi integrada antes da validação final. APP-POOL permanece restrito 
 - [x] Falhas preservam a sessão.
 - [x] Não existe clamp estrutural.
 - [x] Energy Reserve é suportada.
+- [x] Pools importados não reidratáveis são bloqueados antes de `applied`.
 - [x] Histórico, persistência, undo e redo foram testados.
 - [x] Não altera arquivos centrais nem UI.
 - [x] Branch atualizada após UI-MOBILE 0.2.
 - [x] CI completa verde.
-- [x] Nenhuma revisão bloqueante observada.
+- [x] Revisão P2 sobre perda de pools importados endereçada por guarda explícita e teste.
 
 ## Evidência
 
-GitHub Actions `Tests`, execução `28254008245`: sucesso integral.
+GitHub Actions `Tests`, execução `28254610768`: sucesso integral no commit `51cc469850959bd1db9693d092edd7ce66a3e754` antes do ajuste documental final.
 
 ## Fora de escopo
 
-Regras de dano, cura, fadiga ou recuperação; comandos de máximo, criação ou remoção de pools; registro global automático; componentes visuais e persistência concreta.
+Regras de dano, cura, fadiga ou recuperação; comandos de máximo, criação ou remoção de pools; registro global automático; componentes visuais e persistência concreta; suporte operacional a pools importados/customizados arbitrários.
 
 ## Resultado
 
