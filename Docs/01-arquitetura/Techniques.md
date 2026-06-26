@@ -1,15 +1,21 @@
 # Techniques
 
-**Código:** DOM-TECH-1.0
-**Status:** Aprovado
-**Camada:** Domain
+**Código:** DOM-TECH-1.0  
+**Status:** Estrutura canônica integrada ao Character  
+**Camada:** Domain  
 **Tipo:** Agregado
 
 Techniques representa a lista de técnicas do personagem em GURPS 4e.
 
 Na interface em português, Techniques será exibido como Técnicas.
 
-Estrutura inicial de cada técnica:
+## Estado estrutural observado
+
+`Character.techniques` é a coleção canônica de técnicas do personagem.
+
+`src/domain/character/Techniques.js` normaliza, valida e serializa a estrutura persistida. `src/domain/character/TechniquesOperations.js` contém transformações imutáveis sobre essa coleção.
+
+Estrutura atual de cada técnica:
 
 ```js
 {
@@ -38,24 +44,28 @@ Estrutura inicial de cada técnica:
 
 `skillId` referencia uma perícia da SINGULAR quando conhecida.
 
-`skillName` preserva o nome textual da perícia base, especialmente em importações GCS.
-
-`skillSpecialization` preserva a especialização textual da perícia base quando conhecida ou importada.
+`skillName` e `skillSpecialization` preservam referências textuais, especialmente em importações. Esses campos não autorizam nova associação mecânica automática por nome.
 
 `points` armazena os pontos investidos na técnica.
 
-`importedLevel` preserva o NH importado de fontes externas.
-
-`importedRelativeLevel`, `defaultPenalty` e `maximumRelativeLevel` preservam dados estruturais importados ou declarados para auditoria e futura resolução pelo motor.
+`importedLevel`, `importedRelativeLevel`, `defaultPenalty` e `maximumRelativeLevel` preservam dados estruturais importados ou declarados para auditoria e futura resolução pelo motor.
 
 `defaults`, `features` e `prereqs` preservam estruturas externas sem interpretação local.
 
-Techniques não calcula NH, não resolve defaults, não aplica limites de técnica e não interpreta regras.
+Techniques não calcula NH, não resolve defaults, não aplica limites de técnica e não interpreta regras GURPS.
 
-Identificadores externos seguem ADR-0004.
+Identificadores externos seguem ADR-0004.  
 Dados importados do GCS seguem ADR-0003.
 
-Operações de Techniques são transformações imutáveis de coleção/campos. Elas não calculam NH e não resolvem regras GURPS.
+## Cobertura de regressão
+
+`Techniques.test.js` protege os valores neutros, a preservação estrutural importada, a serialização sem cálculo e a rejeição de tipos inválidos.
+
+`TechniquesOperations.test.js` protege as transformações imutáveis já existentes, inclusive a atualização explícita da referência de perícia.
+
+## Limite deste documento
+
+A integração estrutural com `Character` não estabelece autoridade soberana de NH, resolução de defaults, limites de técnica ou vínculo automático entre técnica e perícia.
 
 Checklist:
 
@@ -64,4 +74,4 @@ Checklist:
 - [x] Criar Techniques.test.js
 - [x] Criar TechniquesOperations.js
 - [x] Criar TechniquesOperations.test.js
-- [ ] Integrar com Character
+- [x] Integrar com Character
