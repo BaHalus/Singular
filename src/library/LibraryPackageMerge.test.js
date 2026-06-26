@@ -7,7 +7,10 @@ import {
   mergeLibraryPackageIntoRegistry,
   validateLibraryPackageMergeResult,
 } from "./LibraryPackageMerge.js";
-import { createLibraryRegistry } from "./LibraryRegistry.js";
+import {
+  createLibraryRegistry,
+  serializeLibraryRegistry,
+} from "./LibraryRegistry.js";
 
 function spellDefinition(overrides = {}) {
   return {
@@ -86,9 +89,34 @@ test("treats equivalent definitions as an idempotent no-op", () => {
   const result = mergeLibraryPackageIntoRegistry(target, libraryPackage);
 
   assert.equal(result.status, "no-op");
-  assert.equal(result.registry, target);
+  assert.notEqual(result.registry, target);
+  assert.deepEqual(
+    serializeLibraryRegistry(result.registry),
+    serializeLibraryRegistry(target),
+  );
   assert.deepEqual(result.addedDefinitionIds, []);
   assert.deepEqual(result.unchangedDefinitionIds, ["spell-light"]);
+});
+
+test("does not freeze caller-owned serialized registries on no-op merges", () => {
+  const target = serializeLibraryRegistry(createLibraryRegistry({
+    definitions: [spellDefinition()],
+  }));
+  const libraryPackage = exportLibraryPackage(createLibraryRegistry({
+    definitions: [spellDefinition()],
+  }));
+
+  const result = mergeLibraryPackageIntoRegistry(target, libraryPackage);
+
+  assert.equal(result.status, "no-op");
+  assert.notEqual(result.registry, target);
+  assert.equal(Object.isFrozen(target), false);
+  assert.equal(Object.isFrozen(target.definitions), false);
+  assert.equal(Object.isFrozen(target.definitions[0]), false);
+  assert.equal(Object.isFrozen(result.registry), true);
+
+  target.definitions[0].name = "Luz alterada";
+  assert.equal(result.registry.definitions[0].name, "Luz");
 });
 
 test("rejects divergent sovereign ids without exposing a partial merge", () => {
