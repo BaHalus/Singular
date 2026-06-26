@@ -21,15 +21,15 @@ import {
   validateSkillMechanicsReadProjection,
 } from "./SkillMechanicsReadProjection.js";
 
-const SCHEMA_VERSION = 3;
-const MODEL_KEYS = Object.freeze([
+const SCHEMA_VERSION = 2;
+const REQUIRED_MODEL_KEYS = Object.freeze([
   "schemaVersion",
   "session",
   "character",
   "pointLedger",
   "skillMechanics",
-  "attackProjection",
 ]);
+const OPTIONAL_MODEL_KEYS = Object.freeze(["attackProjection"]);
 const OPTIONS_KEYS = Object.freeze([
   "skillMechanics",
   "attackProjection",
@@ -73,7 +73,7 @@ export function createApplicationReadModel(session, options = {}) {
 
 export function validateApplicationReadModel(model) {
   requirePlainObject(model, "Application read model");
-  validateExactKeys(model, MODEL_KEYS, "Application read model");
+  validateModelKeys(model);
   if (model.schemaVersion !== SCHEMA_VERSION) {
     throw new Error("Application read model schemaVersion is invalid");
   }
@@ -122,9 +122,10 @@ export function validateApplicationReadModel(model) {
     }
   }
 
-  if (model.attackProjection !== null) {
-    validateAttackReadProjection(model.attackProjection);
-    if (model.attackProjection.characterId !== character.identity.id) {
+  const attackProjection = model.attackProjection ?? null;
+  if (attackProjection !== null) {
+    validateAttackReadProjection(attackProjection);
+    if (attackProjection.characterId !== character.identity.id) {
       throw new Error(
         "Application read model Attack projection belongs to another Character",
       );
@@ -179,13 +180,14 @@ function validateReadModelOptions(options) {
   }
 }
 
-function validateExactKeys(value, expectedKeys, label) {
-  const keys = Reflect.ownKeys(value);
+function validateModelKeys(model) {
+  const keys = Reflect.ownKeys(model);
+  const allowed = new Set([...REQUIRED_MODEL_KEYS, ...OPTIONAL_MODEL_KEYS]);
   if (
-    keys.length !== expectedKeys.length ||
-    keys.some(key => typeof key !== "string" || !expectedKeys.includes(key))
+    REQUIRED_MODEL_KEYS.some(key => !Object.hasOwn(model, key)) ||
+    keys.some(key => typeof key !== "string" || !allowed.has(key))
   ) {
-    throw new Error(`${label} contains unsupported properties`);
+    throw new Error("Application read model contains unsupported properties");
   }
 }
 
