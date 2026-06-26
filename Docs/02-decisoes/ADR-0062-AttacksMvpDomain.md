@@ -1,6 +1,6 @@
 # ADR-0062 — Domínio isolado de Attacks para a Alpha
 
-**Status:** Proposto  
+**Status:** Aceito  
 **Data:** 2026-06-26  
 **Decisão:** DOM-ATTACK-1.0
 
