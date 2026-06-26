@@ -63,10 +63,16 @@ function attackInput(id = "attack-alpha") {
   };
 }
 
-test("exposes immutable command entries", () => {
+test("exposes four immutable attack command entries", () => {
   const entries = createAttackCommandHandlerEntries();
+
   assert.equal(Object.isFrozen(entries), true);
-  assert.equal(entries.length, 4);
+  assert.deepEqual(entries.map(entry => entry.type), [
+    "attack.add",
+    "attack.update",
+    "attack.remove",
+    "attack.reorder",
+  ]);
   assert.equal(entries.every(entry => Object.isFrozen(entry)), true);
 });
 
@@ -91,6 +97,7 @@ test("adds a declared entry through CommandExecutor", () => {
   assert.equal(result.session.character.attacks[0].id, "attack-alpha");
   assert.equal(result.session.character.attacks[0].damage.authority, "declared");
   assert.equal(result.session.history.length, 1);
+  assert.equal(result.session.future.length, 0);
   assert.equal(result.receipt.domainReceipt.operation, "add-attack");
   assert.equal(result.receipt.domainReceipt.index, 0);
 });
@@ -170,5 +177,54 @@ test("updates reorders and removes through canonical operations", () => {
   ]);
   assert.equal(removed.session.revision, 5);
   assert.equal(removed.session.history.length, 5);
+  assert.equal(removed.session.future.length, 0);
   assert.equal(removed.receipt.domainReceipt.previousIndex, 1);
+});
+
+test("persists undoes and redoes an attack command through App Core", async () => {
+  const appRuntime = makeRuntime();
+  const repository = createInMemorySessionRepository();
+  const initial = makeSession();
+  const applied = executeCommand(
+    initial,
+    command(
+      ATTACK_COMMAND_TYPES.ADD,
+      0,
+      { attack: attackInput("attack-history") },
+      "command-add-history",
+    ),
+    makeRegistry(),
+    appRuntime,
+  );
+
+  assert.equal(applied.status, "applied");
+  await repository.save(applied.session);
+  const reopened = await repository.load(initial.id);
+  assert.equal(reopened.character.attacks[0].id, "attack-history");
+  assert.equal(reopened.history.length, 1);
+
+  const undone = undoApplicationSession(
+    reopened,
+    { expectedRevision: 1 },
+    appRuntime,
+  );
+  assert.equal(undone.status, "undone");
+  assert.equal(undone.session.revision, 2);
+  assert.equal(undone.session.character.attacks.length, 0);
+  assert.equal(undone.session.history.length, 0);
+  assert.equal(undone.session.future.length, 1);
+
+  await repository.save(undone.session);
+  const reopenedUndone = await repository.load(initial.id);
+  const redone = redoApplicationSession(
+    reopenedUndone,
+    { expectedRevision: 2 },
+    appRuntime,
+  );
+
+  assert.equal(redone.status, "redone");
+  assert.equal(redone.session.revision, 3);
+  assert.equal(redone.session.character.attacks[0].id, "attack-history");
+  assert.equal(redone.session.history.length, 1);
+  assert.equal(redone.session.future.length, 0);
 });
