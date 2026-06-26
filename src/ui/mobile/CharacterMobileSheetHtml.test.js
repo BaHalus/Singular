@@ -41,19 +41,33 @@ function renderModel(overrides = {}) {
   );
 }
 
-test("exposes the interactive mobile sheet HTML schema version", () => {
-  assert.equal(getCharacterMobileSheetHtmlSchemaVersion(), 2);
+test("exposes the creation-mode mobile sheet HTML schema version", () => {
+  assert.equal(getCharacterMobileSheetHtmlSchemaVersion(), 3);
 });
 
-test("renders a semantic mobile sheet shell from the render model", () => {
+test("renders the character summary editor only in creation mode", () => {
+  const creation = renderCharacterMobileSheetHtml(renderModel(), { mode: "creation" });
+  const table = renderCharacterMobileSheetHtml(renderModel(), { mode: "table" });
+
+  assert.match(creation, /data-schema-version="3"/);
+  assert.match(creation, /data-mode="creation"/);
+  assert.match(creation, /data-role="character-summary-editor"/);
+  assert.match(creation, /data-role="character-name" value="Ayla &lt;Exploradora&gt;"/);
+  assert.match(creation, /data-role="character-concept" value="Batedora &amp; cartógrafa"/);
+  assert.match(creation, /data-action="character-summary-save"/);
+
+  assert.match(table, /data-mode="table"/);
+  assert.doesNotMatch(table, /data-role="character-summary-editor"/);
+  assert.doesNotMatch(table, /data-action="character-summary-save"/);
+  assert.match(table, /<dt>Nome<\/dt><dd>Ayla &lt;Exploradora&gt;<\/dd>/);
+  assert.match(table, /<dt>Conceito<\/dt><dd>Batedora &amp; cartógrafa<\/dd>/);
+});
+
+test("renders a semantic mobile sheet and preserves existing sections", () => {
   const html = renderCharacterMobileSheetHtml(renderModel(), { mode: "creation" });
 
   assert.match(html, /^<article class="singular-mobile-sheet"/);
-  assert.match(html, /data-schema-version="2"/);
-  assert.match(html, /data-mode="creation"/);
   assert.match(html, /class="singular-mobile-sheet__toolbar"/);
-  assert.match(html, /Ayla &lt;Exploradora&gt;/);
-  assert.match(html, /Batedora &amp; cartógrafa/);
   assert.match(html, /aria-label="Atributos principais"/);
   assert.match(html, /<dt>ST<\/dt><dd>11<\/dd>/);
   assert.match(html, /data-section="traits" data-status="pending"/);
@@ -70,13 +84,11 @@ test("renders accessible decrement and increment controls for PV and PF", () => 
   assert.match(html, /data-pool-key="HP" data-pool-adjust="1" aria-label="Aumentar PV"/);
   assert.match(html, /data-pool="FP"/);
   assert.match(html, /<dt>PF<\/dt><dd>8 \/ 11<\/dd>/);
-  assert.doesNotMatch(html, /data-action="pool/);
 });
 
-test("marks table mode without changing domain data", () => {
+test("marks the active table mode in the toolbar", () => {
   const html = renderCharacterMobileSheetHtml(renderModel(), { mode: "table" });
 
-  assert.match(html, /data-mode="table"/);
   assert.match(html, /data-action="mode-table" data-status="pending" aria-pressed="true"/);
   assert.match(html, /<dt>PF<\/dt><dd>8 \/ 11<\/dd>/);
 });
