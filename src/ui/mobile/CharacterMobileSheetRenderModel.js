@@ -2,7 +2,7 @@ import {
   serializeCharacterMobileProjection,
 } from "./CharacterMobileProjection.js";
 
-const RENDER_MODEL_SCHEMA_VERSION = 1;
+const RENDER_MODEL_SCHEMA_VERSION = 2;
 const RENDER_MODEL_KEYS = Object.freeze([
   "schemaVersion",
   "title",
@@ -12,7 +12,13 @@ const RENDER_MODEL_KEYS = Object.freeze([
   "cards",
   "sections",
 ]);
-const CARD_STATUSES = Object.freeze(["available", "declared-only", "pending", "external-front"]);
+const CARD_STATUSES = Object.freeze([
+  "available",
+  "declared-only",
+  "pending",
+  "external-front",
+  "empty",
+]);
 const TOOLBAR_ACTION_STATUSES = Object.freeze(["pending"]);
 
 /**
@@ -162,7 +168,66 @@ function createCards(projection) {
         status: "available",
       })),
     },
+    createTraitsCard(projection.traits),
+    createSkillsTechniquesCard(projection.skills, projection.techniques),
   ];
+}
+
+function createTraitsCard(traits) {
+  return {
+    id: "traits",
+    title: "Vantagens e Desvantagens",
+    status: traits.length === 0 ? "empty" : "declared-only",
+    items: traits.map(trait => ({
+      id: trait.id,
+      label: traitLabel(trait.role),
+      value: trait.name,
+      role: trait.role,
+      points: trait.points,
+      levels: trait.levels,
+      notes: trait.notes,
+      status: trait.status,
+    })),
+  };
+}
+
+function createSkillsTechniquesCard(skills, techniques) {
+  return {
+    id: "skills-techniques",
+    title: "Perícias e Técnicas",
+    status: skills.length === 0 && techniques.length === 0 ? "empty" : "declared-only",
+    items: [
+      ...skills.map(skill => ({
+        id: skill.id,
+        label: "Perícia",
+        value: formatNamedSpecialization(skill.name, skill.specialization),
+        attribute: skill.attribute,
+        difficulty: skill.difficulty,
+        points: skill.points,
+        importedLevel: skill.importedLevel,
+        importedRelativeLevel: skill.importedRelativeLevel,
+        notes: skill.notes,
+        status: skill.status,
+      })),
+      ...techniques.map(technique => ({
+        id: technique.id,
+        label: "Técnica",
+        value: formatNamedSpecialization(technique.name, technique.specialization),
+        skill: formatNamedSpecialization(
+          technique.skillName,
+          technique.skillSpecialization,
+        ),
+        difficulty: technique.difficulty,
+        points: technique.points,
+        importedLevel: technique.importedLevel,
+        importedRelativeLevel: technique.importedRelativeLevel,
+        defaultPenalty: technique.defaultPenalty,
+        maximumRelativeLevel: technique.maximumRelativeLevel,
+        notes: technique.notes,
+        status: technique.status,
+      })),
+    ],
+  };
 }
 
 function createSections(sections) {
@@ -181,6 +246,18 @@ function createTextItem(id, label, value) {
     value: value ?? "",
     status: "available",
   };
+}
+
+function traitLabel(role) {
+  if (role === "advantage") return "Vantagem";
+  if (role === "perk") return "Benefício";
+  if (role === "disadvantage") return "Desvantagem";
+  if (role === "quirk") return "Peculiaridade";
+  return "Traço";
+}
+
+function formatNamedSpecialization(name, specialization) {
+  return specialization === "" ? name : `${name} (${specialization})`;
 }
 
 function validateToolbar(toolbar) {
