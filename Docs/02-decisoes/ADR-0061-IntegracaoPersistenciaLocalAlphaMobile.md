@@ -1,6 +1,6 @@
 # ADR-0061 — Integração da Persistência Local na Alpha Mobile
 
-**Status:** Proposto  
+**Status:** Aceito  
 **Data:** 2026-06-26  
 **Decisão:** PERSISTENCE-LOCAL-INTEGRATION-1.0
 
@@ -18,7 +18,7 @@ Criar três componentes isolados e conectá-los ao bootstrap executável existen
 2. `AlphaMobilePersistenceBootstrap`, como composition root explícito dos repositórios concretos de navegador e do runtime injetável;
 3. `AlphaMobilePersistenceUi`, como apresentação mobile e ponte de eventos para o coordenador.
 
-`CharacterMobileApp.js` permanece o bootstrap executável canônico. Ele cria uma única `ApplicationSession` inicial, compõe a persistência e aguarda a restauração antes de concluir a montagem. Nenhum componente é singleton.
+`CharacterMobileApp.js` permanece o bootstrap executável canônico. Ele cria uma única `ApplicationSession` inicial, compõe a persistência e aguarda a restauração antes de concluir a montagem. Nenhum componente é singleton. Quando um `root` é injetado, o bootstrap não depende de `document`; a consulta ao DOM ocorre somente quando o próprio bootstrap precisa localizar o root.
 
 ## Restauração
 
@@ -32,6 +32,8 @@ Na inicialização, o coordenador solicita `loadLastSession()` ao `SessionReposi
 ## Salvamento e abertura
 
 O salvamento manual usa somente `SessionRepository.save()` e não altera a sessão ativa. A abertura usa `SessionRepository.load()` e só substitui a sessão ativa depois de validar o resultado.
+
+Como o repositório aprovado grava registro e índice antes do ponteiro de última sessão, o coordenador executa compensação se a etapa final falhar: remove um novo registro parcial ou restaura e verifica o snapshot previamente persistido com o mesmo id. Falha da própria compensação produz diagnóstico explícito e não é ocultada.
 
 A listagem pode carregar cada snapshot para apresentar identidade e revisão, mas não promove nenhuma sessão a ativa.
 
