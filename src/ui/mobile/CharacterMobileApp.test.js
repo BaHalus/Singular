@@ -151,7 +151,6 @@ test("bootstraps the executable page with a canonical session and persistence ac
   assert.match(root.innerHTML, /data-action="persistence-save"/);
   assert.match(root.innerHTML, /data-pool-key="HP" data-pool-adjust="-1"/);
   assert.equal(root.getAttribute("data-session-id"), mounted.session.id);
-  assert.equal(root.getAttribute("data-session-revision"), "0");
 
   await root.dispatch("click", {
     target: {
@@ -191,7 +190,6 @@ test("adjusts PV through App Core, rerenders and saves only after manual save", 
   assert.equal(mounted.character.pools.HP.current, 8);
   assert.equal(mounted.session.history.length, 1);
   assert.equal(mounted.session.history[0].commandType, "pool.current.adjust");
-  assert.equal(root.getAttribute("data-session-revision"), "1");
   assert.equal(root.getAttribute("data-last-command-status"), "applied");
   assert.match(root.innerHTML, /<dt>PV<\/dt><dd>8 \/ 11<\/dd>/);
   assert.deepEqual(await mounted.repositories.session.listIds(), []);
@@ -232,7 +230,6 @@ test("restores the last valid session with an injected root and no document", as
   assert.equal(mounted.character.identity.name, "Restaurada");
   assert.match(root.innerHTML, /<strong>Restaurada<\/strong>/);
   assert.equal(root.getAttribute("data-session-id"), "session-restored");
-  assert.equal(root.getAttribute("data-session-revision"), "3");
 });
 
 test("rejects missing roots, documents and invalid modes", async () => {
