@@ -1,7 +1,7 @@
 # App Attacks
 
 **Código:** APP-ATTACK-1.2  
-**Status:** Em validação  
+**Status:** Aprovado  
 **Camada:** Application  
 **Dependências:** APP-CORE-1.1, DOM-ATTACK-1.1, APP-ATTACK-1.0 e APP-ATTACK-1.1
 
@@ -94,7 +94,7 @@ As duas opções podem ser omitidas, fornecidas isoladamente ou combinadas. Mode
 
 `attackProjection` é uma `AttackReadProjection` validada e pertencente ao mesmo `Character`, ou `null`. O read model não cria a projeção automaticamente e não usa o `Character` como fallback mecânico.
 
-A extensão é retrocompatível: snapshots v2 antigos sem `attackProjection` continuam válidos. Propriedades desconhecidas permanecem proibidas e `skillMechanics` continua obrigatório no shape v2 histórico.
+A extensão é retrocompatível: snapshots v2 antigos sem `attackProjection` continuam válidos. Campo presente com valor `undefined` é inválido. Propriedades desconhecidas permanecem proibidas e `skillMechanics` continua obrigatório no shape v2 histórico.
 
 ## Autoridades
 
