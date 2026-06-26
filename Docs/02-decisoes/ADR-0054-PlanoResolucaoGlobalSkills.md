@@ -1,12 +1,12 @@
 # ADR-0054 — Plano global de resolução de Skills e Techniques
 
-**Status:** Proposto para revisão  
+**Status:** Aprovado e implementado  
 **Data:** 2026-06-26  
-**Bloco:** APP-SKILL-1.1
+**Bloco:** APP-SKILL-1.1 a 1.4
 
 ## Contexto
 
-A fundação local já resolve:
+A fundação local já resolvia:
 
 - níveis efetivos de ST, DX, IQ e HT;
 - Skills treinadas;
@@ -14,13 +14,11 @@ A fundação local já resolve:
 - seleção do melhor resultado de uma Skill;
 - Techniques baseadas em uma Skill treinada.
 
-Falta compor essas autoridades para todas as Skills e Techniques de um personagem sem persistir resultados derivados nem criar resolução por nome.
+Faltava compor essas autoridades para todas as Skills e Techniques de um personagem sem persistir resultados derivados, resolver entidades por nome ou criar um grafo recursivo de defaults.
 
 ## Decisão
 
-A composição global será conduzida por um plano portátil e efêmero chamado conceitualmente `SkillMechanicsResolutionPlan`.
-
-O plano recebe snapshots canônicos já validados:
+A composição global usa um plano portátil e efêmero chamado `SkillMechanicsResolutionPlan`.
 
 ```js
 {
@@ -45,11 +43,11 @@ Skills não leem diretamente `base` ou `override`.
 
 ### `skills`
 
-Coleção canônica de Skills, preservada na ordem do Character.
+Coleção canônica de Skills, preservada na ordem declarada.
 
 ### `techniques`
 
-Coleção canônica de Techniques, preservada na ordem do Character.
+Coleção canônica de Techniques, preservada na ordem declarada.
 
 ### `defaultCandidates`
 
@@ -59,10 +57,46 @@ Todo candidato precisa:
 
 - apontar para uma Skill-alvo existente;
 - possuir ID único no plano;
-- usar atributo básico conhecido ou Skill-fonte existente;
+- usar ST, DX, IQ ou HT, ou uma Skill-fonte existente;
 - manter a ordem declarada para desempates determinísticos.
 
 Nomes e especializações não resolvem identidade.
+
+## Implementação
+
+### Contrato do plano
+
+`src/application/skills/SkillMechanicsResolutionPlan.js`:
+
+- valida snapshots canônicos;
+- exige IDs string únicos;
+- valida referências de candidatos;
+- rejeita arrays esparsos e evidência não portátil;
+- preserva a ordem declarada;
+- produz snapshot destacado e profundamente imutável.
+
+### Execução em lote de Skills
+
+`src/application/skills/SkillBatchResolutionExecutor.js` executa duas passagens:
+
+1. calcula o resultado treinado de todas as Skills;
+2. avalia defaults por atributo ou pelo resultado treinado da Skill-fonte.
+
+O resultado final de uma Skill nunca alimenta outro default.
+
+Cada Skill produz um `SkillResolutionReport` com:
+
+- resultado treinado;
+- avaliações de defaults;
+- resultado final.
+
+### Execução global
+
+`src/application/skills/SkillMechanicsGlobalExecutor.js`:
+
+1. executa o lote de Skills;
+2. resolve Techniques usando somente o `trainedResult` da Skill-base;
+3. produz relatório global portátil e imutável.
 
 ## Ordem obrigatória de execução
 
@@ -96,15 +130,7 @@ Assim, defaults não formam cadeias mecânicas e não exigem propagação recurs
 }
 ```
 
-Cada `skillReport` preserva:
-
-- resultado treinado;
-- avaliações de defaults;
-- resultado final.
-
-Cada Technique preserva seu `SkillMechanicsResult`.
-
-O relatório global é derivado, não autoritativo para persistência e reconstruível a partir das entradas canônicas.
+O relatório é derivado, reconstruível e não autoritativo para persistência.
 
 ## Resultados parciais
 
@@ -114,7 +140,7 @@ Erros estruturais do plano rejeitam a execução integral. Bloqueios mecânicos 
 
 ## Fronteiras
 
-A criação do plano pertence à aplicação. O cálculo de cada resultado permanece no motor.
+A criação e coordenação do plano pertencem à aplicação. O cálculo de cada resultado permanece no motor.
 
 A aplicação pode:
 
@@ -134,11 +160,12 @@ A aplicação não pode:
 ## Fora de escopo
 
 - transformação de todos os formatos externos de defaults;
+- resolução de IDs externos;
 - modificadores de Traits, Talentos, equipamentos ou condições;
 - Skills compradas a partir de defaults melhores;
 - Techniques especiais, múltiplas bases ou defesa ativa;
 - custo de atributos e demais contabilidade nova;
-- incorporação ao Application Read Model;
+- incorporação ao `ApplicationReadModel`;
 - UI.
 
 ## Invariantes
@@ -154,14 +181,13 @@ A aplicação não pode:
 9. Bloqueios mecânicos permitem resultados parciais.
 10. Entradas iguais produzem relatório global igual.
 
-## Implementação incremental
+## Evidências
 
-A implementação deverá ocorrer em blocos:
+- PR #91: decisão arquitetural, merge `707d0af`;
+- PR #95: contrato do plano, merge `2328931`, Tests #820 verde;
+- PR #96: execução em lote de Skills, merge `3a7898a`, Tests #822 verde;
+- PR #97: execução global de Skills e Techniques, merge `f8e63cf`, Tests #824 verde.
 
-1. contrato portátil e validação do plano;
-2. executor global de Skills;
-3. resolução global de Techniques;
-4. relatório e diagnósticos agregados;
-5. integração posterior ao Application Read Model.
+## Próxima etapa
 
-Nenhum bloco deve alterar `Character.js` para armazenar NH derivado.
+Criar uma projeção de leitura dedicada que consuma o relatório global sem recalcular regras. A incorporação ao `ApplicationReadModel` exige contrato explícito para obtenção de `defaultCandidates` e não deve interpretar diretamente `Skill.defaults`.
