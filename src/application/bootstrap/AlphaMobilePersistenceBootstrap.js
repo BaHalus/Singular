@@ -1,4 +1,14 @@
 import {
+  executeCommand,
+} from "../commands/CommandExecutor.js";
+import {
+  createCommandRegistry,
+} from "../commands/CommandRegistry.js";
+import {
+  createPoolCommandHandlerEntries,
+  POOL_COMMAND_TYPES,
+} from "../pools/PoolCommandHandlers.js";
+import {
   createApplicationSession,
   serializeApplicationSession,
   validateApplicationSession,
@@ -80,8 +90,8 @@ export function createAlphaMobilePersistenceBootstrap(options = {}) {
     });
   });
 
-  const persistence = createLocalPersistenceCoordinator({
-    initialSession: options.initialSession,
+  const createCoordinator = initialSession => createLocalPersistenceCoordinator({
+    initialSession,
     characterRepository,
     sessionRepository,
     rollbackSessionSave,
@@ -91,8 +101,23 @@ export function createAlphaMobilePersistenceBootstrap(options = {}) {
     createImportedSession,
   });
 
+  let coordinator = createCoordinator(options.initialSession);
+  const persistence = createActiveSessionPersistenceFacade({
+    getCoordinator: () => coordinator,
+    replaceCoordinator(nextSession) {
+      coordinator = createCoordinator(nextSession);
+    },
+  });
+  const registry = createCommandRegistry(createPoolCommandHandlerEntries());
+  const commands = createAlphaMobileCommands({
+    persistence,
+    registry,
+    runtime,
+  });
+
   return Object.freeze({
     persistence,
+    commands,
     repositories: Object.freeze({
       character: characterRepository,
       session: sessionRepository,
@@ -118,6 +143,83 @@ export function createBrowserApplicationRuntime(options = {}) {
   const runtime = { clock, idGenerator };
   validateApplicationRuntime(runtime);
   return Object.freeze(runtime);
+}
+
+function createActiveSessionPersistenceFacade(options) {
+  const coordinator = () => options.getCoordinator();
+  const facade = {
+    getActiveSession() {
+      return coordinator().getActiveSession();
+    },
+    getRepositories() {
+      return coordinator().getRepositories();
+    },
+    initialize() {
+      return coordinator().initialize();
+    },
+    saveActiveSession() {
+      return coordinator().saveActiveSession();
+    },
+    listSavedSessions() {
+      return coordinator().listSavedSessions();
+    },
+    openSession(id) {
+      return coordinator().openSession(id);
+    },
+    removeSession(id) {
+      return coordinator().removeSession(id);
+    },
+    exportActiveCharacter() {
+      return coordinator().exportActiveCharacter();
+    },
+    importCharacter(input) {
+      return coordinator().importCharacter(input);
+    },
+    inspect() {
+      return coordinator().inspect();
+    },
+    replaceActiveSession(nextSession) {
+      validateApplicationSession(nextSession);
+      const currentSession = coordinator().getActiveSession();
+      if (nextSession.id !== currentSession.id) {
+        throw new Error(
+          "Active session replacement must preserve the ApplicationSession id",
+        );
+      }
+      options.replaceCoordinator(nextSession);
+      return coordinator().getActiveSession();
+    },
+  };
+  return Object.freeze(facade);
+}
+
+function createAlphaMobileCommands({ persistence, registry, runtime }) {
+  return Object.freeze({
+    adjustPoolCurrent(input = {}) {
+      requirePlainObject(input, "Alpha mobile pool adjustment");
+      const activeSession = persistence.getActiveSession();
+      const result = executeCommand(
+        activeSession,
+        {
+          id: generateId(runtime.idGenerator, "command"),
+          type: POOL_COMMAND_TYPES.ADJUST_CURRENT,
+          expectedRevision: activeSession.revision,
+          issuedAt: readClock(runtime.clock),
+          payload: {
+            poolKey: input.poolKey,
+            delta: input.delta,
+          },
+        },
+        registry,
+        runtime,
+      );
+
+      if (result.status === "applied") {
+        persistence.replaceActiveSession(result.session);
+      }
+      return result;
+    },
+  });
 }
 
 function requirePlainObject(value, label) {
