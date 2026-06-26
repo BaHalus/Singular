@@ -8,6 +8,13 @@ import {
 } from "../../infrastructure/runtime/SequentialIdGenerator.js";
 import { executeCommand } from "../commands/CommandExecutor.js";
 import { createCommandRegistry } from "../commands/CommandRegistry.js";
+import {
+  redoApplicationSession,
+  undoApplicationSession,
+} from "../history/ApplicationHistoryOperations.js";
+import {
+  createInMemorySessionRepository,
+} from "../persistence/InMemorySessionRepository.js";
 import { createApplicationSession } from "../session/ApplicationSession.js";
 import {
   ATTACK_COMMAND_TYPES,
