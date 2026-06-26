@@ -51,6 +51,8 @@ function validateSkillResultKind(result, expectedKind, label) {
     throw new Error(`${label} must target a Skill`);
   }
 
+  if (result.status === "blocked") return;
+
   if (result.basis?.kind !== expectedKind) {
     throw new Error(`${label} must have basis.kind ${expectedKind}`);
   }
