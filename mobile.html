@@ -16,7 +16,7 @@
       import { bootstrapCharacterMobileApp } from "./src/ui/mobile/CharacterMobileApp.js";
 
       try {
-        bootstrapCharacterMobileApp();
+        await bootstrapCharacterMobileApp();
       } catch (error) {
         const root = document.querySelector("[data-singular-mobile-root]");
         if (root) {

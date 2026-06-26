@@ -24,7 +24,8 @@ html, body {
 .singular-mobile-sheet__toolbar,
 .singular-mobile-sheet__summary,
 .singular-mobile-sheet__card,
-.singular-mobile-sheet__section-marker {
+.singular-mobile-sheet__section-marker,
+.singular-alpha-mobile__persistence {
   border: 1px solid #344457;
   border-radius: 0.8rem;
   background: #18212c;
@@ -41,12 +42,17 @@ html, body {
 .singular-mobile-sheet__attribute-strip,
 .singular-mobile-sheet__pool-strip,
 .singular-mobile-sheet__cards,
-.singular-mobile-sheet__sections {
+.singular-mobile-sheet__sections,
+.singular-alpha-mobile__persistence,
+.singular-alpha-mobile__persistence-actions,
+.singular-alpha-mobile__import,
+.singular-alpha-mobile__diagnostics {
   display: grid;
   gap: 0.5rem;
 }
 
-.singular-mobile-sheet__actions {
+.singular-mobile-sheet__actions,
+.singular-alpha-mobile__persistence-actions {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
@@ -65,7 +71,10 @@ html, body {
 .singular-mobile-sheet__action,
 .singular-mobile-sheet__stat,
 .singular-mobile-sheet__pool,
-.singular-mobile-sheet__card dl > div {
+.singular-mobile-sheet__card dl > div,
+.singular-alpha-mobile button,
+.singular-alpha-mobile textarea,
+.singular-alpha-mobile__save-list li {
   border: 1px solid #344457;
   border-radius: 0.65rem;
   background: #202b38;
@@ -73,7 +82,8 @@ html, body {
   padding: 0.55rem;
 }
 
-.singular-mobile-sheet__action {
+.singular-mobile-sheet__action,
+.singular-alpha-mobile button {
   min-height: 2.75rem;
   font-weight: 700;
 }
@@ -81,6 +91,55 @@ html, body {
 .singular-mobile-sheet__action[aria-pressed="true"] {
   border-color: #71d2b4;
   color: #71d2b4;
+}
+
+.singular-alpha-mobile__persistence {
+  margin: 0.75rem;
+}
+
+.singular-alpha-mobile__persistence-header h2,
+.singular-alpha-mobile__persistence-header p,
+.singular-alpha-mobile__diagnostics h3 {
+  margin: 0;
+}
+
+.singular-alpha-mobile__save-list,
+.singular-alpha-mobile__diagnostics ul {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.singular-alpha-mobile__save-list li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.singular-alpha-mobile__save-list span,
+.singular-alpha-mobile__save-list small {
+  display: block;
+  overflow-wrap: anywhere;
+}
+
+.singular-alpha-mobile textarea {
+  width: 100%;
+  min-height: 8rem;
+  resize: vertical;
+  font: inherit;
+}
+
+.singular-alpha-mobile__feedback,
+.singular-alpha-mobile__empty-saves {
+  margin: 0;
+}
+
+.singular-alpha-mobile__diagnostics li[data-severity="blocking"] {
+  border-left: 0.25rem solid #ff867c;
+  padding-left: 0.5rem;
 }
 
 .singular-mobile-sheet dl { margin: 0; }
