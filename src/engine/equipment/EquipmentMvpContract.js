@@ -11,6 +11,7 @@ const SCHEMA_VERSION = 1;
 const EQUIPMENT_STATES = ["equipped", "carried", "stored", "dropped", "ignored"];
 const LOAD_STATES = ["equipped", "carried", "stored"];
 const COUNTED_STATES = ["equipped", "carried", "stored", "dropped"];
+const NON_LOAD_STATES = ["dropped", "ignored"];
 const ENTRY_FIELDS = [
   "schemaVersion",
   "status",
@@ -35,7 +36,7 @@ export function getEquipmentMvpContract() {
       known: [...EQUIPMENT_STATES],
       counted: [...COUNTED_STATES],
       loadBearing: [...LOAD_STATES],
-      nonLoadBearing: ["dropped", "ignored"],
+      nonLoadBearing: [...NON_LOAD_STATES],
     },
     entryFields: [...ENTRY_FIELDS],
     totalFields: [...TOTAL_FIELDS],
@@ -118,13 +119,41 @@ function validateContract(contract) {
   if (contract.schemaVersion !== SCHEMA_VERSION) {
     throw new Error("Equipment MVP contract schemaVersion is invalid");
   }
-  validateStringArray(contract.states?.known, "Equipment MVP contract states.known");
-  validateStringArray(contract.states?.counted, "Equipment MVP contract states.counted");
-  validateStringArray(contract.states?.loadBearing, "Equipment MVP contract states.loadBearing");
-  validateStringArray(contract.states?.nonLoadBearing, "Equipment MVP contract states.nonLoadBearing");
-  validateStringArray(contract.entryFields, "Equipment MVP contract entryFields");
-  validateStringArray(contract.totalFields, "Equipment MVP contract totalFields");
-  validateStringArray(contract.diagnosticFields, "Equipment MVP contract diagnosticFields");
+  validateExactStringArray(
+    contract.states?.known,
+    EQUIPMENT_STATES,
+    "Equipment MVP contract states.known",
+  );
+  validateExactStringArray(
+    contract.states?.counted,
+    COUNTED_STATES,
+    "Equipment MVP contract states.counted",
+  );
+  validateExactStringArray(
+    contract.states?.loadBearing,
+    LOAD_STATES,
+    "Equipment MVP contract states.loadBearing",
+  );
+  validateExactStringArray(
+    contract.states?.nonLoadBearing,
+    NON_LOAD_STATES,
+    "Equipment MVP contract states.nonLoadBearing",
+  );
+  validateExactStringArray(
+    contract.entryFields,
+    ENTRY_FIELDS,
+    "Equipment MVP contract entryFields",
+  );
+  validateExactStringArray(
+    contract.totalFields,
+    TOTAL_FIELDS,
+    "Equipment MVP contract totalFields",
+  );
+  validateExactStringArray(
+    contract.diagnosticFields,
+    DIAGNOSTIC_FIELDS,
+    "Equipment MVP contract diagnosticFields",
+  );
 }
 
 function validateProjectedEntry(entry, label) {
@@ -218,5 +247,15 @@ function validateStringArray(value, label) {
   validateDenseArray(value, label);
   if (!value.every(item => typeof item === "string")) {
     throw new Error(`${label} must contain only strings`);
+  }
+}
+
+function validateExactStringArray(value, expected, label) {
+  validateStringArray(value, label);
+  if (
+    value.length !== expected.length ||
+    value.some((item, index) => item !== expected[index])
+  ) {
+    throw new Error(`${label} must match the canonical contract`);
   }
 }
