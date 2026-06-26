@@ -1,7 +1,7 @@
 # Equipment
 
 **Código:** APP-EQUIPMENT-1.0  
-**Status:** Em validação  
+**Status:** Aprovado  
 **Camadas:** Domain e Application
 
 Equipment é o inventário canônico do personagem. A aplicação reutiliza o agregado e suas operações existentes, sem criar schema ou autoridade paralela.
@@ -43,7 +43,7 @@ equipment.move
 
 Os comandos usam IDs canônicos, delegam exclusivamente a `EquipmentOperations` e devolvem ao `CommandExecutor` um novo `Character` ou `no-op`. O executor existente continua responsável por revisão, recibos, histórico, persistência, undo e redo.
 
-A aplicação valida somente forma do payload, presença dos IDs e pertencimento estrutural. Ela não soma peso, custo, quantidade ou carga.
+Itens adicionados por comando devem declarar IDs explícitos em toda a subárvore. Renomeações aceitam somente texto. A aplicação valida forma do payload, presença dos IDs e pertencimento estrutural; ela não soma peso, custo, quantidade ou carga.
 
 ## Invariantes
 
