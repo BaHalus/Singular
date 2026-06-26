@@ -94,3 +94,81 @@ test("adds a declared entry through CommandExecutor", () => {
   assert.equal(result.receipt.domainReceipt.operation, "add-attack");
   assert.equal(result.receipt.domainReceipt.index, 0);
 });
+
+test("updates reorders and removes through canonical operations", () => {
+  const appRegistry = makeRegistry();
+  const appRuntime = makeRuntime();
+  const first = executeCommand(
+    makeSession(),
+    command(
+      ATTACK_COMMAND_TYPES.ADD,
+      0,
+      { attack: attackInput("attack-alpha") },
+      "command-add-alpha",
+    ),
+    appRegistry,
+    appRuntime,
+  );
+  const second = executeCommand(
+    first.session,
+    command(
+      ATTACK_COMMAND_TYPES.ADD,
+      1,
+      { attack: attackInput("attack-beta") },
+      "command-add-beta",
+    ),
+    appRegistry,
+    appRuntime,
+  );
+  const updated = executeCommand(
+    second.session,
+    command(
+      ATTACK_COMMAND_TYPES.UPDATE,
+      2,
+      {
+        attackId: "attack-alpha",
+        patch: { name: "Entrada atualizada", notes: "Nota atualizada" },
+      },
+      "command-update-alpha",
+    ),
+    appRegistry,
+    appRuntime,
+  );
+  const reordered = executeCommand(
+    updated.session,
+    command(
+      ATTACK_COMMAND_TYPES.REORDER,
+      3,
+      { attackId: "attack-beta", targetIndex: 0 },
+      "command-reorder-beta",
+    ),
+    appRegistry,
+    appRuntime,
+  );
+  const removed = executeCommand(
+    reordered.session,
+    command(
+      ATTACK_COMMAND_TYPES.REMOVE,
+      4,
+      { attackId: "attack-alpha" },
+      "command-remove-alpha",
+    ),
+    appRegistry,
+    appRuntime,
+  );
+
+  assert.equal(updated.session.character.attacks[0].name, "Entrada atualizada");
+  assert.equal(updated.receipt.domainReceipt.operation, "update-attack");
+  assert.deepEqual(reordered.session.character.attacks.map(item => item.id), [
+    "attack-beta",
+    "attack-alpha",
+  ]);
+  assert.equal(reordered.receipt.domainReceipt.previousIndex, 1);
+  assert.equal(reordered.receipt.domainReceipt.targetIndex, 0);
+  assert.deepEqual(removed.session.character.attacks.map(item => item.id), [
+    "attack-beta",
+  ]);
+  assert.equal(removed.session.revision, 5);
+  assert.equal(removed.session.history.length, 5);
+  assert.equal(removed.receipt.domainReceipt.previousIndex, 1);
+});
