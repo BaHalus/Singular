@@ -109,6 +109,44 @@ test("returns no-op for unchanged update and position", () => {
   assert.equal(samePosition.receipt.domainReceipt.reason, "already-at-index");
 });
 
+test("treats portable objects with reordered keys as unchanged", () => {
+  const added = executeCommand(
+    session(),
+    command(
+      ATTACK_COMMAND_TYPES.ADD,
+      0,
+      {
+        attack: {
+          ...entry("attack-portable-order"),
+          raw: { alpha: 1, nested: { beta: 2, gamma: 3 } },
+        },
+      },
+      "command-add-portable-order",
+    ),
+    registry(),
+    runtime(),
+  );
+  const result = executeCommand(
+    added.session,
+    command(
+      ATTACK_COMMAND_TYPES.UPDATE,
+      1,
+      {
+        attackId: "attack-portable-order",
+        patch: { raw: { nested: { gamma: 3, beta: 2 }, alpha: 1 } },
+      },
+      "command-update-portable-order",
+    ),
+    registry(),
+    runtime(),
+  );
+
+  assert.equal(result.status, "no-op");
+  assert.equal(result.session, added.session);
+  assert.equal(result.session.revision, 1);
+  assert.equal(result.session.history.length, 1);
+});
+
 test("rejects stale revision before invoking an attack handler", () => {
   const applied = addInitial();
   const result = executeCommand(
