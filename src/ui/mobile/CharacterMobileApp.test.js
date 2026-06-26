@@ -73,6 +73,7 @@ function runtime() {
 function rootFixture() {
   const attributes = new Map();
   const listeners = new Map();
+  const inputValues = new Map();
   return {
     innerHTML: "",
     setAttribute(name, value) {
@@ -86,8 +87,18 @@ function rootFixture() {
       entries.push(listener);
       listeners.set(type, entries);
     },
-    querySelector() {
-      return { value: "" };
+    removeEventListener(type, listener) {
+      const entries = listeners.get(type) ?? [];
+      listeners.set(type, entries.filter(entry => entry !== listener));
+    },
+    querySelector(selector) {
+      return { value: inputValues.get(selector) ?? "" };
+    },
+    querySelectorAll() {
+      return [];
+    },
+    setInput(selector, value) {
+      inputValues.set(selector, value);
     },
     async dispatch(type, event) {
       for (const listener of listeners.get(type) ?? []) {
@@ -104,6 +115,7 @@ test("renders a real canonical Character through the complete mobile pipeline", 
   assert.match(html, /data-mode="creation"/);
   assert.match(html, /<strong>Ayla<\/strong>/);
   assert.match(html, /<strong>Batedora<\/strong>/);
+  assert.match(html, /data-role="character-summary-editor"/);
   assert.match(html, /<dt>DX<\/dt><dd>12<\/dd>/);
   assert.match(html, /<dt>PV<\/dt><dd>9 \/ 11<\/dd>/);
   assert.match(html, /data-pool-key="HP" data-pool-adjust="-1"/);
@@ -123,6 +135,7 @@ test("preserves the static canonical Character mount", () => {
   assert.equal(mounted.mode, "table");
   assert.equal(mounted.html, root.innerHTML);
   assert.match(root.innerHTML, /data-mode="table"/);
+  assert.doesNotMatch(root.innerHTML, /data-role="character-summary-editor"/);
   assert.equal(root.getAttribute("data-singular-mounted"), "true");
   assert.equal(root.getAttribute("data-character-id"), "character-browser-alpha");
   assert.equal(root.getAttribute("data-mode"), "table");
@@ -148,6 +161,7 @@ test("bootstraps the executable page with a canonical session and persistence ac
   assert.equal(mounted.character.identity.name, "Unnamed");
   assert.equal(mounted.mode, "creation");
   assert.match(root.innerHTML, /<strong>Unnamed<\/strong>/);
+  assert.match(root.innerHTML, /data-role="character-summary-editor"/);
   assert.match(root.innerHTML, /data-action="persistence-save"/);
   assert.match(root.innerHTML, /data-pool-key="HP" data-pool-adjust="-1"/);
   assert.equal(root.getAttribute("data-session-id"), mounted.session.id);
@@ -200,10 +214,92 @@ test("adjusts PV through App Core, rerenders and saves only after manual save", 
       parentElement: null,
     },
   });
+  mounted.modeSync.sync();
   const saved = await mounted.repositories.session.load("session-pool-mobile");
 
   assert.equal(saved.revision, 1);
   assert.equal(saved.character.pools.HP.current, 8);
+  assert.equal(mounted.mode, "table");
+  assert.equal(root.getAttribute("data-mode"), "table");
+});
+
+test("edits character summary in creation mode and blocks it in table mode", async () => {
+  const root = rootFixture();
+  const storage = createMemoryStorage();
+  const mounted = await bootstrapCharacterMobileApp({
+    root,
+    character: character(),
+    sessionId: "session-summary-mobile",
+    storage,
+    namespace: "test.mobile.character-summary",
+    runtime: runtime(),
+    mode: "creation",
+  });
+
+  root.setInput('[data-role="character-name"]', "Ayla do Norte");
+  root.setInput('[data-role="character-concept"]', "Batedora veterana");
+  await root.dispatch("click", {
+    target: {
+      dataset: { action: "character-summary-save" },
+      parentElement: null,
+    },
+    preventDefault() {},
+  });
+
+  assert.equal(mounted.session.revision, 1);
+  assert.equal(mounted.character.identity.name, "Ayla do Norte");
+  assert.equal(mounted.character.identity.concept, "Batedora veterana");
+  assert.equal(mounted.session.history[0].commandType, "character.summary.set");
+  assert.deepEqual(await mounted.repositories.session.listIds(), []);
+  assert.match(root.innerHTML, /<strong>Ayla do Norte<\/strong>/);
+
+  await root.dispatch("click", {
+    target: {
+      dataset: { action: "mode-table" },
+      parentElement: null,
+    },
+    preventDefault() {},
+  });
+
+  assert.equal(mounted.mode, "table");
+  assert.equal(root.getAttribute("data-mode"), "table");
+  assert.doesNotMatch(root.innerHTML, /data-role="character-summary-editor"/);
+
+  await root.dispatch("click", {
+    target: {
+      dataset: { action: "character-summary-save" },
+      parentElement: null,
+    },
+    preventDefault() {},
+  });
+
+  assert.equal(mounted.session.revision, 1);
+  assert.equal(root.getAttribute("data-last-command-status"), "blocked-by-mode");
+
+  await root.dispatch("click", {
+    target: {
+      dataset: { poolKey: "HP", poolAdjust: "-1" },
+      parentElement: null,
+    },
+    preventDefault() {},
+  });
+
+  assert.equal(mounted.session.revision, 2);
+  assert.equal(mounted.character.pools.HP.current, 8);
+
+  await root.dispatch("click", {
+    target: {
+      dataset: { action: "persistence-save" },
+      parentElement: null,
+    },
+  });
+  mounted.modeSync.sync();
+  const saved = await mounted.repositories.session.load("session-summary-mobile");
+
+  assert.equal(saved.character.identity.name, "Ayla do Norte");
+  assert.equal(saved.character.identity.concept, "Batedora veterana");
+  assert.equal(saved.character.pools.HP.current, 8);
+  assert.equal(root.getAttribute("data-mode"), "table");
 });
 
 test("restores the last valid session with an injected root and no document", async () => {
@@ -281,6 +377,8 @@ test("ships an executable browser page wired to persistence and responsive style
   assert.match(css, /grid-template-columns: repeat\(4/);
   assert.match(css, /singular-alpha-mobile__persistence/);
   assert.match(css, /singular-mobile-sheet__pool-adjust/);
+  assert.match(css, /singular-mobile-sheet__summary-editor/);
+  assert.match(css, /\[data-mode="table"\] \.singular-mobile-sheet__summary-editor/);
   assert.match(css, /@media \(max-width: 25rem\)/);
   assert.match(css, /min-height: 2\.75rem/);
 });
