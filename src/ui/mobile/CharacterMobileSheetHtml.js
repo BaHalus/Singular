@@ -228,10 +228,10 @@ function renderItemDetails(item) {
     details.push([item.attribute, item.difficulty].filter(Boolean).join("/"));
   }
   if (item.importedLevel !== undefined && item.importedLevel !== null) {
-    details.push(`NH ${formatValue(item.importedLevel)}`);
+    details.push(`NH importado ${formatValue(item.importedLevel)}`);
   }
   if (item.importedRelativeLevel !== undefined && item.importedRelativeLevel !== null) {
-    details.push(`rel ${formatSignedNumber(item.importedRelativeLevel)}`);
+    details.push(`rel. importado ${formatSignedNumber(item.importedRelativeLevel)}`);
   }
   if (item.skill) {
     details.push(`base ${item.skill}`);
