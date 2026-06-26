@@ -27,6 +27,12 @@ Payloads:
 
 Payloads com propriedades adicionais são rejeitados.
 
+## Pools suportados
+
+APP-POOL 1.0 opera somente sobre `HP`, `FP` e `EnergyReserve`, que são os pools reidratáveis pelo `Character` canônico atual.
+
+Se a sessão contiver pools importados ou customizados fora desse conjunto, o comando falha antes de produzir `applied`. Essa barreira evita que a reidratação por `createCharacter` descarte silenciosamente dados importados aceitos por camadas mais amplas.
+
 ## Fluxo
 
 ```text
@@ -51,7 +57,7 @@ UI
 
 ## Atomicidade
 
-Payload inválido, pool ausente ou valor inválido geram `failed` pelo executor e preservam a sessão. Revisões obsoletas são rejeitadas antes do handler.
+Payload inválido, pool ausente, pool importado não reidratável ou valor inválido geram `failed` pelo executor e preservam a sessão. Revisões obsoletas são rejeitadas antes do handler.
 
 ## Ausência de mecânica
 
@@ -77,6 +83,7 @@ handleResetPoolCurrentToMaximumCommand(context)
 - [x] Não criar autoridade paralela.
 - [x] Definir, ajustar e restaurar valores atuais.
 - [x] Produzir `no-op` determinístico.
+- [x] Bloquear pools importados não reidratáveis antes de `applied`.
 - [x] Certificar histórico, persistência, undo e redo.
 - [x] Preservar atomicidade.
 - [x] CI verde na base vigente.
