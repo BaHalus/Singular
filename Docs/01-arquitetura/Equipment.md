@@ -1,10 +1,10 @@
 # Equipment
 
-**Código:** DOM-EQP-1.3  
-**Status:** Aprovado  
-**Camada:** Domain
+**Código:** APP-EQUIPMENT-1.0  
+**Status:** Em validação  
+**Camadas:** Domain e Application
 
-Equipment é o inventário canônico do personagem. Esta etapa reutiliza o agregado existente e não cria um schema paralelo.
+Equipment é o inventário canônico do personagem. A aplicação reutiliza o agregado e suas operações existentes, sem criar schema ou autoridade paralela.
 
 ## Escopo da Alpha
 
@@ -23,9 +23,27 @@ O domínio cobre:
 
 ## Contrato preservado
 
-Os campos existentes do DOM-EQP-1.2 permanecem canônicos. Aliases de entrada já suportados, como `value`, `weight` e `max_uses`, continuam aceitos. A conversão histórica permanece `2 lb = 1 kg`.
+Os campos existentes do DOM-EQP-1.3 permanecem canônicos. Aliases de entrada já suportados, como `value`, `weight` e `max_uses`, continuam aceitos. A conversão histórica permanece `2 lb = 1 kg`.
 
-A criação preserva as referências legadas dos campos ricos depois de validar sua portabilidade. `serializeEquipment` produz o clone profundo e independente destinado ao transporte.
+A criação preserva referências legadas dos campos ricos depois de validar sua portabilidade. `serializeEquipment` produz clone profundo e independente destinado ao transporte.
+
+## Comandos de aplicação
+
+APP-EQUIPMENT-1.0 expõe entradas isoladas para o `CommandRegistry` existente:
+
+```text
+equipment.add
+equipment.add-child
+equipment.rename
+equipment.quantity.set
+equipment.state.set
+equipment.remove
+equipment.move
+```
+
+Os comandos usam IDs canônicos, delegam exclusivamente a `EquipmentOperations` e devolvem ao `CommandExecutor` um novo `Character` ou `no-op`. O executor existente continua responsável por revisão, recibos, histórico, persistência, undo e redo.
+
+A aplicação valida somente forma do payload, presença dos IDs e pertencimento estrutural. Ela não soma peso, custo, quantidade ou carga.
 
 ## Invariantes
 
@@ -36,43 +54,33 @@ A criação preserva as referências legadas dos campos ricos depois de validar 
 5. Ciclos de objeto são rejeitados.
 6. Um recipiente não pode ser movido para dentro de si próprio ou de um descendente.
 7. O destino de movimentação precisa existir e ser recipiente.
+8. Comandos com revisão obsoleta são rejeitados antes do handler.
+9. Falhas de payload ou domínio preservam a sessão original.
 
 ## Totais
 
-`calculateEquipmentTotals(equipment)` devolve:
+`calculateEquipmentTotals(equipment)` e o resolvedor do motor permanecem autoridades dos totais. Quantidade, peso, custo e carga não são recalculados pelos handlers de aplicação.
 
-```js
-{
-  quantity: 0,
-  weightKg: 0,
-  cost: 0
-}
-```
-
-A quantidade é somada por linha. Peso e custo são calculados como quantidade multiplicada pelo valor unitário. Itens aninhados são percorridos uma vez. A agregação decimal evita artefatos usuais de ponto flutuante.
-
-Esses totais são estruturais e não implementam as regras completas de carga.
+Os totais estruturais não implementam regras completas de carga. A projeção portátil desses resultados pertence a APP-EQUIPMENT-1.1.
 
 ## Fronteiras
 
-Esta etapa não altera `Character.js`, schemas centrais, App Core, UI, persistência concreta, Library core, importadores não específicos nem outros domínios da ficha.
-
-Qualquer integração nova com arquivos compartilhados exige autorização separada.
+APP-EQUIPMENT-1.0 não altera UI, bootstrap, `Character.js`, `CommandExecutor`, `CommandRegistry`, persistência concreta, Library core, importadores ou outros domínios.
 
 ## Fora de escopo
 
-Permanecem fora desta etapa catálogo extenso, biblioteca visual, importação completa, moedas avançadas, comércio, fabricação, manutenção, regras detalhadas de consumíveis, derivações de combate, regras completas de carga, interface e persistência de navegador.
+Catálogo extenso, biblioteca visual, importação completa, moedas avançadas, comércio, fabricação, manutenção, regras detalhadas de consumíveis, ataques derivados, regras completas de carga, interface e persistência de navegador.
 
-## Checklist
+## API de aplicação
 
-- [x] Reutilizar o agregado existente.
-- [x] Não criar schema paralelo.
-- [x] Preservar aliases e contratos legados.
-- [x] Validar portabilidade e números finitos.
-- [x] Garantir IDs únicos e hierarquia acíclica.
-- [x] Produzir serialização profunda portátil.
-- [x] Calcular totais determinísticos.
-- [x] Cobrir o MVP com testes próprios.
-- [x] Atualizar a branch após os merges da frente principal.
-- [x] CI verde sobre a `main` vigente.
-- [x] Ausência de revisão bloqueante.
+```js
+EQUIPMENT_COMMAND_TYPES
+createEquipmentCommandHandlerEntries()
+handleAddEquipmentCommand(context)
+handleAddChildEquipmentCommand(context)
+handleRenameEquipmentCommand(context)
+handleSetEquipmentQuantityCommand(context)
+handleSetEquipmentStateCommand(context)
+handleRemoveEquipmentCommand(context)
+handleMoveEquipmentCommand(context)
+```
