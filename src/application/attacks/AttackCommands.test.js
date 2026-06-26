@@ -9,3 +9,10 @@ import {
   ATTACK_COMMAND_TYPES,
   createAttackCommandHandlerEntries,
 } from "./AttackCommandHandlers.js";
+
+test("exposes immutable command entries", () => {
+  const entries = createAttackCommandHandlerEntries();
+  assert.equal(Object.isFrozen(entries), true);
+  assert.equal(entries.length, 4);
+  assert.equal(entries.every(entry => Object.isFrozen(entry)), true);
+});
