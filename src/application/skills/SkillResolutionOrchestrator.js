@@ -178,8 +178,26 @@ function validateReportResult(result, skillId, expectedBasisKind, label) {
 }
 
 function samePortableValue(left, right) {
-  return JSON.stringify(serializeSkillMechanicsResult(left)) ===
-    JSON.stringify(serializeSkillMechanicsResult(right));
+  return JSON.stringify(canonicalPortableValue(
+    serializeSkillMechanicsResult(left),
+  )) === JSON.stringify(canonicalPortableValue(
+    serializeSkillMechanicsResult(right),
+  ));
+}
+
+function canonicalPortableValue(value) {
+  if (Array.isArray(value)) {
+    return value.map(canonicalPortableValue);
+  }
+
+  if (value !== null && typeof value === "object") {
+    return Object.keys(value).sort().reduce((canonical, key) => {
+      canonical[key] = canonicalPortableValue(value[key]);
+      return canonical;
+    }, {});
+  }
+
+  return value;
 }
 
 function normalizeRequiredString(value, label) {
