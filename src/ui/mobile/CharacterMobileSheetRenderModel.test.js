@@ -72,7 +72,7 @@ test("creates the first render model for a mobile character sheet", () => {
   assert.equal(model.summary.pools.find(item => item.id === "HP").current, 6);
   assert.equal(model.cards.find(card => card.id === "identity").status, "available");
   assert.equal(model.cards.find(card => card.id === "secondary-characteristics").status, "declared-only");
-  assert.equal(model.sections.find(section => section.id === "equipment").status, "external-front");
+  assert.equal(model.sections.find(section => section.id === "equipment").status, "pending");
   assert.equal(validateCharacterMobileSheetRenderModel(model), true);
 });
 
