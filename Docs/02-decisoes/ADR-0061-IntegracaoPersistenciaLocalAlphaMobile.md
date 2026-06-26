@@ -33,7 +33,7 @@ Na inicialização, o coordenador solicita `loadLastSession()` ao `SessionReposi
 
 O salvamento manual usa somente `SessionRepository.save()` e não altera a sessão ativa. A abertura usa `SessionRepository.load()` e só substitui a sessão ativa depois de validar o resultado.
 
-Como o repositório aprovado grava registro e índice antes do ponteiro de última sessão, o coordenador executa compensação se a etapa final falhar: remove um novo registro parcial ou restaura e verifica o snapshot previamente persistido com o mesmo id. Falha da própria compensação produz diagnóstico explícito e não é ocultada.
+Como o repositório aprovado grava registro e índice antes do ponteiro de última sessão, o coordenador executa compensação se a etapa final falhar. O bootstrap injeta uma operação de rollback baseada no `BrowserLocalPersistenceAdapter` canônico: ela remove o novo registro parcial ou restaura o snapshot anterior diretamente no registro e no índice, sem escrever o ponteiro. Assim, a seleção anterior de última sessão permanece inalterada. Falha da própria compensação produz diagnóstico explícito e não é ocultada.
 
 A listagem pode carregar cada snapshot para apresentar identidade e revisão, mas não promove nenhuma sessão a ativa.
 
