@@ -317,7 +317,7 @@ function validateEquipmentCard(card) {
       throw new Error(`Character mobile equipment total ${key} is invalid`);
     }
   }
-  if (card.totals.authority !== "domain") {
+  if (card.totals.authority !== "engine.equipment") {
     throw new Error("Character mobile equipment totals authority is invalid");
   }
   for (const item of card.items) {
