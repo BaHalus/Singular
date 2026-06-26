@@ -176,6 +176,64 @@ test("rolls back a partial session record when the last-session pointer write fa
   );
 });
 
+test("restores an existing snapshot without changing the previous last-session pointer", async () => {
+  const storage = createMemoryStorage();
+  const namespace = "test.pointer-preservation";
+  const previousTarget = session(
+    "session-target",
+    character("character-target", "Versão anterior"),
+    { revision: 1 },
+  );
+  const previousLast = session(
+    "session-last",
+    character("character-last", "Última sessão"),
+    { revision: 2 },
+  );
+
+  const targetSeed = bootstrap(storage, previousTarget, namespace);
+  await targetSeed.persistence.saveActiveSession();
+  const lastSeed = bootstrap(storage, previousLast, namespace);
+  await lastSeed.persistence.saveActiveSession();
+  assert.equal(
+    (await lastSeed.repositories.session.loadLastSession()).id,
+    "session-last",
+  );
+
+  const updatedTarget = session(
+    "session-target",
+    character(
+      "character-target",
+      "Versão nova",
+      "2026-06-26T18:10:00.000Z",
+    ),
+    { revision: 2, dirty: true },
+  );
+  const app = bootstrap(storage, updatedTarget, namespace);
+  let pointerFailureInjected = false;
+  storage.failWritesWhen(key => {
+    if (!pointerFailureInjected && key.endsWith(":last-session")) {
+      pointerFailureInjected = true;
+      return true;
+    }
+    return false;
+  });
+
+  const result = await app.persistence.saveActiveSession();
+  const restoredTarget = await app.repositories.session.load("session-target");
+  const restoredLast = await app.repositories.session.loadLastSession();
+
+  assert.equal(result.status, "failed");
+  assert.deepEqual(
+    serializeApplicationSession(restoredTarget),
+    serializeApplicationSession(previousTarget),
+  );
+  assert.equal(restoredLast.id, "session-last");
+  assert.deepEqual(
+    serializeApplicationSession(restoredLast),
+    serializeApplicationSession(previousLast),
+  );
+});
+
 test("lists, opens and removes saved sessions without replacing on failed open", async () => {
   const storage = createMemoryStorage();
   const firstSession = session("session-first", character("character-first", "Primeiro"));
