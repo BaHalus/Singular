@@ -52,15 +52,7 @@ export function mountCharacterMobileApp(options = {}) {
 export async function bootstrapCharacterMobileApp(options = {}) {
   requirePlainObject(options, "Character mobile bootstrap options");
 
-  const documentRef = options.document ?? globalThis.document;
-  if (!documentRef || typeof documentRef.querySelector !== "function") {
-    throw new Error("Character mobile bootstrap requires a document");
-  }
-
-  const root = options.root ?? documentRef.querySelector(MOBILE_ROOT_SELECTOR);
-  if (root === null) {
-    throw new Error("Character mobile bootstrap root was not found");
-  }
+  const root = options.root ?? resolveMobileRoot(options.document);
   requireMountRoot(root);
 
   const mode = normalizeMode(options.mode ?? "creation");
@@ -106,6 +98,18 @@ export function getCharacterMobileRootSelector() {
 
 export function getCharacterMobileModes() {
   return [...MOBILE_MODES];
+}
+
+function resolveMobileRoot(documentOption) {
+  const documentRef = documentOption ?? globalThis.document;
+  if (!documentRef || typeof documentRef.querySelector !== "function") {
+    throw new Error("Character mobile bootstrap requires a document");
+  }
+  const root = documentRef.querySelector(MOBILE_ROOT_SELECTOR);
+  if (root === null) {
+    throw new Error("Character mobile bootstrap root was not found");
+  }
+  return root;
 }
 
 function createInitialSession(options) {
