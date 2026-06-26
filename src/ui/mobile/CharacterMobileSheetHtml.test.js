@@ -41,15 +41,15 @@ function renderModel(overrides = {}) {
   );
 }
 
-test("exposes the primary-attribute mobile sheet HTML schema version", () => {
-  assert.equal(getCharacterMobileSheetHtmlSchemaVersion(), 4);
+test("exposes the declared-lists mobile sheet HTML schema version", () => {
+  assert.equal(getCharacterMobileSheetHtmlSchemaVersion(), 5);
 });
 
 test("renders the character summary editor only in creation mode", () => {
   const creation = renderCharacterMobileSheetHtml(renderModel(), { mode: "creation" });
   const table = renderCharacterMobileSheetHtml(renderModel(), { mode: "table" });
 
-  assert.match(creation, /data-schema-version="4"/);
+  assert.match(creation, /data-schema-version="5"/);
   assert.match(creation, /data-mode="creation"/);
   assert.match(creation, /data-role="character-summary-editor"/);
   assert.match(creation, /data-role="character-name" value="Ayla &lt;Exploradora&gt;"/);
@@ -81,12 +81,61 @@ test("renders primary attribute controls only in creation mode", () => {
   assert.doesNotMatch(table, /data-attribute-adjust=/);
 });
 
+test("renders declared traits, skills and techniques as readable mobile cards", () => {
+  const html = renderCharacterMobileSheetHtml(renderModel({
+    traits: [
+      {
+        id: "trait_reflexos",
+        role: "advantage",
+        name: "Reflexos em Combate",
+        points: 15,
+        notes: "Reação rápida",
+      },
+      {
+        id: "trait_honra",
+        role: "disadvantage",
+        name: "Código de Honra",
+        points: -10,
+      },
+    ],
+    skills: [
+      {
+        id: "skill_espada",
+        name: "Espada Curta",
+        attribute: "DX",
+        difficulty: "A",
+        points: 4,
+        importedLevel: 13,
+        importedRelativeLevel: 1,
+      },
+    ],
+    techniques: [
+      {
+        id: "tech_corte_pescoco",
+        name: "Corte no Pescoço",
+        skillName: "Espada Curta",
+        difficulty: "D",
+        points: 2,
+        importedLevel: 11,
+        defaultPenalty: -5,
+      },
+    ],
+  }), { mode: "table" });
+
+  assert.match(html, /data-card="traits" data-status="declared-only"/);
+  assert.match(html, /<dt>Vantagem<\/dt><dd>Reflexos em Combate <small>15 pts · Reação rápida<\/small><\/dd>/);
+  assert.match(html, /<dt>Desvantagem<\/dt><dd>Código de Honra <small>-10 pts<\/small><\/dd>/);
+  assert.match(html, /data-card="skills-techniques" data-status="declared-only"/);
+  assert.match(html, /<dt>Perícia<\/dt><dd>Espada Curta <small>4 pts · DX\/A · NH 13 · rel \+1<\/small><\/dd>/);
+  assert.match(html, /<dt>Técnica<\/dt><dd>Corte no Pescoço <small>2 pts · D · NH 11 · base Espada Curta · pd -5<\/small><\/dd>/);
+});
+
 test("renders a semantic mobile sheet and preserves existing sections", () => {
   const html = renderCharacterMobileSheetHtml(renderModel(), { mode: "creation" });
 
   assert.match(html, /^<article class="singular-mobile-sheet"/);
   assert.match(html, /class="singular-mobile-sheet__toolbar"/);
-  assert.match(html, /data-section="traits" data-status="pending"/);
+  assert.match(html, /data-section="traits" data-status="empty"/);
   assert.match(html, /data-section="equipment" data-status="external-front"/);
 });
 
