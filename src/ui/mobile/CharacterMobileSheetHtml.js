@@ -131,14 +131,14 @@ function renderIdentityEditor(card) {
   const readOnlyItems = card.items.filter(item => !["name", "concept"].includes(item.id));
 
   return [
-    '<div class="singular-mobile-sheet__identity-editor" data-role="identity-editor">',
+    '<div class="singular-mobile-sheet__identity-editor" data-role="character-summary-editor">',
     '<label>Nome',
-    `<input type="text" data-role="identity-name" value="${escapeAttribute(name.value)}" autocomplete="off">`,
+    `<input type="text" data-role="character-name" value="${escapeAttribute(name.value)}" autocomplete="off">`,
     "</label>",
     '<label>Conceito',
-    `<input type="text" data-role="identity-concept" value="${escapeAttribute(concept.value)}" autocomplete="off">`,
+    `<input type="text" data-role="character-concept" value="${escapeAttribute(concept.value)}" autocomplete="off">`,
     "</label>",
-    '<button type="button" data-action="identity-save">Aplicar identidade</button>',
+    '<button type="button" data-action="character-summary-save">Aplicar identidade</button>',
     "</div>",
     readOnlyItems.length === 0
       ? ""
