@@ -1,6 +1,6 @@
 # ADR-0066 — Comandos de aplicação para Equipment
 
-**Status:** Proposto  
+**Status:** Aceito  
 **Data:** 2026-06-26  
 **Decisão:** APP-EQUIPMENT-1.0
 
@@ -9,6 +9,12 @@
 Criar handlers isolados em `src/application/equipment/EquipmentCommandHandlers.js` para adicionar, renomear, alterar quantidade e estado, remover e mover itens ou conteúdos de recipientes.
 
 Os handlers usam exclusivamente `EquipmentOperations`, reidratam o `Character` canônico e são compostos externamente com o `CommandRegistry` e o `CommandExecutor` existentes.
+
+## Identidade determinística
+
+Todo item incluído por comando deve declarar ID não vazio, inclusive descendentes da subárvore inserida. A aplicação não aceita a geração aleatória de IDs oferecida como conveniência pelo domínio, porque comandos e histórico precisam produzir identidades estáveis.
+
+Renomeação aceita somente texto e não utiliza a coerção permissiva de `String(...)` disponível na operação de domínio.
 
 ## Autoridades
 
