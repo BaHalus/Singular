@@ -1,72 +1,60 @@
 # GATE-PERSISTENCE-LOCAL-MVP — Persistência Local MVP
 
+**Status:** Aprovado  
 **Data:** 2026-06-26  
-**Escopo:** `PERSISTENCE-LOCAL-MVP`
+**Escopo:** `PERSISTENCE-LOCAL-MVP`  
+**Base validada:** `main` com APP-POOL 1.0
 
 ## Entrega certificada
 
-A frente entrega a primeira persistência concreta de navegador da SINGULAR, ainda isolada da UI:
+A frente entrega persistência concreta de navegador ainda isolada da UI:
 
 - `createBrowserLocalCharacterRepository`;
 - `createBrowserLocalSessionRepository`;
-- restauração da última sessão válida salva;
+- restauração da última sessão salva;
 - listagem e remoção determinísticas;
 - armazenamento versionado por namespace;
-- inspeção diagnóstica de corrupção local;
-- exportação/importação própria de personagem em JSON SINGULAR;
-- testes de roundtrip, isolamento, remoção, corrupção e rejeição de entradas inválidas.
+- registros separados de chaves internas de índice;
+- inspeção diagnóstica de registros, índices e ponteiros corrompidos;
+- exportação/importação própria `singular-character-export` versão 1.
 
-## Arquivos de código
+## Arquivos
 
 - `src/infrastructure/persistence/browser/BrowserLocalPersistence.js`
 - `src/infrastructure/persistence/browser/BrowserLocalPersistence.test.js`
-
-## Arquivos documentais
-
 - `Docs/02-decisoes/ADR-0059-PersistenciaLocalMVP.md`
 - `Docs/03-gates/GATE-PERSISTENCE-LOCAL-MVP.md`
 
-## Evidências esperadas
+## Critérios aprovados
 
-- `node --test`
-- testes específicos de persistência local;
-- validação das portas `CharacterRepository` e `SessionRepository`;
-- roundtrip de `Character` e `ApplicationSession` por snapshots serializados;
-- preservação de registro válido na presença de registro corrompido;
-- exportação/importação própria `singular-character-export` versão 1.
+- [x] Implementa as portas existentes de Character e Session.
+- [x] Persiste snapshots, não objetos vivos.
+- [x] Reidrata entidades validadas.
+- [x] Isola namespaces.
+- [x] Salva e restaura a última sessão.
+- [x] Lista e remove registros deterministicamente.
+- [x] ID `index` não colide com a chave interna do índice.
+- [x] Índice inválido produz diagnóstico portátil.
+- [x] Escrita não sobrescreve índice corrompido silenciosamente.
+- [x] Registro válido permanece acessível na presença de irmão corrompido.
+- [x] Exportação/importação própria possui formato versionado.
+- [x] Não altera UI, App Core, Character ou domínios.
+- [x] Branch atualizada sobre a `main` vigente.
+- [x] Suíte integral verde.
+
+## Evidência
+
+GitHub Actions `Tests`, execução `28255756797`: job `test` concluído com sucesso no head documental e de código alinhado à `main`.
+
+## Revisões endereçadas
+
+1. Colisão entre ID de registro `index` e a chave interna do índice: corrigida com segmento `record` nas chaves de entidade e regressão específica.
+2. Índice inválido tratado silenciosamente como vazio: corrigido com diagnóstico `invalid-storage-index`, leitura estrita em escrita e testes para JSON inválido, estrutura não-array e preservação do índice corrompido.
 
 ## Fronteiras preservadas
 
-Esta entrega não altera:
+A entrega não altera `src/ui/mobile/*`, Character, ApplicationSession, CommandExecutor, CommandRegistry, ApplicationReadModel, histórico, portas ou domínios mecânicos. A ligação com Salvar/Abrir e bootstrap ocorrerá em PR separada.
 
-- `src/ui/mobile/*`;
-- `Character.js`;
-- `ApplicationSession`;
-- `CommandExecutor`;
-- `CommandRegistry`;
-- `ApplicationReadModel`;
-- portas de repositório;
-- Skills, Techniques, Equipment, Pools, Combat, Magic ou Power;
-- Library core;
-- importadores externos.
+## Resultado
 
-## Regressões proibidas
-
-- persistir objetos vivos;
-- criar singleton global oculto;
-- recalcular regra GURPS na persistência;
-- apagar automaticamente registros válidos após encontrar corrupção;
-- criar segundo `Character` autoritativo;
-- criar segunda sessão autoritativa;
-- acoplar a UI mobile à infraestrutura nesta PR;
-- substituir as portas existentes por contratos paralelos.
-
-## Próxima integração
-
-Depois deste gate, a ligação com a Alpha deve ocorrer em PR separada e coordenada:
-
-1. injetar os repositórios concretos no bootstrap da aplicação;
-2. conectar ação Salvar ao `SessionRepository.save` e, quando apropriado, ao `CharacterRepository.save`;
-3. conectar Abrir/Última sessão à leitura do repositório;
-4. expor Exportar/Importar usando o formato próprio;
-5. renderizar diagnósticos de corrupção sem apagar registros válidos.
+**PERSISTENCE-LOCAL-MVP aprovado para integração sequencial**, condicionado à ausência de nova revisão bloqueante e à permanência da `main` sem conflito.
