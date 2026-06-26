@@ -1,10 +1,10 @@
 # Gate — DOM-EQP-1.3
 
-**Status:** Proposto para revisão  
+**Status:** Aprovado  
 **Data:** 2026-06-26  
 **Frente:** SINGULAR — Equipamentos MVP  
 **Branch:** `feature/dom-equipment-mvp-1.0`  
-**Base atualizada:** `main` em `46413a8596adc7df7e5fb8b261cab6e0a2c677af`
+**Base validada:** `main` em `d111b1ba5c05de64149f68a1feff0a18c2060211`
 
 ## Objetivo
 
@@ -41,25 +41,22 @@ Nenhum arquivo compartilhado da aplicação, schema central ou UI foi alterado.
 - [x] Totais consideram quantidade e valores unitários.
 - [x] Totais percorrem itens aninhados deterministicamente.
 - [x] A frente principal foi integrada antes desta atualização.
-- [x] A branch foi atualizada sobre a `main` vigente observada.
-- [ ] A suíte completa passa na CI após esta atualização.
-- [ ] Não existe revisão bloqueante.
+- [x] A branch foi atualizada sobre a `main` vigente.
+- [x] A suíte completa passou na CI após a atualização.
+- [x] Não existe revisão ou thread bloqueante.
 
-## Evidência anterior
+## Evidência
 
-Antes da atualização final da base, a suíte completa passou no GitHub Actions após a correção de compatibilidade com o contrato legado dos campos ricos.
+GitHub Actions, workflow `Tests`, execução `28243473615`:
 
-A atualização para a `main` atual exige nova execução de CI, que é a autoridade para fechar este gate.
+- job `test` concluído com sucesso;
+- suíte completa concluída com sucesso;
+- nenhuma falha de infraestrutura ou teste.
 
 ## Fora de escopo certificado
 
 Este gate não certifica regras completas de carga, capacidade de recipientes, catálogo, interface, persistência concreta ou integração nova com arquivos compartilhados.
 
-## Condição de fechamento
+## Resultado
 
-O gate muda para **Aprovado** somente quando:
-
-1. a branch continuar atualizada sobre a `main` vigente;
-2. a CI estiver verde nessa base;
-3. não houver revisão bloqueante;
-4. a PR estiver pronta para merge único e sequencial.
+**DOM-EQP-1.3 aprovado para integração sequencial**, condicionado apenas à confirmação final de que a `main` não avançou antes do merge e à CI verde do commit documental de fechamento.
