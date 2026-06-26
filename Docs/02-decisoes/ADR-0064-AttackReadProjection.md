@@ -1,6 +1,6 @@
 # ADR-0064 — Projeção portátil de leitura para Attacks
 
-**Status:** Proposto  
+**Status:** Aceito  
 **Data:** 2026-06-26  
 **Decisão:** APP-ATTACK-1.1
 
