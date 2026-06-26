@@ -300,6 +300,43 @@ test("preserves the session when payload or domain input is invalid", () => {
   assert.equal(initial.history.length, 0);
 });
 
+test("blocks safely when Character contains an unsupported imported pool", () => {
+  const base = session();
+  const customSession = {
+    ...base,
+    character: {
+      ...base.character,
+      pools: {
+        ...base.character.pools,
+        ManaReserve: { current: 3, maximum: 5 },
+      },
+    },
+  };
+
+  const result = executeCommand(
+    customSession,
+    command(
+      POOL_COMMAND_TYPES.SET_CURRENT,
+      0,
+      { poolKey: "HP", current: 9 },
+      "command-custom-pool-guard",
+    ),
+    registry(),
+    runtime(),
+  );
+
+  assert.equal(result.status, "failed");
+  assert.equal(result.session, customSession);
+  assert.equal(result.session.character.pools.HP.current, 10);
+  assert.equal(result.session.character.pools.ManaReserve.current, 3);
+  assert.equal(result.session.character.pools.ManaReserve.maximum, 5);
+  assert.equal(result.session.history.length, 0);
+  assert.match(
+    result.diagnostics[0].message,
+    /cannot safely rehydrate unsupported pool keys: ManaReserve/,
+  );
+});
+
 test("persists, undoes and redoes a pool command through App Core", async () => {
   const appRuntime = runtime();
   const repository = createInMemorySessionRepository();
