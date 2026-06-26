@@ -3,8 +3,10 @@ import {
 } from "./LibraryDefinition.js";
 import { importLibraryPackage } from "./LibraryPackage.js";
 import {
+  createLibraryRegistry,
   findLibraryDefinition,
   registerLibraryDefinition,
+  serializeLibraryRegistry,
   validateLibraryRegistry,
 } from "./LibraryRegistry.js";
 
@@ -15,7 +17,7 @@ export function mergeLibraryPackageIntoRegistry(registry, packageInput) {
   validateLibraryRegistry(registry);
   const incomingRegistry = importLibraryPackage(packageInput);
 
-  let mergedRegistry = registry;
+  let mergedRegistry = createLibraryRegistry(serializeLibraryRegistry(registry));
   const addedDefinitionIds = [];
   const unchangedDefinitionIds = [];
 
