@@ -9,6 +9,10 @@ export function mountCharacterMobileInteractionController(options = {}) {
   requireFunction(options.render, "Mobile render callback");
 
   const root = options.root;
+  const renderAndSync = () => {
+    options.render();
+    syncMode();
+  };
 
   const handleClick = event => {
     const actionTarget = findDataTarget(event?.target, "action");
@@ -20,7 +24,7 @@ export function mountCharacterMobileInteractionController(options = {}) {
       event.preventDefault?.();
       options.setMode(action === "mode-creation" ? "creation" : "table");
       setStatus(root, "mode-changed");
-      options.render();
+      renderAndSync();
       return null;
     }
 
@@ -40,7 +44,7 @@ export function mountCharacterMobileInteractionController(options = {}) {
           concept: readInputValue(root, '[data-role="character-concept"]'),
         }),
         root,
-        options.render,
+        renderAndSync,
       );
     }
 
@@ -57,12 +61,42 @@ export function mountCharacterMobileInteractionController(options = {}) {
         delta: Number(readDataset(poolTarget, "poolAdjust")),
       }),
       root,
-      options.render,
+      renderAndSync,
     );
   };
 
+  function syncMode() {
+    const mode = options.getMode();
+    root.setAttribute?.("data-mode", mode);
+    root.querySelector?.(".singular-mobile-sheet")?.setAttribute?.("data-mode", mode);
+    const editor = root.querySelector?.('[data-role="character-summary-editor"]');
+    editor?.setAttribute?.("aria-hidden", mode === "table" ? "true" : "false");
+    for (const button of root.querySelectorAll?.('[data-action^="mode-"]') ?? []) {
+      button.setAttribute?.(
+        "aria-pressed",
+        readDataset(button, "action") === `mode-${mode}` ? "true" : "false",
+      );
+    }
+  }
+
+  const MutationObserverClass = options.MutationObserver
+    ?? globalThis.MutationObserver;
+  const observer = typeof MutationObserverClass === "function"
+    ? new MutationObserverClass(syncMode)
+    : null;
+
   root.addEventListener("click", handleClick);
-  return Object.freeze({ handleClick });
+  observer?.observe(root, { childList: true });
+  syncMode();
+
+  return Object.freeze({
+    handleClick,
+    syncMode,
+    destroy() {
+      root.removeEventListener?.("click", handleClick);
+      observer?.disconnect();
+    },
+  });
 }
 
 function applyResult(result, root, render) {
