@@ -13,7 +13,7 @@ export function assertSkillMechanicsPortableValue(
   const type = typeof value;
   if (type === "string" || type === "boolean") return true;
   if (type === "number") {
-    if (!Number.isFinite(value)) {
+    if (!Number.isFinite(value) || Object.is(value, -0)) {
       throw new Error(`${label} must be JSON portable`);
     }
     return true;
@@ -43,6 +43,7 @@ export function assertSkillMechanicsPortableValue(
   if (!isSkillMechanicsPlainObject(value)) {
     throw new Error(`${label} must be JSON portable`);
   }
+  validatePlainObjectOwnKeys(value, label);
   for (const [key, item] of Object.entries(value)) {
     assertSkillMechanicsPortableValue(item, `${label}.${key}`, ancestors);
   }
@@ -61,11 +62,12 @@ export function validateSkillMechanicsDenseArray(value, label) {
     }
   }
 
-  const expectedKeys = new Set(
-    Array.from({ length: value.length }, (_, index) => String(index)),
-  );
-  for (const key of Object.keys(value)) {
-    if (!expectedKeys.has(key)) {
+  const expectedKeys = new Set([
+    "length",
+    ...Array.from({ length: value.length }, (_, index) => String(index)),
+  ]);
+  for (const key of Reflect.ownKeys(value)) {
+    if (typeof key !== "string" || !expectedKeys.has(key)) {
       throw new Error(`${label} must not contain non-index properties`);
     }
   }
@@ -91,8 +93,20 @@ export function isSkillMechanicsPlainObject(value) {
 export function deepFreezeSkillMechanicsValue(value, seen = new WeakSet()) {
   if (!value || typeof value !== "object" || seen.has(value)) return value;
   seen.add(value);
-  Object.values(value).forEach(item =>
-    deepFreezeSkillMechanicsValue(item, seen),
+  Reflect.ownKeys(value).forEach(key =>
+    deepFreezeSkillMechanicsValue(value[key], seen),
   );
   return Object.freeze(value);
+}
+
+function validatePlainObjectOwnKeys(value, label) {
+  for (const key of Reflect.ownKeys(value)) {
+    if (typeof key !== "string") {
+      throw new Error(`${label} must be JSON portable`);
+    }
+    const descriptor = Object.getOwnPropertyDescriptor(value, key);
+    if (!descriptor?.enumerable) {
+      throw new Error(`${label} must be JSON portable`);
+    }
+  }
 }
