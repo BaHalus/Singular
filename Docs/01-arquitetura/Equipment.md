@@ -1,7 +1,7 @@
 # Equipment
 
 **Código:** DOM-EQP-1.3  
-**Status:** Proposto para revisão  
+**Status:** Aprovado  
 **Camada:** Domain
 
 Equipment é o inventário canônico do personagem. Esta etapa reutiliza o agregado existente e não cria um schema paralelo.
@@ -74,5 +74,5 @@ Permanecem fora desta etapa catálogo extenso, biblioteca visual, importação c
 - [x] Calcular totais determinísticos.
 - [x] Cobrir o MVP com testes próprios.
 - [x] Atualizar a branch após os merges da frente principal.
-- [ ] CI verde sobre a `main` vigente.
-- [ ] Ausência de revisão bloqueante.
+- [x] CI verde sobre a `main` vigente.
+- [x] Ausência de revisão bloqueante.
