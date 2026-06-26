@@ -1,190 +1,78 @@
 # Equipment
 
-**Código:** DOM-EQP-1.2
-**Status:** Aprovado
+**Código:** DOM-EQP-1.3  
+**Status:** Proposto para revisão  
 **Camada:** Domain
-**Tipo:** Agregado
 
-Equipment representa os equipamentos do personagem em GURPS 4e.
+Equipment é o inventário canônico do personagem. Esta etapa reutiliza o agregado existente e não cria um schema paralelo.
 
-A arquitetura segue ADR-0005 e ADR-0006.
+## Escopo da Alpha
 
----
+O domínio cobre:
 
-## Objetivo
+- item canônico com identidade estável;
+- quantidade;
+- peso e custo unitários;
+- estados `equipped`, `carried`, `stored` e `dropped`;
+- recipientes pela hierarquia `children`;
+- validação e serialização portátil;
+- totais determinísticos de quantidade, peso e custo;
+- operações mínimas e testes.
 
-Equipment armazena inventário e equipamentos importados, preservando estrutura hierárquica e dados relevantes do GCS sem calcular regras.
+`ignored` permanece apenas para agrupamentos semânticos legados com `containerKind: "group"`.
 
-O formato canônico interno da SINGULAR usa custo numérico e peso numérico em quilogramas.
+## Contrato preservado
 
----
+Os campos existentes do DOM-EQP-1.2 permanecem canônicos. Aliases de entrada já suportados, como `value`, `weight` e `max_uses`, continuam aceitos. A conversão histórica permanece `2 lb = 1 kg`.
 
-## Estrutura atual
+A criação preserva as referências legadas dos campos ricos depois de validar sua portabilidade. `serializeEquipment` produz o clone profundo e independente destinado ao transporte.
 
-```js
-{
-  id: "eq-001",
-  externalIds: {},
+## Invariantes
 
-  kind: "item",
-  containerKind: null,
+1. IDs são strings não vazias e únicas em toda a árvore.
+2. Quantidade, peso, custo, usos e máximos são finitos e não negativos.
+3. Somente recipientes podem possuir filhos.
+4. Arrays precisam ser densos e valores preservados precisam ser JSON portáteis.
+5. Ciclos de objeto são rejeitados.
+6. Um recipiente não pode ser movido para dentro de si próprio ou de um descendente.
+7. O destino de movimentação precisa existir e ser recipiente.
 
-  name: "Kit de Campo",
-  quantity: 1,
+## Totais
 
-  techLevel: "8",
-  legalityClass: null,
-  reference: "B288",
-
-  cost: 100,
-  weightKg: 2,
-
-  state: "carried",
-  uses: null,
-  maxUses: null,
-
-  categories: [],
-  notes: "",
-  tags: [],
-
-  weapons: [],
-  features: [],
-  modifiers: [],
-  prereqs: null,
-  calc: null,
-
-  importMeta: null,
-  children: [],
-  raw: null
-}
-```
-
----
-
-## Entrada GCS
-
-Durante criação ou importação, campos GCS como:
-
-```js
-value: "500"
-weight: "3 lb"
-max_uses: 10
-```
-
-podem ser aceitos como entrada, mas são normalizados para:
-
-```js
-cost: 500
-weightKg: 1.5
-maxUses: 10
-```
-
-A conversão usa a convenção GURPS:
-
-```text
-2 lb = 1 kg
-```
-
----
-
-## Kinds
-
-`kind` aceita:
-
-- `item`
-- `container`
-
-`containerKind` aceita:
-
-- `physical`
-- `group`
-- `null`
-
-Recipientes físicos possuem peso próprio e propagam o estado de carga aos seus conteúdos quando carregados ou equipados.
-
-Agrupamentos semânticos organizam itens, não propagam estado e ficam em `ignored` por padrão.
-
----
-
-## Estados
-
-`state` aceita:
-
-- `equipped`
-- `carried`
-- `stored`
-- `dropped`
-- `ignored`
-
----
-
-## Usos
-
-`uses` e `maxUses` preservam estados consumíveis importados, como cargas, doses ou munição abstrata.
-
-Equipment apenas armazena esses valores. Consumo, recarga e validação operacional pertencem a operações e serviços próprios.
-
----
-
-## Metadados de importação
-
-`importMeta` pode registrar:
+`calculateEquipmentTotals(equipment)` devolve:
 
 ```js
 {
-  source: "gcs",
-  section: "equipment",
-  containerIds: [],
-  sourceType: "equipment"
+  quantity: 0,
+  weightKg: 0,
+  cost: 0
 }
 ```
 
-O objeto `raw` preserva integralmente o nó externo original.
+A quantidade é somada por linha. Peso e custo são calculados como quantidade multiplicada pelo valor unitário. Itens aninhados são percorridos uma vez. A agregação decimal evita artefatos usuais de ponto flutuante.
 
----
+Esses totais são estruturais e não implementam as regras completas de carga.
 
-## Responsabilidades
+## Fronteiras
 
-Equipment é responsável por:
+Esta etapa não altera `Character.js`, schemas centrais, App Core, UI, persistência concreta, Library core, importadores não específicos nem outros domínios da ficha.
 
-- armazenar equipamentos;
-- preservar hierarquia;
-- preservar identificadores externos;
-- preservar armas embutidas;
-- preservar features;
-- preservar modificadores;
-- preservar pré-requisitos e `calc` importado;
-- preservar usos e máximos de uso;
-- preservar metadados e dados brutos importados;
-- diferenciar recipientes físicos de agrupamentos;
-- normalizar custo para número;
-- normalizar peso para kg.
+Qualquer integração nova com arquivos compartilhados exige autorização separada.
 
----
+## Fora de escopo
 
-## Não Responsabilidades
-
-Equipment não calcula:
-
-- carga;
-- peso total;
-- custo total;
-- RD;
-- ataques;
-- defaults;
-- pré-requisitos;
-- consumo ou recarga.
-
----
+Permanecem fora desta etapa catálogo extenso, biblioteca visual, importação completa, moedas avançadas, comércio, fabricação, manutenção, regras detalhadas de consumíveis, derivações de combate, regras completas de carga, interface e persistência de navegador.
 
 ## Checklist
 
-- [x] Criar ADR-0005
-- [x] Criar ADR-0006
-- [x] Criar Equipment.md
-- [x] Criar Equipment.js
-- [x] Criar Equipment.test.js
-- [x] Criar EquipmentOperations.js
-- [x] Criar EquipmentOperations.test.js
-- [x] Integrar com Character
-- [x] Preservar usos e metadados de importação
+- [x] Reutilizar o agregado existente.
+- [x] Não criar schema paralelo.
+- [x] Preservar aliases e contratos legados.
+- [x] Validar portabilidade e números finitos.
+- [x] Garantir IDs únicos e hierarquia acíclica.
+- [x] Produzir serialização profunda portátil.
+- [x] Calcular totais determinísticos.
+- [x] Cobrir o MVP com testes próprios.
+- [x] Atualizar a branch após os merges da frente principal.
+- [ ] CI verde sobre a `main` vigente.
+- [ ] Ausência de revisão bloqueante.
