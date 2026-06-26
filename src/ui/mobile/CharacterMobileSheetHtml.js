@@ -2,7 +2,7 @@ import {
   serializeCharacterMobileSheetRenderModel,
 } from "./CharacterMobileSheetRenderModel.js";
 
-const HTML_SHELL_SCHEMA_VERSION = 3;
+const HTML_SHELL_SCHEMA_VERSION = 4;
 
 export function renderCharacterMobileSheetHtml(renderModel, options = {}) {
   const model = serializeCharacterMobileSheetRenderModel(renderModel);
@@ -11,7 +11,7 @@ export function renderCharacterMobileSheetHtml(renderModel, options = {}) {
   return [
     `<article class="singular-mobile-sheet" data-schema-version="${HTML_SHELL_SCHEMA_VERSION}" data-mode="${shellMode}">`,
     renderToolbar(model.toolbar, shellMode),
-    renderSummary(model.summary),
+    renderSummary(model.summary, shellMode),
     renderCards(model.cards, shellMode),
     renderSections(model.sections),
     "</article>",
@@ -43,11 +43,11 @@ function renderToolbar(toolbar, mode) {
   ].join("");
 }
 
-function renderSummary(summary) {
+function renderSummary(summary, mode) {
   return [
     "<section class=\"singular-mobile-sheet__summary\" aria-label=\"Resumo\">",
     renderIdentitySummary(summary.identity),
-    renderAttributeStrip(summary.attributes),
+    renderAttributeStrip(summary.attributes, mode),
     renderPoolStrip(summary.pools),
     "</section>",
   ].join("");
@@ -61,16 +61,36 @@ function renderIdentitySummary(items) {
   ].join("");
 }
 
-function renderAttributeStrip(attributes) {
+function renderAttributeStrip(attributes, mode) {
   return [
-    "<dl class=\"singular-mobile-sheet__attribute-strip\" aria-label=\"Atributos principais\">",
-    attributes.map(item => [
-      `<div class="singular-mobile-sheet__stat" data-status="${escapeAttribute(item.status)}">`,
-      `<dt>${escapeText(item.label)}</dt>`,
-      `<dd>${formatValue(item.value)}</dd>`,
-      "</div>",
-    ].join("")).join(""),
+    "<div class=\"singular-mobile-sheet__attribute-strip\" role=\"group\" aria-label=\"Atributos principais\">",
+    attributes.map(item => renderAttributeControl(item, mode)).join(""),
+    "</div>",
+  ].join("");
+}
+
+function renderAttributeControl(item, mode) {
+  const key = escapeAttribute(item.id);
+  const label = escapeText(item.label);
+  const value = formatValue(item.value);
+  if (mode === "table") {
+    return [
+      `<dl class="singular-mobile-sheet__stat" data-attribute="${key}" data-status="${escapeAttribute(item.status)}">`,
+      `<dt>${label}</dt>`,
+      `<dd>${value}</dd>`,
+      "</dl>",
+    ].join("");
+  }
+
+  return [
+    `<div class="singular-mobile-sheet__stat singular-mobile-sheet__attribute-control" data-attribute="${key}" data-status="${escapeAttribute(item.status)}">`,
+    `<button type="button" class="singular-mobile-sheet__attribute-adjust" data-attribute-key="${key}" data-attribute-adjust="-1" aria-label="Diminuir ${key}">−</button>`,
+    "<dl>",
+    `<dt>${label}</dt>`,
+    `<dd>${value}</dd>`,
     "</dl>",
+    `<button type="button" class="singular-mobile-sheet__attribute-adjust" data-attribute-key="${key}" data-attribute-adjust="1" aria-label="Aumentar ${key}">+</button>`,
+    "</div>",
   ].join("");
 }
 
