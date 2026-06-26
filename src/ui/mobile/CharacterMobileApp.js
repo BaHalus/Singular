@@ -46,8 +46,8 @@ export function mountCharacterMobileApp(options = {}) {
 /**
  * Bootstrap executável canônico da Alpha mobile.
  *
- * Cria uma única ApplicationSession inicial, compõe os repositórios concretos
- * e restaura a última sessão válida antes de concluir a montagem funcional.
+ * Cria uma única ApplicationSession inicial, compõe persistência e comandos,
+ * restaura a última sessão válida e liga os controles transitórios de PV/PF.
  */
 export async function bootstrapCharacterMobileApp(options = {}) {
   requirePlainObject(options, "Character mobile bootstrap options");
@@ -70,15 +70,52 @@ export async function bootstrapCharacterMobileApp(options = {}) {
     downloadText: options.downloadText,
     mode,
   });
-  const session = application.persistence.getActiveSession();
+
+  const renderActiveSession = () => {
+    root.innerHTML = ui.render({ mode });
+    const activeSession = application.persistence.getActiveSession();
+    setRootAttribute(root, "data-singular-mounted", "true");
+    setRootAttribute(root, "data-session-id", activeSession.id);
+    setRootAttribute(root, "data-session-revision", String(activeSession.revision));
+    setRootAttribute(root, "data-character-id", activeSession.character.identity.id);
+    setRootAttribute(root, "data-mode", mode);
+  };
+
+  const handlePoolAdjustment = event => {
+    const target = findPoolAdjustmentTarget(event?.target);
+    if (target === null) return null;
+    event.preventDefault?.();
+
+    if (ui.getState().busy) {
+      setRootAttribute(root, "data-last-command-status", "busy");
+      return null;
+    }
+
+    const poolKey = readDataset(target, "poolKey");
+    const delta = Number(readDataset(target, "poolAdjust"));
+    const result = application.commands.adjustPoolCurrent({ poolKey, delta });
+    setRootAttribute(root, "data-last-command-status", result.status);
+    renderActiveSession();
+    return result;
+  };
+
+  root.addEventListener("click", handlePoolAdjustment);
+  renderActiveSession();
 
   return Object.freeze({
-    character: session.character,
-    session,
+    get character() {
+      return application.persistence.getActiveSession().character;
+    },
+    get session() {
+      return application.persistence.getActiveSession();
+    },
+    get html() {
+      return root.innerHTML;
+    },
     mode,
-    html: root.innerHTML,
     ui,
     persistence: application.persistence,
+    commands: application.commands,
     repositories: application.repositories,
     runtime: application.runtime,
   });
@@ -129,6 +166,26 @@ function createInitialSession(options) {
   });
 }
 
+function findPoolAdjustmentTarget(target) {
+  let current = target ?? null;
+  while (current !== null) {
+    if (
+      readDataset(current, "poolKey") !== null &&
+      readDataset(current, "poolAdjust") !== null
+    ) {
+      return current;
+    }
+    current = current.parentElement ?? null;
+  }
+  return null;
+}
+
+function readDataset(target, key) {
+  if (!target || typeof target !== "object") return null;
+  const value = target.dataset?.[key];
+  return typeof value === "string" && value !== "" ? value : null;
+}
+
 function normalizeMode(value) {
   if (!MOBILE_MODES.includes(value)) {
     throw new Error("Character mobile app mode is invalid");
@@ -143,6 +200,15 @@ function requireMountRoot(root) {
     !("innerHTML" in root)
   ) {
     throw new Error("Character mobile app root must support innerHTML");
+  }
+  if (typeof root.addEventListener !== "function") {
+    throw new Error("Character mobile app root must support addEventListener");
+  }
+}
+
+function setRootAttribute(root, name, value) {
+  if (typeof root.setAttribute === "function") {
+    root.setAttribute(name, value);
   }
 }
 
