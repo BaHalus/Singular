@@ -62,6 +62,83 @@ test("projects identity, attributes and pools for the mobile sheet", () => {
   assert.equal(projection.pools.HP.maximum, 12);
 });
 
+test("projects declared traits, skills and techniques without calculating rules", () => {
+  const character = createCharacter({
+    identity: {
+      id: "char_mobile_declared_lists",
+      name: "Listas Declaradas",
+      concept: "",
+      playerId: null,
+      campaignId: null,
+    },
+    traits: [
+      {
+        id: "trait_reflexos",
+        role: "advantage",
+        name: "Reflexos em Combate",
+        points: 15,
+        levels: null,
+        notes: "Reação rápida",
+      },
+      {
+        id: "trait_honra",
+        role: "disadvantage",
+        name: "Código de Honra",
+        points: -10,
+      },
+    ],
+    skills: [
+      {
+        id: "skill_espada",
+        name: "Espada Curta",
+        attribute: "DX",
+        difficulty: "A",
+        points: 4,
+        importedLevel: 13,
+        importedRelativeLevel: 1,
+      },
+    ],
+    techniques: [
+      {
+        id: "tech_corte_pescoco",
+        name: "Corte no Pescoço",
+        skillId: "skill_espada",
+        skillName: "Espada Curta",
+        difficulty: "D",
+        points: 2,
+        importedLevel: 11,
+        defaultPenalty: -5,
+      },
+    ],
+  });
+
+  const projection = projectCharacterForMobileSheet(character);
+
+  assert.equal(validateCharacterMobileProjection(projection), true);
+  assert.equal(projection.traits.length, 2);
+  assert.deepEqual(projection.traits[0], {
+    id: "trait_reflexos",
+    name: "Reflexos em Combate",
+    role: "advantage",
+    points: 15,
+    levels: null,
+    notes: "Reação rápida",
+    status: "declared",
+  });
+  assert.equal(projection.skills[0].name, "Espada Curta");
+  assert.equal(projection.skills[0].importedLevel, 13);
+  assert.equal(projection.techniques[0].skillId, "skill_espada");
+  assert.equal(projection.techniques[0].defaultPenalty, -5);
+  assert.equal(
+    projection.sections.find(section => section.id === "traits").status,
+    "declared-only",
+  );
+  assert.equal(
+    projection.sections.find(section => section.id === "skills-techniques").status,
+    "declared-only",
+  );
+});
+
 test("serializes the mobile projection without exposing mutable state", () => {
   const character = createCharacter({
     identity: {
@@ -111,11 +188,11 @@ test("rejects non-finite numeric values before JSON serialization", () => {
   );
 });
 
-test("keeps equipment as an external-front section while the parallel domain is active", () => {
+test("marks equipment as pending mobile integration after its domain was integrated", () => {
   const character = createCharacter({
     identity: {
       id: "char_mobile_equipment_boundary",
-      name: "Sem Equipamento Integrado",
+      name: "Equipamento Ainda Não Ligado",
       concept: "",
       playerId: null,
       campaignId: null,
@@ -127,5 +204,5 @@ test("keeps equipment as an external-front section while the parallel domain is 
     section => section.id === "equipment",
   );
 
-  assert.equal(equipmentSection.status, "external-front");
+  assert.equal(equipmentSection.status, "pending");
 });

@@ -2,7 +2,7 @@ import {
   serializeCharacterMobileSheetRenderModel,
 } from "./CharacterMobileSheetRenderModel.js";
 
-const HTML_SHELL_SCHEMA_VERSION = 4;
+const HTML_SHELL_SCHEMA_VERSION = 5;
 
 export function renderCharacterMobileSheetHtml(renderModel, options = {}) {
   const model = serializeCharacterMobileSheetRenderModel(renderModel);
@@ -129,7 +129,7 @@ function renderCards(cards, mode) {
 function renderCard(card, mode) {
   const body = card.id === "identity" && mode === "creation"
     ? renderCharacterSummaryEditor(card)
-    : ["<dl>", card.items.map(renderCardItem).join(""), "</dl>"].join("");
+    : renderCardBody(card);
 
   return [
     `<section class="singular-mobile-sheet__card" data-card="${escapeAttribute(card.id)}" data-status="${escapeAttribute(card.status)}">`,
@@ -137,6 +137,13 @@ function renderCard(card, mode) {
     body,
     "</section>",
   ].join("");
+}
+
+function renderCardBody(card) {
+  if (card.items.length === 0) {
+    return "<p class=\"singular-mobile-sheet__empty\">Nenhum item declarado.</p>";
+  }
+  return ["<dl>", card.items.map(renderCardItem).join(""), "</dl>"].join("");
 }
 
 function renderCharacterSummaryEditor(card) {
@@ -196,7 +203,7 @@ function renderCardItem(item) {
     return [
       "<div>",
       `<dt>${escapeText(item.label)}</dt>`,
-      `<dd>${formatValue(item.value)}</dd>`,
+      `<dd>${formatValue(item.value)}${renderItemDetails(item)}</dd>`,
       "</div>",
     ].join("");
   }
@@ -207,6 +214,39 @@ function renderCardItem(item) {
     `<dd>${formatValue(item.base)} / ${formatValue(item.override)}</dd>`,
     "</div>",
   ].join("");
+}
+
+function renderItemDetails(item) {
+  const details = [];
+  if (Object.prototype.hasOwnProperty.call(item, "points")) {
+    details.push(`${formatValue(item.points)} pts`);
+  }
+  if (item.levels !== undefined && item.levels !== null) {
+    details.push(`Nv ${formatValue(item.levels)}`);
+  }
+  if (item.attribute || item.difficulty) {
+    details.push([item.attribute, item.difficulty].filter(Boolean).join("/"));
+  }
+  if (item.importedLevel !== undefined && item.importedLevel !== null) {
+    details.push(`NH ${formatValue(item.importedLevel)}`);
+  }
+  if (item.importedRelativeLevel !== undefined && item.importedRelativeLevel !== null) {
+    details.push(`rel ${formatSignedNumber(item.importedRelativeLevel)}`);
+  }
+  if (item.skill) {
+    details.push(`base ${item.skill}`);
+  }
+  if (item.defaultPenalty !== undefined && item.defaultPenalty !== null) {
+    details.push(`pd ${formatSignedNumber(item.defaultPenalty)}`);
+  }
+  if (item.maximumRelativeLevel !== undefined && item.maximumRelativeLevel !== null) {
+    details.push(`máx ${formatSignedNumber(item.maximumRelativeLevel)}`);
+  }
+  if (item.notes) {
+    details.push(item.notes);
+  }
+  if (details.length === 0) return "";
+  return ` <small>${escapeText(details.join(" · "))}</small>`;
 }
 
 function renderTextItem(item) {
@@ -239,6 +279,12 @@ function formatPool(current, maximum) {
 function formatValue(value) {
   if (value === null || value === undefined || value === "") return "—";
   return escapeText(String(value));
+}
+
+function formatSignedNumber(value) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return formatValue(value);
+  return number > 0 ? `+${number}` : String(number);
 }
 
 function escapeText(value) {
