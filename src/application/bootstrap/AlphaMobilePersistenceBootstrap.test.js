@@ -157,6 +157,25 @@ test("preserves the active session when storage fails during manual save", async
   );
 });
 
+test("rolls back a partial session record when the last-session pointer write fails", async () => {
+  const storage = createMemoryStorage();
+  const initial = session("session-pointer-failure");
+  const app = bootstrap(storage, initial, "test.pointer-failure");
+  storage.failWritesWhen(key => key.endsWith(":last-session"));
+
+  const result = await app.persistence.saveActiveSession();
+
+  assert.equal(result.status, "failed");
+  assert.equal(app.persistence.getActiveSession(), initial);
+  assert.deepEqual(await app.repositories.session.listIds(), []);
+  assert.equal(await app.repositories.session.load("session-pointer-failure"), null);
+  assert.equal(
+    result.diagnostics.some(item =>
+      item.code === "local-persistence-save-rollback-failed"),
+    false,
+  );
+});
+
 test("lists, opens and removes saved sessions without replacing on failed open", async () => {
   const storage = createMemoryStorage();
   const firstSession = session("session-first", character("character-first", "Primeiro"));
