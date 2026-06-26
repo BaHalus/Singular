@@ -1,7 +1,7 @@
 # App Attacks
 
 **Código:** APP-ATTACK-1.1  
-**Status:** Em validação  
+**Status:** Aprovado  
 **Camada:** Application  
 **Dependências:** APP-CORE-1.0, DOM-ATTACK-1.1 e APP-ATTACK-1.0
 
