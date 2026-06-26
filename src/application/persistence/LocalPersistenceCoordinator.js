@@ -8,6 +8,7 @@ import {
 } from "../ports/RepositoryPorts.js";
 
 const RESULT_SEVERITIES = Object.freeze(["info", "warning", "blocking"]);
+const NOT_READ = Symbol("not-read");
 
 /**
  * Orquestra os casos de uso mínimos de persistência local sem conhecer
@@ -100,7 +101,9 @@ export function createLocalPersistenceCoordinator(options = {}) {
 
     async saveActiveSession() {
       const sessionBeforeSave = activeSession;
+      let persistedBefore = NOT_READ;
       try {
+        persistedBefore = await sessionRepository.load(sessionBeforeSave.id);
         const saved = await sessionRepository.save(sessionBeforeSave);
         validateApplicationSession(saved);
         assertSameSessionSnapshot(
@@ -117,14 +120,22 @@ export function createLocalPersistenceCoordinator(options = {}) {
         });
       } catch (error) {
         activeSession = sessionBeforeSave;
+        const rollbackDiagnostic = await compensateFailedSessionSave(
+          sessionRepository,
+          sessionBeforeSave.id,
+          persistedBefore,
+        );
         return freezeResult({
           status: "failed",
           changed: false,
           activeSessionId: activeSession.id,
-          diagnostics: [diagnostic(
-            "local-persistence-save-failed",
-            errorMessage(error),
-          )],
+          diagnostics: [
+            diagnostic(
+              "local-persistence-save-failed",
+              errorMessage(error),
+            ),
+            ...(rollbackDiagnostic === null ? [] : [rollbackDiagnostic]),
+          ],
           data: { savedSessionId: null },
         });
       }
@@ -347,6 +358,35 @@ export function createLocalPersistenceCoordinator(options = {}) {
   };
 
   return Object.freeze(coordinator);
+}
+
+async function compensateFailedSessionSave(repository, id, persistedBefore) {
+  if (persistedBefore === NOT_READ) return null;
+  try {
+    if (persistedBefore === null) {
+      await repository.remove(id);
+    } else {
+      try {
+        await repository.save(persistedBefore);
+      } catch {
+        const restored = await repository.load(id);
+        if (restored === null) {
+          throw new Error("Previous saved session was not restored");
+        }
+        assertSameSessionSnapshot(
+          persistedBefore,
+          restored,
+          "Restored ApplicationSession snapshot",
+        );
+      }
+    }
+    return null;
+  } catch (error) {
+    return diagnostic(
+      "local-persistence-save-rollback-failed",
+      errorMessage(error),
+    );
+  }
 }
 
 function assertSameSessionSnapshot(expected, actual, label) {
