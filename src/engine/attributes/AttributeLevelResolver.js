@@ -2,14 +2,22 @@ import {
   validateAttribute,
   validateAttributes,
 } from "../../domain/character/Attributes.js";
+import {
+  assertEnginePortableValue,
+  cloneEnginePortableValue,
+  deepFreezeEngineValue,
+  requireEnginePlainObject,
+  validateEngineDenseArray,
+} from "../EnginePortableValue.js";
 
 const ATTRIBUTE_LEVEL_SCHEMA_VERSION = 1;
 const ATTRIBUTE_KEYS = Object.freeze(["ST", "DX", "IQ", "HT"]);
 const RESULT_STATUSES = Object.freeze(["resolved", "blocked"]);
 const RESULT_SOURCES = Object.freeze(["base", "override"]);
+const DIAGNOSTIC_SEVERITIES = Object.freeze(["info", "warning", "blocked"]);
 
 export function resolveAttributeLevel(input = {}) {
-  requirePlainObject(input, "Attribute level input");
+  requireEnginePlainObject(input, "Attribute level input");
 
   const attributeKey = normalizeAttributeKey(input.attributeKey);
   validateAttribute(attributeKey, input.attribute);
@@ -21,16 +29,13 @@ export function resolveAttributeLevel(input = {}) {
     return createAttributeLevelResult({
       attribute: attributeKey,
       status: "blocked",
-      level: null,
       source,
-      diagnostics: [
-        {
-          code: "ATTRIBUTE_EFFECTIVE_LEVEL_INVALID",
-          severity: "blocked",
-          source,
-          value: normalizePortableInvalidValue(candidate),
-        },
-      ],
+      diagnostics: [{
+        code: "ATTRIBUTE_EFFECTIVE_LEVEL_INVALID",
+        severity: "blocked",
+        source,
+        value: normalizePortableInvalidValue(candidate),
+      }],
     });
   }
 
@@ -39,34 +44,31 @@ export function resolveAttributeLevel(input = {}) {
     status: "resolved",
     level: normalizeZero(candidate),
     source,
-    diagnostics: [],
   });
 }
 
 export function resolveAttributeLevels(attributes) {
   validateAttributes(attributes);
 
-  const results = Object.fromEntries(
-    ATTRIBUTE_KEYS.map(attributeKey => [
-      attributeKey,
-      resolveAttributeLevel({
-        attributeKey,
-        attribute: attributes[attributeKey],
-      }),
-    ]),
-  );
-
   const report = {
     schemaVersion: ATTRIBUTE_LEVEL_SCHEMA_VERSION,
-    results,
+    results: Object.fromEntries(
+      ATTRIBUTE_KEYS.map(attributeKey => [
+        attributeKey,
+        resolveAttributeLevel({
+          attributeKey,
+          attribute: attributes[attributeKey],
+        }),
+      ]),
+    ),
   };
 
   validateAttributeLevelsReport(report);
-  return deepFreeze(report);
+  return deepFreezeEngineValue(report);
 }
 
 export function createAttributeLevelResult(input = {}) {
-  requirePlainObject(input, "Attribute level result");
+  requireEnginePlainObject(input, "Attribute level result");
 
   const result = {
     schemaVersion: normalizeSchemaVersion(input.schemaVersion),
@@ -89,11 +91,11 @@ export function createAttributeLevelResult(input = {}) {
   };
 
   validateAttributeLevelResult(result);
-  return deepFreeze(result);
+  return deepFreezeEngineValue(result);
 }
 
 export function validateAttributeLevelResult(result) {
-  requirePlainObject(result, "Attribute level result");
+  requireEnginePlainObject(result, "Attribute level result");
 
   normalizeSchemaVersion(result.schemaVersion);
   normalizeAttributeKey(result.attribute);
@@ -137,23 +139,23 @@ export function validateAttributeLevelResult(result) {
     }
   }
 
-  assertPortableValue(result, "Attribute level result", new WeakSet());
+  assertEnginePortableValue(result, "Attribute level result");
   return true;
 }
 
 export function serializeAttributeLevelResult(result) {
   validateAttributeLevelResult(result);
-  return clonePortableValue(result);
+  return cloneEnginePortableValue(result, "Attribute level result");
 }
 
 export function validateAttributeLevelsReport(report) {
-  requirePlainObject(report, "Attribute levels report");
+  requireEnginePlainObject(report, "Attribute levels report");
 
   if (report.schemaVersion !== ATTRIBUTE_LEVEL_SCHEMA_VERSION) {
     throw new Error("Attribute levels report schemaVersion is invalid");
   }
 
-  requirePlainObject(report.results, "Attribute levels report results");
+  requireEnginePlainObject(report.results, "Attribute levels report results");
   const resultKeys = Object.keys(report.results);
   if (
     resultKeys.length !== ATTRIBUTE_KEYS.length ||
@@ -174,13 +176,13 @@ export function validateAttributeLevelsReport(report) {
     }
   }
 
-  assertPortableValue(report, "Attribute levels report", new WeakSet());
+  assertEnginePortableValue(report, "Attribute levels report");
   return true;
 }
 
 export function serializeAttributeLevelsReport(report) {
   validateAttributeLevelsReport(report);
-  return clonePortableValue(report);
+  return cloneEnginePortableValue(report, "Attribute levels report");
 }
 
 export function getAttributeLevelSchemaVersion() {
@@ -208,18 +210,16 @@ function normalizeAttributeKey(value) {
 
 function normalizeDiagnostics(value) {
   if (value === undefined || value === null) return [];
-  if (!Array.isArray(value)) {
-    throw new Error("Attribute level diagnostics must be an array");
-  }
-  ensureDenseArray(value, "Attribute level diagnostics");
+  validateEngineDenseArray(value, "Attribute level diagnostics");
+
   return value.map((diagnostic, index) => {
     const label = `Attribute level diagnostic[${index}]`;
-    requirePlainObject(diagnostic, label);
-    const cloned = clonePortableValue(diagnostic, label);
+    requireEnginePlainObject(diagnostic, label);
+    const cloned = cloneEnginePortableValue(diagnostic, label);
     normalizeRequiredString(cloned.code, `${label} code`);
     normalizeEnum(
       cloned.severity,
-      ["info", "warning", "blocked"],
+      DIAGNOSTIC_SEVERITIES,
       `${label} severity`,
     );
     return cloned;
@@ -227,20 +227,17 @@ function normalizeDiagnostics(value) {
 }
 
 function validateDiagnostics(value) {
-  if (!Array.isArray(value)) {
-    throw new Error("Attribute level diagnostics must be an array");
-  }
-  ensureDenseArray(value, "Attribute level diagnostics");
+  validateEngineDenseArray(value, "Attribute level diagnostics");
   value.forEach((diagnostic, index) => {
     const label = `Attribute level diagnostic[${index}]`;
-    requirePlainObject(diagnostic, label);
+    requireEnginePlainObject(diagnostic, label);
     normalizeRequiredString(diagnostic.code, `${label} code`);
     normalizeEnum(
       diagnostic.severity,
-      ["info", "warning", "blocked"],
+      DIAGNOSTIC_SEVERITIES,
       `${label} severity`,
     );
-    assertPortableValue(diagnostic, label, new WeakSet());
+    assertEnginePortableValue(diagnostic, label);
   });
 }
 
@@ -273,74 +270,6 @@ function normalizePortableInvalidValue(value) {
   return typeof value;
 }
 
-function clonePortableValue(value, label = "Value") {
-  assertPortableValue(value, label, new WeakSet());
-  return JSON.parse(JSON.stringify(value));
-}
-
-function assertPortableValue(value, label, ancestors) {
-  if (value === null) return;
-
-  const type = typeof value;
-  if (type === "string" || type === "boolean") return;
-  if (type === "number") {
-    if (!Number.isFinite(value) || Object.is(value, -0)) {
-      throw new Error(`${label} must be JSON portable`);
-    }
-    return;
-  }
-  if (type !== "object") {
-    throw new Error(`${label} must be JSON portable`);
-  }
-
-  if (ancestors.has(value)) {
-    throw new Error(`${label} must be JSON portable`);
-  }
-  ancestors.add(value);
-
-  if (Array.isArray(value)) {
-    ensureDenseArray(value, label);
-    value.forEach((item, index) =>
-      assertPortableValue(item, `${label}[${index}]`, ancestors),
-    );
-    ancestors.delete(value);
-    return;
-  }
-
-  requirePlainObject(value, label);
-  for (const [key, item] of Object.entries(value)) {
-    assertPortableValue(item, `${label}.${key}`, ancestors);
-  }
-  ancestors.delete(value);
-}
-
-function ensureDenseArray(value, label) {
-  for (let index = 0; index < value.length; index += 1) {
-    if (!Object.prototype.hasOwnProperty.call(value, index)) {
-      throw new Error(`${label} must not contain sparse entries`);
-    }
-  }
-}
-
-function requirePlainObject(value, label) {
-  if (
-    value === null ||
-    typeof value !== "object" ||
-    Array.isArray(value) ||
-    (Object.getPrototypeOf(value) !== Object.prototype &&
-      Object.getPrototypeOf(value) !== null)
-  ) {
-    throw new Error(`${label} must be an object`);
-  }
-}
-
 function normalizeZero(value) {
   return Object.is(value, -0) ? 0 : value;
-}
-
-function deepFreeze(value, seen = new WeakSet()) {
-  if (!value || typeof value !== "object" || seen.has(value)) return value;
-  seen.add(value);
-  Object.values(value).forEach(item => deepFreeze(item, seen));
-  return Object.freeze(value);
 }
