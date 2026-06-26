@@ -54,9 +54,12 @@ html, body {
   grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
-.singular-mobile-sheet__pool-strip,
-.singular-mobile-sheet__cards {
+.singular-mobile-sheet__pool-strip {
   grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.singular-mobile-sheet__cards {
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .singular-mobile-sheet__action,
