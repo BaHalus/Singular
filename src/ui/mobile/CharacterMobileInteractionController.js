@@ -2,6 +2,7 @@ export function mountCharacterMobileInteractionController(options = {}) {
   requirePlainObject(options, "Character mobile interaction options");
   requireFunction(options.commands?.adjustPoolCurrent, "Mobile pool command");
   requireFunction(options.commands?.setCharacterSummary, "Mobile character summary command");
+  requireFunction(options.commands?.adjustAttributeBase, "Mobile attribute command");
   requireFunction(options.ui?.getState, "Mobile UI state reader");
   requireFunction(options.getMode, "Mobile mode reader");
   requireFunction(options.setMode, "Mobile mode writer");
@@ -60,6 +61,27 @@ export function mountCharacterMobileInteractionController(options = {}) {
       );
     }
 
+    const attributeTarget = findAttributeTarget(event?.target);
+    if (attributeTarget !== null) {
+      event.preventDefault?.();
+      if (options.getMode() !== "creation") {
+        setCommandStatus(root, "blocked-by-mode");
+        return null;
+      }
+      if (options.ui.getState().busy) {
+        setCommandStatus(root, "busy");
+        return null;
+      }
+      return applyResult(
+        options.commands.adjustAttributeBase({
+          attributeKey: readDataset(attributeTarget, "attributeKey"),
+          delta: Number(readDataset(attributeTarget, "attributeAdjust")),
+        }),
+        root,
+        rerender,
+      );
+    }
+
     const poolTarget = findPoolTarget(event?.target);
     if (poolTarget === null) return null;
     event.preventDefault?.();
@@ -90,6 +112,20 @@ function applyResult(result, root, rerender) {
   setCommandStatus(root, result.status);
   if (["applied", "no-op"].includes(result.status)) rerender();
   return result;
+}
+
+function findAttributeTarget(target) {
+  let current = target ?? null;
+  while (current !== null) {
+    if (
+      readDataset(current, "attributeKey") !== null &&
+      readDataset(current, "attributeAdjust") !== null
+    ) {
+      return current;
+    }
+    current = current.parentElement ?? null;
+  }
+  return null;
 }
 
 function findPoolTarget(target) {
