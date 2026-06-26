@@ -1,3 +1,10 @@
+import {
+  cloneSkillMechanicsPortableValue,
+  deepFreezeSkillMechanicsValue,
+  requireSkillMechanicsPlainObject,
+  validateSkillMechanicsDenseArray,
+} from "./SkillMechanicsPortableValue.js";
+
 const SKILL_MECHANICS_RESULT_SCHEMA_VERSION = 1;
 
 const ENTITY_TYPES = ["skill", "technique"];
@@ -6,7 +13,7 @@ const BASIS_KINDS = ["trained", "default", "technique"];
 const DIAGNOSTIC_SEVERITIES = ["info", "warning", "blocked"];
 
 export function createSkillMechanicsResult(input = {}) {
-  requirePlainObject(input, "Skill mechanics result");
+  requireSkillMechanicsPlainObject(input, "Skill mechanics result");
 
   const result = {
     schemaVersion: normalizePositiveInteger(
@@ -44,11 +51,11 @@ export function createSkillMechanicsResult(input = {}) {
   };
 
   validateSkillMechanicsResult(result);
-  return deepFreeze(result);
+  return deepFreezeSkillMechanicsValue(result);
 }
 
 export function validateSkillMechanicsResult(result) {
-  requirePlainObject(result, "Skill mechanics result");
+  requireSkillMechanicsPlainObject(result, "Skill mechanics result");
 
   normalizePositiveInteger(
     result.schemaVersion,
@@ -77,14 +84,14 @@ export function validateSkillMechanicsResult(result) {
   );
   validateDiagnostics(result.diagnostics);
   validateStatusConsistency(result, status);
-  clonePortableValue(result, "Skill mechanics result");
+  cloneSkillMechanicsPortableValue(result, "Skill mechanics result");
 
   return true;
 }
 
 export function serializeSkillMechanicsResult(result) {
   validateSkillMechanicsResult(result);
-  return clonePortableValue(result, "Skill mechanics result");
+  return cloneSkillMechanicsPortableValue(result, "Skill mechanics result");
 }
 
 export function getSkillMechanicsResultSchemaVersion() {
@@ -93,7 +100,7 @@ export function getSkillMechanicsResultSchemaVersion() {
 
 function normalizeBasis(value) {
   if (value === undefined || value === null) return null;
-  requirePlainObject(value, "Skill mechanics result basis");
+  requireSkillMechanicsPlainObject(value, "Skill mechanics result basis");
 
   const basis = {
     kind: normalizeEnum(
@@ -117,7 +124,7 @@ function normalizeBasis(value) {
 
 function validateBasis(value) {
   if (value === null) return;
-  requirePlainObject(value, "Skill mechanics result basis");
+  requireSkillMechanicsPlainObject(value, "Skill mechanics result basis");
   normalizeEnum(
     value.kind,
     BASIS_KINDS,
@@ -135,7 +142,10 @@ function validateBasis(value) {
 
 function normalizeDiagnostics(value) {
   if (value === undefined || value === null) return [];
-  validateDenseArray(value, "Skill mechanics result diagnostics");
+  validateSkillMechanicsDenseArray(
+    value,
+    "Skill mechanics result diagnostics",
+  );
   return value.map((diagnostic, index) =>
     normalizeDiagnostic(diagnostic, index),
   );
@@ -143,8 +153,8 @@ function normalizeDiagnostics(value) {
 
 function normalizeDiagnostic(diagnostic, index) {
   const label = `Skill mechanics result diagnostic[${index}]`;
-  requirePlainObject(diagnostic, label);
-  const normalized = clonePortableValue(diagnostic, label);
+  requireSkillMechanicsPlainObject(diagnostic, label);
+  const normalized = cloneSkillMechanicsPortableValue(diagnostic, label);
 
   normalizeRequiredString(normalized.code, `${label} code`);
   normalizeEnum(
@@ -157,18 +167,21 @@ function normalizeDiagnostic(diagnostic, index) {
 }
 
 function validateDiagnostics(diagnostics) {
-  validateDenseArray(diagnostics, "Skill mechanics result diagnostics");
+  validateSkillMechanicsDenseArray(
+    diagnostics,
+    "Skill mechanics result diagnostics",
+  );
 
   diagnostics.forEach((diagnostic, index) => {
     const label = `Skill mechanics result diagnostic[${index}]`;
-    requirePlainObject(diagnostic, label);
+    requireSkillMechanicsPlainObject(diagnostic, label);
     normalizeRequiredString(diagnostic.code, `${label} code`);
     normalizeEnum(
       diagnostic.severity,
       DIAGNOSTIC_SEVERITIES,
       `${label} severity`,
     );
-    clonePortableValue(diagnostic, label);
+    cloneSkillMechanicsPortableValue(diagnostic, label);
   });
 }
 
@@ -249,7 +262,7 @@ function normalizeNullableFiniteNumber(value, label) {
 
 function normalizeUniqueStringArray(value, label) {
   if (value === undefined || value === null) return [];
-  validateDenseArray(value, label);
+  validateSkillMechanicsDenseArray(value, label);
 
   const normalized = value.map((item, index) =>
     normalizeRequiredString(item, `${label}[${index}]`),
@@ -259,7 +272,7 @@ function normalizeUniqueStringArray(value, label) {
 }
 
 function validateUniqueStringArray(value, label) {
-  validateDenseArray(value, label);
+  validateSkillMechanicsDenseArray(value, label);
 
   value.forEach((item, index) =>
     normalizeRequiredString(item, `${label}[${index}]`),
@@ -268,89 +281,4 @@ function validateUniqueStringArray(value, label) {
   if (new Set(value).size !== value.length) {
     throw new Error(`${label} must not contain duplicates`);
   }
-}
-
-function validateDenseArray(value, label) {
-  if (!Array.isArray(value)) {
-    throw new Error(`${label} must be an array`);
-  }
-
-  for (let index = 0; index < value.length; index += 1) {
-    if (!Object.prototype.hasOwnProperty.call(value, index)) {
-      throw new Error(`${label} must not contain sparse entries`);
-    }
-  }
-
-  const expectedKeys = new Set(
-    Array.from({ length: value.length }, (_, index) => String(index)),
-  );
-  for (const key of Object.keys(value)) {
-    if (!expectedKeys.has(key)) {
-      throw new Error(`${label} must not contain non-index properties`);
-    }
-  }
-}
-
-function clonePortableValue(value, label) {
-  assertPortableValue(value, label, new WeakSet());
-  return JSON.parse(JSON.stringify(value));
-}
-
-function assertPortableValue(value, label, ancestors) {
-  if (value === null) return;
-
-  const type = typeof value;
-  if (type === "string" || type === "boolean") return;
-  if (type === "number") {
-    if (!Number.isFinite(value)) {
-      throw new Error(`${label} must be JSON portable`);
-    }
-    return;
-  }
-  if (type !== "object") {
-    throw new Error(`${label} must be JSON portable`);
-  }
-
-  if (ancestors.has(value)) {
-    throw new Error(`${label} must be JSON portable`);
-  }
-  ancestors.add(value);
-
-  if (Array.isArray(value)) {
-    validateDenseArray(value, label);
-    value.forEach((item, index) =>
-      assertPortableValue(item, `${label}[${index}]`, ancestors),
-    );
-    ancestors.delete(value);
-    return;
-  }
-
-  if (!isPlainObject(value)) {
-    throw new Error(`${label} must be JSON portable`);
-  }
-  for (const [key, item] of Object.entries(value)) {
-    assertPortableValue(item, `${label}.${key}`, ancestors);
-  }
-  ancestors.delete(value);
-}
-
-function requirePlainObject(value, label) {
-  if (!isPlainObject(value)) {
-    throw new Error(`${label} must be an object`);
-  }
-}
-
-function isPlainObject(value) {
-  if (value === null || typeof value !== "object" || Array.isArray(value)) {
-    return false;
-  }
-  const prototype = Object.getPrototypeOf(value);
-  return prototype === Object.prototype || prototype === null;
-}
-
-function deepFreeze(value, seen = new WeakSet()) {
-  if (!value || typeof value !== "object" || seen.has(value)) return value;
-  seen.add(value);
-  Object.values(value).forEach(item => deepFreeze(item, seen));
-  return Object.freeze(value);
 }
