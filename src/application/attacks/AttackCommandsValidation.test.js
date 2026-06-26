@@ -41,3 +41,13 @@ function command(type, expectedRevision, payload, id) {
     payload,
   };
 }
+
+function entry() {
+  return {
+    id: "attack-validation",
+    name: "Entrada declarada",
+    category: "melee",
+    source: { kind: "manual", id: null },
+    damage: { value: "declared-value", type: "declared-type" },
+  };
+}
