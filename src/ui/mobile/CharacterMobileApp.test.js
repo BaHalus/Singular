@@ -168,6 +168,7 @@ test("restores the last valid session before completing the executable bootstrap
 
   const mounted = await bootstrapCharacterMobileApp({
     root,
+    document: { querySelector: () => root },
     storage,
     namespace,
     runtime: runtime(),
