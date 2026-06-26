@@ -1,53 +1,44 @@
 # ADR-0059 — Persistência Local MVP de navegador
 
-**Status:** Proposto  
+**Status:** Aceito  
 **Data:** 2026-06-26  
 **Bloco:** PERSISTENCE-LOCAL-MVP
 
 ## Contexto
 
-A Alpha mobile da SINGULAR precisa sobreviver ao fechamento do navegador sem antecipar backend, contas, sincronização em nuvem ou interface visual completa de gerenciamento.
+A Alpha mobile da SINGULAR precisa sobreviver ao fechamento do navegador sem antecipar backend, contas, sincronização em nuvem ou uma interface completa de gerenciamento.
 
-O App Core já define `CharacterRepository` e `SessionRepository` com `load`, `save`, `remove` e `listIds`. Os adaptadores em memória armazenam snapshots serializados e reidratam objetos validados. A persistência concreta deve seguir a mesma autoridade: armazenar evidências portáteis, nunca objetos vivos nem regras paralelas.
+O App Core já define `CharacterRepository` e `SessionRepository`. A persistência concreta deve armazenar snapshots portáteis e reidratar entidades validadas, sem se tornar autoridade mecânica ou manter objetos vivos.
 
 ## Decisão
 
-Criar um adaptador mínimo de navegador em `src/infrastructure/persistence/browser/BrowserLocalPersistence.js`.
+Criar `src/infrastructure/persistence/browser/BrowserLocalPersistence.js` com storage injetável compatível com `localStorage`.
 
 O adaptador:
 
-- usa um storage injetável compatível com `localStorage`;
-- mantém namespace explícito;
-- armazena registros versionados `singular-local-persistence` versão 1;
-- implementa repositórios concretos para `Character` e `ApplicationSession` usando as portas já existentes;
-- serializa por `serializeCharacter` e `serializeApplicationSession`;
-- reidrata por `createCharacter` e `createApplicationSession`;
-- lista IDs por índices determinísticos;
-- remove registros sem afetar outros namespaces;
-- registra o último `ApplicationSession` salvo por ponteiro separado;
-- ignora registros ausentes ou inválidos durante carregamento público;
-- expõe inspeção diagnóstica portátil para detectar corrupção sem destruir estado válido;
-- define exportação própria de personagem como `singular-character-export` versão 1.
+- mantém namespace e versão explícitos;
+- implementa as portas existentes de `Character` e `ApplicationSession`;
+- serializa e reidrata pelas APIs canônicas;
+- lista e remove IDs por índices determinísticos;
+- registra a última sessão salva em ponteiro separado;
+- inspeciona corrupção sem apagar registros válidos;
+- oferece exportação própria `singular-character-export` versão 1.
 
-## Fronteiras
+## Chaves locais
 
-Esta ADR não integra a persistência a botões, telas ou boot automático da UI.
+Registros, índices e ponteiros usam espaços de chave distintos:
 
-Também não introduz:
+```text
+<namespace>:v1:character:record:<id codificado>
+<namespace>:v1:character:index
+<namespace>:v1:session:record:<id codificado>
+<namespace>:v1:session:index
+<namespace>:v1:last-session
+```
 
-- IndexedDB;
-- service worker;
-- nuvem;
-- login;
-- contas;
-- criptografia avançada;
-- anexos;
-- migração de protótipos antigos;
-- compatibilidade ampla com formatos externos.
+O segmento `record` impede colisões entre uma entidade cujo ID seja `index` e a chave interna do índice.
 
-A futura ligação com Salvar, Abrir, Exportar e Importar deve ocorrer em PR separada e coordenada com a frente mobile.
-
-## Formato local
+## Registros
 
 Cada registro salvo possui:
 
@@ -74,9 +65,15 @@ O ponteiro da última sessão possui:
 }
 ```
 
-## Formato de exportação própria
+## Corrupção e recuperação
 
-A exportação de personagem possui:
+Carregamento por ID retorna `null` quando o registro está ausente ou inválido. A inspeção produz diagnósticos portáteis para registros, índices e ponteiros ilegíveis.
+
+Um índice com JSON inválido, estrutura diferente de array ou IDs inválidos não é tratado silenciosamente como índice vazio durante escrita. `save` e `remove` falham antes de alterar registros, preservando o conteúdo corrompido para diagnóstico ou recuperação explícita.
+
+A escrita restaura registro e índice anteriores quando uma operação de storage falha após o início da atualização.
+
+## Exportação própria
 
 ```js
 {
@@ -87,39 +84,22 @@ A exportação de personagem possui:
 }
 ```
 
-`character` é o snapshot canônico retornado por `serializeCharacter`.
+`character` é o snapshot canônico de `serializeCharacter`.
 
-## Corrupção e recuperação
+## Fronteiras
 
-Carregamento por ID retorna `null` quando o registro está ausente ou inválido. A inspeção diagnóstica permite à aplicação/UI futura avisar o usuário sem apagar automaticamente outros registros válidos.
+Esta decisão não integra persistência a botões, telas ou bootstrap automático. Também não introduz IndexedDB, service worker, nuvem, login, criptografia avançada, migração de protótipos ou compatibilidade ampla com formatos externos.
 
-A escrita tenta preservar atomicidade mínima no escopo do `localStorage`: se a atualização do registro ou do índice falhar, o adapter restaura os valores anteriores dos dois pontos conhecidos.
-
-## Alternativas rejeitadas
-
-### IndexedDB já na Alpha
-
-Rejeitado por acrescentar complexidade assíncrona, migração e superfície de falha desnecessária para o MVP. Pode ser introduzido depois preservando as portas.
-
-### Salvar objetos vivos
-
-Rejeitado por violar a autoridade do App Core e permitir mutações por referência.
-
-### Integrar diretamente à UI nesta PR
-
-Rejeitado para evitar colisão com a frente mobile e manter a entrega como infraestrutura isolada.
-
-### Formato externo genérico
-
-Rejeitado porque a Alpha precisa primeiro de roundtrip próprio e validado da SINGULAR.
+A ligação com Salvar, Abrir, Exportar e Importar ocorrerá em PR separada e coordenada com a frente mobile.
 
 ## Invariantes
 
-1. Repositórios concretos implementam as portas já existentes.
-2. Persistência armazena snapshots serializados.
-3. Carregamento sempre reidrata instâncias validadas.
+1. Os repositórios concretos implementam as portas existentes.
+2. A persistência armazena snapshots serializados.
+3. Carregamento reidrata instâncias validadas.
 4. Registros corrompidos não destroem registros válidos.
-5. O adaptador não calcula regra GURPS.
-6. O adaptador não cria segunda sessão autoritativa.
-7. UI e App Core não são alterados por esta fatia.
-8. O formato local é versionado desde a primeira entrega.
+5. Índices corrompidos são diagnosticados e não sobrescritos implicitamente.
+6. IDs de entidade não colidem com chaves internas.
+7. O adaptador não calcula regras GURPS.
+8. O adaptador não cria segundo `Character` ou segunda sessão autoritativa.
+9. UI e App Core não são alterados por esta fatia.
