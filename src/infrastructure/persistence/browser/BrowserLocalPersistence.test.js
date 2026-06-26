@@ -92,7 +92,6 @@ test("persists Sessions and restores the last valid saved session", async () => 
 
   assert.deepEqual(await repository.listIds(), ["session-first", "session-second"]);
   assert.deepEqual(serializeApplicationSession(last), serializeApplicationSession(second));
-
   assert.equal(await repository.remove("session-second"), true);
   assert.equal(await repository.loadLastSession(), null);
   assert.deepEqual(await repository.listIds(), ["session-first"]);
@@ -114,6 +113,30 @@ test("isolates namespaces and removes records deterministically", async () => {
   assert.equal((await beta.load("shared")).identity.name, "Beta");
 });
 
+test("keeps record id index distinct from the internal index key", async () => {
+  const storage = createMemoryStorage();
+  const repository = createBrowserLocalCharacterRepository({
+    storage,
+    namespace: "test.reserved-id",
+  });
+
+  await repository.save(character("index", "Índice como identidade"));
+
+  const loaded = await repository.load("index");
+  assert.equal(loaded.identity.name, "Índice como identidade");
+  assert.deepEqual(await repository.listIds(), ["index"]);
+  assert.equal(
+    storage.entries().some(([key]) =>
+      key === "test.reserved-id:v1:character:record:index"),
+    true,
+  );
+  assert.equal(
+    storage.entries().some(([key]) =>
+      key === "test.reserved-id:v1:character:index"),
+    true,
+  );
+});
+
 test("does not destroy a valid saved record when an indexed sibling is corrupt", async () => {
   const storage = createMemoryStorage();
   const repository = createBrowserLocalCharacterRepository({
@@ -123,7 +146,7 @@ test("does not destroy a valid saved record when an indexed sibling is corrupt",
 
   await repository.save(character("valid"));
   storage.setItem("test.corrupt:v1:character:index", JSON.stringify(["corrupt", "valid"]));
-  storage.setItem("test.corrupt:v1:character:corrupt", "{not-json");
+  storage.setItem("test.corrupt:v1:character:record:corrupt", "{not-json");
 
   const valid = await repository.load("valid");
   const missing = await repository.load("corrupt");
@@ -136,8 +159,65 @@ test("does not destroy a valid saved record when an indexed sibling is corrupt",
   assert.equal(missing, null);
   assert.equal(inspection.characterIds.includes("valid"), true);
   assert.equal(
-    inspection.diagnostics.some(diagnostic => diagnostic.code === "unreadable-indexed-record"),
+    inspection.diagnostics.some(diagnostic =>
+      diagnostic.code === "unreadable-indexed-record"),
     true,
+  );
+});
+
+test("reports invalid JSON and non-array persistence indexes", () => {
+  const brokenJsonStorage = createMemoryStorage([
+    ["test.index-json:v1:character:index", "{broken"],
+  ]);
+  const wrongShapeStorage = createMemoryStorage([
+    ["test.index-shape:v1:session:index", JSON.stringify({ ids: [] })],
+  ]);
+
+  const brokenJson = inspectBrowserLocalPersistence({
+    storage: brokenJsonStorage,
+    namespace: "test.index-json",
+  });
+  const wrongShape = inspectBrowserLocalPersistence({
+    storage: wrongShapeStorage,
+    namespace: "test.index-shape",
+  });
+
+  assert.deepEqual(brokenJson.characterIds, []);
+  assert.equal(
+    brokenJson.diagnostics.some(diagnostic =>
+      diagnostic.code === "invalid-storage-index" &&
+      diagnostic.message.includes("invalid JSON")),
+    true,
+  );
+  assert.deepEqual(wrongShape.sessionIds, []);
+  assert.equal(
+    wrongShape.diagnostics.some(diagnostic =>
+      diagnostic.code === "invalid-storage-index" &&
+      diagnostic.message.includes("must be an array")),
+    true,
+  );
+});
+
+test("refuses to overwrite a corrupt index during save", async () => {
+  const storage = createMemoryStorage([
+    ["test.index-write:v1:character:index", "{broken"],
+  ]);
+  const repository = createBrowserLocalCharacterRepository({
+    storage,
+    namespace: "test.index-write",
+  });
+
+  await assert.rejects(
+    () => repository.save(character("new-record")),
+    /index is invalid JSON/,
+  );
+  assert.equal(
+    storage.getItem("test.index-write:v1:character:record:new-record"),
+    null,
+  );
+  assert.equal(
+    storage.getItem("test.index-write:v1:character:index"),
+    "{broken",
   );
 });
 
@@ -170,7 +250,6 @@ test("rejects invalid export documents with portable diagnostics", () => {
   assert.equal(invalidJson.character, null);
   assert.equal(invalidJson.diagnostics[0].code, "invalid-json");
   assert.equal(Object.isFrozen(invalidJson.diagnostics[0]), true);
-
   assert.equal(invalidFormat.status, "rejected");
   assert.equal(
     invalidFormat.diagnostics.some(diagnostic => diagnostic.code === "invalid-format"),
