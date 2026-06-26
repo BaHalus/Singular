@@ -35,13 +35,14 @@ A PR #115 permanece restrita a `src/ui/mobile/*`. Não há sobreposição com os
 
 ## Evidência
 
-GitHub Actions `Tests`, execução `28268624516`, concluiu com sucesso no commit `3d7c2294f1dc2a05fb213332cf043c826278dc9c`. O commit documental final deve repetir a suíte integral.
+GitHub Actions `Tests`, execução `28268624516`, concluiu com sucesso no commit de implementação `3d7c2294f1dc2a05fb213332cf043c826278dc9c`. A execução `28268674720` concluiu com sucesso no head documental `383c39b7330ce72402f94c11b60883d329d27e13`.
 
 ## Integração
 
 - [x] PR própria única: #118;
 - [x] branch atualizada na abertura;
 - [x] CI integral verde no head de implementação;
-- [ ] CI integral verde no head documental final;
-- [ ] nenhuma revisão ou thread bloqueante;
+- [x] CI integral verde no head documental;
+- [x] nenhuma revisão bloqueante observada;
+- [x] nenhuma thread própria aberta observada;
 - [ ] merge serializado.
