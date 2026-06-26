@@ -183,7 +183,21 @@ function normalizeAttackId(value) {
 }
 
 function portableEqual(left, right) {
-  return JSON.stringify(left) === JSON.stringify(right);
+  if (Object.is(left, right)) return true;
+  if (left === null || right === null) return false;
+  if (typeof left !== "object" || typeof right !== "object") return false;
+
+  if (Array.isArray(left) || Array.isArray(right)) {
+    if (!Array.isArray(left) || !Array.isArray(right)) return false;
+    return left.length === right.length &&
+      left.every((item, index) => portableEqual(item, right[index]));
+  }
+
+  const leftKeys = Object.keys(left).sort();
+  const rightKeys = Object.keys(right).sort();
+  return leftKeys.length === rightKeys.length &&
+    leftKeys.every((key, index) =>
+      key === rightKeys[index] && portableEqual(left[key], right[key]));
 }
 
 function requirePlainObject(value, label) {
