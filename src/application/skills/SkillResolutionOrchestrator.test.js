@@ -278,6 +278,30 @@ test("serializes a detached report", () => {
   assert.equal(Object.isFrozen(serialized), false);
 });
 
+test("accepts semantically equal final results with different key order", () => {
+  const report = serializeSkillResolutionReport(
+    orchestrateSkillResolution({
+      skill: createStealth(),
+      attributeLevel: 10,
+    }),
+  );
+  report.finalResult = {
+    status: report.finalResult.status,
+    basis: {
+      attribute: report.finalResult.basis.attribute,
+      sourceId: report.finalResult.basis.sourceId,
+      kind: report.finalResult.basis.kind,
+    },
+    relativeLevel: report.finalResult.relativeLevel,
+    level: report.finalResult.level,
+    entityType: report.finalResult.entityType,
+    entityId: report.finalResult.entityId,
+    diagnostics: report.finalResult.diagnostics,
+  };
+
+  assert.equal(validateSkillResolutionReport(report), true);
+});
+
 test("rejects an inconsistent final result", () => {
   const report = serializeSkillResolutionReport(
     orchestrateSkillResolution({
