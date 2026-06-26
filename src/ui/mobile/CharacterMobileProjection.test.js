@@ -120,7 +120,7 @@ test("projects declared traits, skills and techniques without calculating rules"
   );
 });
 
-test("projects equipment hierarchy and totals from the domain authority", () => {
+test("projects equipment hierarchy and totals from the equipment engine", () => {
   const character = createCharacter({
     identity: identity("char_mobile_equipment", "Inventário Mobile"),
     equipment: [
@@ -170,13 +170,48 @@ test("projects equipment hierarchy and totals from the domain authority", () => 
     quantity: 5,
     weightKg: 4.5,
     cost: 466,
-    authority: "domain",
+    authority: "engine.equipment",
   });
   assert.equal(
     projection.sections.find(section => section.id === "equipment").status,
     "declared-only",
   );
   assert.equal(Object.isFrozen(projection.equipment), true);
+});
+
+test("excludes ignored semantic groups from totals while counting their children", () => {
+  const projection = projectCharacterForMobileSheet(createCharacter({
+    identity: identity("char_mobile_equipment_group", "Grupo Semântico"),
+    equipment: [
+      {
+        id: "eq_consumiveis",
+        kind: "container",
+        containerKind: "group",
+        name: "Consumíveis",
+        quantity: 1,
+        weightKg: 9,
+        cost: 99,
+        children: [
+          {
+            id: "eq_bandagem",
+            name: "Bandagem",
+            quantity: 3,
+            weightKg: 0.1,
+            cost: 2,
+            state: "carried",
+          },
+        ],
+      },
+    ],
+  }));
+
+  assert.equal(projection.equipment.items[0].state, "ignored");
+  assert.deepEqual(projection.equipment.totals, {
+    quantity: 3,
+    weightKg: 0.3,
+    cost: 6,
+    authority: "engine.equipment",
+  });
 });
 
 test("serializes the mobile projection without exposing mutable state", () => {
@@ -219,7 +254,7 @@ test("marks an empty canonical equipment collection as empty", () => {
     quantity: 0,
     weightKg: 0,
     cost: 0,
-    authority: "domain",
+    authority: "engine.equipment",
   });
   assert.equal(
     projection.sections.find(section => section.id === "equipment").status,
