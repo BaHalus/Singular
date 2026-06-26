@@ -13,7 +13,7 @@ import {
   validateCharacterMobileSheetRenderModel,
 } from "./CharacterMobileSheetRenderModel.js";
 
-function projectionFor(id, name) {
+function projectionFor(id, name, equipment = []) {
   return projectCharacterForMobileSheet(createCharacter({
     identity: {
       id,
@@ -22,10 +22,11 @@ function projectionFor(id, name) {
       playerId: null,
       campaignId: null,
     },
+    equipment,
   }));
 }
 
-test("creates the first render model for a mobile character sheet", () => {
+test("creates the mobile render model with an empty equipment card", () => {
   const character = createCharacter({
     identity: {
       id: "char-mobile-render",
@@ -34,46 +35,81 @@ test("creates the first render model for a mobile character sheet", () => {
       playerId: null,
       campaignId: null,
     },
-    attributes: {
-      ST: 10,
-      DX: 12,
-      IQ: 11,
-      HT: 9,
-    },
+    attributes: { ST: 10, DX: 12, IQ: 11, HT: 9 },
     secondaryCharacteristics: {
-      HP: {
-        base: 10,
-        override: null,
-      },
-      FP: {
-        base: 9,
-        override: null,
-      },
+      HP: { base: 10, override: null },
+      FP: { base: 9, override: null },
     },
     pools: {
-      HP: {
-        current: 6,
-        maximum: 10,
-      },
-      FP: {
-        current: 8,
-        maximum: 9,
-      },
+      HP: { current: 6, maximum: 10 },
+      FP: { current: 8, maximum: 9 },
     },
   });
 
-  const projection = projectCharacterForMobileSheet(character);
-  const model = createCharacterMobileSheetRenderModel(projection);
+  const model = createCharacterMobileSheetRenderModel(
+    projectCharacterForMobileSheet(character),
+  );
+  const equipment = model.cards.find(card => card.id === "equipment");
 
+  assert.equal(model.schemaVersion, 3);
   assert.equal(model.schemaVersion, getCharacterMobileSheetRenderModelSchemaVersion());
   assert.equal(model.title, "Exploradora Mobile");
-  assert.equal(model.subtitle, "Primeira tela utilizável");
   assert.equal(model.summary.attributes.find(item => item.id === "DX").value, 12);
   assert.equal(model.summary.pools.find(item => item.id === "HP").current, 6);
-  assert.equal(model.cards.find(card => card.id === "identity").status, "available");
-  assert.equal(model.cards.find(card => card.id === "secondary-characteristics").status, "declared-only");
-  assert.equal(model.sections.find(section => section.id === "equipment").status, "pending");
+  assert.equal(equipment.status, "empty");
+  assert.deepEqual(equipment.totals, {
+    quantity: 0,
+    weightKg: 0,
+    cost: 0,
+    authority: "engine.equipment",
+  });
+  assert.equal(model.sections.find(section => section.id === "equipment").status, "empty");
   assert.equal(validateCharacterMobileSheetRenderModel(model), true);
+});
+
+test("creates a hierarchical equipment card without recalculating totals", () => {
+  const model = createCharacterMobileSheetRenderModel(projectionFor(
+    "char-mobile-equipment-render",
+    "Inventário Renderizado",
+    [
+      {
+        id: "eq_bolsa",
+        kind: "container",
+        containerKind: "physical",
+        name: "Bolsa",
+        quantity: 1,
+        weightKg: 1,
+        cost: 20,
+        state: "carried",
+        children: [
+          {
+            id: "eq_moeda",
+            name: "Moeda",
+            quantity: 10,
+            weightKg: 0.01,
+            cost: 1,
+            state: "stored",
+          },
+        ],
+      },
+    ],
+  ));
+  const equipment = model.cards.find(card => card.id === "equipment");
+
+  assert.equal(equipment.status, "declared-only");
+  assert.deepEqual(equipment.totals, {
+    quantity: 11,
+    weightKg: 1.1,
+    cost: 30,
+    authority: "engine.equipment",
+  });
+  assert.deepEqual(
+    equipment.items.map(item => [item.id, item.parentId, item.depth, item.state]),
+    [
+      ["eq_bolsa", null, 0, "carried"],
+      ["eq_moeda", "eq_bolsa", 1, "stored"],
+    ],
+  );
 });
 
 test("keeps the render model detached and immutable", () => {

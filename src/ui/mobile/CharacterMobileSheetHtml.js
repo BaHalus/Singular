@@ -2,7 +2,7 @@ import {
   serializeCharacterMobileSheetRenderModel,
 } from "./CharacterMobileSheetRenderModel.js";
 
-const HTML_SHELL_SCHEMA_VERSION = 5;
+const HTML_SHELL_SCHEMA_VERSION = 6;
 
 export function renderCharacterMobileSheetHtml(renderModel, options = {}) {
   const model = serializeCharacterMobileSheetRenderModel(renderModel);
@@ -105,7 +105,6 @@ function renderPoolStrip(pools) {
 function renderPoolControl(pool) {
   const id = escapeAttribute(pool.id);
   const label = localizedPoolLabel(pool.id, pool.label);
-
   return [
     `<div class="singular-mobile-sheet__pool" data-pool="${id}">`,
     `<button type="button" class="singular-mobile-sheet__pool-adjust" data-pool-key="${id}" data-pool-adjust="-1" aria-label="Diminuir ${escapeAttribute(label)}">−</button>`,
@@ -127,9 +126,14 @@ function renderCards(cards, mode) {
 }
 
 function renderCard(card, mode) {
-  const body = card.id === "identity" && mode === "creation"
-    ? renderCharacterSummaryEditor(card)
-    : renderCardBody(card);
+  let body;
+  if (card.id === "identity" && mode === "creation") {
+    body = renderCharacterSummaryEditor(card);
+  } else if (card.id === "equipment") {
+    body = renderEquipmentCard(card);
+  } else {
+    body = renderCardBody(card);
+  }
 
   return [
     `<section class="singular-mobile-sheet__card" data-card="${escapeAttribute(card.id)}" data-status="${escapeAttribute(card.status)}">`,
@@ -146,11 +150,36 @@ function renderCardBody(card) {
   return ["<dl>", card.items.map(renderCardItem).join(""), "</dl>"].join("");
 }
 
+function renderEquipmentCard(card) {
+  if (card.items.length === 0) {
+    return "<p class=\"singular-mobile-sheet__empty\">Nenhum equipamento declarado.</p>";
+  }
+  return [
+    '<dl class="singular-mobile-sheet__equipment-totals" aria-label="Totais de equipamentos">',
+    `<div><dt>Quantidade</dt><dd>${formatValue(card.totals.quantity)}</dd></div>`,
+    `<div><dt>Peso</dt><dd>${formatValue(card.totals.weightKg)} kg</dd></div>`,
+    `<div><dt>Custo</dt><dd>$ ${formatValue(card.totals.cost)}</dd></div>`,
+    "</dl>",
+    '<dl class="singular-mobile-sheet__equipment-list">',
+    card.items.map(renderEquipmentItem).join(""),
+    "</dl>",
+  ].join("");
+}
+
+function renderEquipmentItem(item) {
+  const prefix = item.depth > 0 ? `${"↳ ".repeat(item.depth)}` : "";
+  return [
+    `<div data-equipment-id="${escapeAttribute(item.id)}" data-equipment-state="${escapeAttribute(item.state)}" data-depth="${escapeAttribute(item.depth)}">`,
+    `<dt>${escapeText(item.label)}</dt>`,
+    `<dd>${escapeText(`${prefix}${item.value}`)}${renderItemDetails(item)}</dd>`,
+    "</div>",
+  ].join("");
+}
+
 function renderCharacterSummaryEditor(card) {
   const name = findCardItem(card, "name");
   const concept = findCardItem(card, "concept");
   const readOnlyItems = card.items.filter(item => !["name", "concept"].includes(item.id));
-
   return [
     '<div class="singular-mobile-sheet__summary-editor" data-role="character-summary-editor">',
     '<label>Nome',
@@ -169,9 +198,7 @@ function renderCharacterSummaryEditor(card) {
 
 function findCardItem(card, id) {
   const item = card.items.find(candidate => candidate.id === id);
-  if (!item) {
-    throw new Error(`Character summary card is missing item: ${id}`);
-  }
+  if (!item) throw new Error(`Character summary card is missing item: ${id}`);
   return item;
 }
 
@@ -198,7 +225,6 @@ function renderCardItem(item) {
       "</div>",
     ].join("");
   }
-
   if (Object.prototype.hasOwnProperty.call(item, "value")) {
     return [
       "<div>",
@@ -207,7 +233,6 @@ function renderCardItem(item) {
       "</div>",
     ].join("");
   }
-
   return [
     "<div>",
     `<dt>${escapeText(item.label)}</dt>`,
@@ -233,18 +258,23 @@ function renderItemDetails(item) {
   if (item.importedRelativeLevel !== undefined && item.importedRelativeLevel !== null) {
     details.push(`rel. importado ${formatSignedNumber(item.importedRelativeLevel)}`);
   }
-  if (item.skill) {
-    details.push(`base ${item.skill}`);
-  }
+  if (item.skill) details.push(`base ${item.skill}`);
   if (item.defaultPenalty !== undefined && item.defaultPenalty !== null) {
     details.push(`pd ${formatSignedNumber(item.defaultPenalty)}`);
   }
   if (item.maximumRelativeLevel !== undefined && item.maximumRelativeLevel !== null) {
     details.push(`máx ${formatSignedNumber(item.maximumRelativeLevel)}`);
   }
-  if (item.notes) {
-    details.push(item.notes);
+  if (item.quantity !== undefined) details.push(`Qtd ${formatValue(item.quantity)}`);
+  if (item.weightKg !== undefined) details.push(`${formatValue(item.weightKg)} kg/un`);
+  if (item.cost !== undefined) details.push(`$ ${formatValue(item.cost)}/un`);
+  if (item.state) details.push(localizedEquipmentState(item.state));
+  if (item.uses !== undefined && item.uses !== null) {
+    details.push(item.maxUses === null
+      ? `Usos ${formatValue(item.uses)}`
+      : `Usos ${formatValue(item.uses)}/${formatValue(item.maxUses)}`);
   }
+  if (item.notes) details.push(item.notes);
   if (details.length === 0) return "";
   return ` <small>${escapeText(details.join(" · "))}</small>`;
 }
@@ -263,6 +293,15 @@ function localizedPoolLabel(id, fallback) {
   if (id === "FP") return "PF";
   if (id === "EnergyReserve") return "Reserva de Energia";
   return fallback;
+}
+
+function localizedEquipmentState(state) {
+  if (state === "equipped") return "Equipado";
+  if (state === "carried") return "Carregado";
+  if (state === "stored") return "Guardado";
+  if (state === "dropped") return "Largado";
+  if (state === "ignored") return "Ignorado";
+  return state;
 }
 
 function normalizeMode(value) {
