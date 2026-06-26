@@ -97,6 +97,7 @@ html, body {
   color: #71d2b4;
 }
 
+.singular-mobile-sheet__attribute-control,
 .singular-mobile-sheet__pool {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
@@ -105,6 +106,7 @@ html, body {
   min-width: 0;
 }
 
+.singular-mobile-sheet__attribute-control dl,
 .singular-mobile-sheet__pool dl {
   display: grid;
   place-items: center;
@@ -112,6 +114,7 @@ html, body {
   min-width: 0;
 }
 
+.singular-mobile-sheet__attribute-adjust,
 .singular-mobile-sheet__pool-adjust {
   min-width: 2.75rem;
   min-height: 2.75rem;
@@ -196,6 +199,7 @@ html, body {
 .singular-mobile-sheet p { overflow-wrap: anywhere; }
 
 @media (max-width: 25rem) {
+  .singular-mobile-sheet__attribute-strip,
   .singular-mobile-sheet__pool-strip {
     grid-template-columns: minmax(0, 1fr);
   }
