@@ -15,12 +15,6 @@ const SECONDARY_KEYS = Object.freeze([
   "BasicMove",
 ]);
 const POOL_KEYS = Object.freeze(["HP", "FP", "EnergyReserve"]);
-const TRAIT_ROLES = Object.freeze([
-  "advantage",
-  "perk",
-  "disadvantage",
-  "quirk",
-]);
 
 /**
  * Projeta um Character canônico para o primeiro esqueleto da ficha mobile.
@@ -227,7 +221,7 @@ function projectMobileSections({ traits, skills, techniques }) {
     {
       id: "equipment",
       title: "Equipamentos",
-      status: "external-front",
+      status: "pending",
     },
   ];
 }
@@ -328,9 +322,7 @@ function validateTraitListProjection(traits) {
     requirePlainObject(trait, "Mobile trait projection");
     requireString(trait.id, "Mobile trait id");
     requireString(trait.name, "Mobile trait name");
-    if (!TRAIT_ROLES.includes(trait.role)) {
-      throw new Error(`Mobile trait ${trait.id} role is invalid`);
-    }
+    requireString(trait.role, `Mobile trait ${trait.id} role`);
     requireNullableFiniteNumber(trait.points, `Mobile trait ${trait.id} points`);
     requireNullableFiniteNumber(trait.levels, `Mobile trait ${trait.id} levels`);
     requireString(trait.status, "Mobile trait status");
