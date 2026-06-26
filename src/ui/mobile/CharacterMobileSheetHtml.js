@@ -2,14 +2,13 @@ import {
   serializeCharacterMobileSheetRenderModel,
 } from "./CharacterMobileSheetRenderModel.js";
 
-const HTML_SHELL_SCHEMA_VERSION = 1;
+const HTML_SHELL_SCHEMA_VERSION = 2;
 
 /**
  * Renderiza um shell HTML portátil para a ficha mobile.
  *
  * Esta camada não calcula regra, nível, ponto, carga ou derivado de GURPS.
- * Ela apenas transforma um render model já validado em marcação semântica
- * mínima para inspeção visual e futura ligação ao runtime da UI.
+ * Ela apenas transforma um render model já validado em marcação semântica.
  */
 export function renderCharacterMobileSheetHtml(renderModel, options = {}) {
   const model = serializeCharacterMobileSheetRenderModel(renderModel);
@@ -83,14 +82,25 @@ function renderAttributeStrip(attributes) {
 
 function renderPoolStrip(pools) {
   return [
-    "<dl class=\"singular-mobile-sheet__pool-strip\" aria-label=\"PV e PF atuais\">",
-    pools.map(pool => [
-      `<div class="singular-mobile-sheet__pool" data-pool="${escapeAttribute(pool.id)}">`,
-      `<dt>${escapeText(pool.label)}</dt>`,
-      `<dd>${formatPool(pool.current, pool.maximum)}</dd>`,
-      "</div>",
-    ].join("")).join(""),
+    "<div class=\"singular-mobile-sheet__pool-strip\" role=\"group\" aria-label=\"PV e PF atuais\">",
+    pools.map(renderPoolControl).join(""),
+    "</div>",
+  ].join("");
+}
+
+function renderPoolControl(pool) {
+  const id = escapeAttribute(pool.id);
+  const label = escapeText(pool.label);
+
+  return [
+    `<div class="singular-mobile-sheet__pool" data-pool="${id}">`,
+    `<button type="button" class="singular-mobile-sheet__pool-adjust" data-pool-adjust="-1" data-pool-key="${id}" aria-label="Diminuir ${label}">−</button>`,
+    "<dl>",
+    `<dt>${label}</dt>`,
+    `<dd>${formatPool(pool.current, pool.maximum)}</dd>`,
     "</dl>",
+    `<button type="button" class="singular-mobile-sheet__pool-adjust" data-pool-adjust="1" data-pool-key="${id}" aria-label="Aumentar ${label}">+</button>`,
+    "</div>",
   ].join("");
 }
 
