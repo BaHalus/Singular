@@ -1,10 +1,11 @@
 import { serializeCharacter } from "../../domain/character/Character.js";
+import { calculateEquipmentTotals } from "../../domain/character/EquipmentTotals.js";
 import {
   resolveAttributeLevels,
   serializeAttributeLevelsReport,
 } from "../../engine/attributes/AttributeLevelResolver.js";
 
-const MOBILE_PROJECTION_SCHEMA_VERSION = 2;
+const MOBILE_PROJECTION_SCHEMA_VERSION = 3;
 const ATTRIBUTE_KEYS = Object.freeze(["ST", "DX", "IQ", "HT"]);
 const SECONDARY_KEYS = Object.freeze([
   "HP",
@@ -16,12 +17,6 @@ const SECONDARY_KEYS = Object.freeze([
 ]);
 const POOL_KEYS = Object.freeze(["HP", "FP", "EnergyReserve"]);
 
-/**
- * Projeta um Character canônico para o primeiro esqueleto da ficha mobile.
- *
- * Esta camada não calcula regras de GURPS. Ela serializa o Character, consome
- * resultados já fornecidos pelo motor e organiza dados para apresentação.
- */
 export function projectCharacterForMobileSheet(character) {
   const serializedCharacter = serializeCharacter(character);
   const attributeLevels = serializeAttributeLevelsReport(
@@ -39,32 +34,31 @@ export function projectCharacterForMobileSheet(character) {
     traits: projectTraits(serializedCharacter.traits),
     skills: projectSkills(serializedCharacter.skills),
     techniques: projectTechniques(serializedCharacter.techniques),
+    equipment: projectEquipment(serializedCharacter.equipment),
     sections: projectMobileSections({
       traits: serializedCharacter.traits,
       skills: serializedCharacter.skills,
       techniques: serializedCharacter.techniques,
+      equipment: serializedCharacter.equipment,
     }),
   });
 }
 
 export function validateCharacterMobileProjection(projection) {
   requirePlainObject(projection, "Character mobile projection");
-
   if (projection.schemaVersion !== MOBILE_PROJECTION_SCHEMA_VERSION) {
     throw new Error("Character mobile projection schemaVersion is invalid");
   }
 
   validateIdentityProjection(projection.identity);
   validateAttributesProjection(projection.attributes);
-  validateSecondaryCharacteristicsProjection(
-    projection.secondaryCharacteristics,
-  );
+  validateSecondaryCharacteristicsProjection(projection.secondaryCharacteristics);
   validatePoolsProjection(projection.pools);
   validateTraitListProjection(projection.traits);
   validateSkillListProjection(projection.skills);
   validateTechniqueListProjection(projection.techniques);
+  validateEquipmentProjection(projection.equipment);
   validateSectionsProjection(projection.sections);
-
   return true;
 }
 
@@ -91,16 +85,13 @@ function projectAttributes(attributeLevels) {
   return Object.fromEntries(
     ATTRIBUTE_KEYS.map(attributeKey => {
       const result = attributeLevels.results[attributeKey];
-      return [
-        attributeKey,
-        {
-          key: attributeKey,
-          status: result.status,
-          level: result.level,
-          source: result.source,
-          diagnostics: result.diagnostics,
-        },
-      ];
+      return [attributeKey, {
+        key: attributeKey,
+        status: result.status,
+        level: result.level,
+        source: result.source,
+        diagnostics: result.diagnostics,
+      }];
     }),
   );
 }
@@ -109,15 +100,12 @@ function projectSecondaryCharacteristics(secondaryCharacteristics) {
   return Object.fromEntries(
     SECONDARY_KEYS.map(key => {
       const characteristic = secondaryCharacteristics[key];
-      return [
+      return [key, {
         key,
-        {
-          key,
-          status: "declared",
-          base: characteristic.base,
-          override: characteristic.override,
-        },
-      ];
+        status: "declared",
+        base: characteristic.base,
+        override: characteristic.override,
+      }];
     }),
   );
 }
@@ -126,14 +114,11 @@ function projectPools(pools) {
   return Object.fromEntries(
     POOL_KEYS
       .filter(key => pools[key] !== undefined)
-      .map(key => [
+      .map(key => [key, {
         key,
-        {
-          key,
-          current: pools[key].current,
-          maximum: pools[key].maximum,
-        },
-      ]),
+        current: pools[key].current,
+        maximum: pools[key].maximum,
+      }]),
   );
 }
 
@@ -184,28 +169,47 @@ function projectTechniques(techniques) {
   }));
 }
 
-function projectMobileSections({ traits, skills, techniques }) {
+function projectEquipment(equipment) {
+  const totals = calculateEquipmentTotals(equipment);
+  return {
+    items: flattenEquipment(equipment),
+    totals: {
+      quantity: totals.quantity,
+      weightKg: totals.weightKg,
+      cost: totals.cost,
+      authority: "domain",
+    },
+  };
+}
+
+function flattenEquipment(equipment, parentId = null, depth = 0) {
+  return equipment.flatMap(item => [
+    {
+      id: item.id,
+      parentId,
+      depth,
+      kind: item.kind,
+      containerKind: item.containerKind,
+      name: item.name,
+      quantity: item.quantity,
+      weightKg: item.weightKg,
+      cost: item.cost,
+      state: item.state,
+      uses: item.uses,
+      maxUses: item.maxUses,
+      notes: item.notes,
+      status: "declared",
+    },
+    ...flattenEquipment(item.children, item.id, depth + 1),
+  ]);
+}
+
+function projectMobileSections({ traits, skills, techniques, equipment }) {
   return [
-    {
-      id: "identity",
-      title: "Identidade",
-      status: "available",
-    },
-    {
-      id: "attributes",
-      title: "Atributos",
-      status: "available",
-    },
-    {
-      id: "secondary-characteristics",
-      title: "Secundários",
-      status: "declared-only",
-    },
-    {
-      id: "pools",
-      title: "PV/PF atuais",
-      status: "available",
-    },
+    { id: "identity", title: "Identidade", status: "available" },
+    { id: "attributes", title: "Atributos", status: "available" },
+    { id: "secondary-characteristics", title: "Secundários", status: "declared-only" },
+    { id: "pools", title: "PV/PF atuais", status: "available" },
     {
       id: "traits",
       title: "Vantagens e Desvantagens",
@@ -221,7 +225,7 @@ function projectMobileSections({ traits, skills, techniques }) {
     {
       id: "equipment",
       title: "Equipamentos",
-      status: "pending",
+      status: equipment.length === 0 ? "empty" : "declared-only",
     },
   ];
 }
@@ -234,7 +238,6 @@ function validateIdentityProjection(identity) {
 
 function validateAttributesProjection(attributes) {
   requirePlainObject(attributes, "Mobile attributes projection");
-
   for (const key of ATTRIBUTE_KEYS) {
     const attribute = attributes[key];
     requirePlainObject(attribute, `Mobile attribute projection ${key}`);
@@ -244,10 +247,7 @@ function validateAttributesProjection(attributes) {
     if (!["resolved", "blocked"].includes(attribute.status)) {
       throw new Error(`Mobile attribute projection ${key} status is invalid`);
     }
-    requireNullableFiniteNumber(
-      attribute.level,
-      `Mobile attribute projection ${key} level`,
-    );
+    requireNullableFiniteNumber(attribute.level, `Mobile attribute projection ${key} level`);
     if (!["base", "override"].includes(attribute.source)) {
       throw new Error(`Mobile attribute projection ${key} source is invalid`);
     }
@@ -258,26 +258,15 @@ function validateAttributesProjection(attributes) {
 }
 
 function validateSecondaryCharacteristicsProjection(secondaryCharacteristics) {
-  requirePlainObject(
-    secondaryCharacteristics,
-    "Mobile secondary characteristics projection",
-  );
-
+  requirePlainObject(secondaryCharacteristics, "Mobile secondary characteristics projection");
   for (const key of SECONDARY_KEYS) {
     const characteristic = secondaryCharacteristics[key];
-    requirePlainObject(
-      characteristic,
-      `Mobile secondary characteristic projection ${key}`,
-    );
+    requirePlainObject(characteristic, `Mobile secondary characteristic projection ${key}`);
     if (characteristic.key !== key) {
-      throw new Error(
-        `Mobile secondary characteristic projection ${key} key mismatch`,
-      );
+      throw new Error(`Mobile secondary characteristic projection ${key} key mismatch`);
     }
     if (characteristic.status !== "declared") {
-      throw new Error(
-        `Mobile secondary characteristic projection ${key} status is invalid`,
-      );
+      throw new Error(`Mobile secondary characteristic projection ${key} status is invalid`);
     }
     requireNullableFiniteNumber(
       characteristic.base,
@@ -292,7 +281,6 @@ function validateSecondaryCharacteristicsProjection(secondaryCharacteristics) {
 
 function validatePoolsProjection(pools) {
   requirePlainObject(pools, "Mobile pools projection");
-
   for (const key of Object.keys(pools)) {
     if (!POOL_KEYS.includes(key)) {
       throw new Error(`Mobile pool projection ${key} is invalid`);
@@ -302,22 +290,13 @@ function validatePoolsProjection(pools) {
     if (pool.key !== key) {
       throw new Error(`Mobile pool projection ${key} key mismatch`);
     }
-    requireNullableFiniteNumber(
-      pool.current,
-      `Mobile pool projection ${key} current`,
-    );
-    requireNullableFiniteNumber(
-      pool.maximum,
-      `Mobile pool projection ${key} maximum`,
-    );
+    requireNullableFiniteNumber(pool.current, `Mobile pool projection ${key} current`);
+    requireNullableFiniteNumber(pool.maximum, `Mobile pool projection ${key} maximum`);
   }
 }
 
 function validateTraitListProjection(traits) {
-  if (!Array.isArray(traits)) {
-    throw new Error("Mobile traits projection must be an array");
-  }
-
+  requireArray(traits, "Mobile traits projection");
   for (const trait of traits) {
     requirePlainObject(trait, "Mobile trait projection");
     requireString(trait.id, "Mobile trait id");
@@ -330,10 +309,7 @@ function validateTraitListProjection(traits) {
 }
 
 function validateSkillListProjection(skills) {
-  if (!Array.isArray(skills)) {
-    throw new Error("Mobile skills projection must be an array");
-  }
-
+  requireArray(skills, "Mobile skills projection");
   for (const skill of skills) {
     requirePlainObject(skill, "Mobile skill projection");
     requireString(skill.id, "Mobile skill id");
@@ -353,28 +329,19 @@ function validateSkillListProjection(skills) {
 }
 
 function validateTechniqueListProjection(techniques) {
-  if (!Array.isArray(techniques)) {
-    throw new Error("Mobile techniques projection must be an array");
-  }
-
+  requireArray(techniques, "Mobile techniques projection");
   for (const technique of techniques) {
     requirePlainObject(technique, "Mobile technique projection");
     requireString(technique.id, "Mobile technique id");
     requireString(technique.name, "Mobile technique name");
-    requireNullableString(
-      technique.specialization,
-      `Mobile technique ${technique.id} specialization`,
-    );
+    requireNullableString(technique.specialization, `Mobile technique ${technique.id} specialization`);
     requireNullableString(technique.skillId, `Mobile technique ${technique.id} skillId`);
     requireNullableString(technique.skillName, `Mobile technique ${technique.id} skillName`);
     requireNullableString(
       technique.skillSpecialization,
       `Mobile technique ${technique.id} skillSpecialization`,
     );
-    requireNullableString(
-      technique.difficulty,
-      `Mobile technique ${technique.id} difficulty`,
-    );
+    requireNullableString(technique.difficulty, `Mobile technique ${technique.id} difficulty`);
     requireNullableFiniteNumber(technique.points, `Mobile technique ${technique.id} points`);
     requireNullableFiniteNumber(
       technique.importedLevel,
@@ -396,11 +363,43 @@ function validateTechniqueListProjection(techniques) {
   }
 }
 
-function validateSectionsProjection(sections) {
-  if (!Array.isArray(sections)) {
-    throw new Error("Mobile sections projection must be an array");
+function validateEquipmentProjection(equipment) {
+  requirePlainObject(equipment, "Mobile equipment projection");
+  requireArray(equipment.items, "Mobile equipment projection items");
+  requirePlainObject(equipment.totals, "Mobile equipment projection totals");
+  requireNonNegativeFiniteNumber(equipment.totals.quantity, "Mobile equipment total quantity");
+  requireNonNegativeFiniteNumber(equipment.totals.weightKg, "Mobile equipment total weightKg");
+  requireNonNegativeFiniteNumber(equipment.totals.cost, "Mobile equipment total cost");
+  if (equipment.totals.authority !== "domain") {
+    throw new Error("Mobile equipment totals authority is invalid");
   }
 
+  const ids = new Set();
+  for (const item of equipment.items) {
+    requirePlainObject(item, "Mobile equipment item projection");
+    requireString(item.id, "Mobile equipment item id");
+    if (ids.has(item.id)) throw new Error("Mobile equipment item ids must be unique");
+    ids.add(item.id);
+    requireNullableString(item.parentId, `Mobile equipment ${item.id} parentId`);
+    if (!Number.isInteger(item.depth) || item.depth < 0) {
+      throw new Error(`Mobile equipment ${item.id} depth must be non-negative integer`);
+    }
+    requireString(item.kind, `Mobile equipment ${item.id} kind`);
+    requireNullableString(item.containerKind, `Mobile equipment ${item.id} containerKind`);
+    requireText(item.name, `Mobile equipment ${item.id} name`);
+    requireNonNegativeFiniteNumber(item.quantity, `Mobile equipment ${item.id} quantity`);
+    requireNonNegativeFiniteNumber(item.weightKg, `Mobile equipment ${item.id} weightKg`);
+    requireNonNegativeFiniteNumber(item.cost, `Mobile equipment ${item.id} cost`);
+    requireString(item.state, `Mobile equipment ${item.id} state`);
+    requireNullableNonNegativeFiniteNumber(item.uses, `Mobile equipment ${item.id} uses`);
+    requireNullableNonNegativeFiniteNumber(item.maxUses, `Mobile equipment ${item.id} maxUses`);
+    requireText(item.notes, `Mobile equipment ${item.id} notes`);
+    requireString(item.status, `Mobile equipment ${item.id} status`);
+  }
+}
+
+function validateSectionsProjection(sections) {
+  requireArray(sections, "Mobile sections projection");
   for (const section of sections) {
     requirePlainObject(section, "Mobile section projection");
     requireString(section.id, "Mobile section id");
@@ -415,10 +414,18 @@ function requirePlainObject(value, label) {
   }
 }
 
+function requireArray(value, label) {
+  if (!Array.isArray(value)) throw new Error(`${label} must be an array`);
+}
+
 function requireString(value, label) {
   if (typeof value !== "string" || value.trim() === "") {
     throw new Error(`${label} must be a non-empty string`);
   }
+}
+
+function requireText(value, label) {
+  if (typeof value !== "string") throw new Error(`${label} must be a string`);
 }
 
 function requireNullableString(value, label) {
@@ -433,11 +440,19 @@ function requireNullableFiniteNumber(value, label) {
   }
 }
 
+function requireNonNegativeFiniteNumber(value, label) {
+  if (!Number.isFinite(value) || value < 0) {
+    throw new Error(`${label} must be a non-negative finite number`);
+  }
+}
+
+function requireNullableNonNegativeFiniteNumber(value, label) {
+  if (value !== null) requireNonNegativeFiniteNumber(value, label);
+}
+
 function deepFreezeMobileProjection(value) {
   if (!value || typeof value !== "object") return value;
   Object.freeze(value);
-  for (const child of Object.values(value)) {
-    deepFreezeMobileProjection(child);
-  }
+  for (const child of Object.values(value)) deepFreezeMobileProjection(child);
   return value;
 }
