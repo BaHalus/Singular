@@ -89,7 +89,7 @@ function findBlockingDiagnostic(skill, attributeLevel) {
     return {
       code: "SKILL_POINTS_INVALID",
       severity: "blocked",
-      points: skill.points,
+      points: normalizePortableInvalidValue(skill.points),
     };
   }
 
@@ -127,34 +127,57 @@ function calculatePointAdvancement(points) {
 function createImportDiagnostics(skill, level, relativeLevel) {
   const diagnostics = [];
 
-  if (
-    skill.importedLevel !== null &&
-    !Object.is(normalizeZero(skill.importedLevel), level)
-  ) {
-    diagnostics.push({
-      code: "SKILL_IMPORTED_LEVEL_DIFFERS",
-      severity: "warning",
-      importedLevel: skill.importedLevel,
-      calculatedLevel: level,
-    });
-  }
+  appendImportedValueDiagnostic({
+    diagnostics,
+    importedValue: skill.importedLevel,
+    calculatedValue: level,
+    invalidCode: "SKILL_IMPORTED_LEVEL_INVALID",
+    divergentCode: "SKILL_IMPORTED_LEVEL_DIFFERS",
+    importedField: "importedLevel",
+    calculatedField: "calculatedLevel",
+  });
 
-  if (
-    skill.importedRelativeLevel !== null &&
-    !Object.is(
-      normalizeZero(skill.importedRelativeLevel),
-      relativeLevel,
-    )
-  ) {
-    diagnostics.push({
-      code: "SKILL_IMPORTED_RELATIVE_LEVEL_DIFFERS",
-      severity: "warning",
-      importedRelativeLevel: skill.importedRelativeLevel,
-      calculatedRelativeLevel: relativeLevel,
-    });
-  }
+  appendImportedValueDiagnostic({
+    diagnostics,
+    importedValue: skill.importedRelativeLevel,
+    calculatedValue: relativeLevel,
+    invalidCode: "SKILL_IMPORTED_RELATIVE_LEVEL_INVALID",
+    divergentCode: "SKILL_IMPORTED_RELATIVE_LEVEL_DIFFERS",
+    importedField: "importedRelativeLevel",
+    calculatedField: "calculatedRelativeLevel",
+  });
 
   return diagnostics;
+}
+
+function appendImportedValueDiagnostic({
+  diagnostics,
+  importedValue,
+  calculatedValue,
+  invalidCode,
+  divergentCode,
+  importedField,
+  calculatedField,
+}) {
+  if (importedValue === null) return;
+
+  if (typeof importedValue !== "number" || !Number.isFinite(importedValue)) {
+    diagnostics.push({
+      code: invalidCode,
+      severity: "warning",
+      [importedField]: normalizePortableInvalidValue(importedValue),
+    });
+    return;
+  }
+
+  if (!Object.is(normalizeZero(importedValue), calculatedValue)) {
+    diagnostics.push({
+      code: divergentCode,
+      severity: "warning",
+      [importedField]: importedValue,
+      [calculatedField]: calculatedValue,
+    });
+  }
 }
 
 function normalizePortableInvalidValue(value) {
@@ -162,7 +185,14 @@ function normalizePortableInvalidValue(value) {
   if (typeof value === "number" && Number.isNaN(value)) return "NaN";
   if (value === Number.POSITIVE_INFINITY) return "Infinity";
   if (value === Number.NEGATIVE_INFINITY) return "-Infinity";
-  return value;
+  if (
+    value === null ||
+    typeof value === "string" ||
+    typeof value === "boolean"
+  ) {
+    return value;
+  }
+  return typeof value;
 }
 
 function normalizeZero(value) {
