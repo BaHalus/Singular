@@ -14,7 +14,7 @@ export function resolveTrainedSkill(input = {}) {
   }
 
   const { skill, attributeLevel } = input;
-  validateSkill(skill);
+  validateSkillForMechanicalResolution(skill);
 
   const blockingDiagnostic = findBlockingDiagnostic(skill, attributeLevel);
   if (blockingDiagnostic !== null) {
@@ -51,6 +51,22 @@ export function resolveTrainedSkill(input = {}) {
 
 export function getSkillDifficultyOffsets() {
   return { ...DIFFICULTY_OFFSETS };
+}
+
+function validateSkillForMechanicalResolution(skill) {
+  if (
+    isPlainObject(skill) &&
+    typeof skill.points === "number" &&
+    !Number.isFinite(skill.points)
+  ) {
+    validateSkill({
+      ...skill,
+      points: 0,
+    });
+    return;
+  }
+
+  validateSkill(skill);
 }
 
 function findBlockingDiagnostic(skill, attributeLevel) {
