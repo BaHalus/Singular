@@ -14,6 +14,12 @@ export const POOL_COMMAND_TYPES = Object.freeze({
   RESET_CURRENT_TO_MAXIMUM: "pool.current.reset-to-maximum",
 });
 
+const APP_POOL_SUPPORTED_KEYS = Object.freeze([
+  "HP",
+  "FP",
+  "EnergyReserve",
+]);
+
 export function createPoolCommandHandlerEntries() {
   return Object.freeze([
     Object.freeze({
@@ -147,8 +153,23 @@ function validateCommandContext(context, expectedType) {
     throw new Error(`Pool command type must be ${expectedType}`);
   }
   requirePlainObject(context.command.payload, "Pool command payload");
+  assertCharacterPoolsAreRehydratable(context.session.character);
 
   return context;
+}
+
+function assertCharacterPoolsAreRehydratable(character) {
+  requirePlainObject(character, "Pool command Character");
+  requirePlainObject(character.pools, "Pool command Character pools");
+
+  const unsupportedKeys = Object.keys(character.pools).filter(
+    key => !APP_POOL_SUPPORTED_KEYS.includes(key),
+  );
+  if (unsupportedKeys.length > 0) {
+    throw new Error(
+      `APP-POOL cannot safely rehydrate unsupported pool keys: ${unsupportedKeys.join(", ")}`,
+    );
+  }
 }
 
 function validateExactPayloadKeys(payload, expectedKeys) {
