@@ -23,6 +23,7 @@ export function createLocalPersistenceCoordinator(options = {}) {
     options.sessionRepository.loadLastSession,
     "Session repository loadLastSession",
   );
+  requireFunction(options.rollbackSessionSave, "Session save rollback");
   requireFunction(options.inspectPersistence, "Persistence inspector");
   requireFunction(options.createCharacterExport, "Character export creator");
   requireFunction(options.parseCharacterExport, "Character export parser");
@@ -30,6 +31,7 @@ export function createLocalPersistenceCoordinator(options = {}) {
 
   const characterRepository = options.characterRepository;
   const sessionRepository = options.sessionRepository;
+  const rollbackSessionSave = options.rollbackSessionSave;
   const inspectPersistence = options.inspectPersistence;
   const createCharacterExport = options.createCharacterExport;
   const parseCharacterExport = options.parseCharacterExport;
@@ -120,11 +122,12 @@ export function createLocalPersistenceCoordinator(options = {}) {
         });
       } catch (error) {
         activeSession = sessionBeforeSave;
-        const rollbackDiagnostic = await compensateFailedSessionSave(
+        const rollbackDiagnostic = await compensateFailedSessionSave({
+          rollbackSessionSave,
           sessionRepository,
-          sessionBeforeSave.id,
+          id: sessionBeforeSave.id,
           persistedBefore,
-        );
+        });
         return freezeResult({
           status: "failed",
           changed: false,
@@ -360,26 +363,31 @@ export function createLocalPersistenceCoordinator(options = {}) {
   return Object.freeze(coordinator);
 }
 
-async function compensateFailedSessionSave(repository, id, persistedBefore) {
-  if (persistedBefore === NOT_READ) return null;
+async function compensateFailedSessionSave(input) {
+  if (input.persistedBefore === NOT_READ) return null;
   try {
-    if (persistedBefore === null) {
-      await repository.remove(id);
-    } else {
-      try {
-        await repository.save(persistedBefore);
-      } catch {
-        const restored = await repository.load(id);
-        if (restored === null) {
-          throw new Error("Previous saved session was not restored");
-        }
-        assertSameSessionSnapshot(
-          persistedBefore,
-          restored,
-          "Restored ApplicationSession snapshot",
-        );
+    await input.rollbackSessionSave({
+      id: input.id,
+      previousSession: input.persistedBefore,
+    });
+
+    const restored = await input.sessionRepository.load(input.id);
+    if (input.persistedBefore === null) {
+      if (restored !== null) {
+        throw new Error("Partial saved session was not removed");
       }
+      return null;
     }
+
+    if (restored === null) {
+      throw new Error("Previous saved session was not restored");
+    }
+    validateApplicationSession(restored);
+    assertSameSessionSnapshot(
+      input.persistedBefore,
+      restored,
+      "Restored ApplicationSession snapshot",
+    );
     return null;
   } catch (error) {
     return diagnostic(
