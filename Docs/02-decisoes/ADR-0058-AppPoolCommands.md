@@ -24,6 +24,8 @@ pool.current.adjust
 pool.current.reset-to-maximum
 ```
 
+APP-POOL 1.0 aceita somente os pools reidratáveis pelo `Character` canônico atual: `HP`, `FP` e `EnergyReserve`.
+
 ## Autoridades
 
 - `PoolsOperations` continua sendo a autoridade de alteração do agregado.
@@ -36,6 +38,8 @@ pool.current.reset-to-maximum
 
 O handler serializa o `Character` atual, substitui apenas `pools` pelo resultado do domínio e reidrata pelo `createCharacter` canônico.
 
+Como `createCharacter` ainda não preserva pools importados ou customizados arbitrários, o handler bloqueia sessões que contenham chaves de pool fora de `HP`, `FP` e `EnergyReserve` antes de produzir `applied`. Assim, a aplicação não gera histórico ou recibo de sucesso enquanto descartaria dados importados.
+
 Não existe segundo modelo de personagem nem mutação direta do objeto da sessão.
 
 ## No-op
@@ -46,14 +50,15 @@ O executor preserva sessão, revisão, histórico e `future`.
 
 ## Falhas
 
-Erros de payload ou domínio são propagados ao executor. O executor produz resultado `failed` e preserva a sessão original.
+Erros de payload, domínio ou fronteira de reidratação são propagados ao executor. O executor produz resultado `failed` e preserva a sessão original.
 
 ## Consequências
 
 - controles mobile de `+`, `−`, definição direta e restauração podem usar o mesmo fluxo;
 - undo e redo funcionam por snapshots canônicos;
 - persistência não precisa conhecer comandos de Pools;
-- regras futuras podem interpretar dano ou fadiga antes de emitir estes comandos, sem alterar o contrato estrutural.
+- regras futuras podem interpretar dano ou fadiga antes de emitir estes comandos, sem alterar o contrato estrutural;
+- pools importados exigem uma evolução futura do `Character`/DOM-POOL antes de serem operados pelo App Core.
 
 ## Fora de escopo
 
