@@ -82,6 +82,24 @@ test("projects resolved equipment totals into a portable nested contract", () =>
   assert.equal(projection.entries[1].selfTotals.loadWeightKg, 0);
 });
 
+test("rejects a projection that advertises a divergent contract vocabulary", () => {
+  const projection = createEquipmentMvpProjection(resolveEquipmentTotals([]));
+  const forged = JSON.parse(JSON.stringify(projection));
+
+  forged.contract.states.known = ["foo"];
+  assert.throws(
+    () => validateEquipmentMvpProjection(forged),
+    /states\.known must match the canonical contract/,
+  );
+
+  const missingField = JSON.parse(JSON.stringify(projection));
+  missingField.contract.entryFields = missingField.contract.entryFields.slice(1);
+  assert.throws(
+    () => validateEquipmentMvpProjection(missingField),
+    /entryFields must match the canonical contract/,
+  );
+});
+
 test("preserves blocking diagnostics for later application/UI rendering", () => {
   const report = resolveEquipmentTotals([
     {
