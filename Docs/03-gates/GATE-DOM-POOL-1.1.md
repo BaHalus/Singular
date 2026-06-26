@@ -1,16 +1,16 @@
 # Gate — DOM-POOL-1.1
 
-**Status:** Proposto para revisão  
+**Status:** Aprovado  
 **Data:** 2026-06-26  
 **Frente:** SINGULAR — Pools transitórios  
 **Branch:** `feature/dom-pool-operations-1.1`  
-**Base:** `main` em `3a7898ae23e559361677f3c2cc62cfb9dc8a57c7`
+**Base validada:** `main` em `f869b553e74aaed9d232bd87ab9b5cb11f6d287c`
 
 ## Objetivo
 
-Certificar operações puras e imutáveis para os valores transitórios de PV, PF e reservas opcionais, sem antecipar regras de dano, cura, fadiga ou recuperação.
+Certificar operações puras e imutáveis para PV, PF e reservas opcionais, sem antecipar regras de dano, cura, fadiga ou recuperação.
 
-## Arquivos desta frente
+## Arquivos
 
 - `src/domain/character/PoolsOperations.js`
 - `src/domain/character/PoolsOperations.test.js`
@@ -20,63 +20,37 @@ Certificar operações puras e imutáveis para os valores transitórios de PV, P
 
 ## Coordenação
 
-No momento da implementação existem duas PRs paralelas:
-
-- #93 altera somente `src/ui/mobile/*`;
-- #94 altera `src/engine/equipment/*` e documentação específica de Equipamentos.
-
-Esta frente altera somente o domínio e a documentação de Pools. Não há sobreposição de arquivos.
+As frentes #93, de projeção mobile, e #94, de contrato portátil de Equipamentos, foram integradas antes desta validação. Esta frente permanece restrita a Pools.
 
 ## Critérios de aceite
 
-- [x] O `PoolsOperations` existente foi evoluído, não substituído por contrato paralelo.
-- [x] `setPoolCurrent` foi preservado.
-- [x] `setPoolMaximum` foi preservado.
-- [x] `addPool` foi preservado.
-- [x] `removePool` foi preservado.
-- [x] `adjustPoolCurrent` foi adicionado.
-- [x] `resetPoolCurrentToMaximum` foi adicionado.
+- [x] O `PoolsOperations` existente foi evoluído.
+- [x] `setPoolCurrent`, `setPoolMaximum`, `addPool` e `removePool` foram preservados.
+- [x] `adjustPoolCurrent` e `resetPoolCurrentToMaximum` foram adicionados.
 - [x] Operações são imutáveis.
 - [x] HP e FP continuam obrigatórios.
 - [x] Pools opcionais e importados continuam suportados.
-- [x] Valores numéricos não finitos são rejeitados.
-- [x] `null` continua representando valor desconhecido.
-- [x] Valores atuais negativos ou acima do máximo não são limitados.
+- [x] Valores não finitos são rejeitados.
+- [x] `null` representa valor desconhecido.
+- [x] Não existe clamp estrutural.
 - [x] A UI não recebe responsabilidade mecânica.
-- [x] Não há alteração em `Character.js`, App Core, UI, Equipment ou Skills.
-- [x] A branch foi atualizada sobre a `main` vigente observada.
-- [ ] A suíte completa passa na CI.
-- [ ] Não existe revisão ou thread bloqueante.
+- [x] Não há alteração em `Pools.js`, `Character.js`, App Core, UI, Equipment ou Skills.
+- [x] A branch foi atualizada após as integrações anteriores.
+- [x] A suíte completa passou na CI.
+- [x] Não existe revisão ou thread bloqueante.
 
-## Casos cobertos
+## Evidência
 
-- definição de valor atual e máximo;
-- ajuste incremental positivo e negativo;
-- ausência deliberada de clamp;
-- restauração ao máximo conhecido;
-- Energy Reserve opcional;
-- pools importados adicionais;
-- adição e remoção imutáveis;
-- proteção de HP e FP obrigatórios;
-- valores desconhecidos;
-- chaves ausentes ou inválidas;
-- `NaN`, infinitos e overflow da soma;
-- normalização de `-0`.
+GitHub Actions `Tests`, execução `28250773576`: job `test` concluído com sucesso e zero falhas.
+
+## Cobertura
+
+A suíte cobre definição e ajuste de valores, ausência de clamp, restauração ao máximo, pools opcionais/importados, imutabilidade, proteção de HP/FP, valores desconhecidos, chaves inválidas, `NaN`, infinitos, overflow e `-0`.
 
 ## Fora de escopo
 
-- regras de dano, cura, fadiga ou recuperação;
-- comandos de aplicação;
-- histórico e desfazer/refazer;
-- persistência concreta;
-- componentes visuais;
-- alteração de máximos derivados pelo motor.
+Regras mecânicas de PV/PF, comandos de aplicação, histórico, persistência concreta, componentes visuais e cálculo de máximos.
 
-## Condição de fechamento
+## Resultado
 
-O gate muda para **Aprovado** somente quando:
-
-1. a branch estiver atualizada sobre a `main` vigente;
-2. a CI estiver verde;
-3. não houver revisão bloqueante;
-4. a PR estiver pronta para integração sequencial.
+**DOM-POOL-1.1 aprovado para integração sequencial**, condicionado à CI verde do commit documental final e à ausência de conflito novo.
