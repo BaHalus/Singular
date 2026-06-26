@@ -10,6 +10,13 @@ import {
   createAttackCommandHandlerEntries,
 } from "./AttackCommandHandlers.js";
 
+function makeSession() {
+  return createApplicationSession({
+    id: "session-app-attacks",
+    character: createCharacter(),
+  });
+}
+
 test("exposes immutable command entries", () => {
   const entries = createAttackCommandHandlerEntries();
   assert.equal(Object.isFrozen(entries), true);
