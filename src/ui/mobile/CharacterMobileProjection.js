@@ -1,3 +1,6 @@
+import {
+  createAttackReadProjection,
+} from "../../application/projections/AttackReadProjection.js";
 import { serializeCharacter } from "../../domain/character/Character.js";
 import {
   createEquipmentMvpProjection,
@@ -10,7 +13,7 @@ import {
   serializeAttributeLevelsReport,
 } from "../../engine/attributes/AttributeLevelResolver.js";
 
-const MOBILE_PROJECTION_SCHEMA_VERSION = 3;
+const MOBILE_PROJECTION_SCHEMA_VERSION = 4;
 const ATTRIBUTE_KEYS = Object.freeze(["ST", "DX", "IQ", "HT"]);
 const SECONDARY_KEYS = Object.freeze([
   "HP",
@@ -21,9 +24,19 @@ const SECONDARY_KEYS = Object.freeze([
   "BasicMove",
 ]);
 const POOL_KEYS = Object.freeze(["HP", "FP", "EnergyReserve"]);
+const ATTACK_CATEGORIES = Object.freeze(["melee", "ranged"]);
+const ATTACK_SOURCE_KINDS = Object.freeze([
+  "manual",
+  "equipment",
+  "trait",
+  "spell",
+  "power",
+  "other",
+]);
 
 export function projectCharacterForMobileSheet(character) {
   const serializedCharacter = serializeCharacter(character);
+  const attackProjection = createAttackReadProjection(character);
   const attributeLevels = serializeAttributeLevelsReport(
     resolveAttributeLevels(serializedCharacter.attributes),
   );
@@ -39,11 +52,13 @@ export function projectCharacterForMobileSheet(character) {
     traits: projectTraits(serializedCharacter.traits),
     skills: projectSkills(serializedCharacter.skills),
     techniques: projectTechniques(serializedCharacter.techniques),
+    attacks: projectAttacks(attackProjection),
     equipment: projectEquipment(serializedCharacter.equipment),
     sections: projectMobileSections({
       traits: serializedCharacter.traits,
       skills: serializedCharacter.skills,
       techniques: serializedCharacter.techniques,
+      attacks: attackProjection.attacks,
       equipment: serializedCharacter.equipment,
     }),
   });
@@ -62,6 +77,7 @@ export function validateCharacterMobileProjection(projection) {
   validateTraitListProjection(projection.traits);
   validateSkillListProjection(projection.skills);
   validateTechniqueListProjection(projection.techniques);
+  validateAttackProjection(projection.attacks, projection.identity.id);
   validateEquipmentProjection(projection.equipment);
   validateSectionsProjection(projection.sections);
   return true;
@@ -174,6 +190,32 @@ function projectTechniques(techniques) {
   }));
 }
 
+function projectAttacks(attackProjection) {
+  return {
+    characterId: attackProjection.characterId,
+    authority: "application.attack-read-projection",
+    items: attackProjection.attacks.map(attack => ({
+      id: attack.id,
+      name: attack.name,
+      category: attack.category,
+      skillId: attack.skillId,
+      source: {
+        kind: attack.source.kind,
+        id: attack.source.id,
+      },
+      damage: {
+        value: attack.damage.value,
+        type: attack.damage.type,
+        authority: attack.damage.authority,
+      },
+      reach: attack.reach,
+      range: attack.range,
+      notes: attack.notes,
+      status: "declared",
+    })),
+  };
+}
+
 function projectEquipment(equipment) {
   const totalsProjection = createEquipmentMvpProjection(
     resolveEquipmentTotals(equipment),
@@ -211,7 +253,7 @@ function flattenEquipment(equipment, parentId = null, depth = 0) {
   ]);
 }
 
-function projectMobileSections({ traits, skills, techniques, equipment }) {
+function projectMobileSections({ traits, skills, techniques, attacks, equipment }) {
   return [
     { id: "identity", title: "Identidade", status: "available" },
     { id: "attributes", title: "Atributos", status: "available" },
@@ -228,6 +270,11 @@ function projectMobileSections({ traits, skills, techniques, equipment }) {
       status: skills.length === 0 && techniques.length === 0
         ? "empty"
         : "declared-only",
+    },
+    {
+      id: "attacks",
+      title: "Ataques",
+      status: attacks.length === 0 ? "empty" : "declared-only",
     },
     {
       id: "equipment",
@@ -367,6 +414,48 @@ function validateTechniqueListProjection(techniques) {
       `Mobile technique ${technique.id} maximumRelativeLevel`,
     );
     requireString(technique.status, "Mobile technique status");
+  }
+}
+
+function validateAttackProjection(attacks, expectedCharacterId) {
+  requirePlainObject(attacks, "Mobile attacks projection");
+  requireString(attacks.characterId, "Mobile attacks characterId");
+  if (attacks.characterId !== expectedCharacterId) {
+    throw new Error("Mobile attacks projection belongs to another Character");
+  }
+  if (attacks.authority !== "application.attack-read-projection") {
+    throw new Error("Mobile attacks projection authority is invalid");
+  }
+  requireArray(attacks.items, "Mobile attacks projection items");
+
+  const ids = new Set();
+  for (const attack of attacks.items) {
+    requirePlainObject(attack, "Mobile attack projection");
+    requireString(attack.id, "Mobile attack id");
+    if (ids.has(attack.id)) throw new Error("Mobile attack ids must be unique");
+    ids.add(attack.id);
+    requireText(attack.name, `Mobile attack ${attack.id} name`);
+    if (!ATTACK_CATEGORIES.includes(attack.category)) {
+      throw new Error(`Mobile attack ${attack.id} category is invalid`);
+    }
+    requireNullableString(attack.skillId, `Mobile attack ${attack.id} skillId`);
+    requirePlainObject(attack.source, `Mobile attack ${attack.id} source`);
+    if (!ATTACK_SOURCE_KINDS.includes(attack.source.kind)) {
+      throw new Error(`Mobile attack ${attack.id} source kind is invalid`);
+    }
+    requireNullableString(attack.source.id, `Mobile attack ${attack.id} source id`);
+    requirePlainObject(attack.damage, `Mobile attack ${attack.id} damage`);
+    requireText(attack.damage.value, `Mobile attack ${attack.id} damage value`);
+    requireText(attack.damage.type, `Mobile attack ${attack.id} damage type`);
+    if (attack.damage.authority !== "declared") {
+      throw new Error(`Mobile attack ${attack.id} damage authority is invalid`);
+    }
+    requireNullableString(attack.reach, `Mobile attack ${attack.id} reach`);
+    requireNullableString(attack.range, `Mobile attack ${attack.id} range`);
+    requireText(attack.notes, `Mobile attack ${attack.id} notes`);
+    if (attack.status !== "declared") {
+      throw new Error(`Mobile attack ${attack.id} status is invalid`);
+    }
   }
 }
 
