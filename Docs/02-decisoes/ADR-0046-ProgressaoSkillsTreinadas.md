@@ -79,13 +79,15 @@ Pontos intermediários continuam investidos, mas não elevam o NH até alcançar
 
 ## Entradas bloqueantes
 
-A resolução retorna `blocked`, sem NH, quando ocorrer qualquer uma destas condições:
+Depois de a Skill passar pela validação estrutural existente, a resolução retorna `blocked`, sem NH, quando ocorrer qualquer uma destas condições:
 
 - Skill sem atributo-base declarado;
 - dificuldade ausente ou não suportada;
 - pontos iguais a zero;
-- pontos negativos, fracionários ou não finitos;
+- pontos fracionários ou não finitos;
 - nível do atributo-base ausente ou não finito.
+
+Estruturas inválidas já rejeitadas por `validateSkill`, incluindo pontos negativos, permanecem erros estruturais e não são convertidas em resultado mecânico.
 
 Zero pontos significa que a perícia não possui nível treinado. Defaults serão tratados em etapa posterior.
 
@@ -94,6 +96,8 @@ Zero pontos significa que a perícia não possui nível treinado. Defaults serã
 `importedLevel` e `importedRelativeLevel` continuam sendo evidências externas.
 
 Quando divergirem do resultado calculado, o motor adiciona diagnósticos de aviso com os valores importado e calculado. A divergência não substitui o cálculo soberano nem bloqueia um resultado treinado válido.
+
+Valores importados não finitos são registrados como evidência inválida em formato portátil; não são promovidos nem impedem o cálculo treinado quando as entradas mecânicas são válidas.
 
 ## Fora de escopo
 
