@@ -122,13 +122,19 @@ export function validateApplicationReadModel(model) {
     }
   }
 
-  const attackProjection = model.attackProjection ?? null;
-  if (attackProjection !== null) {
-    validateAttackReadProjection(attackProjection);
-    if (attackProjection.characterId !== character.identity.id) {
+  if (Object.hasOwn(model, "attackProjection")) {
+    if (model.attackProjection === undefined) {
       throw new Error(
-        "Application read model Attack projection belongs to another Character",
+        "Application read model Attack projection must be a projection or null",
       );
+    }
+    if (model.attackProjection !== null) {
+      validateAttackReadProjection(model.attackProjection);
+      if (model.attackProjection.characterId !== character.identity.id) {
+        throw new Error(
+          "Application read model Attack projection belongs to another Character",
+        );
+      }
     }
   }
 
