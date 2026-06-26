@@ -1,0 +1,96 @@
+html, body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100%;
+  background: #10151d;
+  color: #f3f6f9;
+  font-family: system-ui, sans-serif;
+}
+
+* { box-sizing: border-box; }
+
+[data-singular-mobile-root] {
+  width: min(100%, 52rem);
+  min-height: 100vh;
+  margin: 0 auto;
+}
+
+.singular-mobile-sheet {
+  display: grid;
+  gap: 0.75rem;
+  padding: 0.75rem;
+}
+
+.singular-mobile-sheet__toolbar,
+.singular-mobile-sheet__summary,
+.singular-mobile-sheet__card,
+.singular-mobile-sheet__section-marker {
+  border: 1px solid #344457;
+  border-radius: 0.8rem;
+  background: #18212c;
+  padding: 0.75rem;
+}
+
+.singular-mobile-sheet__toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.singular-mobile-sheet__actions,
+.singular-mobile-sheet__attribute-strip,
+.singular-mobile-sheet__pool-strip,
+.singular-mobile-sheet__cards,
+.singular-mobile-sheet__sections {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.singular-mobile-sheet__actions {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.singular-mobile-sheet__attribute-strip {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.singular-mobile-sheet__pool-strip {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.singular-mobile-sheet__cards {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.singular-mobile-sheet__action,
+.singular-mobile-sheet__stat,
+.singular-mobile-sheet__pool,
+.singular-mobile-sheet__card dl > div {
+  border: 1px solid #344457;
+  border-radius: 0.65rem;
+  background: #202b38;
+  color: inherit;
+  padding: 0.55rem;
+}
+
+.singular-mobile-sheet__action {
+  min-height: 2.75rem;
+  font-weight: 700;
+}
+
+.singular-mobile-sheet__action[aria-pressed="true"] {
+  border-color: #71d2b4;
+  color: #71d2b4;
+}
+
+.singular-mobile-sheet dl { margin: 0; }
+.singular-mobile-sheet dd { margin: 0; font-weight: 800; }
+.singular-mobile-sheet h1,
+.singular-mobile-sheet h2,
+.singular-mobile-sheet p { overflow-wrap: anywhere; }
+
+@media (min-width: 42rem) {
+  .singular-mobile-sheet__cards {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

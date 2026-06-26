@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#10151d">
+    <title>SINGULAR Alpha</title>
+    <link rel="stylesheet" href="./src/ui/mobile/CharacterMobileApp.css">
+  </head>
+  <body>
+    <main data-singular-mobile-root aria-live="polite">
+      <noscript>A SINGULAR precisa de JavaScript habilitado.</noscript>
+    </main>
+
+    <script type="module">
+      import { bootstrapCharacterMobileApp } from "./src/ui/mobile/CharacterMobileApp.js";
+
+      try {
+        bootstrapCharacterMobileApp();
+      } catch (error) {
+        const root = document.querySelector("[data-singular-mobile-root]");
+        if (root) {
+          root.replaceChildren();
+          const message = document.createElement("p");
+          message.className = "singular-mobile-sheet__boot-error";
+          message.textContent = "Não foi possível iniciar a SINGULAR Alpha.";
+          root.append(message);
+        }
+        console.error(error);
+      }
+    </script>
+  </body>
+</html>
