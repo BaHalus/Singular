@@ -1,21 +1,21 @@
 # App Core — Camada de aplicação da SINGULAR
 
-**Código:** APP-CORE-1.0  
-**Status:** Implementado; sujeito ao gate final  
+**Código:** APP-CORE-1.0 a 1.1  
+**Status:** Implementado  
 **Camada:** Application  
-**Decisão:** ADR-0042  
-**Dependências:** Character, operações de domínio e Point Ledger
+**Decisões:** ADR-0042 e ADR-0055  
+**Dependências:** Character, operações de domínio, Point Ledger e projeções mecânicas validadas
 
 ## Objetivo
 
-O App Core coordena os casos de uso da SINGULAR sem assumir regras pertencentes aos domínios.
+O App Core coordena os casos de uso da SINGULAR sem assumir regras pertencentes aos domínios ou motores.
 
 ```text
 A UI despacha intenção.
 O App Core valida revisão e coordena o caso de uso.
-O domínio valida e calcula.
+O domínio e os motores validam e calculam.
 O App Core registra sessão, histórico e recibo.
-A projeção reúne dados já calculados.
+As projeções reúnem dados já calculados.
 A UI apresenta o resultado.
 ```
 
@@ -28,7 +28,7 @@ A aplicação orquestra.
 A UI não calcula.
 ```
 
-O App Core não cria outro `Character`, outro Point Ledger nem um calculador paralelo.
+O App Core não cria outro `Character`, outro Point Ledger, outro histórico nem um calculador paralelo.
 
 ## ApplicationSession
 
@@ -221,7 +221,7 @@ createInMemoryCharacterRepository(initialCharacters)
 createInMemorySessionRepository(initialSessions)
 ```
 
-Eles armazenam apenas snapshots serializados e devolvem novas instâncias hidratadas e validadas.
+Eles armazenam somente snapshots serializados e devolvem novas instâncias hidratadas e validadas.
 
 ### Runtime
 
@@ -249,17 +249,42 @@ createSequentialIdGenerator(options)
 
 Executor e histórico não chamam `new Date()`, `crypto.randomUUID()` nem geradores ocultos.
 
-## Projeção de leitura
+## Projeções mecânicas de Skills e Techniques
 
-```js
-createApplicationReadModel(session)
+A composição mecânica global permanece separada do read model central:
+
+```text
+SkillMechanicsResolutionPlan
+→ SkillBatchResolutionExecutor
+→ SkillMechanicsGlobalExecutor
+→ SkillMechanicsReadProjection
 ```
 
-Estrutura:
+`SkillMechanicsReadProjection`:
+
+- recebe somente um relatório global já validado;
+- projeta atributos, Skills, defaults e Techniques por IDs canônicos;
+- preserva status, níveis, bases, modificadores e diagnósticos;
+- não contém nomes ou especializações editoriais;
+- não recebe o Character como fallback;
+- não recalcula regras;
+- é portátil e profundamente imutável.
+
+## Application Read Model v2
+
+API:
+
+```js
+createApplicationReadModel(session, {
+  skillMechanics,
+})
+```
+
+A opção pode ser omitida. A estrutura serializada sempre contém o campo:
 
 ```js
 {
-  schemaVersion,
+  schemaVersion: 2,
   session: {
     id,
     revision,
@@ -272,17 +297,28 @@ Estrutura:
   },
   character,
   pointLedger,
+  skillMechanics,
 }
 ```
 
-A projeção:
+`skillMechanics` é:
+
+- uma `SkillMechanicsReadProjection` validada e pertencente ao mesmo Character; ou
+- `null`, quando a aplicação ainda não possui candidatos canônicos suficientes para gerar a mecânica.
+
+A projeção central:
 
 - serializa o `Character` atual;
 - consome `evaluateCharacterPointLedger`;
 - preserva integralmente o snapshot soberano do ledger;
 - deriva capacidades apenas do estado da sessão;
+- valida e serializa a projeção mecânica já pronta;
+- rejeita mecânica pertencente a outro Character;
+- rejeita opções desconhecidas e snapshots v1;
 - não recalcula pontos, custos, níveis, dano, carga ou defesas;
 - é profundamente imutável e serializável.
+
+`skillMechanics: null` significa ausência explícita. Não autoriza fallback para `importedLevel`, resolução por nome ou cálculo local.
 
 ## Fluxo vertical certificado
 
@@ -294,26 +330,30 @@ Character
 → CommandExecutor
 → histórico
 → SessionRepository
-→ ApplicationReadModel + Point Ledger
+→ ApplicationReadModel v2
+   ├── Character serializado
+   ├── Point Ledger soberano
+   └── SkillMechanicsReadProjection opcional
 → undo
 → save/load
 → redo
 → CharacterRepository
 ```
 
-O mesmo fluxo também certifica a rejeição de comando com revisão obsoleta.
+O mesmo fluxo certifica a rejeição de comando com revisão obsoleta.
 
 ## Fronteiras
 
-### Domain
+### Domain e motores
 
-Responsável por:
+Responsáveis por:
 
 - invariantes do `Character`;
 - cálculos GURPS;
 - operações mecânicas;
 - serialização canônica;
-- Point Ledger.
+- Point Ledger;
+- relatórios mecânicos de Skills, Techniques e outros domínios.
 
 ### Application
 
@@ -324,7 +364,8 @@ Responsável por:
 - coordenação atômica;
 - histórico, desfazer e refazer;
 - portas;
-- projeções compostas.
+- planos e projeções compostas;
+- verificação de que projeções anexadas pertencem ao mesmo Character.
 
 ### Infrastructure
 
@@ -339,10 +380,12 @@ Responsável por:
 
 Responsável por:
 
-- apresentar `ApplicationReadModel`;
+- apresentar `ApplicationReadModel` e projeções autorizadas;
 - coletar intenção;
 - despachar comandos;
 - mostrar recibos e diagnósticos.
+
+A UI não reconstitui bases, defaults ou fórmulas a partir de campos editoriais.
 
 ## Compatibilidade
 
@@ -350,32 +393,31 @@ Handlers de aplicação podem encapsular APIs públicas dos domínios. Eles não
 
 Importadores continuam convertendo fontes externas antes da abertura ou substituição explícita de uma sessão.
 
-Não há compatibilidade com históricos ad hoc anteriores: APP-CORE-1.0 inaugura a autoridade canônica da camada de aplicação.
+O read model é derivado e reconstruível. APP-CORE-1.1 não oferece compatibilidade automática com snapshots ad hoc de `ApplicationReadModel` v1.
 
 ## Não responsabilidades
 
-APP-CORE-1.0 não:
+APP-CORE-1.0 a 1.1 não:
 
 - implementa componentes visuais;
 - decide o fluxo completo dos modos Criação e Mesa;
 - persiste diretamente em `localStorage`;
 - calcula regras GURPS;
 - cria outro Point Ledger;
-- abre DOM-SKILL, DOM-EQUIPMENT, DOM-COMBAT, DOM-POWER ou DOM-MAGIC;
+- interpreta payloads opacos de defaults;
+- cria `SkillDefaultCandidate` por heurística;
 - associa entidades por nome;
-- mantém segundo histórico ou segundo runtime.
+- mantém segundo histórico, segundo runtime ou segundo read model.
 
 ## Artefatos normativos
 
 ```text
 Docs/02-decisoes/ADR-0042-FundacaoAppCore.md
+Docs/02-decisoes/ADR-0055-ReadModelMecanicaSkills.md
 Docs/03-gates/GATE-APP-CORE-1.0.md
+Docs/03-gates/GATE-APP-CORE-1.1.md
 ```
 
 ## Próxima frente
 
-Após aprovação do gate:
-
-```text
-DOM-SKILL
-```
+A próxima integração segura deve resolver a origem canônica de `SkillDefaultCandidate` a partir de fontes externas. Somente depois a aplicação poderá construir automaticamente a projeção mecânica completa a partir de uma sessão.
