@@ -51,3 +51,17 @@ function entry() {
     damage: { value: "declared-value", type: "declared-type" },
   };
 }
+
+function addInitial() {
+  return executeCommand(
+    session(),
+    command(
+      ATTACK_COMMAND_TYPES.ADD,
+      0,
+      { attack: entry() },
+      "command-add-validation",
+    ),
+    registry(),
+    runtime(),
+  );
+}
