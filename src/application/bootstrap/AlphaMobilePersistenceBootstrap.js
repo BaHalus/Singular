@@ -5,6 +5,10 @@ import {
   createCommandRegistry,
 } from "../commands/CommandRegistry.js";
 import {
+  createCharacterSummaryCommandHandlerEntries,
+  CHARACTER_SUMMARY_COMMAND_TYPES,
+} from "../character/CharacterSummaryCommandHandlers.js";
+import {
   createPoolCommandHandlerEntries,
   POOL_COMMAND_TYPES,
 } from "../pools/PoolCommandHandlers.js";
@@ -30,10 +34,6 @@ import {
   createLocalPersistenceCoordinator,
 } from "../persistence/LocalPersistenceCoordinator.js";
 
-/**
- * Composition root explícito da integração de persistência da Alpha mobile.
- * Cada chamada cria uma instância independente; não há singleton global.
- */
 export function createAlphaMobilePersistenceBootstrap(options = {}) {
   requirePlainObject(options, "Alpha mobile persistence bootstrap options");
   validateApplicationSession(options.initialSession);
@@ -108,7 +108,10 @@ export function createAlphaMobilePersistenceBootstrap(options = {}) {
       coordinator = createCoordinator(nextSession);
     },
   });
-  const registry = createCommandRegistry(createPoolCommandHandlerEntries());
+  const registry = createCommandRegistry([
+    ...createPoolCommandHandlerEntries(),
+    ...createCharacterSummaryCommandHandlerEntries(),
+  ]);
   const commands = createAlphaMobileCommands({
     persistence,
     registry,
@@ -194,30 +197,42 @@ function createActiveSessionPersistenceFacade(options) {
 }
 
 function createAlphaMobileCommands({ persistence, registry, runtime }) {
+  const execute = (type, payload) => {
+    const activeSession = persistence.getActiveSession();
+    const result = executeCommand(
+      activeSession,
+      {
+        id: generateId(runtime.idGenerator, "command"),
+        type,
+        expectedRevision: activeSession.revision,
+        issuedAt: readClock(runtime.clock),
+        payload,
+      },
+      registry,
+      runtime,
+    );
+
+    if (result.status === "applied") {
+      persistence.replaceActiveSession(result.session);
+    }
+    return result;
+  };
+
   return Object.freeze({
     adjustPoolCurrent(input = {}) {
       requirePlainObject(input, "Alpha mobile pool adjustment");
-      const activeSession = persistence.getActiveSession();
-      const result = executeCommand(
-        activeSession,
-        {
-          id: generateId(runtime.idGenerator, "command"),
-          type: POOL_COMMAND_TYPES.ADJUST_CURRENT,
-          expectedRevision: activeSession.revision,
-          issuedAt: readClock(runtime.clock),
-          payload: {
-            poolKey: input.poolKey,
-            delta: input.delta,
-          },
-        },
-        registry,
-        runtime,
-      );
+      return execute(POOL_COMMAND_TYPES.ADJUST_CURRENT, {
+        poolKey: input.poolKey,
+        delta: input.delta,
+      });
+    },
 
-      if (result.status === "applied") {
-        persistence.replaceActiveSession(result.session);
-      }
-      return result;
+    setCharacterSummary(input = {}) {
+      requirePlainObject(input, "Alpha mobile character summary");
+      return execute(CHARACTER_SUMMARY_COMMAND_TYPES.SET, {
+        name: input.name,
+        concept: input.concept,
+      });
     },
   });
 }
