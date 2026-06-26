@@ -4,7 +4,7 @@ import {
   serializeAttributeLevelsReport,
 } from "../../engine/attributes/AttributeLevelResolver.js";
 
-const MOBILE_PROJECTION_SCHEMA_VERSION = 1;
+const MOBILE_PROJECTION_SCHEMA_VERSION = 2;
 const ATTRIBUTE_KEYS = Object.freeze(["ST", "DX", "IQ", "HT"]);
 const SECONDARY_KEYS = Object.freeze([
   "HP",
@@ -15,6 +15,12 @@ const SECONDARY_KEYS = Object.freeze([
   "BasicMove",
 ]);
 const POOL_KEYS = Object.freeze(["HP", "FP", "EnergyReserve"]);
+const TRAIT_ROLES = Object.freeze([
+  "advantage",
+  "perk",
+  "disadvantage",
+  "quirk",
+]);
 
 /**
  * Projeta um Character canônico para o primeiro esqueleto da ficha mobile.
@@ -36,7 +42,14 @@ export function projectCharacterForMobileSheet(character) {
       serializedCharacter.secondaryCharacteristics,
     ),
     pools: projectPools(serializedCharacter.pools),
-    sections: projectMobileSections(),
+    traits: projectTraits(serializedCharacter.traits),
+    skills: projectSkills(serializedCharacter.skills),
+    techniques: projectTechniques(serializedCharacter.techniques),
+    sections: projectMobileSections({
+      traits: serializedCharacter.traits,
+      skills: serializedCharacter.skills,
+      techniques: serializedCharacter.techniques,
+    }),
   });
 }
 
@@ -53,6 +66,9 @@ export function validateCharacterMobileProjection(projection) {
     projection.secondaryCharacteristics,
   );
   validatePoolsProjection(projection.pools);
+  validateTraitListProjection(projection.traits);
+  validateSkillListProjection(projection.skills);
+  validateTechniqueListProjection(projection.techniques);
   validateSectionsProjection(projection.sections);
 
   return true;
@@ -127,7 +143,54 @@ function projectPools(pools) {
   );
 }
 
-function projectMobileSections() {
+function projectTraits(traits) {
+  return traits.map(trait => ({
+    id: trait.id,
+    name: trait.name,
+    role: trait.role,
+    points: trait.points,
+    levels: trait.levels,
+    notes: trait.notes,
+    status: "declared",
+  }));
+}
+
+function projectSkills(skills) {
+  return skills.map(skill => ({
+    id: skill.id,
+    name: skill.name,
+    specialization: skill.specialization,
+    techLevel: skill.techLevel,
+    attribute: skill.attribute,
+    difficulty: skill.difficulty,
+    points: skill.points,
+    importedLevel: skill.importedLevel,
+    importedRelativeLevel: skill.importedRelativeLevel,
+    notes: skill.notes,
+    status: "declared",
+  }));
+}
+
+function projectTechniques(techniques) {
+  return techniques.map(technique => ({
+    id: technique.id,
+    name: technique.name,
+    specialization: technique.specialization,
+    skillId: technique.skillId,
+    skillName: technique.skillName,
+    skillSpecialization: technique.skillSpecialization,
+    difficulty: technique.difficulty,
+    points: technique.points,
+    importedLevel: technique.importedLevel,
+    importedRelativeLevel: technique.importedRelativeLevel,
+    defaultPenalty: technique.defaultPenalty,
+    maximumRelativeLevel: technique.maximumRelativeLevel,
+    notes: technique.notes,
+    status: "declared",
+  }));
+}
+
+function projectMobileSections({ traits, skills, techniques }) {
   return [
     {
       id: "identity",
@@ -152,12 +215,14 @@ function projectMobileSections() {
     {
       id: "traits",
       title: "Vantagens e Desvantagens",
-      status: "pending",
+      status: traits.length === 0 ? "empty" : "declared-only",
     },
     {
       id: "skills-techniques",
       title: "Perícias e Técnicas",
-      status: "pending",
+      status: skills.length === 0 && techniques.length === 0
+        ? "empty"
+        : "declared-only",
     },
     {
       id: "equipment",
@@ -254,6 +319,91 @@ function validatePoolsProjection(pools) {
   }
 }
 
+function validateTraitListProjection(traits) {
+  if (!Array.isArray(traits)) {
+    throw new Error("Mobile traits projection must be an array");
+  }
+
+  for (const trait of traits) {
+    requirePlainObject(trait, "Mobile trait projection");
+    requireString(trait.id, "Mobile trait id");
+    requireString(trait.name, "Mobile trait name");
+    if (!TRAIT_ROLES.includes(trait.role)) {
+      throw new Error(`Mobile trait ${trait.id} role is invalid`);
+    }
+    requireNullableFiniteNumber(trait.points, `Mobile trait ${trait.id} points`);
+    requireNullableFiniteNumber(trait.levels, `Mobile trait ${trait.id} levels`);
+    requireString(trait.status, "Mobile trait status");
+  }
+}
+
+function validateSkillListProjection(skills) {
+  if (!Array.isArray(skills)) {
+    throw new Error("Mobile skills projection must be an array");
+  }
+
+  for (const skill of skills) {
+    requirePlainObject(skill, "Mobile skill projection");
+    requireString(skill.id, "Mobile skill id");
+    requireString(skill.name, "Mobile skill name");
+    requireNullableString(skill.specialization, `Mobile skill ${skill.id} specialization`);
+    requireNullableString(skill.techLevel, `Mobile skill ${skill.id} techLevel`);
+    requireNullableString(skill.attribute, `Mobile skill ${skill.id} attribute`);
+    requireNullableString(skill.difficulty, `Mobile skill ${skill.id} difficulty`);
+    requireNullableFiniteNumber(skill.points, `Mobile skill ${skill.id} points`);
+    requireNullableFiniteNumber(skill.importedLevel, `Mobile skill ${skill.id} importedLevel`);
+    requireNullableFiniteNumber(
+      skill.importedRelativeLevel,
+      `Mobile skill ${skill.id} importedRelativeLevel`,
+    );
+    requireString(skill.status, "Mobile skill status");
+  }
+}
+
+function validateTechniqueListProjection(techniques) {
+  if (!Array.isArray(techniques)) {
+    throw new Error("Mobile techniques projection must be an array");
+  }
+
+  for (const technique of techniques) {
+    requirePlainObject(technique, "Mobile technique projection");
+    requireString(technique.id, "Mobile technique id");
+    requireString(technique.name, "Mobile technique name");
+    requireNullableString(
+      technique.specialization,
+      `Mobile technique ${technique.id} specialization`,
+    );
+    requireNullableString(technique.skillId, `Mobile technique ${technique.id} skillId`);
+    requireNullableString(technique.skillName, `Mobile technique ${technique.id} skillName`);
+    requireNullableString(
+      technique.skillSpecialization,
+      `Mobile technique ${technique.id} skillSpecialization`,
+    );
+    requireNullableString(
+      technique.difficulty,
+      `Mobile technique ${technique.id} difficulty`,
+    );
+    requireNullableFiniteNumber(technique.points, `Mobile technique ${technique.id} points`);
+    requireNullableFiniteNumber(
+      technique.importedLevel,
+      `Mobile technique ${technique.id} importedLevel`,
+    );
+    requireNullableFiniteNumber(
+      technique.importedRelativeLevel,
+      `Mobile technique ${technique.id} importedRelativeLevel`,
+    );
+    requireNullableFiniteNumber(
+      technique.defaultPenalty,
+      `Mobile technique ${technique.id} defaultPenalty`,
+    );
+    requireNullableFiniteNumber(
+      technique.maximumRelativeLevel,
+      `Mobile technique ${technique.id} maximumRelativeLevel`,
+    );
+    requireString(technique.status, "Mobile technique status");
+  }
+}
+
 function validateSectionsProjection(sections) {
   if (!Array.isArray(sections)) {
     throw new Error("Mobile sections projection must be an array");
@@ -276,6 +426,12 @@ function requirePlainObject(value, label) {
 function requireString(value, label) {
   if (typeof value !== "string" || value.trim() === "") {
     throw new Error(`${label} must be a non-empty string`);
+  }
+}
+
+function requireNullableString(value, label) {
+  if (value !== null && typeof value !== "string") {
+    throw new Error(`${label} must be a string or null`);
   }
 }
 
