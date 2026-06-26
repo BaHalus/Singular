@@ -19,6 +19,14 @@ export function setAttributeBase(attributes, key, value) {
   };
 }
 
+export function adjustAttributeBase(attributes, key, delta) {
+  assertAttributeKey(key);
+  assertNumber(delta, `Invalid base delta for attribute: ${key}`);
+  const current = attributes?.[key]?.base;
+  assertNumber(current, `Invalid base value for attribute: ${key}`);
+  return setAttributeBase(attributes, key, current + delta);
+}
+
 export function setAttributeOverride(attributes, key, value) {
   assertAttributeKey(key);
 
@@ -56,7 +64,7 @@ function assertAttributeKey(key) {
 }
 
 function assertNumber(value, message) {
-  if (typeof value !== "number") {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
     throw new Error(message);
   }
 }
