@@ -1,7 +1,7 @@
 # Attacks
 
 **Código:** DOM-ATTACK-1.0  
-**Status:** Em validação  
+**Status:** Aprovado  
 **Camada:** Domain
 
 Attacks é a coleção canônica de ataques declarados do personagem. O domínio preserva identidade, ordem, referências e dados editoriais portáteis, mas não resolve regras de combate.
