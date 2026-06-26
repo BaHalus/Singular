@@ -1,5 +1,10 @@
 import { serializeCharacter } from "../../domain/character/Character.js";
-import { calculateEquipmentTotals } from "../../domain/character/EquipmentTotals.js";
+import {
+  createEquipmentMvpProjection,
+} from "../../engine/equipment/EquipmentMvpContract.js";
+import {
+  resolveEquipmentTotals,
+} from "../../engine/equipment/EquipmentTotalsResolver.js";
 import {
   resolveAttributeLevels,
   serializeAttributeLevelsReport,
@@ -170,14 +175,16 @@ function projectTechniques(techniques) {
 }
 
 function projectEquipment(equipment) {
-  const totals = calculateEquipmentTotals(equipment);
+  const totalsProjection = createEquipmentMvpProjection(
+    resolveEquipmentTotals(equipment),
+  );
   return {
     items: flattenEquipment(equipment),
     totals: {
-      quantity: totals.quantity,
-      weightKg: totals.weightKg,
-      cost: totals.cost,
-      authority: "domain",
+      quantity: totalsProjection.totals.quantity,
+      weightKg: totalsProjection.totals.weightKg,
+      cost: totalsProjection.totals.cost,
+      authority: "engine.equipment",
     },
   };
 }
@@ -370,7 +377,7 @@ function validateEquipmentProjection(equipment) {
   requireNonNegativeFiniteNumber(equipment.totals.quantity, "Mobile equipment total quantity");
   requireNonNegativeFiniteNumber(equipment.totals.weightKg, "Mobile equipment total weightKg");
   requireNonNegativeFiniteNumber(equipment.totals.cost, "Mobile equipment total cost");
-  if (equipment.totals.authority !== "domain") {
+  if (equipment.totals.authority !== "engine.equipment") {
     throw new Error("Mobile equipment totals authority is invalid");
   }
 
