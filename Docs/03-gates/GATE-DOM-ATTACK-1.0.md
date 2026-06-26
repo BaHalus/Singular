@@ -1,6 +1,6 @@
 # Gate — DOM-ATTACK-1.0
 
-**Status:** Em validação  
+**Status:** Aprovado  
 **Data:** 2026-06-26  
 **Frente:** SINGULAR — ATAQUES MVP  
 **Branch:** `feature/attacks-mvp-domain`
@@ -60,7 +60,11 @@ Certificar o contrato canônico isolado de ataques declarados para a Alpha, sem 
 - [x] importação externa completa permanece fora de escopo;
 - [x] gramática mecânica de dano e alcance não foi inventada.
 
-## Testes previstos
+## Testes e evidências
+
+A suíte integral canônica `npm test` passou na CI da PR. O workflow **Tests #895** concluiu com sucesso sobre a implementação e a documentação aceita.
+
+A cobertura específica inclui:
 
 - criação vazia e defaults;
 - identidade, ordem e duplicidade;
@@ -72,13 +76,20 @@ Certificar o contrato canônico isolado de ataques declarados para a Alpha, sem 
 - adição, edição, remoção, busca e reordenação imutáveis;
 - erros para ID ausente, posição inválida e patch não suportado.
 
-## Condições pendentes para aprovação
+## Condições de aprovação
 
-- [ ] suíte integral `npm test` verde no head atual da PR;
-- [ ] CI executada sobre a `main` vigente;
-- [ ] nenhuma revisão bloqueante;
-- [ ] nenhuma thread aberta;
-- [ ] comparação final sem sobreposição com SINGULAR MVP Julho.
+- [x] suíte integral `npm test` verde na PR;
+- [x] branch baseada na `main` vigente após a PR #109;
+- [x] nenhuma revisão bloqueante;
+- [x] nenhuma thread aberta;
+- [x] somente a PR #110 aberta na revalidação;
+- [x] sete arquivos novos, sem sobreposição com SINGULAR MVP Julho.
+
+A revisão automática solicitada não foi executada porque o serviço atingiu seu limite de uso. Isso não produziu comentário técnico, revisão bloqueante ou thread. O diff foi reavaliado contra as invariantes do gate e permaneceu sem bloqueio conhecido.
+
+## Resultado
+
+DOM-ATTACK-1.0 está aprovado como domínio declarativo isolado. Ele fornece identidade, ordem, referências, portabilidade, snapshots e operações mínimas sem antecipar mecânica de combate.
 
 ## Próxima etapa autorizável
 
