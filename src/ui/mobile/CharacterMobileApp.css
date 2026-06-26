@@ -43,6 +43,7 @@ html, body {
 .singular-mobile-sheet__pool-strip,
 .singular-mobile-sheet__cards,
 .singular-mobile-sheet__sections,
+.singular-mobile-sheet__summary-editor,
 .singular-alpha-mobile__persistence,
 .singular-alpha-mobile__persistence-actions,
 .singular-alpha-mobile__import,
@@ -72,6 +73,8 @@ html, body {
 .singular-mobile-sheet__stat,
 .singular-mobile-sheet__pool,
 .singular-mobile-sheet__card dl > div,
+.singular-mobile-sheet__summary-editor input,
+.singular-mobile-sheet__summary-editor button,
 .singular-alpha-mobile button,
 .singular-alpha-mobile textarea,
 .singular-alpha-mobile__save-list li {
@@ -83,6 +86,7 @@ html, body {
 }
 
 .singular-mobile-sheet__action,
+.singular-mobile-sheet__summary-editor button,
 .singular-alpha-mobile button {
   min-height: 2.75rem;
   font-weight: 700;
@@ -114,6 +118,26 @@ html, body {
   padding: 0.35rem;
   font-size: 1.2rem;
   touch-action: manipulation;
+}
+
+.singular-mobile-sheet__summary-editor {
+  margin-top: 0.65rem;
+}
+
+.singular-mobile-sheet__summary-editor label {
+  display: grid;
+  gap: 0.25rem;
+  font-weight: 700;
+}
+
+.singular-mobile-sheet__summary-editor input {
+  width: 100%;
+  min-height: 2.75rem;
+}
+
+[data-mode="table"] .singular-mobile-sheet__summary-editor,
+.singular-mobile-sheet__summary-editor[aria-hidden="true"] {
+  display: none;
 }
 
 .singular-alpha-mobile__persistence {
