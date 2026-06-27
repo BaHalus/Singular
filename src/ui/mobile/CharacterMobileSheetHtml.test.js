@@ -34,35 +34,56 @@ function renderModel(overrides = {}) {
   );
 }
 
-test("exposes the attack-controls mobile sheet HTML schema version", () => {
-  assert.equal(getCharacterMobileSheetHtmlSchemaVersion(), 9);
+test("exposes the inline-attack-edit mobile HTML schema version", () => {
+  assert.equal(getCharacterMobileSheetHtmlSchemaVersion(), 10);
 });
 
-test("renders creation controls only in creation mode", () => {
+test("renders creation and inline edit controls only in creation mode", () => {
   const character = renderModel({
     attacks: [
       {
         id: "attack_sword",
         name: "Espada Curta",
         category: "melee",
-        source: { kind: "manual", id: null },
+        skillId: "skill_sword",
+        source: { kind: "equipment", id: "eq_sword" },
         damage: { value: "1d+2", type: "corte" },
+        reach: "C,1",
+        notes: "Ataque principal",
       },
     ],
   });
   const creation = renderCharacterMobileSheetHtml(character, { mode: "creation" });
   const table = renderCharacterMobileSheetHtml(character, { mode: "table" });
 
-  assert.match(creation, /data-schema-version="9"/);
+  assert.match(creation, /data-schema-version="10"/);
   assert.match(creation, /data-role="character-summary-editor"/);
   assert.match(creation, /data-attribute-key="ST" data-attribute-adjust="-1"/);
   assert.match(creation, /data-role="attack-editor"/);
   assert.match(creation, /data-action="attack-add"/);
-  assert.match(creation, /data-action="attack-remove" data-attack-id="attack_sword"/);
+  assert.match(creation, /data-attack-edit-id="attack_sword"/);
+  assert.match(
+    creation,
+    /data-role="attack-edit-name" value="Espada Curta"/,
+  );
+  assert.match(
+    creation,
+    /<option value="melee" selected>Corpo a corpo<\/option>/,
+  );
+  assert.match(
+    creation,
+    /data-action="attack-update" data-attack-id="attack_sword"/,
+  );
+  assert.match(
+    creation,
+    /data-action="attack-remove" data-attack-id="attack_sword"/,
+  );
 
   assert.doesNotMatch(table, /data-role="character-summary-editor"/);
   assert.doesNotMatch(table, /data-attribute-adjust=/);
   assert.doesNotMatch(table, /data-role="attack-editor"/);
+  assert.doesNotMatch(table, /data-attack-edit-id=/);
+  assert.doesNotMatch(table, /data-action="attack-update"/);
   assert.doesNotMatch(table, /data-action="attack-remove"/);
   assert.doesNotMatch(table, /data-action="attack-reorder"/);
   assert.match(table, /<dt>Nome<\/dt><dd>Ayla &lt;Exploradora&gt;<\/dd>/);
