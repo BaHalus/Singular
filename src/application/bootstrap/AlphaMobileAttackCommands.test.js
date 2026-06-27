@@ -53,10 +53,10 @@ function createBootstrap() {
   });
 }
 
-test("exposes add, reorder and remove attacks through the canonical mobile command flow", async () => {
+test("exposes the complete canonical attack command flow to mobile", async () => {
   const app = createBootstrap();
 
-  const sword = app.commands.addAttack({
+  assert.equal(app.commands.addAttack({
     name: "Espada Curta",
     category: "melee",
     skillId: "skill_sword",
@@ -64,60 +64,68 @@ test("exposes add, reorder and remove attacks through the canonical mobile comma
     damageType: "corte",
     reach: "C,1",
     notes: "Ataque principal",
-  });
-  const bow = app.commands.addAttack({
+  }).status, "applied");
+  assert.equal(app.commands.addAttack({
     name: "Arco Curto",
     category: "ranged",
     skillId: "skill_bow",
     damageValue: "1d",
     damageType: "perfuração",
     range: "150/200",
-  });
-
-  assert.equal(sword.status, "applied");
-  assert.equal(bow.status, "applied");
-  assert.equal(app.persistence.getActiveSession().revision, 2);
-  assert.deepEqual(
-    app.persistence.getActiveSession().character.attacks.map(attack => ({
-      name: attack.name,
-      category: attack.category,
-      source: attack.source,
-      damage: attack.damage,
-    })),
-    [
-      {
-        name: "Espada Curta",
-        category: "melee",
-        source: { kind: "manual", id: null },
-        damage: { value: "1d+2", type: "corte", authority: "declared" },
-      },
-      {
-        name: "Arco Curto",
-        category: "ranged",
-        source: { kind: "manual", id: null },
-        damage: { value: "1d", type: "perfuração", authority: "declared" },
-      },
-    ],
-  );
+  }).status, "applied");
 
   const swordId = app.persistence.getActiveSession().character.attacks[0].id;
   const bowId = app.persistence.getActiveSession().character.attacks[1].id;
-  const reordered = app.commands.reorderAttack({
+  const originalSource = app.persistence.getActiveSession().character.attacks[0].source;
+  const patch = {
+    attackId: swordId,
+    name: "Espada Curta Afiada",
+    category: "melee",
+    skillId: "skill_sword",
+    damageValue: "2d",
+    damageType: "corte",
+    reach: "1",
+    range: "",
+    notes: "Lâmina melhorada",
+  };
+
+  const updated = app.commands.updateAttack(patch);
+  const noOp = app.commands.updateAttack(patch);
+
+  assert.equal(updated.status, "applied");
+  assert.equal(noOp.status, "no-op");
+  assert.equal(app.persistence.getActiveSession().revision, 3);
+  assert.deepEqual(
+    app.persistence.getActiveSession().character.attacks[0],
+    {
+      id: swordId,
+      name: "Espada Curta Afiada",
+      category: "melee",
+      skillId: "skill_sword",
+      source: originalSource,
+      damage: { value: "2d", type: "corte", authority: "declared" },
+      reach: "1",
+      range: null,
+      notes: "Lâmina melhorada",
+      importMeta: null,
+      raw: null,
+    },
+  );
+
+  assert.equal(app.commands.reorderAttack({
     attackId: bowId,
     targetIndex: 0,
-  });
-  const removed = app.commands.removeAttack({ attackId: swordId });
+  }).status, "applied");
+  assert.equal(app.commands.removeAttack({ attackId: swordId }).status, "applied");
 
-  assert.equal(reordered.status, "applied");
-  assert.equal(removed.status, "applied");
-  assert.equal(app.persistence.getActiveSession().revision, 4);
+  assert.equal(app.persistence.getActiveSession().revision, 5);
   assert.deepEqual(
     app.persistence.getActiveSession().character.attacks.map(attack => attack.id),
     [bowId],
   );
   assert.deepEqual(
     app.persistence.getActiveSession().history.map(entry => entry.commandType),
-    ["attack.add", "attack.add", "attack.reorder", "attack.remove"],
+    ["attack.add", "attack.add", "attack.update", "attack.reorder", "attack.remove"],
   );
   assert.deepEqual(await app.repositories.session.listIds(), []);
 });
