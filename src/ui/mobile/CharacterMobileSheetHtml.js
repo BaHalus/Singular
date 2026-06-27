@@ -2,7 +2,7 @@ import {
   serializeCharacterMobileSheetRenderModel,
 } from "./CharacterMobileSheetRenderModel.js";
 
-const HTML_SHELL_SCHEMA_VERSION = 6;
+const HTML_SHELL_SCHEMA_VERSION = 7;
 
 export function renderCharacterMobileSheetHtml(renderModel, options = {}) {
   const model = serializeCharacterMobileSheetRenderModel(renderModel);
@@ -129,6 +129,8 @@ function renderCard(card, mode) {
   let body;
   if (card.id === "identity" && mode === "creation") {
     body = renderCharacterSummaryEditor(card);
+  } else if (card.id === "attacks") {
+    body = renderAttacksCard(card);
   } else if (card.id === "equipment") {
     body = renderEquipmentCard(card);
   } else {
@@ -148,6 +150,26 @@ function renderCardBody(card) {
     return "<p class=\"singular-mobile-sheet__empty\">Nenhum item declarado.</p>";
   }
   return ["<dl>", card.items.map(renderCardItem).join(""), "</dl>"].join("");
+}
+
+function renderAttacksCard(card) {
+  if (card.items.length === 0) {
+    return "<p class=\"singular-mobile-sheet__empty\">Nenhum ataque declarado.</p>";
+  }
+  return [
+    '<dl class="singular-mobile-sheet__attack-list">',
+    card.items.map(renderAttackItem).join(""),
+    "</dl>",
+  ].join("");
+}
+
+function renderAttackItem(item) {
+  return [
+    `<div data-attack-id="${escapeAttribute(item.id)}" data-attack-category="${escapeAttribute(item.category)}" data-damage-authority="${escapeAttribute(item.damageAuthority)}">`,
+    `<dt>${escapeText(item.label)}</dt>`,
+    `<dd>${formatValue(item.value)}${renderItemDetails(item)}</dd>`,
+    "</div>",
+  ].join("");
 }
 
 function renderEquipmentCard(card) {
@@ -265,6 +287,17 @@ function renderItemDetails(item) {
   if (item.maximumRelativeLevel !== undefined && item.maximumRelativeLevel !== null) {
     details.push(`máx ${formatSignedNumber(item.maximumRelativeLevel)}`);
   }
+  if (item.damageValue || item.damageType) {
+    const damage = [item.damageValue, item.damageType].filter(Boolean).join(" ");
+    details.push(`Dano declarado ${damage}`);
+  }
+  if (item.reach) details.push(`Reach ${item.reach}`);
+  if (item.range) details.push(`Alcance ${item.range}`);
+  if (item.skillId) details.push(`Perícia ${item.skillId}`);
+  if (item.sourceKind) {
+    const source = localizedAttackSource(item.sourceKind);
+    details.push(item.sourceId ? `${source} ${item.sourceId}` : source);
+  }
   if (item.quantity !== undefined) details.push(`Qtd ${formatValue(item.quantity)}`);
   if (item.weightKg !== undefined) details.push(`${formatValue(item.weightKg)} kg/un`);
   if (item.cost !== undefined) details.push(`$ ${formatValue(item.cost)}/un`);
@@ -293,6 +326,15 @@ function localizedPoolLabel(id, fallback) {
   if (id === "FP") return "PF";
   if (id === "EnergyReserve") return "Reserva de Energia";
   return fallback;
+}
+
+function localizedAttackSource(kind) {
+  if (kind === "manual") return "Origem manual";
+  if (kind === "equipment") return "Origem equipamento";
+  if (kind === "trait") return "Origem traço";
+  if (kind === "spell") return "Origem magia";
+  if (kind === "power") return "Origem poder";
+  return "Outra origem";
 }
 
 function localizedEquipmentState(state) {
