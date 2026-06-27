@@ -128,22 +128,24 @@ test("applies Trait commands through CommandExecutor with revision and history",
 });
 
 test("updates, removes and reorders Traits by id", () => {
+  const appRuntime = runtime();
+  const commandRegistry = registry();
   const first = executeCommand(
     session(),
     command(TRAIT_COMMAND_TYPES.UPDATE, {
       traitId: "trait-combat-reflexes",
       patch: { name: "Reflexos em Combate revisado", source: { reference: "B43 revisado" } },
     }),
-    registry(),
-    runtime(),
+    commandRegistry,
+    appRuntime,
   );
   const second = executeCommand(first.session, command(TRAIT_COMMAND_TYPES.REORDER, {
     traitId: "trait-curious",
     targetIndex: 0,
-  }, 1), registry(), runtime());
+  }, 1), commandRegistry, appRuntime);
   const third = executeCommand(second.session, command(TRAIT_COMMAND_TYPES.REMOVE, {
     traitId: "trait-combat-reflexes",
-  }, 2), registry(), runtime());
+  }, 2), commandRegistry, appRuntime);
 
   assert.equal(first.status, "applied");
   assert.equal(first.session.character.traits[0].source.reference, "B43 revisado");
