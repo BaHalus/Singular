@@ -79,10 +79,13 @@ export function mountCharacterMobileInteractionController(options = {}) {
         );
       }
 
+      const targetIndexValue = readDataset(actionTarget, "targetIndex");
       return applyResult(
         options.commands.reorderAttack({
           attackId,
-          targetIndex: Number(readDataset(actionTarget, "targetIndex")),
+          targetIndex: targetIndexValue === null
+            ? Number.NaN
+            : Number(targetIndexValue),
         }),
         root,
         rerender,
