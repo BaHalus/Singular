@@ -175,8 +175,17 @@ test("rejects unsupported command payloads and unsupported structural pools", ()
 });
 
 test("fails safely instead of dropping unsupported imported pools during secondary rehydration", () => {
-  const customSession = session();
-  customSession.character.pools.ManaReserve = { current: 2, maximum: 4 };
+  const baseSession = session();
+  const customSession = {
+    ...baseSession,
+    character: {
+      ...baseSession.character,
+      pools: {
+        ...baseSession.character.pools,
+        ManaReserve: { current: 2, maximum: 4 },
+      },
+    },
+  };
 
   const result = executeCommand(customSession, command(SECONDARY_COMMAND_TYPES.SET_SECONDARY_BASE, {
     characteristicKey: "Will",
