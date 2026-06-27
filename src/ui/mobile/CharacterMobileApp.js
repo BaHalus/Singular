@@ -86,6 +86,18 @@ export async function bootstrapCharacterMobileApp(options = {}) {
         concept: readInputValue(root, '[data-role="character-concept"]'),
       };
     },
+    readAttackDraft() {
+      return {
+        name: readInputValue(root, '[data-role="attack-name"]'),
+        category: readInputValue(root, '[data-role="attack-category"]') || "melee",
+        skillId: readInputValue(root, '[data-role="attack-skill-id"]'),
+        damageValue: readInputValue(root, '[data-role="attack-damage-value"]'),
+        damageType: readInputValue(root, '[data-role="attack-damage-type"]'),
+        reach: readInputValue(root, '[data-role="attack-reach"]'),
+        range: readInputValue(root, '[data-role="attack-range"]'),
+        notes: readInputValue(root, '[data-role="attack-notes"]'),
+      };
+    },
     render,
     syncMode: modeSync.sync,
   });
