@@ -24,6 +24,7 @@ const LANGUAGE_PATCH_KEYS = Object.freeze([
 
 export function addLanguage(languages, languageInput) {
   validateLanguages(languages);
+  requirePlainObject(languageInput, "Language input must be an object");
   return createLanguages([
     ...serializeLanguages(languages),
     clonePortableValue(languageInput),
