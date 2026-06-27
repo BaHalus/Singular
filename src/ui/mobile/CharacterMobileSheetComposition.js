@@ -11,8 +11,10 @@ import {
 } from "./CharacterMobileSpellsPowersReadModel.js";
 
 export function createCharacterMobileSheetRenderModelForCharacter(character) {
-  const baseModel = serializeCharacterMobileSheetRenderModel(
-    createCharacterMobileSheetRenderModel(projectCharacterForMobileSheet(character)),
+  const baseModel = withMobilePresentationLabels(
+    serializeCharacterMobileSheetRenderModel(
+      createCharacterMobileSheetRenderModel(projectCharacterForMobileSheet(character)),
+    ),
   );
   const spellsPowersModel = serializeCharacterMobileSpellsPowersReadModel(
     createCharacterMobileSpellsPowersReadModel(character),
@@ -36,6 +38,32 @@ export function createCharacterMobileSheetRenderModelForCharacter(character) {
   };
 
   return deepFreeze(JSON.parse(JSON.stringify(composedModel)));
+}
+
+function withMobilePresentationLabels(model) {
+  return {
+    ...model,
+    cards: model.cards.map(card => {
+      if (card.id !== "secondary-characteristics") return card;
+      return {
+        ...card,
+        items: card.items.map(item => ({
+          ...item,
+          label: secondaryCharacteristicLabel(item.id, item.label),
+        })),
+      };
+    }),
+  };
+}
+
+function secondaryCharacteristicLabel(id, fallback) {
+  if (id === "HP") return "PV máximo";
+  if (id === "FP") return "PF máximo";
+  if (id === "Will") return "Vontade";
+  if (id === "Per") return "Percepção";
+  if (id === "BasicSpeed") return "Velocidade Básica";
+  if (id === "BasicMove") return "Deslocamento Básico";
+  return fallback;
 }
 
 function deepFreeze(value, seen = new WeakSet()) {
