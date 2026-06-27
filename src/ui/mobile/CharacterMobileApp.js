@@ -124,6 +124,25 @@ export async function bootstrapCharacterMobileApp(options = {}) {
         notes: readInputValue(root, '[data-role="spell-notes"]'),
       };
     },
+    readPowerDraft() {
+      return {
+        name: readInputValue(root, '[data-role="power-name"]'),
+        source: readInputValue(root, '[data-role="power-source"]'),
+        powerModifierName: readInputValue(root, '[data-role="power-modifier-name"]'),
+        powerModifierValuePercent: readInputNumber(root, '[data-role="power-modifier-value-percent"]', null),
+        powerModifierNotes: readInputValue(root, '[data-role="power-modifier-notes"]'),
+        talentTraitId: readInputValue(root, '[data-role="power-talent-trait-id"]'),
+        memberTraitIds: readInputValue(root, '[data-role="power-member-trait-ids"]'),
+        tags: readInputValue(root, '[data-role="power-tags"]'),
+        notes: readInputValue(root, '[data-role="power-notes"]'),
+      };
+    },
+    readPowerRenameDraft(powerId) {
+      return {
+        powerId,
+        name: readInputValue(root, `[data-role="power-rename"][data-power-id="${escapeSelectorValue(powerId)}"]`),
+      };
+    },
     render,
     syncMode: modeSync.sync,
   });
@@ -207,6 +226,10 @@ function readInputNumber(root, selector, fallback) {
   if (raw.trim() === "") return fallback;
   const value = Number(raw);
   return Number.isFinite(value) ? value : fallback;
+}
+
+function escapeSelectorValue(value) {
+  return String(value ?? "").replaceAll("\\", "\\\\").replaceAll('"', '\\"');
 }
 
 function normalizeMode(value) {
