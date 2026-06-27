@@ -66,17 +66,19 @@ function command(type, expectedRevision, payload, id) {
   };
 }
 
-test("exposes seven immutable equipment command entries", () => {
+test("exposes nine immutable equipment command entries", () => {
   const entries = createEquipmentCommandHandlerEntries();
   assert.equal(Object.isFrozen(entries), true);
   assert.deepEqual(entries.map(entry => entry.type), [
     "equipment.add",
     "equipment.add-child",
+    "equipment.update",
     "equipment.rename",
     "equipment.quantity.set",
     "equipment.state.set",
     "equipment.remove",
     "equipment.move",
+    "equipment.reorder",
   ]);
   assert.equal(entries.every(entry => Object.isFrozen(entry)), true);
 });
@@ -101,11 +103,29 @@ test("applies structural inventory commands through CommandExecutor", () => {
     appRegistry,
     appRuntime,
   );
-  const renamed = executeCommand(
+  const updated = executeCommand(
     childAdded.session,
     command(
-      EQUIPMENT_COMMAND_TYPES.RENAME,
+      EQUIPMENT_COMMAND_TYPES.UPDATE,
       2,
+      {
+        itemId: "torch",
+        patch: {
+          name: "Tocha oleada",
+          notes: "Preparada para uso em mesa",
+          reference: "B288",
+        },
+      },
+      "update-torch",
+    ),
+    appRegistry,
+    appRuntime,
+  );
+  const renamed = executeCommand(
+    updated.session,
+    command(
+      EQUIPMENT_COMMAND_TYPES.RENAME,
+      3,
       { itemId: "torch", name: "Tocha acesa" },
       "rename-torch",
     ),
@@ -116,7 +136,7 @@ test("applies structural inventory commands through CommandExecutor", () => {
     renamed.session,
     command(
       EQUIPMENT_COMMAND_TYPES.SET_QUANTITY,
-      3,
+      4,
       { itemId: "ration", quantity: 3 },
       "quantity-ration",
     ),
@@ -127,7 +147,7 @@ test("applies structural inventory commands through CommandExecutor", () => {
     quantified.session,
     command(
       EQUIPMENT_COMMAND_TYPES.SET_STATE,
-      4,
+      5,
       { itemId: "sword", state: "stored" },
       "store-sword",
     ),
@@ -138,18 +158,29 @@ test("applies structural inventory commands through CommandExecutor", () => {
     stored.session,
     command(
       EQUIPMENT_COMMAND_TYPES.MOVE,
-      5,
+      6,
       { itemId: "torch", targetContainerId: "pack" },
       "move-torch",
     ),
     appRegistry,
     appRuntime,
   );
-  const removed = executeCommand(
+  const reordered = executeCommand(
     moved.session,
     command(
+      EQUIPMENT_COMMAND_TYPES.REORDER,
+      7,
+      { itemId: "torch", targetIndex: 0 },
+      "reorder-torch",
+    ),
+    appRegistry,
+    appRuntime,
+  );
+  const removed = executeCommand(
+    reordered.session,
+    command(
       EQUIPMENT_COMMAND_TYPES.REMOVE,
-      6,
+      8,
       { itemId: "rope" },
       "remove-rope",
     ),
@@ -158,6 +189,7 @@ test("applies structural inventory commands through CommandExecutor", () => {
   );
 
   assert.equal(added.status, "applied");
+  assert.equal(updated.session.character.equipment[2].notes, "Preparada para uso em mesa");
   assert.equal(renamed.session.character.equipment[2].name, "Tocha acesa");
   assert.equal(quantified.session.character.equipment[0].children[1].quantity, 3);
   assert.equal(stored.session.character.equipment[1].state, "stored");
@@ -166,10 +198,14 @@ test("applies structural inventory commands through CommandExecutor", () => {
     ["rope", "ration", "torch"],
   );
   assert.deepEqual(
-    removed.session.character.equipment[0].children.map(entry => entry.id),
-    ["ration", "torch"],
+    reordered.session.character.equipment[0].children.map(entry => entry.id),
+    ["torch", "rope", "ration"],
   );
-  assert.equal(removed.session.revision, 7);
-  assert.equal(removed.session.history.length, 7);
+  assert.deepEqual(
+    removed.session.character.equipment[0].children.map(entry => entry.id),
+    ["torch", "ration"],
+  );
+  assert.equal(removed.session.revision, 9);
+  assert.equal(removed.session.history.length, 9);
   assert.equal(removed.receipt.domainReceipt.previousContainerId, "pack");
 });
