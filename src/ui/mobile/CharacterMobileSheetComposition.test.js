@@ -17,7 +17,7 @@ test("labels secondary characteristics for mobile presentation without changing 
     secondaryCharacteristics: {
       HP: { base: 11, override: null },
       FP: { base: 10, override: null },
-      Will: { base: 12, override: null },
+      Will: { base: 12, override: 13 },
       Per: { base: 13, override: null },
       BasicSpeed: { base: 5.75, override: null },
       BasicMove: { base: 5, override: null },
@@ -41,10 +41,21 @@ test("labels secondary characteristics for mobile presentation without changing 
     [
       ["HP", 11, null],
       ["FP", 10, null],
-      ["Will", 12, null],
+      ["Will", 12, 13],
       ["Per", 13, null],
       ["BasicSpeed", 5.75, null],
       ["BasicMove", 5, null],
+    ],
+  );
+  assert.deepEqual(
+    secondary.items.map(item => [item.id, item.value]),
+    [
+      ["HP", "11"],
+      ["FP", "10"],
+      ["Will", "12 (ajuste 13)"],
+      ["Per", "13"],
+      ["BasicSpeed", "5.75"],
+      ["BasicMove", "5"],
     ],
   );
 });

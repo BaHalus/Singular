@@ -50,6 +50,7 @@ function withMobilePresentationLabels(model) {
         items: card.items.map(item => ({
           ...item,
           label: secondaryCharacteristicLabel(item.id, item.label),
+          value: secondaryCharacteristicValue(item),
         })),
       };
     }),
@@ -64,6 +65,18 @@ function secondaryCharacteristicLabel(id, fallback) {
   if (id === "BasicSpeed") return "Velocidade Básica";
   if (id === "BasicMove") return "Deslocamento Básico";
   return fallback;
+}
+
+function secondaryCharacteristicValue(item) {
+  if (item.override === null || item.override === undefined) {
+    return formatPresentationValue(item.base);
+  }
+  return `${formatPresentationValue(item.base)} (ajuste ${formatPresentationValue(item.override)})`;
+}
+
+function formatPresentationValue(value) {
+  if (value === null || value === undefined || value === "") return "—";
+  return String(value);
 }
 
 function deepFreeze(value, seen = new WeakSet()) {
