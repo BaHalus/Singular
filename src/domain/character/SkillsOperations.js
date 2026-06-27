@@ -116,6 +116,43 @@ export function findSkillById(skills, skillId) {
   return skills.find(skill => skill.id === normalizedId) ?? null;
 }
 
+export function renameSkill(skills, skillId, name) {
+  return updateSkill(skills, skillId, { name });
+}
+
+export function updateSkillNotes(skills, skillId, notes) {
+  return updateSkill(skills, skillId, { notes });
+}
+
+export function setSkillSpecialization(skills, skillId, specialization) {
+  return updateSkill(skills, skillId, { specialization });
+}
+
+export function setSkillBase(skills, skillId, attribute, difficulty) {
+  return updateSkill(skills, skillId, { attribute, difficulty });
+}
+
+export function setSkillPoints(skills, skillId, points) {
+  return updateSkill(skills, skillId, { points });
+}
+
+export function setSkillImportedLevel(skills, skillId, importedLevel) {
+  return updateSkill(skills, skillId, { importedLevel });
+}
+
+export function addSkillTag(skills, skillId, tag) {
+  const skill = findSkillById(skills, skillId);
+  if (skill.tags.includes(tag)) return skills;
+  return updateSkill(skills, skillId, { tags: [...skill.tags, tag] });
+}
+
+export function removeSkillTag(skills, skillId, tag) {
+  const skill = findSkillById(skills, skillId);
+  return updateSkill(skills, skillId, {
+    tags: skill.tags.filter(currentTag => currentTag !== tag),
+  });
+}
+
 export function addTechnique(techniques, techniqueInput) {
   validateTechniques(techniques);
   return createTechniques([
