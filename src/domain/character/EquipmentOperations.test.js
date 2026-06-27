@@ -7,6 +7,9 @@ import {
   addEquipment,
   removeEquipment,
   renameEquipment,
+  updateEquipment,
+  reorderEquipment,
+  findEquipmentItemIndex,
   setEquipmentQuantity,
   setEquipmentState,
   equipEquipment,
@@ -98,6 +101,90 @@ test("renames equipment without mutating original", () => {
 
   assert.equal(equipment[0].name, "Velho");
   assert.equal(updated[0].name, "Espada");
+});
+
+test("updates allowed portable equipment fields without mutating original", () => {
+  const equipment = createEquipment([
+    item("eq-001", "Velho"),
+  ]);
+
+  const updated = updateEquipment(equipment, "eq-001", {
+    name: "Kit de escalada",
+    quantity: 2,
+    reference: "B288",
+    notes: "Atualizado manualmente",
+  });
+
+  assert.equal(equipment[0].name, "Velho");
+  assert.equal(updated[0].name, "Kit de escalada");
+  assert.equal(updated[0].quantity, 2);
+  assert.equal(updated[0].reference, "B288");
+  assert.equal(updated[0].notes, "Atualizado manualmente");
+});
+
+test("does not allow structural identity changes through equipment patch", () => {
+  const equipment = createEquipment([
+    item("eq-001", "Espada"),
+  ]);
+
+  assert.throws(() => {
+    updateEquipment(equipment, "eq-001", { id: "eq-002" });
+  }, /unsupported fields/);
+});
+
+test("reorders root and nested equipment within the same collection", () => {
+  const equipment = createEquipment([
+    item("eq-root-a", "A"),
+    item("eq-root-b", "B"),
+    {
+      ...container("eq-bag", "Mochila"),
+      children: [
+        item("eq-child-a", "CA"),
+        item("eq-child-b", "CB"),
+      ],
+    },
+  ]);
+
+  const rootReordered = reorderEquipment(equipment, "eq-root-b", 0);
+  const childReordered = reorderEquipment(equipment, "eq-child-b", 0);
+
+  assert.deepEqual(rootReordered.map(entry => entry.id), [
+    "eq-root-b",
+    "eq-root-a",
+    "eq-bag",
+  ]);
+  assert.deepEqual(childReordered[2].children.map(entry => entry.id), [
+    "eq-child-b",
+    "eq-child-a",
+  ]);
+  assert.deepEqual(equipment.map(entry => entry.id), [
+    "eq-root-a",
+    "eq-root-b",
+    "eq-bag",
+  ]);
+});
+
+test("reorder no-op returns original collection", () => {
+  const equipment = createEquipment([
+    item("eq-root-a", "A"),
+    item("eq-root-b", "B"),
+  ]);
+
+  assert.equal(reorderEquipment(equipment, "eq-root-a", 0), equipment);
+});
+
+test("finds equipment item index in its own collection", () => {
+  const equipment = createEquipment([
+    item("eq-root-a", "A"),
+    {
+      ...container("eq-bag", "Mochila"),
+      children: [item("eq-child-a", "CA")],
+    },
+  ]);
+
+  assert.equal(findEquipmentItemIndex(equipment, "eq-root-a"), 0);
+  assert.equal(findEquipmentItemIndex(equipment, "eq-child-a"), 0);
+  assert.equal(findEquipmentItemIndex(equipment, "missing"), -1);
 });
 
 test("sets equipment quantity without mutating original", () => {
@@ -206,6 +293,26 @@ test("moves nested equipment to root", () => {
   assert.equal(updated.length, 2);
   assert.equal(updated[0].children.length, 0);
   assert.equal(updated[1].id, "eq-bandage");
+});
+
+test("moving equipment to its current container is a real no-op", () => {
+  const equipment = createEquipment([
+    {
+      ...container("eq-bag", "Mochila"),
+      children: [
+        item("eq-rope", "Corda"),
+        item("eq-bandage", "Bandagens"),
+      ],
+    },
+  ]);
+
+  const updated = moveEquipment(equipment, "eq-bandage", "eq-bag");
+
+  assert.equal(updated, equipment);
+  assert.deepEqual(equipment[0].children.map(entry => entry.id), [
+    "eq-rope",
+    "eq-bandage",
+  ]);
 });
 
 test("throws when moving unknown equipment", () => {
