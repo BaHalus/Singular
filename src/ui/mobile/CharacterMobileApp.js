@@ -3,10 +3,9 @@ import { createApplicationSession } from "../../application/session/ApplicationS
 import {
   createAlphaMobilePersistenceBootstrap,
 } from "../../application/bootstrap/AlphaMobilePersistenceBootstrap.js";
-import { projectCharacterForMobileSheet } from "./CharacterMobileProjection.js";
 import {
-  createCharacterMobileSheetRenderModel,
-} from "./CharacterMobileSheetRenderModel.js";
+  createCharacterMobileSheetRenderModelForCharacter,
+} from "./CharacterMobileSheetComposition.js";
 import { renderCharacterMobileSheetHtml } from "./CharacterMobileSheetHtml.js";
 import {
   mountAlphaMobilePersistenceUi,
@@ -130,8 +129,7 @@ export async function bootstrapCharacterMobileApp(options = {}) {
 export function renderCharacterMobileApp(character, options = {}) {
   requirePlainObject(options, "Character mobile render options");
   const mode = normalizeMode(options.mode ?? "creation");
-  const projection = projectCharacterForMobileSheet(character);
-  const renderModel = createCharacterMobileSheetRenderModel(projection);
+  const renderModel = createCharacterMobileSheetRenderModelForCharacter(character);
   return renderCharacterMobileSheetHtml(renderModel, { mode });
 }
 
