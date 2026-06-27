@@ -198,6 +198,53 @@ html, body {
   line-height: 1.35;
 }
 
+.singular-mobile-sheet__card[data-status="empty"],
+.singular-mobile-sheet__section-marker[data-status="empty"] {
+  border-style: dashed;
+  color: #b7c1cc;
+}
+
+.singular-mobile-sheet__card[data-status="declared-only"] h2::after,
+.singular-mobile-sheet__section-marker[data-status="declared-only"] h2::after {
+  content: "declarado";
+  display: inline-block;
+  margin-left: 0.5rem;
+  border: 1px solid #6f8195;
+  border-radius: 999px;
+  padding: 0.1rem 0.45rem;
+  color: #d2dae3;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  vertical-align: middle;
+}
+
+.singular-mobile-sheet__card[data-status="empty"] h2::after,
+.singular-mobile-sheet__section-marker[data-status="empty"] h2::after {
+  content: "vazio";
+  display: inline-block;
+  margin-left: 0.5rem;
+  border: 1px solid #6f8195;
+  border-radius: 999px;
+  padding: 0.1rem 0.45rem;
+  color: #b7c1cc;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  vertical-align: middle;
+}
+
+.singular-mobile-sheet__empty {
+  border: 1px dashed #42546a;
+  border-radius: 0.65rem;
+  margin: 0;
+  padding: 0.65rem;
+  color: #b7c1cc;
+  font-weight: 700;
+}
+
 .singular-mobile-sheet__attack-list dd {
   display: grid;
   gap: 0.45rem;
