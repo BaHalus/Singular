@@ -235,12 +235,13 @@ function renderAttackControls(item, index, total) {
 
 function renderEquipmentCard(card, mode) {
   const editor = mode === "creation" ? renderEquipmentEditor() : "";
+  const siblingOrder = createEquipmentSiblingOrder(card.items);
   const list = card.items.length === 0
     ? "<p class=\"singular-mobile-sheet__empty\">Nenhum equipamento declarado.</p>"
     : [
       '<dl class="singular-mobile-sheet__equipment-list">',
       card.items
-        .map((item, index) => renderEquipmentItem(item, mode, index, card.items.length))
+        .map(item => renderEquipmentItem(item, mode, siblingOrder.get(item.id)))
         .join(""),
       "</dl>",
     ].join("");
@@ -270,9 +271,27 @@ function renderEquipmentEditor() {
   ].join("");
 }
 
-function renderEquipmentItem(item, mode, index, total) {
+function createEquipmentSiblingOrder(items) {
+  const groups = new Map();
+  for (const item of items) {
+    const parentKey = item.parentId ?? "";
+    const siblings = groups.get(parentKey) ?? [];
+    siblings.push(item);
+    groups.set(parentKey, siblings);
+  }
+
+  const order = new Map();
+  for (const siblings of groups.values()) {
+    siblings.forEach((item, index) => {
+      order.set(item.id, { index, total: siblings.length });
+    });
+  }
+  return order;
+}
+
+function renderEquipmentItem(item, mode, siblingOrder) {
   const prefix = item.depth > 0 ? `${"↳ ".repeat(item.depth)}` : "";
-  const controls = mode === "creation" ? renderEquipmentControls(item, index, total) : "";
+  const controls = mode === "creation" ? renderEquipmentControls(item, siblingOrder) : "";
   return [
     `<div data-equipment-id="${escapeAttribute(item.id)}" data-equipment-state="${escapeAttribute(item.state)}" data-depth="${escapeAttribute(item.depth)}">`,
     `<dt>${escapeText(item.label)}</dt>`,
@@ -281,8 +300,9 @@ function renderEquipmentItem(item, mode, index, total) {
   ].join("");
 }
 
-function renderEquipmentControls(item, index, total) {
+function renderEquipmentControls(item, siblingOrder = { index: 0, total: 1 }) {
   const id = escapeAttribute(item.id);
+  const { index, total } = siblingOrder;
   const up = index > 0
     ? `<button type="button" data-action="equipment-reorder" data-equipment-id="${id}" data-target-index="${index - 1}" aria-label="Mover ${escapeAttribute(item.value)} para cima">↑</button>`
     : "";
