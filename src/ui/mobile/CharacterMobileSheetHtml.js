@@ -2,7 +2,7 @@ import {
   serializeCharacterMobileSheetRenderModel,
 } from "./CharacterMobileSheetRenderModel.js";
 
-const HTML_SHELL_SCHEMA_VERSION = 8;
+const HTML_SHELL_SCHEMA_VERSION = 9;
 
 export function renderCharacterMobileSheetHtml(renderModel, options = {}) {
   const model = serializeCharacterMobileSheetRenderModel(renderModel);
@@ -132,7 +132,7 @@ function renderCard(card, mode) {
   } else if (card.id === "languages-culture") {
     body = renderLanguagesCultureCard(card);
   } else if (card.id === "attacks") {
-    body = renderAttacksCard(card);
+    body = renderAttacksCard(card, mode);
   } else if (card.id === "equipment") {
     body = renderEquipmentCard(card);
   } else {
@@ -174,23 +174,62 @@ function renderLanguageCultureItem(item) {
   ].join("");
 }
 
-function renderAttacksCard(card) {
-  if (card.items.length === 0) {
-    return "<p class=\"singular-mobile-sheet__empty\">Nenhum ataque declarado.</p>";
-  }
+function renderAttacksCard(card, mode) {
+  const editor = mode === "creation" ? renderAttackEditor() : "";
+  const list = card.items.length === 0
+    ? "<p class=\"singular-mobile-sheet__empty\">Nenhum ataque declarado.</p>"
+    : [
+      '<dl class="singular-mobile-sheet__attack-list">',
+      card.items
+        .map((item, index) => renderAttackItem(item, mode, index, card.items.length))
+        .join(""),
+      "</dl>",
+    ].join("");
+  return `${editor}${list}`;
+}
+
+function renderAttackEditor() {
   return [
-    '<dl class="singular-mobile-sheet__attack-list">',
-    card.items.map(renderAttackItem).join(""),
-    "</dl>",
+    '<div class="singular-mobile-sheet__attack-editor" data-role="attack-editor">',
+    '<label>Nome<input type="text" data-role="attack-name" autocomplete="off"></label>',
+    '<label>Categoria<select data-role="attack-category"><option value="melee">Corpo a corpo</option><option value="ranged">À distância</option></select></label>',
+    '<label>Perícia (ID)<input type="text" data-role="attack-skill-id" autocomplete="off"></label>',
+    '<label>Dano declarado<input type="text" data-role="attack-damage-value" autocomplete="off"></label>',
+    '<label>Tipo de dano<input type="text" data-role="attack-damage-type" autocomplete="off"></label>',
+    '<label>Reach<input type="text" data-role="attack-reach" autocomplete="off"></label>',
+    '<label>Alcance<input type="text" data-role="attack-range" autocomplete="off"></label>',
+    '<label>Notas<input type="text" data-role="attack-notes" autocomplete="off"></label>',
+    '<button type="button" data-action="attack-add">Adicionar ataque</button>',
+    "</div>",
   ].join("");
 }
 
-function renderAttackItem(item) {
+function renderAttackItem(item, mode, index, total) {
+  const controls = mode === "creation"
+    ? renderAttackControls(item, index, total)
+    : "";
   return [
     `<div data-attack-id="${escapeAttribute(item.id)}" data-attack-category="${escapeAttribute(item.category)}" data-damage-authority="${escapeAttribute(item.damageAuthority)}">`,
     `<dt>${escapeText(item.label)}</dt>`,
-    `<dd>${formatValue(item.value)}${renderItemDetails(item)}</dd>`,
+    `<dd>${formatValue(item.value)}${renderItemDetails(item)}${controls}</dd>`,
     "</div>",
+  ].join("");
+}
+
+function renderAttackControls(item, index, total) {
+  const id = escapeAttribute(item.id);
+  const up = index > 0
+    ? `<button type="button" data-action="attack-reorder" data-attack-id="${id}" data-target-index="${index - 1}" aria-label="Mover ${escapeAttribute(item.value)} para cima">↑</button>`
+    : "";
+  const down = index < total - 1
+    ? `<button type="button" data-action="attack-reorder" data-attack-id="${id}" data-target-index="${index + 1}" aria-label="Mover ${escapeAttribute(item.value)} para baixo">↓</button>`
+    : "";
+  return [
+    '<span class="singular-mobile-sheet__attack-actions">',
+    up,
+    down,
+    `<button type="button" data-action="attack-remove" data-attack-id="${id}" aria-label="Excluir ${escapeAttribute(item.value)}">Excluir</button>`,
+    "</span>",
   ].join("");
 }
 
