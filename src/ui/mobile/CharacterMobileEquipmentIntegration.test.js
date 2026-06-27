@@ -78,6 +78,10 @@ function character() {
       name: "Ayla",
       concept: "Batedora",
     },
+    pools: {
+      HP: { current: 11, maximum: 11 },
+      FP: { current: 10, maximum: 10 },
+    },
   });
 }
 
@@ -165,7 +169,6 @@ test("blocks structural equipment edits in table mode while keeping PV and PF op
   });
 
   assert.equal(mounted.session.revision, 1);
-  assert.equal(mounted.character.pools.HP.current, mounted.character.pools.HP.maximum - 1);
+  assert.equal(mounted.character.pools.HP.current, 10);
   assert.equal(root.getAttribute("data-last-command-status"), "applied");
-}
-);
+});
