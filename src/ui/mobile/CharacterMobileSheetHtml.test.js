@@ -175,6 +175,41 @@ test("renders equipment hierarchy, states and domain totals", () => {
   assert.match(html, /Espada Curta <small>Qtd 1 · 1\.5 kg\/un · \$ 400\/un · Equipado<\/small>/);
 });
 
+test("renders equipment reorder targets using sibling indexes", () => {
+  const html = renderCharacterMobileSheetHtml(renderModel({
+    equipment: [
+      {
+        id: "eq_mochila",
+        kind: "container",
+        containerKind: "physical",
+        name: "Mochila",
+        quantity: 1,
+        weightKg: 1,
+        cost: 30,
+        state: "carried",
+        children: [
+          { id: "eq_tocha", name: "Tocha", quantity: 1, weightKg: 0.5, cost: 2, state: "stored" },
+          { id: "eq_corda", name: "Corda", quantity: 1, weightKg: 2, cost: 20, state: "stored" },
+        ],
+      },
+      { id: "eq_espada", name: "Espada Curta", quantity: 1, weightKg: 1.5, cost: 400, state: "equipped" },
+    ],
+  }), { mode: "creation" });
+
+  assert.match(
+    html,
+    /data-action="equipment-reorder" data-equipment-id="eq_tocha" data-target-index="1"/,
+  );
+  assert.match(
+    html,
+    /data-action="equipment-reorder" data-equipment-id="eq_corda" data-target-index="0"/,
+  );
+  assert.doesNotMatch(
+    html,
+    /data-action="equipment-reorder" data-equipment-id="eq_tocha" data-target-index="2"/,
+  );
+});
+
 test("renders empty languages, attacks and equipment while keeping PV/PF controls operational", () => {
   const html = renderCharacterMobileSheetHtml(renderModel(), { mode: "table" });
 
