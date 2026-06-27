@@ -34,8 +34,8 @@ function renderModel(overrides = {}) {
   );
 }
 
-test("exposes the attack-controls mobile sheet HTML schema version", () => {
-  assert.equal(getCharacterMobileSheetHtmlSchemaVersion(), 9);
+test("exposes the equipment-controls mobile sheet HTML schema version", () => {
+  assert.equal(getCharacterMobileSheetHtmlSchemaVersion(), 10);
 });
 
 test("renders creation controls only in creation mode", () => {
@@ -49,22 +49,42 @@ test("renders creation controls only in creation mode", () => {
         damage: { value: "1d+2", type: "corte" },
       },
     ],
+    equipment: [
+      {
+        id: "eq_mochila",
+        kind: "container",
+        containerKind: "physical",
+        name: "Mochila",
+        quantity: 1,
+        weightKg: 1.5,
+        cost: 60,
+        state: "carried",
+      },
+    ],
   });
   const creation = renderCharacterMobileSheetHtml(character, { mode: "creation" });
   const table = renderCharacterMobileSheetHtml(character, { mode: "table" });
 
-  assert.match(creation, /data-schema-version="9"/);
+  assert.match(creation, /data-schema-version="10"/);
   assert.match(creation, /data-role="character-summary-editor"/);
   assert.match(creation, /data-attribute-key="ST" data-attribute-adjust="-1"/);
   assert.match(creation, /data-role="attack-editor"/);
   assert.match(creation, /data-action="attack-add"/);
   assert.match(creation, /data-action="attack-remove" data-attack-id="attack_sword"/);
+  assert.match(creation, /data-role="equipment-editor"/);
+  assert.match(creation, /data-action="equipment-add"/);
+  assert.match(creation, /data-action="equipment-remove" data-equipment-id="eq_mochila"/);
+  assert.match(creation, /data-action="equipment-state-set" data-equipment-id="eq_mochila"/);
 
   assert.doesNotMatch(table, /data-role="character-summary-editor"/);
   assert.doesNotMatch(table, /data-attribute-adjust=/);
   assert.doesNotMatch(table, /data-role="attack-editor"/);
   assert.doesNotMatch(table, /data-action="attack-remove"/);
   assert.doesNotMatch(table, /data-action="attack-reorder"/);
+  assert.doesNotMatch(table, /data-role="equipment-editor"/);
+  assert.doesNotMatch(table, /data-action="equipment-remove"/);
+  assert.doesNotMatch(table, /data-action="equipment-reorder"/);
+  assert.doesNotMatch(table, /data-action="equipment-state-set"/);
   assert.match(table, /<dt>Nome<\/dt><dd>Ayla &lt;Exploradora&gt;<\/dd>/);
 });
 
@@ -153,6 +173,41 @@ test("renders equipment hierarchy, states and domain totals", () => {
   assert.match(html, /↳ Tocha/);
   assert.match(html, /Qtd 3 · 0\.5 kg\/un · \$ 2\/un · Guardado/);
   assert.match(html, /Espada Curta <small>Qtd 1 · 1\.5 kg\/un · \$ 400\/un · Equipado<\/small>/);
+});
+
+test("renders equipment reorder targets using sibling indexes", () => {
+  const html = renderCharacterMobileSheetHtml(renderModel({
+    equipment: [
+      {
+        id: "eq_mochila",
+        kind: "container",
+        containerKind: "physical",
+        name: "Mochila",
+        quantity: 1,
+        weightKg: 1,
+        cost: 30,
+        state: "carried",
+        children: [
+          { id: "eq_tocha", name: "Tocha", quantity: 1, weightKg: 0.5, cost: 2, state: "stored" },
+          { id: "eq_corda", name: "Corda", quantity: 1, weightKg: 2, cost: 20, state: "stored" },
+        ],
+      },
+      { id: "eq_espada", name: "Espada Curta", quantity: 1, weightKg: 1.5, cost: 400, state: "equipped" },
+    ],
+  }), { mode: "creation" });
+
+  assert.match(
+    html,
+    /data-action="equipment-reorder" data-equipment-id="eq_tocha" data-target-index="1"/,
+  );
+  assert.match(
+    html,
+    /data-action="equipment-reorder" data-equipment-id="eq_corda" data-target-index="0"/,
+  );
+  assert.doesNotMatch(
+    html,
+    /data-action="equipment-reorder" data-equipment-id="eq_tocha" data-target-index="2"/,
+  );
 });
 
 test("renders empty languages, attacks and equipment while keeping PV/PF controls operational", () => {
