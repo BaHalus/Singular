@@ -98,6 +98,29 @@ test("rejects unsupported patches and invalid reorder targets", () => {
   assert.throws(() => removeTrait(traits, "missing"), /Trait not found/);
 });
 
+test("rejects non-JSON-portable Trait add and update payloads", () => {
+  const traits = character().traits;
+
+  assert.throws(() => addTrait(traits, {
+    id: "trait-bad-raw",
+    role: "advantage",
+    name: "Raw inválido",
+    raw: { callback: () => null },
+  }), /JSON portable/);
+
+  assert.throws(() => updateTrait(traits, "trait-curious", {
+    importMeta: { marker: Symbol("not-json") },
+  }), /JSON portable/);
+
+  assert.throws(() => updateTrait(traits, "trait-curious", {
+    modifiers: [{ name: "Não finito", value: Number.NaN }],
+  }), /JSON portable/);
+
+  const cyclic = { id: "trait-cyclic", role: "advantage", name: "Cíclico" };
+  cyclic.raw = { self: cyclic };
+  assert.throws(() => addTrait(traits, cyclic), /cycles/);
+});
+
 test("applies Trait commands through CommandExecutor with revision and history", () => {
   const beforeSession = session();
   const beforeCharacter = serializeCharacter(beforeSession.character);
