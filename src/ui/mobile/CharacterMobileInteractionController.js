@@ -13,6 +13,9 @@ export function mountCharacterMobileInteractionController(options = {}) {
   requireFunction(options.commands?.addSpell, "Mobile spell addition command");
   requireFunction(options.commands?.removeSpell, "Mobile spell removal command");
   requireFunction(options.commands?.reorderSpell, "Mobile spell reorder command");
+  requireFunction(options.commands?.addPower, "Mobile power addition command");
+  requireFunction(options.commands?.renamePower, "Mobile power rename command");
+  requireFunction(options.commands?.removePower, "Mobile power removal command");
   requireFunction(options.ui?.getState, "Mobile UI state reader");
   requireFunction(options.getMode, "Mobile mode reader");
   requireFunction(options.setMode, "Mobile mode writer");
@@ -20,6 +23,8 @@ export function mountCharacterMobileInteractionController(options = {}) {
   requireFunction(options.readAttackDraft, "Mobile attack draft reader");
   requireFunction(options.readEquipmentDraft, "Mobile equipment draft reader");
   requireFunction(options.readSpellDraft, "Mobile spell draft reader");
+  requireFunction(options.readPowerDraft, "Mobile power draft reader");
+  requireFunction(options.readPowerRenameDraft, "Mobile power rename reader");
   requireFunction(options.render, "Mobile render callback");
   requireFunction(options.syncMode, "Mobile mode sync callback");
   const root = options.root;
@@ -175,6 +180,34 @@ export function mountCharacterMobileInteractionController(options = {}) {
             ? Number.NaN
             : Number(targetIndexValue),
         }),
+        root,
+        rerender,
+      );
+    }
+
+    if (["power-add", "power-rename", "power-remove"].includes(action)) {
+      event.preventDefault?.();
+      if (structuralActionBlocked(options, root)) return null;
+
+      if (action === "power-add") {
+        return applyResult(
+          options.commands.addPower(options.readPowerDraft()),
+          root,
+          rerender,
+        );
+      }
+
+      const powerId = readDataset(actionTarget, "powerId");
+      if (action === "power-remove") {
+        return applyResult(
+          options.commands.removePower({ powerId }),
+          root,
+          rerender,
+        );
+      }
+
+      return applyResult(
+        options.commands.renamePower(options.readPowerRenameDraft(powerId)),
         root,
         rerender,
       );
