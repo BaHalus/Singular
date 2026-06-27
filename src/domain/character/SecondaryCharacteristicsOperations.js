@@ -4,86 +4,122 @@
  * Operações puras sobre SecondaryCharacteristics.
  *
  * Nenhuma função altera o objeto recebido.
+ * Nenhuma função calcula derivados de GURPS.
  */
+
+const VALID_SECONDARY_KEYS = Object.freeze([
+  "HP",
+  "FP",
+  "Will",
+  "Per",
+  "BasicSpeed",
+  "BasicMove",
+]);
 
 export function setSecondaryCharacteristicBase(
   secondaryCharacteristics,
   key,
-  value
+  value,
 ) {
+  assertSecondaryCharacteristicsObject(secondaryCharacteristics);
   assertSecondaryCharacteristicKey(key);
+  assertSecondaryCharacteristicShape(secondaryCharacteristics[key], key);
 
-  if (value !== null) {
-    assertNumber(
+  return setSecondaryCharacteristicField(
+    secondaryCharacteristics,
+    key,
+    "base",
+    normalizeFiniteOrNull(
       value,
-      `Invalid base value for secondary characteristic: ${key}`
-    );
-  }
-
-  return {
-    ...secondaryCharacteristics,
-    [key]: {
-      ...secondaryCharacteristics[key],
-      base: value,
-    },
-  };
+      `Invalid base value for secondary characteristic: ${key}`,
+    ),
+  );
 }
 
 export function setSecondaryCharacteristicOverride(
   secondaryCharacteristics,
   key,
-  value
+  value,
 ) {
+  assertSecondaryCharacteristicsObject(secondaryCharacteristics);
   assertSecondaryCharacteristicKey(key);
+  assertSecondaryCharacteristicShape(secondaryCharacteristics[key], key);
 
-  if (value !== null) {
-    assertNumber(
+  return setSecondaryCharacteristicField(
+    secondaryCharacteristics,
+    key,
+    "override",
+    normalizeFiniteOrNull(
       value,
-      `Invalid override value for secondary characteristic: ${key}`
-    );
-  }
-
-  return {
-    ...secondaryCharacteristics,
-    [key]: {
-      ...secondaryCharacteristics[key],
-      override: value,
-    },
-  };
+      `Invalid override value for secondary characteristic: ${key}`,
+    ),
+  );
 }
 
 export function clearSecondaryCharacteristicOverride(
   secondaryCharacteristics,
-  key
+  key,
 ) {
+  assertSecondaryCharacteristicsObject(secondaryCharacteristics);
   assertSecondaryCharacteristicKey(key);
+  assertSecondaryCharacteristicShape(secondaryCharacteristics[key], key);
 
+  return setSecondaryCharacteristicField(secondaryCharacteristics, key, "override", null);
+}
+
+export function findSecondaryCharacteristic(secondaryCharacteristics, key) {
+  assertSecondaryCharacteristicsObject(secondaryCharacteristics);
+  assertSecondaryCharacteristicKey(key);
+  assertSecondaryCharacteristicShape(secondaryCharacteristics[key], key);
+
+  return secondaryCharacteristics[key];
+}
+
+function setSecondaryCharacteristicField(secondaryCharacteristics, key, field, value) {
   return {
     ...secondaryCharacteristics,
     [key]: {
       ...secondaryCharacteristics[key],
-      override: null,
+      [field]: value,
     },
   };
 }
 
-function assertSecondaryCharacteristicKey(key) {
-  const validKeys = [
-    "HP",
-    "FP",
-    "Will",
-    "Per",
-    "BasicSpeed",
-    "BasicMove",
-  ];
+function assertSecondaryCharacteristicsObject(secondaryCharacteristics) {
+  if (!secondaryCharacteristics || typeof secondaryCharacteristics !== "object" || Array.isArray(secondaryCharacteristics)) {
+    throw new Error("SecondaryCharacteristics must be an object");
+  }
+}
 
-  if (!validKeys.includes(key)) {
+function assertSecondaryCharacteristicKey(key) {
+  if (typeof key !== "string" || key.trim() === "") {
+    throw new Error("Secondary characteristic key must be a non-empty string");
+  }
+  if (!VALID_SECONDARY_KEYS.includes(key)) {
     throw new Error(`Invalid secondary characteristic key: ${key}`);
   }
 }
 
-function assertNumber(value, message) {
-  if (typeof value !== "number") {
+function assertSecondaryCharacteristicShape(characteristic, key) {
+  if (!characteristic || typeof characteristic !== "object" || Array.isArray(characteristic)) {
+    throw new Error(`Missing secondary characteristic: ${key}`);
+  }
+  if (!Object.prototype.hasOwnProperty.call(characteristic, "base")) {
+    throw new Error(`Missing base value for secondary characteristic: ${key}`);
+  }
+  if (!Object.prototype.hasOwnProperty.call(characteristic, "override")) {
+    throw new Error(`Missing override value for secondary characteristic: ${key}`);
+  }
+}
+
+function normalizeFiniteOrNull(value, message) {
+  if (value === null) return null;
+  return normalizeFiniteNumber(value, message);
+}
+
+function normalizeFiniteNumber(value, message) {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
     throw new Error(message);
   }
+  return Object.is(value, -0) ? 0 : value;
 }
