@@ -1,9 +1,6 @@
 import {
-  projectCharacterForMobileSheet,
-} from "./CharacterMobileProjection.js";
-import {
-  createCharacterMobileSheetRenderModel,
-} from "./CharacterMobileSheetRenderModel.js";
+  createCharacterMobileSheetRenderModelForCharacter,
+} from "./CharacterMobileSheetComposition.js";
 import {
   renderCharacterMobileSheetHtml,
 } from "./CharacterMobileSheetHtml.js";
@@ -38,8 +35,9 @@ export function createAlphaMobilePersistenceUi(options = {}) {
     render(options = {}) {
       requirePlainObject(options, "Alpha mobile render options");
       const activeSession = persistence.getActiveSession();
-      const projection = projectCharacterForMobileSheet(activeSession.character);
-      const renderModel = createCharacterMobileSheetRenderModel(projection);
+      const renderModel = createCharacterMobileSheetRenderModelForCharacter(
+        activeSession.character,
+      );
       const sheet = renderCharacterMobileSheetHtml(renderModel, {
         mode: options.mode ?? "creation",
       });
