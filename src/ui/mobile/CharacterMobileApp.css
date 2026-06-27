@@ -164,6 +164,21 @@ html, body {
   gap: 0.35rem;
 }
 
+.singular-mobile-sheet__card[data-card="secondary-characteristics"] dl {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+
+.singular-mobile-sheet__card[data-card="secondary-characteristics"] dl > div {
+  min-width: 0;
+}
+
+.singular-mobile-sheet__card[data-card="secondary-characteristics"] dd {
+  font-size: 1.15rem;
+  line-height: 1.2;
+}
+
 .singular-mobile-sheet__equipment-totals {
   grid-template-columns: repeat(3, minmax(0, 1fr));
   margin-bottom: 0.5rem;
@@ -327,7 +342,8 @@ html, body {
 @media (max-width: 25rem) {
   .singular-mobile-sheet__attribute-strip,
   .singular-mobile-sheet__pool-strip,
-  .singular-mobile-sheet__equipment-totals {
+  .singular-mobile-sheet__equipment-totals,
+  .singular-mobile-sheet__card[data-card="secondary-characteristics"] dl {
     grid-template-columns: minmax(0, 1fr);
   }
 }
