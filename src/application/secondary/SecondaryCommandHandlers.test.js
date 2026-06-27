@@ -173,3 +173,17 @@ test("rejects unsupported command payloads and unsupported structural pools", ()
   assert.equal(unsupportedPool.status, "failed");
   assert.match(diagnosticMessage(unsupportedPool), /Unsupported structural pool maximum/);
 });
+
+test("fails safely instead of dropping unsupported imported pools during secondary rehydration", () => {
+  const customSession = session();
+  customSession.character.pools.ManaReserve = { current: 2, maximum: 4 };
+
+  const result = executeCommand(customSession, command(SECONDARY_COMMAND_TYPES.SET_SECONDARY_BASE, {
+    characteristicKey: "Will",
+    base: 12,
+  }), registry(), runtime());
+
+  assert.equal(result.status, "failed");
+  assert.equal(result.session.character.pools.ManaReserve.maximum, 4);
+  assert.match(diagnosticMessage(result), /cannot safely rehydrate unsupported pool keys: ManaReserve/);
+});
