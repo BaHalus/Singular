@@ -25,6 +25,10 @@ import {
   POOL_COMMAND_TYPES,
 } from "../pools/PoolCommandHandlers.js";
 import {
+  createPowerCommandHandlerEntries,
+  POWER_COMMAND_TYPES,
+} from "../powers/PowerCommandHandlers.js";
+import {
   createSpellCommandHandlerEntries,
   SPELL_COMMAND_TYPES,
 } from "../spells/SpellCommandHandlers.js";
@@ -130,6 +134,7 @@ export function createAlphaMobilePersistenceBootstrap(options = {}) {
     ...createAttributeCommandHandlerEntries(),
     ...createAttackCommandHandlerEntries(),
     ...createEquipmentCommandHandlerEntries(),
+    ...createPowerCommandHandlerEntries(),
     ...createSpellCommandHandlerEntries(),
   ]);
   const commands = createAlphaMobileCommands({
@@ -377,7 +382,59 @@ function createAlphaMobileCommands({ persistence, registry, runtime }) {
         targetIndex: input.targetIndex,
       });
     },
+
+    addPower(input = {}) {
+      requirePlainObject(input, "Alpha mobile power addition");
+      return execute(POWER_COMMAND_TYPES.ADD, {
+        power: {
+          id: input.id ?? generateId(runtime.idGenerator, "power"),
+          name: input.name ?? "",
+          source: input.source ?? "",
+          powerModifier: createPowerModifier(input),
+          talentTraitId: normalizeOptionalText(input.talentTraitId),
+          memberTraitIds: splitTextList(input.memberTraitIds),
+          notes: input.notes ?? "",
+          tags: splitTextList(input.tags),
+        },
+      });
+    },
+
+    renamePower(input = {}) {
+      requirePlainObject(input, "Alpha mobile power rename");
+      return execute(POWER_COMMAND_TYPES.RENAME, {
+        powerId: input.powerId,
+        name: input.name ?? "",
+      });
+    },
+
+    removePower(input = {}) {
+      requirePlainObject(input, "Alpha mobile power removal");
+      return execute(POWER_COMMAND_TYPES.REMOVE, {
+        powerId: input.powerId,
+      });
+    },
   });
+}
+
+function createPowerModifier(input) {
+  const name = normalizeOptionalText(input.powerModifierName);
+  const valuePercent = input.powerModifierValuePercent;
+  const notes = input.powerModifierNotes ?? "";
+  if (name === null && (valuePercent === null || valuePercent === undefined) && notes === "") return null;
+  return {
+    name: name ?? "",
+    valuePercent: valuePercent === undefined ? null : valuePercent,
+    notes,
+  };
+}
+
+function splitTextList(value) {
+  if (Array.isArray(value)) return value;
+  if (typeof value !== "string") return [];
+  return value
+    .split(",")
+    .map(item => item.trim())
+    .filter(Boolean);
 }
 
 function normalizeOptionalText(value) {
