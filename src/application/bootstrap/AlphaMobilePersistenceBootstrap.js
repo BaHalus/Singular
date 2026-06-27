@@ -5,6 +5,10 @@ import {
   createCommandRegistry,
 } from "../commands/CommandRegistry.js";
 import {
+  createAttackCommandHandlerEntries,
+  ATTACK_COMMAND_TYPES,
+} from "../attacks/AttackCommandHandlers.js";
+import {
   createAttributeCommandHandlerEntries,
   ATTRIBUTE_COMMAND_TYPES,
 } from "../attributes/AttributeCommandHandlers.js";
@@ -116,6 +120,7 @@ export function createAlphaMobilePersistenceBootstrap(options = {}) {
     ...createPoolCommandHandlerEntries(),
     ...createCharacterSummaryCommandHandlerEntries(),
     ...createAttributeCommandHandlerEntries(),
+    ...createAttackCommandHandlerEntries(),
   ]);
   const commands = createAlphaMobileCommands({
     persistence,
@@ -247,7 +252,50 @@ function createAlphaMobileCommands({ persistence, registry, runtime }) {
         delta: input.delta,
       });
     },
+
+    addAttack(input = {}) {
+      requirePlainObject(input, "Alpha mobile attack addition");
+      return execute(ATTACK_COMMAND_TYPES.ADD, {
+        attack: {
+          id: input.id ?? generateId(runtime.idGenerator, "attack"),
+          name: input.name ?? "",
+          category: input.category ?? "melee",
+          skillId: normalizeOptionalText(input.skillId),
+          source: {
+            kind: "manual",
+            id: null,
+          },
+          damage: {
+            value: input.damageValue ?? "",
+            type: input.damageType ?? "",
+          },
+          reach: normalizeOptionalText(input.reach),
+          range: normalizeOptionalText(input.range),
+          notes: input.notes ?? "",
+        },
+      });
+    },
+
+    removeAttack(input = {}) {
+      requirePlainObject(input, "Alpha mobile attack removal");
+      return execute(ATTACK_COMMAND_TYPES.REMOVE, {
+        attackId: input.attackId,
+      });
+    },
+
+    reorderAttack(input = {}) {
+      requirePlainObject(input, "Alpha mobile attack reorder");
+      return execute(ATTACK_COMMAND_TYPES.REORDER, {
+        attackId: input.attackId,
+        targetIndex: input.targetIndex,
+      });
+    },
   });
+}
+
+function normalizeOptionalText(value) {
+  if (value === undefined || value === null || value === "") return null;
+  return value;
 }
 
 function requirePlainObject(value, label) {
