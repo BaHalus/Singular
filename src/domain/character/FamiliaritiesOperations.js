@@ -22,6 +22,7 @@ const FAMILIARITY_PATCH_KEYS = Object.freeze([
 
 export function addFamiliarity(familiarities, familiarityInput) {
   validateFamiliarities(familiarities);
+  requirePlainObject(familiarityInput, "Familiarity input must be an object");
   return createFamiliarities([
     ...serializeFamiliarities(familiarities),
     clonePortableValue(familiarityInput),
