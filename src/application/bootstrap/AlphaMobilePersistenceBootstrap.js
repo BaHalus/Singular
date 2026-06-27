@@ -25,6 +25,10 @@ import {
   POOL_COMMAND_TYPES,
 } from "../pools/PoolCommandHandlers.js";
 import {
+  createSpellCommandHandlerEntries,
+  SPELL_COMMAND_TYPES,
+} from "../spells/SpellCommandHandlers.js";
+import {
   createApplicationSession,
   serializeApplicationSession,
   validateApplicationSession,
@@ -126,6 +130,7 @@ export function createAlphaMobilePersistenceBootstrap(options = {}) {
     ...createAttributeCommandHandlerEntries(),
     ...createAttackCommandHandlerEntries(),
     ...createEquipmentCommandHandlerEntries(),
+    ...createSpellCommandHandlerEntries(),
   ]);
   const commands = createAlphaMobileCommands({
     persistence,
@@ -334,6 +339,42 @@ function createAlphaMobileCommands({ persistence, registry, runtime }) {
       return execute(EQUIPMENT_COMMAND_TYPES.SET_STATE, {
         itemId: input.itemId,
         state: input.state,
+      });
+    },
+
+    addSpell(input = {}) {
+      requirePlainObject(input, "Alpha mobile spell addition");
+      return execute(SPELL_COMMAND_TYPES.ADD, {
+        spell: {
+          id: input.id ?? generateId(runtime.idGenerator, "spell"),
+          spellType: input.spellType === "ritualMagic" ? "ritualMagic" : "standard",
+          name: input.name ?? "",
+          attribute: normalizeOptionalText(input.attribute),
+          difficulty: normalizeOptionalText(input.difficulty),
+          points: input.points ?? 0,
+          spellClass: input.spellClass ?? "",
+          resistance: input.resistance ?? "",
+          castingCost: input.castingCost ?? "",
+          maintenanceCost: input.maintenanceCost ?? "",
+          castingTime: input.castingTime ?? "",
+          duration: input.duration ?? "",
+          notes: input.notes ?? "",
+        },
+      });
+    },
+
+    removeSpell(input = {}) {
+      requirePlainObject(input, "Alpha mobile spell removal");
+      return execute(SPELL_COMMAND_TYPES.REMOVE, {
+        spellId: input.spellId,
+      });
+    },
+
+    reorderSpell(input = {}) {
+      requirePlainObject(input, "Alpha mobile spell reorder");
+      return execute(SPELL_COMMAND_TYPES.REORDER, {
+        spellId: input.spellId,
+        targetIndex: input.targetIndex,
       });
     },
   });

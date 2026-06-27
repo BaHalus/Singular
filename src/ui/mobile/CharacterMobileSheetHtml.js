@@ -2,7 +2,7 @@ import {
   serializeCharacterMobileSheetRenderModel,
 } from "./CharacterMobileSheetRenderModel.js";
 
-const HTML_SHELL_SCHEMA_VERSION = 10;
+const HTML_SHELL_SCHEMA_VERSION = 11;
 
 export function renderCharacterMobileSheetHtml(renderModel, options = {}) {
   const model = serializeCharacterMobileSheetRenderModel(renderModel);
@@ -135,6 +135,8 @@ function renderCard(card, mode) {
     body = renderAttacksCard(card, mode);
   } else if (card.id === "equipment") {
     body = renderEquipmentCard(card, mode);
+  } else if (card.id === "spells") {
+    body = renderSpellsCard(card, mode);
   } else {
     body = renderCardBody(card);
   }
@@ -229,6 +231,67 @@ function renderAttackControls(item, index, total) {
     up,
     down,
     `<button type="button" data-action="attack-remove" data-attack-id="${id}" aria-label="Excluir ${escapeAttribute(item.value)}">Excluir</button>`,
+    "</span>",
+  ].join("");
+}
+
+function renderSpellsCard(card, mode) {
+  const editor = mode === "creation" ? renderSpellEditor() : "";
+  const list = card.items.length === 0
+    ? "<p class=\"singular-mobile-sheet__empty\">Nenhuma magia declarada.</p>"
+    : [
+      '<dl class="singular-mobile-sheet__spell-list">',
+      card.items
+        .map((item, index) => renderSpellItem(item, mode, index, card.items.length))
+        .join(""),
+      "</dl>",
+    ].join("");
+  return `${editor}${list}`;
+}
+
+function renderSpellEditor() {
+  return [
+    '<div class="singular-mobile-sheet__spell-editor" data-role="spell-editor">',
+    '<label>Nome<input type="text" data-role="spell-name" autocomplete="off"></label>',
+    '<label>Tipo<select data-role="spell-type"><option value="standard">Padrão</option><option value="ritualMagic">Ritualística</option></select></label>',
+    '<label>Atributo<input type="text" data-role="spell-attribute" autocomplete="off"></label>',
+    '<label>Dif<input type="text" data-role="spell-difficulty" autocomplete="off"></label>',
+    '<label>Pontos<input type="number" min="0" step="1" data-role="spell-points" value="0"></label>',
+    '<label>Classe<input type="text" data-role="spell-class" autocomplete="off"></label>',
+    '<label>Resistência<input type="text" data-role="spell-resistance" autocomplete="off"></label>',
+    '<label>PF<input type="text" data-role="spell-casting-cost" autocomplete="off"></label>',
+    '<label>Manut<input type="text" data-role="spell-maintenance-cost" autocomplete="off"></label>',
+    '<label>TO<input type="text" data-role="spell-casting-time" autocomplete="off"></label>',
+    '<label>Duração<input type="text" data-role="spell-duration" autocomplete="off"></label>',
+    '<label>Notas<input type="text" data-role="spell-notes" autocomplete="off"></label>',
+    '<button type="button" data-action="spell-add">Adicionar magia</button>',
+    "</div>",
+  ].join("");
+}
+
+function renderSpellItem(item, mode, index, total) {
+  const controls = mode === "creation" ? renderSpellControls(item, index, total) : "";
+  return [
+    `<div data-spell-id="${escapeAttribute(item.id)}" data-spell-type="${escapeAttribute(item.spellType)}">`,
+    `<dt>${escapeText(item.label)}</dt>`,
+    `<dd>${formatValue(item.value)}${renderItemDetails(item)}${controls}</dd>`,
+    "</div>",
+  ].join("");
+}
+
+function renderSpellControls(item, index, total) {
+  const id = escapeAttribute(item.id);
+  const up = index > 0
+    ? `<button type="button" data-action="spell-reorder" data-spell-id="${id}" data-target-index="${index - 1}" aria-label="Mover ${escapeAttribute(item.value)} para cima">↑</button>`
+    : "";
+  const down = index < total - 1
+    ? `<button type="button" data-action="spell-reorder" data-spell-id="${id}" data-target-index="${index + 1}" aria-label="Mover ${escapeAttribute(item.value)} para baixo">↓</button>`
+    : "";
+  return [
+    '<span class="singular-mobile-sheet__spell-actions">',
+    up,
+    down,
+    `<button type="button" data-action="spell-remove" data-spell-id="${id}" aria-label="Excluir ${escapeAttribute(item.value)}">Excluir</button>`,
     "</span>",
   ].join("");
 }
@@ -397,6 +460,7 @@ function renderItemDetails(item) {
   if (item.attribute || item.difficulty) details.push([item.attribute, item.difficulty].filter(Boolean).join("/"));
   if (item.importedLevel !== undefined && item.importedLevel !== null) details.push(`NH importado ${formatValue(item.importedLevel)}`);
   if (item.importedRelativeLevel !== undefined && item.importedRelativeLevel !== null) details.push(`rel. importado ${formatSignedNumber(item.importedRelativeLevel)}`);
+  if (item.importedRelativeLevelText) details.push(`rel. importado ${item.importedRelativeLevelText}`);
   if (item.skill) details.push(`base ${item.skill}`);
   if (item.defaultPenalty !== undefined && item.defaultPenalty !== null) details.push(`pd ${formatSignedNumber(item.defaultPenalty)}`);
   if (item.maximumRelativeLevel !== undefined && item.maximumRelativeLevel !== null) details.push(`máx ${formatSignedNumber(item.maximumRelativeLevel)}`);
@@ -419,6 +483,13 @@ function renderItemDetails(item) {
     const source = localizedAttackSource(item.sourceKind);
     details.push(item.sourceId ? `${source} ${item.sourceId}` : source);
   }
+  if (item.spellClass) details.push(`Classe ${item.spellClass}`);
+  if (item.resistance) details.push(`Res. ${item.resistance}`);
+  if (item.castingCost) details.push(`PF ${item.castingCost}`);
+  if (item.maintenanceCost) details.push(`Manut. ${item.maintenanceCost}`);
+  if (item.castingTime) details.push(`TO ${item.castingTime}`);
+  if (item.duration) details.push(`Duração ${item.duration}`);
+  if (Array.isArray(item.colleges) && item.colleges.length > 0) details.push(`Escolas ${item.colleges.join(", ")}`);
   if (item.quantity !== undefined) details.push(`Qtd ${formatValue(item.quantity)}`);
   if (item.weightKg !== undefined) details.push(`${formatValue(item.weightKg)} kg/un`);
   if (item.cost !== undefined) details.push(`$ ${formatValue(item.cost)}/un`);
