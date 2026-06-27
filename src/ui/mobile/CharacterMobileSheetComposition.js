@@ -18,29 +18,29 @@ export function createCharacterMobileSheetRenderModelForCharacter(character) {
     createCharacterMobileSpellsPowersReadModel(character),
   );
 
-  const supplementalSections = spellsPowersModel.cards.map(card => ({
-    id: card.id,
-    title: card.title,
-    status: card.status,
-    collapsed: false,
-  }));
-
-  return Object.freeze({
+  const composedModel = {
     ...baseModel,
-    cards: deepFreeze([
+    cards: [
       ...baseModel.cards,
       ...spellsPowersModel.cards,
-    ]),
-    sections: deepFreeze([
+    ],
+    sections: [
       ...baseModel.sections,
-      ...supplementalSections,
-    ]),
-  });
+      ...spellsPowersModel.cards.map(card => ({
+        id: card.id,
+        title: card.title,
+        status: card.status,
+        collapsed: false,
+      })),
+    ],
+  };
+
+  return deepFreeze(JSON.parse(JSON.stringify(composedModel)));
 }
 
-function deepFreeze(value) {
-  if (!value || typeof value !== "object") return value;
-  Object.freeze(value);
-  for (const child of Object.values(value)) deepFreeze(child);
-  return value;
+function deepFreeze(value, seen = new WeakSet()) {
+  if (!value || typeof value !== "object" || seen.has(value)) return value;
+  seen.add(value);
+  Object.values(value).forEach(child => deepFreeze(child, seen));
+  return Object.freeze(value);
 }
