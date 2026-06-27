@@ -34,15 +34,15 @@ function renderModel(overrides = {}) {
   );
 }
 
-test("exposes the attacks-read mobile sheet HTML schema version", () => {
-  assert.equal(getCharacterMobileSheetHtmlSchemaVersion(), 7);
+test("exposes the languages-and-culture mobile sheet HTML schema version", () => {
+  assert.equal(getCharacterMobileSheetHtmlSchemaVersion(), 8);
 });
 
 test("renders identity editing only in creation and attributes by mode", () => {
   const creation = renderCharacterMobileSheetHtml(renderModel(), { mode: "creation" });
   const table = renderCharacterMobileSheetHtml(renderModel(), { mode: "table" });
 
-  assert.match(creation, /data-schema-version="7"/);
+  assert.match(creation, /data-schema-version="8"/);
   assert.match(creation, /data-role="character-summary-editor"/);
   assert.match(creation, /data-attribute-key="ST" data-attribute-adjust="-1"/);
   assert.doesNotMatch(table, /data-role="character-summary-editor"/);
@@ -137,9 +137,11 @@ test("renders equipment hierarchy, states and domain totals", () => {
   assert.match(html, /Espada Curta <small>Qtd 1 · 1\.5 kg\/un · \$ 400\/un · Equipado<\/small>/);
 });
 
-test("renders empty attacks and equipment while keeping PV/PF controls operational", () => {
+test("renders empty languages, attacks and equipment while keeping PV/PF controls operational", () => {
   const html = renderCharacterMobileSheetHtml(renderModel(), { mode: "table" });
 
+  assert.match(html, /data-section="languages-culture" data-status="empty"/);
+  assert.match(html, /Nenhum idioma ou familiaridade cultural declarado/);
   assert.match(html, /data-section="attacks" data-status="empty"/);
   assert.match(html, /Nenhum ataque declarado/);
   assert.match(html, /data-section="equipment" data-status="empty"/);
