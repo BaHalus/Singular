@@ -134,6 +134,11 @@ export function handleReorderTraitCommand(context) {
 
 function appliedResult(character, traits, receipt) {
   const snapshot = serializeCharacter(character);
+  delete snapshot.advantages;
+  delete snapshot.perks;
+  delete snapshot.disadvantages;
+  delete snapshot.quirks;
+
   return {
     status: "applied",
     character: createCharacter({
