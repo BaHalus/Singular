@@ -141,6 +141,10 @@ test("rejects unsupported patches, invalid reorders and non-portable payloads", 
   assert.throws(() => addLanguage(character().languages, { id: "bad", name: "Bad", raw: { fn: () => null } }), /JSON portable/);
   assert.throws(() => updateFamiliarity(character().familiarities, "familiarity-elven", { importMeta: { symbol: Symbol("bad") } }), /JSON portable/);
   assert.throws(() => updateLanguage(character().languages, "language-elvish", { modifiers: [{ value: Number.NaN }] }), /JSON portable/);
+  assert.throws(() => addLanguage(character().languages, "oops"), /Language input must be an object/);
+  assert.throws(() => addLanguage(character().languages, []), /Language input must be an object/);
+  assert.throws(() => addFamiliarity(character().familiarities, "oops"), /Familiarity input must be an object/);
+  assert.throws(() => addFamiliarity(character().familiarities, []), /Familiarity input must be an object/);
 
   const cyclic = { id: "language-cyclic", name: "Cíclico" };
   cyclic.raw = { self: cyclic };
