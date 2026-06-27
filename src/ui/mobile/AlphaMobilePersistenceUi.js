@@ -242,120 +242,159 @@ export async function mountAlphaMobilePersistenceUi(options = {}) {
     render();
   });
 
+  render();
   await ui.initialize();
   render();
   return ui;
 }
 
-function renderApplicationHtml({ sheet, activeSession, savedSessions, diagnostics, feedback, busy }) {
+function renderApplicationHtml(input) {
   return [
-    '<div class="singular-alpha-mobile-app" data-alpha-mobile-app>',
-    '<section class="singular-alpha-mobile-persistence" aria-label="Persistência local">',
-    `<p class="singular-alpha-mobile-persistence__feedback" data-busy="${busy ? "true" : "false"}">${escapeText(feedback)}</p>`,
-    '<div class="singular-alpha-mobile-persistence__actions">',
-    '<button type="button" data-action="persistence-save">Salvar</button>',
-    '<button type="button" data-action="persistence-refresh">Abrir</button>',
-    '<button type="button" data-action="persistence-export">Exportar</button>',
+    `<div class="singular-alpha-mobile" data-persistence-ready="true" data-busy="${input.busy}">`,
+    input.sheet,
+    '<section class="singular-alpha-mobile__persistence" aria-label="Persistência local">',
+    '<header class="singular-alpha-mobile__persistence-header">',
+    '<h2>Salvamentos locais</h2>',
+    `<p>Sessão ativa: <strong>${escapeText(input.activeSession.id)}</strong> · revisão ${escapeText(input.activeSession.revision)}</p>`,
+    '</header>',
+    '<div class="singular-alpha-mobile__persistence-actions">',
+    actionButton("persistence-save", "Salvar", input.busy),
+    actionButton("persistence-refresh", "Abrir", input.busy),
+    actionButton("persistence-export", "Exportar", input.busy),
     '</div>',
-    renderSavedSessions(activeSession.id, savedSessions),
-    renderImportBox(),
-    renderDiagnostics(diagnostics),
+    renderSavedSessions(input.savedSessions, input.busy),
+    '<section class="singular-alpha-mobile__import" aria-label="Importar personagem SINGULAR">',
+    '<label for="singular-import-json">JSON SINGULAR</label>',
+    '<textarea id="singular-import-json" data-role="persistence-import-json" rows="6" spellcheck="false"></textarea>',
+    actionButton("persistence-import", "Importar", input.busy),
     '</section>',
-    sheet,
+    `<p class="singular-alpha-mobile__feedback" role="status">${escapeText(input.feedback)}</p>`,
+    renderDiagnostics(input.diagnostics),
+    '</section>',
     '</div>',
   ].join("");
 }
 
-function renderSavedSessions(activeSessionId, savedSessions) {
-  if (savedSessions.length === 0) {
-    return '<p class="singular-alpha-mobile-persistence__empty">Nenhum salvamento listado.</p>';
+function renderSavedSessions(sessions, busy) {
+  if (sessions.length === 0) {
+    return '<p class="singular-alpha-mobile__empty-saves">Nenhum salvamento local listado.</p>';
   }
   return [
-    '<ul class="singular-alpha-mobile-persistence__sessions">',
-    savedSessions.map(session => [
-      `<li data-active="${session.id === activeSessionId ? "true" : "false"}">`,
-      `<span>${escapeText(session.label ?? session.id)}</span>`,
-      `<button type="button" data-action="persistence-open" data-session-id="${escapeAttribute(session.id)}">Abrir</button>`,
-      `<button type="button" data-action="persistence-remove" data-session-id="${escapeAttribute(session.id)}">Excluir</button>`,
+    '<ul class="singular-alpha-mobile__save-list">',
+    sessions.map(session => [
+      `<li data-save-status="${escapeAttribute(session.status)}">`,
+      '<span>',
+      `<strong>${escapeText(session.characterName ?? session.id)}</strong>`,
+      `<small>${escapeText(session.id)}</small>`,
+      '</span>',
+      session.status === "available"
+        ? actionButton("persistence-open", "Abrir", busy, session.id)
+        : '<span role="note">Ilegível</span>',
+      actionButton("persistence-remove", "Excluir", busy, session.id),
       '</li>',
     ].join("")).join(""),
     '</ul>',
-  ].join("");
-}
-
-function renderImportBox() {
-  return [
-    '<details class="singular-alpha-mobile-persistence__import">',
-    '<summary>Importar JSON SINGULAR</summary>',
-    '<textarea data-role="persistence-import-json" rows="4" spellcheck="false"></textarea>',
-    '<button type="button" data-action="persistence-import">Importar</button>',
-    '</details>',
   ].join("");
 }
 
 function renderDiagnostics(diagnostics) {
-  if (!Array.isArray(diagnostics) || diagnostics.length === 0) return "";
+  if (diagnostics.length === 0) return "";
   return [
-    '<ul class="singular-alpha-mobile-persistence__diagnostics">',
-    diagnostics.map(diagnostic => [
-      `<li data-severity="${escapeAttribute(diagnostic.severity ?? "info")}">`,
-      escapeText(diagnostic.message ?? diagnostic.code ?? "Diagnóstico sem mensagem."),
+    '<section class="singular-alpha-mobile__diagnostics" aria-label="Diagnósticos">',
+    '<h3>Diagnósticos</h3><ul>',
+    diagnostics.map(item => [
+      `<li data-severity="${escapeAttribute(item.severity)}">`,
+      `<strong>${escapeText(item.code ?? "diagnostic")}</strong>`,
+      item.message ? `: ${escapeText(item.message)}` : "",
       '</li>',
     ].join("")).join(""),
-    '</ul>',
+    '</ul></section>',
   ].join("");
 }
 
+function actionButton(action, label, disabled, sessionId = null) {
+  return [
+    '<button type="button"',
+    ` data-action="${escapeAttribute(action)}"`,
+    sessionId === null ? "" : ` data-session-id="${escapeAttribute(sessionId)}"`,
+    disabled ? ' disabled aria-disabled="true"' : "",
+    `>${escapeText(label)}</button>`,
+  ].join("");
+}
+
+async function defaultDownloadText(input) {
+  const document = globalThis.document;
+  const urlApi = globalThis.URL;
+  if (!document || !urlApi || typeof Blob !== "function") {
+    throw new Error("Browser download APIs are unavailable");
+  }
+  const blob = new Blob([input.text], { type: input.mimeType });
+  const url = urlApi.createObjectURL(blob);
+  try {
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = input.filename;
+    anchor.hidden = true;
+    document.body.append(anchor);
+    anchor.click();
+    anchor.remove();
+  } finally {
+    urlApi.revokeObjectURL(url);
+  }
+}
+
+function validateCoordinator(value) {
+  if (!value || typeof value !== "object") {
+    throw new Error("Alpha mobile persistence coordinator must be an object");
+  }
+  for (const method of [
+    "getActiveSession",
+    "initialize",
+    "saveActiveSession",
+    "listSavedSessions",
+    "openSession",
+    "removeSession",
+    "exportActiveCharacter",
+    "importCharacter",
+  ]) {
+    requireFunction(value[method], `Alpha mobile persistence coordinator ${method}`);
+  }
+}
+
 function findActionTarget(target) {
-  let node = target;
-  while (node && typeof node.getAttribute === "function") {
-    if (node.getAttribute("data-action")) return node;
-    node = node.parentNode;
+  let current = target ?? null;
+  while (current !== null) {
+    if (readData(current, "action") !== null) return current;
+    current = current.parentElement ?? null;
   }
   return null;
 }
 
-function readData(node, key) {
-  if (!node || typeof node.getAttribute !== "function") return null;
-  return node.getAttribute(`data-${key.replace(/[A-Z]/g, letter => `-${letter.toLowerCase()}`)}`);
-}
-
-function validateCoordinator(persistence) {
-  requireFunction(persistence?.getActiveSession, "Alpha mobile persistence getActiveSession");
-  requireFunction(persistence?.initialize, "Alpha mobile persistence initialize");
-  requireFunction(persistence?.listSavedSessions, "Alpha mobile persistence listSavedSessions");
-  requireFunction(persistence?.saveActiveSession, "Alpha mobile persistence saveActiveSession");
-  requireFunction(persistence?.openSession, "Alpha mobile persistence openSession");
-  requireFunction(persistence?.removeSession, "Alpha mobile persistence removeSession");
-  requireFunction(persistence?.exportActiveCharacter, "Alpha mobile persistence exportActiveCharacter");
-  requireFunction(persistence?.importCharacter, "Alpha mobile persistence importCharacter");
-}
-
-function defaultDownloadText({ filename, text, mimeType }) {
-  if (typeof document === "undefined") return Promise.resolve({ filename, text, mimeType });
-  const blob = new Blob([text], { type: mimeType });
-  const url = URL.createObjectURL(blob);
-  const anchor = document.createElement("a");
-  anchor.href = url;
-  anchor.download = filename;
-  anchor.click();
-  URL.revokeObjectURL(url);
-  return Promise.resolve({ filename, text, mimeType });
+function readData(target, key) {
+  if (!target || typeof target !== "object") return null;
+  const value = target.dataset?.[key];
+  return typeof value === "string" && value !== "" ? value : null;
 }
 
 function mergeDiagnostics(...groups) {
-  return groups.flatMap(group => Array.isArray(group) ? group : []);
+  return groups.flatMap(group => Array.isArray(group) ? cloneValue(group) : []);
 }
 
-function cloneValue(value) {
-  return JSON.parse(JSON.stringify(value));
+function escapeText(value) {
+  return String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;");
 }
 
-function deepFreeze(value) {
-  if (!value || typeof value !== "object") return value;
-  Object.freeze(value);
-  for (const child of Object.values(value)) deepFreeze(child);
-  return value;
+function escapeAttribute(value) {
+  return escapeText(value).replaceAll('"', "&quot;");
+}
+
+function requireFunction(value, label) {
+  if (typeof value !== "function") {
+    throw new Error(`${label} must be a function`);
+  }
 }
 
 function requirePlainObject(value, label) {
@@ -370,21 +409,23 @@ function requirePlainObject(value, label) {
   }
 }
 
-function requireFunction(value, label) {
-  if (typeof value !== "function") throw new Error(`${label} must be a function`);
-}
-
 function errorMessage(error) {
   return error instanceof Error ? error.message : String(error);
 }
 
-function escapeText(value) {
-  return String(value)
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;");
+function cloneValue(value) {
+  if (Array.isArray(value)) return value.map(cloneValue);
+  if (value && typeof value === "object") {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, item]) => [key, cloneValue(item)]),
+    );
+  }
+  return value;
 }
 
-function escapeAttribute(value) {
-  return escapeText(value).replaceAll('"', "&quot;");
+function deepFreeze(value, seen = new WeakSet()) {
+  if (!value || typeof value !== "object" || seen.has(value)) return value;
+  seen.add(value);
+  Object.values(value).forEach(item => deepFreeze(item, seen));
+  return Object.freeze(value);
 }
