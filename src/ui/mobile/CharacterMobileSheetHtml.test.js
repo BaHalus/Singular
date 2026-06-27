@@ -127,6 +127,16 @@ test("renders spell controls only in creation mode", () => {
         duration: "Instantânea",
         points: 4,
       },
+      {
+        id: "spell_light",
+        name: "Luz",
+        spellClass: "Regular",
+        castingCost: "1",
+        maintenanceCost: "1",
+        castingTime: "1s",
+        duration: "1 min",
+        points: 1,
+      },
     ],
   });
   const creation = renderCharacterMobileSheetHtml(character, { mode: "creation" });
@@ -135,7 +145,8 @@ test("renders spell controls only in creation mode", () => {
   assert.match(creation, /data-role="spell-editor"/);
   assert.match(creation, /data-action="spell-add"/);
   assert.match(creation, /data-action="spell-remove" data-spell-id="spell_fireball"/);
-  assert.match(creation, /data-action="spell-reorder"/);
+  assert.match(creation, /data-action="spell-reorder" data-spell-id="spell_fireball" data-target-index="1"/);
+  assert.match(creation, /data-action="spell-reorder" data-spell-id="spell_light" data-target-index="0"/);
   assert.match(creation, /PF 1 a 3/);
   assert.match(creation, /TO 1s/);
   assert.match(creation, /Duração Instantânea/);
