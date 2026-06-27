@@ -149,6 +149,22 @@ html, body {
   min-height: 2.75rem;
 }
 
+.singular-mobile-sheet__attack-list > div {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.singular-mobile-sheet__attack-list dd {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.singular-mobile-sheet__attack-list small {
+  display: block;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
 .singular-mobile-sheet__attack-actions {
   display: flex;
   flex-wrap: wrap;
