@@ -34,19 +34,37 @@ function renderModel(overrides = {}) {
   );
 }
 
-test("exposes the languages-and-culture mobile sheet HTML schema version", () => {
-  assert.equal(getCharacterMobileSheetHtmlSchemaVersion(), 8);
+test("exposes the attack-controls mobile sheet HTML schema version", () => {
+  assert.equal(getCharacterMobileSheetHtmlSchemaVersion(), 9);
 });
 
-test("renders identity editing only in creation and attributes by mode", () => {
-  const creation = renderCharacterMobileSheetHtml(renderModel(), { mode: "creation" });
-  const table = renderCharacterMobileSheetHtml(renderModel(), { mode: "table" });
+test("renders creation controls only in creation mode", () => {
+  const character = renderModel({
+    attacks: [
+      {
+        id: "attack_sword",
+        name: "Espada Curta",
+        category: "melee",
+        source: { kind: "manual", id: null },
+        damage: { value: "1d+2", type: "corte" },
+      },
+    ],
+  });
+  const creation = renderCharacterMobileSheetHtml(character, { mode: "creation" });
+  const table = renderCharacterMobileSheetHtml(character, { mode: "table" });
 
-  assert.match(creation, /data-schema-version="8"/);
+  assert.match(creation, /data-schema-version="9"/);
   assert.match(creation, /data-role="character-summary-editor"/);
   assert.match(creation, /data-attribute-key="ST" data-attribute-adjust="-1"/);
+  assert.match(creation, /data-role="attack-editor"/);
+  assert.match(creation, /data-action="attack-add"/);
+  assert.match(creation, /data-action="attack-remove" data-attack-id="attack_sword"/);
+
   assert.doesNotMatch(table, /data-role="character-summary-editor"/);
   assert.doesNotMatch(table, /data-attribute-adjust=/);
+  assert.doesNotMatch(table, /data-role="attack-editor"/);
+  assert.doesNotMatch(table, /data-action="attack-remove"/);
+  assert.doesNotMatch(table, /data-action="attack-reorder"/);
   assert.match(table, /<dt>Nome<\/dt><dd>Ayla &lt;Exploradora&gt;<\/dd>/);
 });
 
