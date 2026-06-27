@@ -5,6 +5,9 @@ import { createCharacter } from "../../domain/character/Character.js";
 import { projectCharacterForMobileSheet } from "./CharacterMobileProjection.js";
 import { createCharacterMobileSheetRenderModel } from "./CharacterMobileSheetRenderModel.js";
 import {
+  createCharacterMobileSheetRenderModelForCharacter,
+} from "./CharacterMobileSheetComposition.js";
+import {
   getCharacterMobileSheetHtmlSchemaVersion,
   renderCharacterMobileSheetHtml,
 } from "./CharacterMobileSheetHtml.js";
@@ -34,8 +37,31 @@ function renderModel(overrides = {}) {
   );
 }
 
-test("exposes the equipment-controls mobile sheet HTML schema version", () => {
-  assert.equal(getCharacterMobileSheetHtmlSchemaVersion(), 10);
+function composedModel(overrides = {}) {
+  return createCharacterMobileSheetRenderModelForCharacter(createCharacter({
+    identity: {
+      id: "character-mobile-composed-html",
+      name: "Ayla <Exploradora>",
+      concept: "Batedora & cartógrafa",
+      playerId: "jogador-1",
+      campaignId: "campanha-alpha",
+    },
+    attributes: {
+      ST: { base: 11, override: null },
+      DX: { base: 12, override: null },
+      IQ: { base: 10, override: null },
+      HT: { base: 11, override: null },
+    },
+    pools: {
+      HP: { current: 9, maximum: 11 },
+      FP: { current: 8, maximum: 11 },
+    },
+    ...overrides,
+  }));
+}
+
+test("exposes the spell-controls mobile sheet HTML schema version", () => {
+  assert.equal(getCharacterMobileSheetHtmlSchemaVersion(), 11);
 });
 
 test("renders creation controls only in creation mode", () => {
@@ -65,7 +91,7 @@ test("renders creation controls only in creation mode", () => {
   const creation = renderCharacterMobileSheetHtml(character, { mode: "creation" });
   const table = renderCharacterMobileSheetHtml(character, { mode: "table" });
 
-  assert.match(creation, /data-schema-version="10"/);
+  assert.match(creation, /data-schema-version="11"/);
   assert.match(creation, /data-role="character-summary-editor"/);
   assert.match(creation, /data-attribute-key="ST" data-attribute-adjust="-1"/);
   assert.match(creation, /data-role="attack-editor"/);
@@ -86,6 +112,37 @@ test("renders creation controls only in creation mode", () => {
   assert.doesNotMatch(table, /data-action="equipment-reorder"/);
   assert.doesNotMatch(table, /data-action="equipment-state-set"/);
   assert.match(table, /<dt>Nome<\/dt><dd>Ayla &lt;Exploradora&gt;<\/dd>/);
+});
+
+test("renders spell controls only in creation mode", () => {
+  const character = composedModel({
+    spells: [
+      {
+        id: "spell_fireball",
+        name: "Bola de Fogo",
+        spellClass: "Projétil",
+        castingCost: "1 a 3",
+        maintenanceCost: "",
+        castingTime: "1s",
+        duration: "Instantânea",
+        points: 4,
+      },
+    ],
+  });
+  const creation = renderCharacterMobileSheetHtml(character, { mode: "creation" });
+  const table = renderCharacterMobileSheetHtml(character, { mode: "table" });
+
+  assert.match(creation, /data-role="spell-editor"/);
+  assert.match(creation, /data-action="spell-add"/);
+  assert.match(creation, /data-action="spell-remove" data-spell-id="spell_fireball"/);
+  assert.match(creation, /data-action="spell-reorder"/);
+  assert.match(creation, /PF 1 a 3/);
+  assert.match(creation, /TO 1s/);
+  assert.match(creation, /Duração Instantânea/);
+
+  assert.doesNotMatch(table, /data-role="spell-editor"/);
+  assert.doesNotMatch(table, /data-action="spell-remove"/);
+  assert.doesNotMatch(table, /data-action="spell-reorder"/);
 });
 
 test("renders declared traits, skills and techniques as readable mobile cards", () => {
