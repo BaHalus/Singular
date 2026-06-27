@@ -59,7 +59,7 @@ function createAttackingCharacter() {
 test("projects declared attacks through the application AttackReadProjection", () => {
   const projection = projectCharacterForMobileSheet(createAttackingCharacter());
 
-  assert.equal(projection.schemaVersion, 4);
+  assert.equal(projection.schemaVersion, 5);
   assert.equal(projection.attacks.characterId, "character-mobile-attacks");
   assert.equal(
     projection.attacks.authority,
@@ -100,7 +100,7 @@ test("creates a mobile attacks card without resolving skills or damage", () => {
   const model = createCharacterMobileSheetRenderModel(projection);
   const card = model.cards.find(candidate => candidate.id === "attacks");
 
-  assert.equal(model.schemaVersion, 4);
+  assert.equal(model.schemaVersion, 5);
   assert.equal(card.status, "declared-only");
   assert.equal(card.authority, "application.attack-read-projection");
   assert.deepEqual(
@@ -147,7 +147,7 @@ test("renders attack provenance and declared values in the mobile HTML", () => {
     { mode: "table" },
   );
 
-  assert.match(html, /data-schema-version="7"/);
+  assert.match(html, /data-schema-version="8"/);
   assert.match(html, /data-card="attacks" data-status="declared-only"/);
   assert.match(
     html,

@@ -2,7 +2,7 @@ import {
   serializeCharacterMobileProjection,
 } from "./CharacterMobileProjection.js";
 
-const RENDER_MODEL_SCHEMA_VERSION = 4;
+const RENDER_MODEL_SCHEMA_VERSION = 5;
 const RENDER_MODEL_KEYS = Object.freeze([
   "schemaVersion",
   "title",
@@ -149,6 +149,7 @@ function createCards(projection) {
     },
     createTraitsCard(projection.traits),
     createSkillsTechniquesCard(projection.skills, projection.techniques),
+    createLanguagesCultureCard(projection.languages, projection.familiarities),
     createAttacksCard(projection.attacks),
     createEquipmentCard(projection.equipment),
   ];
@@ -206,6 +207,46 @@ function createSkillsTechniquesCard(skills, techniques) {
         maximumRelativeLevel: technique.maximumRelativeLevel,
         notes: technique.notes,
         status: technique.status,
+      })),
+    ],
+  };
+}
+
+function createLanguagesCultureCard(languages, familiarities) {
+  return {
+    id: "languages-culture",
+    title: "Idiomas e Cultura",
+    status: languages.length === 0 && familiarities.length === 0
+      ? "empty"
+      : "declared-only",
+    items: [
+      ...languages.map(language => ({
+        id: `language:${language.id}`,
+        canonicalId: language.id,
+        entryKind: "language",
+        label: "Idioma",
+        value: language.name || "Idioma sem nome",
+        spokenLevel: language.spokenLevel,
+        writtenLevel: language.writtenLevel,
+        isNative: language.isNative,
+        importedCost: language.importedCost,
+        reference: language.reference,
+        notes: language.notes,
+        status: language.status,
+      })),
+      ...familiarities.map(familiarity => ({
+        id: `familiarity:${familiarity.id}`,
+        canonicalId: familiarity.id,
+        entryKind: "familiarity",
+        label: "Familiaridade cultural",
+        value: familiarity.name || "Cultura sem nome",
+        spokenLevel: null,
+        writtenLevel: null,
+        isNative: familiarity.isNative,
+        importedCost: familiarity.importedCost,
+        reference: familiarity.reference,
+        notes: familiarity.notes,
+        status: familiarity.status,
       })),
     ],
   };
@@ -333,8 +374,38 @@ function validateCards(cards) {
     if (!Array.isArray(card.items)) {
       throw new Error(`Character mobile sheet card ${card.id} items must be an array`);
     }
+    if (card.id === "languages-culture") validateLanguagesCultureCard(card);
     if (card.id === "attacks") validateAttacksCard(card);
     if (card.id === "equipment") validateEquipmentCard(card);
+  }
+}
+
+function validateLanguagesCultureCard(card) {
+  const ids = new Set();
+  for (const item of card.items) {
+    requirePlainObject(item, "Character mobile language or familiarity item");
+    requireString(item.id, "Character mobile language or familiarity item id");
+    if (ids.has(item.id)) {
+      throw new Error("Character mobile language or familiarity item ids must be unique");
+    }
+    ids.add(item.id);
+    requireString(item.canonicalId, `Character mobile item ${item.id} canonicalId`);
+    if (!["language", "familiarity"].includes(item.entryKind)) {
+      throw new Error(`Character mobile item ${item.id} entryKind is invalid`);
+    }
+    requireString(item.label, `Character mobile item ${item.id} label`);
+    requireString(item.value, `Character mobile item ${item.id} value`);
+    if (typeof item.isNative !== "boolean") {
+      throw new Error(`Character mobile item ${item.id} isNative is invalid`);
+    }
+    requireNullableFiniteNumber(
+      item.importedCost,
+      `Character mobile item ${item.id} importedCost`,
+    );
+    requireNullableString(item.reference, `Character mobile item ${item.id} reference`);
+    if (item.status !== "declared") {
+      throw new Error(`Character mobile item ${item.id} status is invalid`);
+    }
   }
 }
 
@@ -348,7 +419,7 @@ function validateAttacksCard(card) {
     requireString(attack.id, "Character mobile attack item id");
     requireString(attack.label, `Character mobile attack item ${attack.id} label`);
     requireString(attack.value, `Character mobile attack item ${attack.id} value`);
-    if (!['melee', 'ranged'].includes(attack.category)) {
+    if (!["melee", "ranged"].includes(attack.category)) {
       throw new Error(`Character mobile attack item ${attack.id} category is invalid`);
     }
     if (attack.damageAuthority !== "declared") {
@@ -418,6 +489,18 @@ function requirePlainObject(value, label) {
 function requireString(value, label, options = {}) {
   if (typeof value !== "string" || (!options.allowEmpty && value.trim() === "")) {
     throw new Error(`${label} must be a ${options.allowEmpty ? "string" : "non-empty string"}`);
+  }
+}
+
+function requireNullableString(value, label) {
+  if (value !== null && typeof value !== "string") {
+    throw new Error(`${label} must be a string or null`);
+  }
+}
+
+function requireNullableFiniteNumber(value, label) {
+  if (value !== null && !Number.isFinite(value)) {
+    throw new Error(`${label} must be a finite number or null`);
   }
 }
 
