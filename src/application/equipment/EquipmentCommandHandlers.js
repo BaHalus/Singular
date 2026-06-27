@@ -10,29 +10,35 @@ import {
   moveEquipment,
   removeEquipment,
   renameEquipment,
+  reorderEquipment,
   setEquipmentQuantity,
   setEquipmentState,
+  updateEquipment,
 } from "../../domain/character/EquipmentOperations.js";
 
 export const EQUIPMENT_COMMAND_TYPES = Object.freeze({
   ADD: "equipment.add",
   ADD_CHILD: "equipment.add-child",
+  UPDATE: "equipment.update",
   RENAME: "equipment.rename",
   SET_QUANTITY: "equipment.quantity.set",
   SET_STATE: "equipment.state.set",
   REMOVE: "equipment.remove",
   MOVE: "equipment.move",
+  REORDER: "equipment.reorder",
 });
 
 export function createEquipmentCommandHandlerEntries() {
   return Object.freeze([
     entry(EQUIPMENT_COMMAND_TYPES.ADD, handleAddEquipmentCommand),
     entry(EQUIPMENT_COMMAND_TYPES.ADD_CHILD, handleAddChildEquipmentCommand),
+    entry(EQUIPMENT_COMMAND_TYPES.UPDATE, handleUpdateEquipmentCommand),
     entry(EQUIPMENT_COMMAND_TYPES.RENAME, handleRenameEquipmentCommand),
     entry(EQUIPMENT_COMMAND_TYPES.SET_QUANTITY, handleSetEquipmentQuantityCommand),
     entry(EQUIPMENT_COMMAND_TYPES.SET_STATE, handleSetEquipmentStateCommand),
     entry(EQUIPMENT_COMMAND_TYPES.REMOVE, handleRemoveEquipmentCommand),
     entry(EQUIPMENT_COMMAND_TYPES.MOVE, handleMoveEquipmentCommand),
+    entry(EQUIPMENT_COMMAND_TYPES.REORDER, handleReorderEquipmentCommand),
   ]);
 }
 
@@ -75,6 +81,33 @@ export function handleAddChildEquipmentCommand(context) {
     itemId: added.id,
     containerId,
     index: container.children.length - 1,
+  });
+}
+
+export function handleUpdateEquipmentCommand(context) {
+  const { session, command } = validateCommandContext(
+    context,
+    EQUIPMENT_COMMAND_TYPES.UPDATE,
+  );
+  validateExactPayloadKeys(command.payload, ["itemId", "patch"]);
+  const itemId = normalizeItemId(command.payload.itemId, "itemId");
+  requirePlainObject(command.payload.patch, "Equipment command patch");
+  const previous = requireItem(session.character.equipment, itemId);
+  const nextEquipment = updateEquipment(
+    session.character.equipment,
+    itemId,
+    command.payload.patch,
+  );
+  const current = requireItem(nextEquipment, itemId);
+
+  if (portableEqual(previous, current)) {
+    return noOpResult("update-equipment-no-op", itemId, "unchanged-equipment");
+  }
+  return appliedResult(session.character, nextEquipment, {
+    operation: "update-equipment",
+    itemId,
+    previous: serializeEquipment([previous])[0],
+    current: serializeEquipment([current])[0],
   });
 }
 
@@ -207,6 +240,34 @@ export function handleMoveEquipmentCommand(context) {
   });
 }
 
+export function handleReorderEquipmentCommand(context) {
+  const { session, command } = validateCommandContext(
+    context,
+    EQUIPMENT_COMMAND_TYPES.REORDER,
+  );
+  validateExactPayloadKeys(command.payload, ["itemId", "targetIndex"]);
+  const itemId = normalizeItemId(command.payload.itemId, "itemId");
+  const targetIndex = normalizeTargetIndex(command.payload.targetIndex);
+  const previousLocation = requireItemLocation(session.character.equipment, itemId);
+  const nextEquipment = reorderEquipment(
+    session.character.equipment,
+    itemId,
+    targetIndex,
+  );
+  const nextLocation = requireItemLocation(nextEquipment, itemId);
+
+  if (portableEqual(session.character.equipment, nextEquipment)) {
+    return noOpResult("reorder-equipment-no-op", itemId, "unchanged-index");
+  }
+  return appliedResult(session.character, nextEquipment, {
+    operation: "reorder-equipment",
+    itemId,
+    containerId: nextLocation.containerId,
+    previousIndex: previousLocation.index,
+    targetIndex: nextLocation.index,
+  });
+}
+
 function appliedResult(character, equipment, receipt) {
   const snapshot = serializeCharacter(character);
   return {
@@ -310,6 +371,13 @@ function normalizeNullableItemId(value, field) {
 function normalizeEquipmentName(value) {
   if (typeof value !== "string") {
     throw new Error("Equipment command name must be a string");
+  }
+  return value;
+}
+
+function normalizeTargetIndex(value) {
+  if (!Number.isInteger(value) || value < 0) {
+    throw new Error("Equipment command targetIndex must be a non-negative integer");
   }
   return value;
 }
