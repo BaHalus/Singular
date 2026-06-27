@@ -51,7 +51,7 @@ test("creates the mobile render model with an empty equipment card", () => {
   );
   const equipment = model.cards.find(card => card.id === "equipment");
 
-  assert.equal(model.schemaVersion, 3);
+  assert.equal(model.schemaVersion, 4);
   assert.equal(model.schemaVersion, getCharacterMobileSheetRenderModelSchemaVersion());
   assert.equal(model.title, "Exploradora Mobile");
   assert.equal(model.summary.attributes.find(item => item.id === "DX").value, 12);
