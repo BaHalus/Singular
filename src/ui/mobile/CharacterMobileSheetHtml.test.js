@@ -60,8 +60,8 @@ function composedModel(overrides = {}) {
   }));
 }
 
-test("exposes the spell-controls mobile sheet HTML schema version", () => {
-  assert.equal(getCharacterMobileSheetHtmlSchemaVersion(), 11);
+test("exposes the power-controls mobile sheet HTML schema version", () => {
+  assert.equal(getCharacterMobileSheetHtmlSchemaVersion(), 12);
 });
 
 test("renders creation controls only in creation mode", () => {
@@ -91,7 +91,7 @@ test("renders creation controls only in creation mode", () => {
   const creation = renderCharacterMobileSheetHtml(character, { mode: "creation" });
   const table = renderCharacterMobileSheetHtml(character, { mode: "table" });
 
-  assert.match(creation, /data-schema-version="11"/);
+  assert.match(creation, /data-schema-version="12"/);
   assert.match(creation, /data-role="character-summary-editor"/);
   assert.match(creation, /data-attribute-key="ST" data-attribute-adjust="-1"/);
   assert.match(creation, /data-role="attack-editor"/);
@@ -154,6 +154,38 @@ test("renders spell controls only in creation mode", () => {
   assert.doesNotMatch(table, /data-role="spell-editor"/);
   assert.doesNotMatch(table, /data-action="spell-remove"/);
   assert.doesNotMatch(table, /data-action="spell-reorder"/);
+});
+
+test("renders power controls only in creation mode", () => {
+  const character = composedModel({
+    powers: [
+      {
+        id: "power_fire",
+        name: "Piromancia",
+        source: "mana",
+        powerModifier: { name: "Mágico", valuePercent: -10, notes: "mana sensível" },
+        talentTraitId: "trait_fire_talent",
+        memberTraitIds: ["trait_firebolt"],
+        notes: "Poder declarado",
+        tags: ["elemental"],
+      },
+    ],
+  });
+  const creation = renderCharacterMobileSheetHtml(character, { mode: "creation" });
+  const table = renderCharacterMobileSheetHtml(character, { mode: "table" });
+
+  assert.match(creation, /data-role="power-editor"/);
+  assert.match(creation, /data-action="power-add"/);
+  assert.match(creation, /data-action="power-rename" data-power-id="power_fire"/);
+  assert.match(creation, /data-action="power-remove" data-power-id="power_fire"/);
+  assert.match(creation, /Fonte mana/);
+  assert.match(creation, /Mod\. Mágico -10% mana sensível/);
+  assert.match(creation, /Talento trait_fire_talent/);
+  assert.match(creation, /Membros trait_firebolt/);
+
+  assert.doesNotMatch(table, /data-role="power-editor"/);
+  assert.doesNotMatch(table, /data-action="power-rename"/);
+  assert.doesNotMatch(table, /data-action="power-remove"/);
 });
 
 test("renders declared traits, skills and techniques as readable mobile cards", () => {
