@@ -2,7 +2,7 @@ import {
   serializeCharacterMobileSheetRenderModel,
 } from "./CharacterMobileSheetRenderModel.js";
 
-const HTML_SHELL_SCHEMA_VERSION = 7;
+const HTML_SHELL_SCHEMA_VERSION = 8;
 
 export function renderCharacterMobileSheetHtml(renderModel, options = {}) {
   const model = serializeCharacterMobileSheetRenderModel(renderModel);
@@ -129,6 +129,8 @@ function renderCard(card, mode) {
   let body;
   if (card.id === "identity" && mode === "creation") {
     body = renderCharacterSummaryEditor(card);
+  } else if (card.id === "languages-culture") {
+    body = renderLanguagesCultureCard(card);
   } else if (card.id === "attacks") {
     body = renderAttacksCard(card);
   } else if (card.id === "equipment") {
@@ -150,6 +152,26 @@ function renderCardBody(card) {
     return "<p class=\"singular-mobile-sheet__empty\">Nenhum item declarado.</p>";
   }
   return ["<dl>", card.items.map(renderCardItem).join(""), "</dl>"].join("");
+}
+
+function renderLanguagesCultureCard(card) {
+  if (card.items.length === 0) {
+    return "<p class=\"singular-mobile-sheet__empty\">Nenhum idioma ou familiaridade cultural declarado.</p>";
+  }
+  return [
+    '<dl class="singular-mobile-sheet__languages-culture-list">',
+    card.items.map(renderLanguageCultureItem).join(""),
+    "</dl>",
+  ].join("");
+}
+
+function renderLanguageCultureItem(item) {
+  return [
+    `<div data-entry-kind="${escapeAttribute(item.entryKind)}" data-canonical-id="${escapeAttribute(item.canonicalId)}">`,
+    `<dt>${escapeText(item.label)}</dt>`,
+    `<dd>${formatValue(item.value)}${renderItemDetails(item)}</dd>`,
+    "</div>",
+  ].join("");
 }
 
 function renderAttacksCard(card) {
@@ -287,6 +309,18 @@ function renderItemDetails(item) {
   if (item.maximumRelativeLevel !== undefined && item.maximumRelativeLevel !== null) {
     details.push(`máx ${formatSignedNumber(item.maximumRelativeLevel)}`);
   }
+  if (item.entryKind === "language") {
+    details.push(`Fala ${localizedLanguageLevel(item.spokenLevel)}`);
+    details.push(`Escrita ${localizedLanguageLevel(item.writtenLevel)}`);
+    if (item.isNative) details.push("Idioma nativo");
+  }
+  if (item.entryKind === "familiarity" && item.isNative) {
+    details.push("Cultura nativa");
+  }
+  if (item.importedCost !== undefined && item.importedCost !== null) {
+    details.push(`Custo importado ${formatValue(item.importedCost)} pts`);
+  }
+  if (item.reference) details.push(`Ref. ${item.reference}`);
   if (item.damageValue || item.damageType) {
     const damage = [item.damageValue, item.damageType].filter(Boolean).join(" ");
     details.push(`Dano declarado ${damage}`);
@@ -326,6 +360,14 @@ function localizedPoolLabel(id, fallback) {
   if (id === "FP") return "PF";
   if (id === "EnergyReserve") return "Reserva de Energia";
   return fallback;
+}
+
+function localizedLanguageLevel(level) {
+  if (level === "none") return "Nenhum";
+  if (level === "broken") return "Rudimentar";
+  if (level === "accented") return "Com sotaque";
+  if (level === "native") return "Nativo";
+  return level;
 }
 
 function localizedAttackSource(kind) {
