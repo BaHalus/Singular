@@ -2,7 +2,7 @@ import {
   serializeCharacterMobileSheetRenderModel,
 } from "./CharacterMobileSheetRenderModel.js";
 
-const HTML_SHELL_SCHEMA_VERSION = 9;
+const HTML_SHELL_SCHEMA_VERSION = 10;
 
 export function renderCharacterMobileSheetHtml(renderModel, options = {}) {
   const model = serializeCharacterMobileSheetRenderModel(renderModel);
@@ -134,7 +134,7 @@ function renderCard(card, mode) {
   } else if (card.id === "attacks") {
     body = renderAttacksCard(card, mode);
   } else if (card.id === "equipment") {
-    body = renderEquipmentCard(card);
+    body = renderEquipmentCard(card, mode);
   } else {
     body = renderCardBody(card);
   }
@@ -233,29 +233,73 @@ function renderAttackControls(item, index, total) {
   ].join("");
 }
 
-function renderEquipmentCard(card) {
-  if (card.items.length === 0) {
-    return "<p class=\"singular-mobile-sheet__empty\">Nenhum equipamento declarado.</p>";
-  }
+function renderEquipmentCard(card, mode) {
+  const editor = mode === "creation" ? renderEquipmentEditor() : "";
+  const list = card.items.length === 0
+    ? "<p class=\"singular-mobile-sheet__empty\">Nenhum equipamento declarado.</p>"
+    : [
+      '<dl class="singular-mobile-sheet__equipment-list">',
+      card.items
+        .map((item, index) => renderEquipmentItem(item, mode, index, card.items.length))
+        .join(""),
+      "</dl>",
+    ].join("");
   return [
+    editor,
     '<dl class="singular-mobile-sheet__equipment-totals" aria-label="Totais de equipamentos">',
     `<div><dt>Quantidade</dt><dd>${formatValue(card.totals.quantity)}</dd></div>`,
     `<div><dt>Peso</dt><dd>${formatValue(card.totals.weightKg)} kg</dd></div>`,
     `<div><dt>Custo</dt><dd>$ ${formatValue(card.totals.cost)}</dd></div>`,
     "</dl>",
-    '<dl class="singular-mobile-sheet__equipment-list">',
-    card.items.map(renderEquipmentItem).join(""),
-    "</dl>",
+    list,
   ].join("");
 }
 
-function renderEquipmentItem(item) {
+function renderEquipmentEditor() {
+  return [
+    '<div class="singular-mobile-sheet__equipment-editor" data-role="equipment-editor">',
+    '<label>Nome<input type="text" data-role="equipment-name" autocomplete="off"></label>',
+    '<label>Tipo<select data-role="equipment-kind"><option value="item">Item</option><option value="container">Recipiente</option></select></label>',
+    '<label>Qtd<input type="number" min="0" step="1" data-role="equipment-quantity" value="1"></label>',
+    '<label>Peso kg/un<input type="number" min="0" step="0.001" data-role="equipment-weight-kg" value="0"></label>',
+    '<label>Custo/un<input type="number" min="0" step="0.01" data-role="equipment-cost" value="0"></label>',
+    '<label>Estado<select data-role="equipment-state"><option value="carried">Carregado</option><option value="equipped">Equipado</option><option value="stored">Guardado</option><option value="dropped">Largado</option><option value="ignored">Ignorado</option></select></label>',
+    '<label>Notas<input type="text" data-role="equipment-notes" autocomplete="off"></label>',
+    '<button type="button" data-action="equipment-add">Adicionar equipamento</button>',
+    "</div>",
+  ].join("");
+}
+
+function renderEquipmentItem(item, mode, index, total) {
   const prefix = item.depth > 0 ? `${"↳ ".repeat(item.depth)}` : "";
+  const controls = mode === "creation" ? renderEquipmentControls(item, index, total) : "";
   return [
     `<div data-equipment-id="${escapeAttribute(item.id)}" data-equipment-state="${escapeAttribute(item.state)}" data-depth="${escapeAttribute(item.depth)}">`,
     `<dt>${escapeText(item.label)}</dt>`,
-    `<dd>${escapeText(`${prefix}${item.value}`)}${renderItemDetails(item)}</dd>`,
+    `<dd>${escapeText(`${prefix}${item.value}`)}${renderItemDetails(item)}${controls}</dd>`,
     "</div>",
+  ].join("");
+}
+
+function renderEquipmentControls(item, index, total) {
+  const id = escapeAttribute(item.id);
+  const up = index > 0
+    ? `<button type="button" data-action="equipment-reorder" data-equipment-id="${id}" data-target-index="${index - 1}" aria-label="Mover ${escapeAttribute(item.value)} para cima">↑</button>`
+    : "";
+  const down = index < total - 1
+    ? `<button type="button" data-action="equipment-reorder" data-equipment-id="${id}" data-target-index="${index + 1}" aria-label="Mover ${escapeAttribute(item.value)} para baixo">↓</button>`
+    : "";
+  const states = ["equipped", "carried", "stored", "dropped", "ignored"]
+    .filter(state => state !== item.state)
+    .map(state => `<button type="button" data-action="equipment-state-set" data-equipment-id="${id}" data-equipment-state="${state}">${localizedEquipmentState(state)}</button>`)
+    .join("");
+  return [
+    '<span class="singular-mobile-sheet__equipment-actions">',
+    up,
+    down,
+    states,
+    `<button type="button" data-action="equipment-remove" data-equipment-id="${id}" aria-label="Excluir ${escapeAttribute(item.value)}">Excluir</button>`,
+    "</span>",
   ].join("");
 }
 
@@ -329,36 +373,20 @@ function renderItemDetails(item) {
   if (Object.prototype.hasOwnProperty.call(item, "points")) {
     details.push(`${formatValue(item.points)} pts`);
   }
-  if (item.levels !== undefined && item.levels !== null) {
-    details.push(`Nv ${formatValue(item.levels)}`);
-  }
-  if (item.attribute || item.difficulty) {
-    details.push([item.attribute, item.difficulty].filter(Boolean).join("/"));
-  }
-  if (item.importedLevel !== undefined && item.importedLevel !== null) {
-    details.push(`NH importado ${formatValue(item.importedLevel)}`);
-  }
-  if (item.importedRelativeLevel !== undefined && item.importedRelativeLevel !== null) {
-    details.push(`rel. importado ${formatSignedNumber(item.importedRelativeLevel)}`);
-  }
+  if (item.levels !== undefined && item.levels !== null) details.push(`Nv ${formatValue(item.levels)}`);
+  if (item.attribute || item.difficulty) details.push([item.attribute, item.difficulty].filter(Boolean).join("/"));
+  if (item.importedLevel !== undefined && item.importedLevel !== null) details.push(`NH importado ${formatValue(item.importedLevel)}`);
+  if (item.importedRelativeLevel !== undefined && item.importedRelativeLevel !== null) details.push(`rel. importado ${formatSignedNumber(item.importedRelativeLevel)}`);
   if (item.skill) details.push(`base ${item.skill}`);
-  if (item.defaultPenalty !== undefined && item.defaultPenalty !== null) {
-    details.push(`pd ${formatSignedNumber(item.defaultPenalty)}`);
-  }
-  if (item.maximumRelativeLevel !== undefined && item.maximumRelativeLevel !== null) {
-    details.push(`máx ${formatSignedNumber(item.maximumRelativeLevel)}`);
-  }
+  if (item.defaultPenalty !== undefined && item.defaultPenalty !== null) details.push(`pd ${formatSignedNumber(item.defaultPenalty)}`);
+  if (item.maximumRelativeLevel !== undefined && item.maximumRelativeLevel !== null) details.push(`máx ${formatSignedNumber(item.maximumRelativeLevel)}`);
   if (item.entryKind === "language") {
     details.push(`Fala ${localizedLanguageLevel(item.spokenLevel)}`);
     details.push(`Escrita ${localizedLanguageLevel(item.writtenLevel)}`);
     if (item.isNative) details.push("Idioma nativo");
   }
-  if (item.entryKind === "familiarity" && item.isNative) {
-    details.push("Cultura nativa");
-  }
-  if (item.importedCost !== undefined && item.importedCost !== null) {
-    details.push(`Custo importado ${formatValue(item.importedCost)} pts`);
-  }
+  if (item.entryKind === "familiarity" && item.isNative) details.push("Cultura nativa");
+  if (item.importedCost !== undefined && item.importedCost !== null) details.push(`Custo importado ${formatValue(item.importedCost)} pts`);
   if (item.reference) details.push(`Ref. ${item.reference}`);
   if (item.damageValue || item.damageType) {
     const damage = [item.damageValue, item.damageType].filter(Boolean).join(" ");
@@ -376,9 +404,7 @@ function renderItemDetails(item) {
   if (item.cost !== undefined) details.push(`$ ${formatValue(item.cost)}/un`);
   if (item.state) details.push(localizedEquipmentState(item.state));
   if (item.uses !== undefined && item.uses !== null) {
-    details.push(item.maxUses === null
-      ? `Usos ${formatValue(item.uses)}`
-      : `Usos ${formatValue(item.uses)}/${formatValue(item.maxUses)}`);
+    details.push(item.maxUses === null ? `Usos ${formatValue(item.uses)}` : `Usos ${formatValue(item.uses)}/${formatValue(item.maxUses)}`);
   }
   if (item.notes) details.push(item.notes);
   if (details.length === 0) return "";

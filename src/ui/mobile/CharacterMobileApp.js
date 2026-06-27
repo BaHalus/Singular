@@ -97,6 +97,17 @@ export async function bootstrapCharacterMobileApp(options = {}) {
         notes: readInputValue(root, '[data-role="attack-notes"]'),
       };
     },
+    readEquipmentDraft() {
+      return {
+        name: readInputValue(root, '[data-role="equipment-name"]'),
+        kind: readInputValue(root, '[data-role="equipment-kind"]') || "item",
+        quantity: readInputNumber(root, '[data-role="equipment-quantity"]', 1),
+        weightKg: readInputNumber(root, '[data-role="equipment-weight-kg"]', 0),
+        cost: readInputNumber(root, '[data-role="equipment-cost"]', 0),
+        state: readInputValue(root, '[data-role="equipment-state"]') || "carried",
+        notes: readInputValue(root, '[data-role="equipment-notes"]'),
+      };
+    },
     render,
     syncMode: modeSync.sync,
   });
@@ -173,6 +184,13 @@ function createInitialSession(options) {
 function readInputValue(root, selector) {
   const input = root.querySelector?.(selector);
   return typeof input?.value === "string" ? input.value : "";
+}
+
+function readInputNumber(root, selector, fallback) {
+  const raw = readInputValue(root, selector);
+  if (raw.trim() === "") return fallback;
+  const value = Number(raw);
+  return Number.isFinite(value) ? value : fallback;
 }
 
 function normalizeMode(value) {
