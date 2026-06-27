@@ -17,6 +17,10 @@ import {
   CHARACTER_SUMMARY_COMMAND_TYPES,
 } from "../character/CharacterSummaryCommandHandlers.js";
 import {
+  createEquipmentCommandHandlerEntries,
+  EQUIPMENT_COMMAND_TYPES,
+} from "../equipment/EquipmentCommandHandlers.js";
+import {
   createPoolCommandHandlerEntries,
   POOL_COMMAND_TYPES,
 } from "../pools/PoolCommandHandlers.js";
@@ -121,6 +125,7 @@ export function createAlphaMobilePersistenceBootstrap(options = {}) {
     ...createCharacterSummaryCommandHandlerEntries(),
     ...createAttributeCommandHandlerEntries(),
     ...createAttackCommandHandlerEntries(),
+    ...createEquipmentCommandHandlerEntries(),
   ]);
   const commands = createAlphaMobileCommands({
     persistence,
@@ -288,6 +293,47 @@ function createAlphaMobileCommands({ persistence, registry, runtime }) {
       return execute(ATTACK_COMMAND_TYPES.REORDER, {
         attackId: input.attackId,
         targetIndex: input.targetIndex,
+      });
+    },
+
+    addEquipment(input = {}) {
+      requirePlainObject(input, "Alpha mobile equipment addition");
+      const kind = input.kind === "container" ? "container" : "item";
+      return execute(EQUIPMENT_COMMAND_TYPES.ADD, {
+        item: {
+          id: input.id ?? generateId(runtime.idGenerator, "equipment"),
+          kind,
+          containerKind: kind === "container" ? "physical" : null,
+          name: input.name ?? "",
+          quantity: input.quantity ?? 1,
+          weightKg: input.weightKg ?? 0,
+          cost: input.cost ?? 0,
+          state: input.state ?? "carried",
+          notes: input.notes ?? "",
+        },
+      });
+    },
+
+    removeEquipment(input = {}) {
+      requirePlainObject(input, "Alpha mobile equipment removal");
+      return execute(EQUIPMENT_COMMAND_TYPES.REMOVE, {
+        itemId: input.itemId,
+      });
+    },
+
+    reorderEquipment(input = {}) {
+      requirePlainObject(input, "Alpha mobile equipment reorder");
+      return execute(EQUIPMENT_COMMAND_TYPES.REORDER, {
+        itemId: input.itemId,
+        targetIndex: input.targetIndex,
+      });
+    },
+
+    setEquipmentState(input = {}) {
+      requirePlainObject(input, "Alpha mobile equipment state");
+      return execute(EQUIPMENT_COMMAND_TYPES.SET_STATE, {
+        itemId: input.itemId,
+        state: input.state,
       });
     },
   });
