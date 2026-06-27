@@ -3,10 +3,14 @@ export function mountCharacterMobileInteractionController(options = {}) {
   requireFunction(options.commands?.adjustPoolCurrent, "Mobile pool command");
   requireFunction(options.commands?.setCharacterSummary, "Mobile character summary command");
   requireFunction(options.commands?.adjustAttributeBase, "Mobile attribute command");
+  requireFunction(options.commands?.addAttack, "Mobile attack addition command");
+  requireFunction(options.commands?.removeAttack, "Mobile attack removal command");
+  requireFunction(options.commands?.reorderAttack, "Mobile attack reorder command");
   requireFunction(options.ui?.getState, "Mobile UI state reader");
   requireFunction(options.getMode, "Mobile mode reader");
   requireFunction(options.setMode, "Mobile mode writer");
   requireFunction(options.readCharacterSummary, "Mobile character summary reader");
+  requireFunction(options.readAttackDraft, "Mobile attack draft reader");
   requireFunction(options.render, "Mobile render callback");
   requireFunction(options.syncMode, "Mobile mode sync callback");
   const root = options.root;
@@ -46,16 +50,40 @@ export function mountCharacterMobileInteractionController(options = {}) {
 
     if (action === "character-summary-save") {
       event.preventDefault?.();
-      if (options.getMode() !== "creation") {
-        setCommandStatus(root, "blocked-by-mode");
-        return null;
-      }
-      if (options.ui.getState().busy) {
-        setCommandStatus(root, "busy");
-        return null;
-      }
+      if (structuralActionBlocked(options, root)) return null;
       return applyResult(
         options.commands.setCharacterSummary(options.readCharacterSummary()),
+        root,
+        rerender,
+      );
+    }
+
+    if (["attack-add", "attack-remove", "attack-reorder"].includes(action)) {
+      event.preventDefault?.();
+      if (structuralActionBlocked(options, root)) return null;
+
+      if (action === "attack-add") {
+        return applyResult(
+          options.commands.addAttack(options.readAttackDraft()),
+          root,
+          rerender,
+        );
+      }
+
+      const attackId = readDataset(actionTarget, "attackId");
+      if (action === "attack-remove") {
+        return applyResult(
+          options.commands.removeAttack({ attackId }),
+          root,
+          rerender,
+        );
+      }
+
+      return applyResult(
+        options.commands.reorderAttack({
+          attackId,
+          targetIndex: Number(readDataset(actionTarget, "targetIndex")),
+        }),
         root,
         rerender,
       );
@@ -64,14 +92,7 @@ export function mountCharacterMobileInteractionController(options = {}) {
     const attributeTarget = findAttributeTarget(event?.target);
     if (attributeTarget !== null) {
       event.preventDefault?.();
-      if (options.getMode() !== "creation") {
-        setCommandStatus(root, "blocked-by-mode");
-        return null;
-      }
-      if (options.ui.getState().busy) {
-        setCommandStatus(root, "busy");
-        return null;
-      }
+      if (structuralActionBlocked(options, root)) return null;
       return applyResult(
         options.commands.adjustAttributeBase({
           attributeKey: readDataset(attributeTarget, "attributeKey"),
@@ -106,6 +127,18 @@ export function mountCharacterMobileInteractionController(options = {}) {
       root.removeEventListener?.("click", handleClick);
     },
   });
+}
+
+function structuralActionBlocked(options, root) {
+  if (options.getMode() !== "creation") {
+    setCommandStatus(root, "blocked-by-mode");
+    return true;
+  }
+  if (options.ui.getState().busy) {
+    setCommandStatus(root, "busy");
+    return true;
+  }
+  return false;
 }
 
 function applyResult(result, root, rerender) {
