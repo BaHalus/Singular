@@ -108,6 +108,22 @@ export async function bootstrapCharacterMobileApp(options = {}) {
         notes: readInputValue(root, '[data-role="equipment-notes"]'),
       };
     },
+    readSpellDraft() {
+      return {
+        name: readInputValue(root, '[data-role="spell-name"]'),
+        spellType: readInputValue(root, '[data-role="spell-type"]') || "standard",
+        attribute: readInputValue(root, '[data-role="spell-attribute"]'),
+        difficulty: readInputValue(root, '[data-role="spell-difficulty"]'),
+        points: readInputNumber(root, '[data-role="spell-points"]', 0),
+        spellClass: readInputValue(root, '[data-role="spell-class"]'),
+        resistance: readInputValue(root, '[data-role="spell-resistance"]'),
+        castingCost: readInputValue(root, '[data-role="spell-casting-cost"]'),
+        maintenanceCost: readInputValue(root, '[data-role="spell-maintenance-cost"]'),
+        castingTime: readInputValue(root, '[data-role="spell-casting-time"]'),
+        duration: readInputValue(root, '[data-role="spell-duration"]'),
+        notes: readInputValue(root, '[data-role="spell-notes"]'),
+      };
+    },
     render,
     syncMode: modeSync.sync,
   });
