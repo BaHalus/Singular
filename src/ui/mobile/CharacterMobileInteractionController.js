@@ -4,6 +4,7 @@ export function mountCharacterMobileInteractionController(options = {}) {
   requireFunction(options.commands?.setCharacterSummary, "Mobile character summary command");
   requireFunction(options.commands?.adjustAttributeBase, "Mobile attribute command");
   requireFunction(options.commands?.addAttack, "Mobile attack addition command");
+  requireFunction(options.commands?.updateAttack, "Mobile attack update command");
   requireFunction(options.commands?.removeAttack, "Mobile attack removal command");
   requireFunction(options.commands?.reorderAttack, "Mobile attack reorder command");
   requireFunction(options.ui?.getState, "Mobile UI state reader");
@@ -11,6 +12,7 @@ export function mountCharacterMobileInteractionController(options = {}) {
   requireFunction(options.setMode, "Mobile mode writer");
   requireFunction(options.readCharacterSummary, "Mobile character summary reader");
   requireFunction(options.readAttackDraft, "Mobile attack draft reader");
+  requireFunction(options.readAttackPatch, "Mobile attack patch reader");
   requireFunction(options.render, "Mobile render callback");
   requireFunction(options.syncMode, "Mobile mode sync callback");
   const root = options.root;
@@ -58,7 +60,7 @@ export function mountCharacterMobileInteractionController(options = {}) {
       );
     }
 
-    if (["attack-add", "attack-remove", "attack-reorder"].includes(action)) {
+    if (["attack-add", "attack-update", "attack-remove", "attack-reorder"].includes(action)) {
       event.preventDefault?.();
       if (structuralActionBlocked(options, root)) return null;
 
@@ -71,6 +73,25 @@ export function mountCharacterMobileInteractionController(options = {}) {
       }
 
       const attackId = readDataset(actionTarget, "attackId");
+      if (action === "attack-update") {
+        const editorTarget = findDataTarget(actionTarget, "attackEditId");
+        if (
+          editorTarget === null ||
+          readDataset(editorTarget, "attackEditId") !== attackId
+        ) {
+          setCommandStatus(root, "invalid-control");
+          return null;
+        }
+        return applyResult(
+          options.commands.updateAttack({
+            attackId,
+            ...options.readAttackPatch(editorTarget),
+          }),
+          root,
+          rerender,
+        );
+      }
+
       if (action === "attack-remove") {
         return applyResult(
           options.commands.removeAttack({ attackId }),
