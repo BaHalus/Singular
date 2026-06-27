@@ -90,10 +90,10 @@ export function validateFamiliarity(familiarity) {
   return true;
 }
 
-export function serializeFamiliarities(familiarities) {
-  validateFamiliarities(familiarities);
+export function serializeFamiliarity(familiarity) {
+  validateFamiliarity(familiarity);
 
-  return familiarities.map(familiarity => ({
+  return {
     id: familiarity.id,
     externalIds: { ...familiarity.externalIds },
     name: familiarity.name,
@@ -106,7 +106,13 @@ export function serializeFamiliarities(familiarities) {
     tags: [...familiarity.tags],
     importMeta: familiarity.importMeta,
     raw: familiarity.raw,
-  }));
+  };
+}
+
+export function serializeFamiliarities(familiarities) {
+  validateFamiliarities(familiarities);
+
+  return familiarities.map(serializeFamiliarity);
 }
 
 function normalizeExternalIds(externalIds) {

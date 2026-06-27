@@ -102,10 +102,10 @@ export function validateLanguage(language) {
   return true;
 }
 
-export function serializeLanguages(languages) {
-  validateLanguages(languages);
+export function serializeLanguage(language) {
+  validateLanguage(language);
 
-  return languages.map(language => ({
+  return {
     id: language.id,
     externalIds: { ...language.externalIds },
     name: language.name,
@@ -120,7 +120,13 @@ export function serializeLanguages(languages) {
     tags: [...language.tags],
     importMeta: language.importMeta,
     raw: language.raw,
-  }));
+  };
+}
+
+export function serializeLanguages(languages) {
+  validateLanguages(languages);
+
+  return languages.map(serializeLanguage);
 }
 
 function normalizeExternalIds(externalIds) {
