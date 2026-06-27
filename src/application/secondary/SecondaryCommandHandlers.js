@@ -20,6 +20,7 @@ export const SECONDARY_COMMAND_TYPES = Object.freeze({
 });
 
 const STRUCTURAL_POOL_KEYS = Object.freeze(["HP", "FP"]);
+const APP_SECONDARY_REHYDRATABLE_POOL_KEYS = Object.freeze(["HP", "FP", "EnergyReserve"]);
 
 export function createSecondaryCommandHandlerEntries() {
   return Object.freeze([
@@ -147,7 +148,22 @@ function validateCommandContext(context, expectedType) {
     throw new Error(`Secondary command type must be ${expectedType}`);
   }
   requirePlainObject(context.command.payload, "Secondary command payload");
+  assertCharacterPoolsAreRehydratable(context.session.character);
   return context;
+}
+
+function assertCharacterPoolsAreRehydratable(character) {
+  requirePlainObject(character, "Secondary command Character");
+  requirePlainObject(character.pools, "Secondary command Character pools");
+
+  const unsupportedKeys = Object.keys(character.pools).filter(
+    key => !APP_SECONDARY_REHYDRATABLE_POOL_KEYS.includes(key),
+  );
+  if (unsupportedKeys.length > 0) {
+    throw new Error(
+      `APP-SECONDARY cannot safely rehydrate unsupported pool keys: ${unsupportedKeys.join(", ")}`,
+    );
+  }
 }
 
 function validateExactPayloadKeys(payload, expectedKeys) {
