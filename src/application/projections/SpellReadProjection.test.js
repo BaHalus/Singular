@@ -86,5 +86,5 @@ test("rejects malformed spell projection values", () => {
 
   assert.throws(() => {
     validateSpellReadProjection({ ...projection, spells: [{ id: "broken" }] });
-  }, /spellType is invalid|name must be string/);
+  }, /externalIds must be object/);
 });
