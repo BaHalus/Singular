@@ -13,7 +13,7 @@ import {
   serializeAttributeLevelsReport,
 } from "../../engine/attributes/AttributeLevelResolver.js";
 
-const MOBILE_PROJECTION_SCHEMA_VERSION = 4;
+const MOBILE_PROJECTION_SCHEMA_VERSION = 5;
 const ATTRIBUTE_KEYS = Object.freeze(["ST", "DX", "IQ", "HT"]);
 const SECONDARY_KEYS = Object.freeze([
   "HP",
@@ -24,6 +24,7 @@ const SECONDARY_KEYS = Object.freeze([
   "BasicMove",
 ]);
 const POOL_KEYS = Object.freeze(["HP", "FP", "EnergyReserve"]);
+const LANGUAGE_LEVELS = Object.freeze(["none", "broken", "accented", "native"]);
 const ATTACK_CATEGORIES = Object.freeze(["melee", "ranged"]);
 const ATTACK_SOURCE_KINDS = Object.freeze([
   "manual",
@@ -52,12 +53,16 @@ export function projectCharacterForMobileSheet(character) {
     traits: projectTraits(serializedCharacter.traits),
     skills: projectSkills(serializedCharacter.skills),
     techniques: projectTechniques(serializedCharacter.techniques),
+    languages: projectLanguages(serializedCharacter.languages),
+    familiarities: projectFamiliarities(serializedCharacter.familiarities),
     attacks: projectAttacks(attackProjection),
     equipment: projectEquipment(serializedCharacter.equipment),
     sections: projectMobileSections({
       traits: serializedCharacter.traits,
       skills: serializedCharacter.skills,
       techniques: serializedCharacter.techniques,
+      languages: serializedCharacter.languages,
+      familiarities: serializedCharacter.familiarities,
       attacks: attackProjection.attacks,
       equipment: serializedCharacter.equipment,
     }),
@@ -77,6 +82,8 @@ export function validateCharacterMobileProjection(projection) {
   validateTraitListProjection(projection.traits);
   validateSkillListProjection(projection.skills);
   validateTechniqueListProjection(projection.techniques);
+  validateLanguageListProjection(projection.languages);
+  validateFamiliarityListProjection(projection.familiarities);
   validateAttackProjection(projection.attacks, projection.identity.id);
   validateEquipmentProjection(projection.equipment);
   validateSectionsProjection(projection.sections);
@@ -190,6 +197,32 @@ function projectTechniques(techniques) {
   }));
 }
 
+function projectLanguages(languages) {
+  return languages.map(language => ({
+    id: language.id,
+    name: language.name,
+    spokenLevel: language.spokenLevel,
+    writtenLevel: language.writtenLevel,
+    isNative: language.isNative,
+    importedCost: language.importedCost,
+    reference: language.reference,
+    notes: language.notes,
+    status: "declared",
+  }));
+}
+
+function projectFamiliarities(familiarities) {
+  return familiarities.map(familiarity => ({
+    id: familiarity.id,
+    name: familiarity.name,
+    isNative: familiarity.isNative,
+    importedCost: familiarity.importedCost,
+    reference: familiarity.reference,
+    notes: familiarity.notes,
+    status: "declared",
+  }));
+}
+
 function projectAttacks(attackProjection) {
   return {
     characterId: attackProjection.characterId,
@@ -253,7 +286,15 @@ function flattenEquipment(equipment, parentId = null, depth = 0) {
   ]);
 }
 
-function projectMobileSections({ traits, skills, techniques, attacks, equipment }) {
+function projectMobileSections({
+  traits,
+  skills,
+  techniques,
+  languages,
+  familiarities,
+  attacks,
+  equipment,
+}) {
   return [
     { id: "identity", title: "Identidade", status: "available" },
     { id: "attributes", title: "Atributos", status: "available" },
@@ -268,6 +309,13 @@ function projectMobileSections({ traits, skills, techniques, attacks, equipment 
       id: "skills-techniques",
       title: "Perícias e Técnicas",
       status: skills.length === 0 && techniques.length === 0
+        ? "empty"
+        : "declared-only",
+    },
+    {
+      id: "languages-culture",
+      title: "Idiomas e Cultura",
+      status: languages.length === 0 && familiarities.length === 0
         ? "empty"
         : "declared-only",
     },
@@ -417,6 +465,61 @@ function validateTechniqueListProjection(techniques) {
   }
 }
 
+function validateLanguageListProjection(languages) {
+  requireArray(languages, "Mobile languages projection");
+  const ids = new Set();
+  for (const language of languages) {
+    requirePlainObject(language, "Mobile language projection");
+    requireString(language.id, "Mobile language id");
+    if (ids.has(language.id)) throw new Error("Mobile language ids must be unique");
+    ids.add(language.id);
+    requireText(language.name, `Mobile language ${language.id} name`);
+    if (!LANGUAGE_LEVELS.includes(language.spokenLevel)) {
+      throw new Error(`Mobile language ${language.id} spokenLevel is invalid`);
+    }
+    if (!LANGUAGE_LEVELS.includes(language.writtenLevel)) {
+      throw new Error(`Mobile language ${language.id} writtenLevel is invalid`);
+    }
+    requireBoolean(language.isNative, `Mobile language ${language.id} isNative`);
+    requireNullableFiniteNumber(
+      language.importedCost,
+      `Mobile language ${language.id} importedCost`,
+    );
+    requireNullableString(language.reference, `Mobile language ${language.id} reference`);
+    requireText(language.notes, `Mobile language ${language.id} notes`);
+    if (language.status !== "declared") {
+      throw new Error(`Mobile language ${language.id} status is invalid`);
+    }
+  }
+}
+
+function validateFamiliarityListProjection(familiarities) {
+  requireArray(familiarities, "Mobile familiarities projection");
+  const ids = new Set();
+  for (const familiarity of familiarities) {
+    requirePlainObject(familiarity, "Mobile familiarity projection");
+    requireString(familiarity.id, "Mobile familiarity id");
+    if (ids.has(familiarity.id)) {
+      throw new Error("Mobile familiarity ids must be unique");
+    }
+    ids.add(familiarity.id);
+    requireText(familiarity.name, `Mobile familiarity ${familiarity.id} name`);
+    requireBoolean(familiarity.isNative, `Mobile familiarity ${familiarity.id} isNative`);
+    requireNullableFiniteNumber(
+      familiarity.importedCost,
+      `Mobile familiarity ${familiarity.id} importedCost`,
+    );
+    requireNullableString(
+      familiarity.reference,
+      `Mobile familiarity ${familiarity.id} reference`,
+    );
+    requireText(familiarity.notes, `Mobile familiarity ${familiarity.id} notes`);
+    if (familiarity.status !== "declared") {
+      throw new Error(`Mobile familiarity ${familiarity.id} status is invalid`);
+    }
+  }
+}
+
 function validateAttackProjection(attacks, expectedCharacterId) {
   requirePlainObject(attacks, "Mobile attacks projection");
   requireString(attacks.characterId, "Mobile attacks characterId");
@@ -522,6 +625,10 @@ function requireString(value, label) {
 
 function requireText(value, label) {
   if (typeof value !== "string") throw new Error(`${label} must be a string`);
+}
+
+function requireBoolean(value, label) {
+  if (typeof value !== "boolean") throw new Error(`${label} must be boolean`);
 }
 
 function requireNullableString(value, label) {
