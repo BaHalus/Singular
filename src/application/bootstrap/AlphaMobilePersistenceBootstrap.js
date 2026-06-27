@@ -276,6 +276,25 @@ function createAlphaMobileCommands({ persistence, registry, runtime }) {
       });
     },
 
+    updateAttack(input = {}) {
+      requirePlainObject(input, "Alpha mobile attack update");
+      return execute(ATTACK_COMMAND_TYPES.UPDATE, {
+        attackId: input.attackId,
+        patch: {
+          name: input.name ?? "",
+          category: input.category ?? "melee",
+          skillId: normalizeOptionalText(input.skillId),
+          damage: {
+            value: input.damageValue ?? "",
+            type: input.damageType ?? "",
+          },
+          reach: normalizeOptionalText(input.reach),
+          range: normalizeOptionalText(input.range),
+          notes: input.notes ?? "",
+        },
+      });
+    },
+
     removeAttack(input = {}) {
       requirePlainObject(input, "Alpha mobile attack removal");
       return execute(ATTACK_COMMAND_TYPES.REMOVE, {

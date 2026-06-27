@@ -2,7 +2,7 @@ import {
   serializeCharacterMobileSheetRenderModel,
 } from "./CharacterMobileSheetRenderModel.js";
 
-const HTML_SHELL_SCHEMA_VERSION = 9;
+const HTML_SHELL_SCHEMA_VERSION = 10;
 
 export function renderCharacterMobileSheetHtml(renderModel, options = {}) {
   const model = serializeCharacterMobileSheetRenderModel(renderModel);
@@ -208,10 +208,11 @@ function renderAttackItem(item, mode, index, total) {
   const controls = mode === "creation"
     ? renderAttackControls(item, index, total)
     : "";
+  const editor = mode === "creation" ? renderAttackEditForm(item) : "";
   return [
     `<div data-attack-id="${escapeAttribute(item.id)}" data-attack-category="${escapeAttribute(item.category)}" data-damage-authority="${escapeAttribute(item.damageAuthority)}">`,
     `<dt>${escapeText(item.label)}</dt>`,
-    `<dd>${formatValue(item.value)}${renderItemDetails(item)}${controls}</dd>`,
+    `<dd>${formatValue(item.value)}${renderItemDetails(item)}${controls}${editor}</dd>`,
     "</div>",
   ].join("");
 }
@@ -230,6 +231,36 @@ function renderAttackControls(item, index, total) {
     down,
     `<button type="button" data-action="attack-remove" data-attack-id="${id}" aria-label="Excluir ${escapeAttribute(item.value)}">Excluir</button>`,
     "</span>",
+  ].join("");
+}
+
+function renderAttackEditForm(item) {
+  const id = escapeAttribute(item.id);
+  const value = inputValue(item.value);
+  const skillId = inputValue(item.skillId);
+  const damageValue = inputValue(item.damageValue);
+  const damageType = inputValue(item.damageType);
+  const reach = inputValue(item.reach);
+  const range = inputValue(item.range);
+  const notes = inputValue(item.notes);
+  return [
+    '<details class="singular-mobile-sheet__attack-edit">',
+    '<summary>Editar ataque</summary>',
+    `<div class="singular-mobile-sheet__attack-edit-form" data-attack-edit-id="${id}">`,
+    `<label>Nome<input type="text" data-role="attack-edit-name" value="${value}" autocomplete="off"></label>`,
+    '<label>Categoria<select data-role="attack-edit-category">',
+    `<option value="melee"${selected(item.category === "melee")}>Corpo a corpo</option>`,
+    `<option value="ranged"${selected(item.category === "ranged")}>À distância</option>`,
+    "</select></label>",
+    `<label>Perícia (ID)<input type="text" data-role="attack-edit-skill-id" value="${skillId}" autocomplete="off"></label>`,
+    `<label>Dano declarado<input type="text" data-role="attack-edit-damage-value" value="${damageValue}" autocomplete="off"></label>`,
+    `<label>Tipo de dano<input type="text" data-role="attack-edit-damage-type" value="${damageType}" autocomplete="off"></label>`,
+    `<label>Reach<input type="text" data-role="attack-edit-reach" value="${reach}" autocomplete="off"></label>`,
+    `<label>Alcance<input type="text" data-role="attack-edit-range" value="${range}" autocomplete="off"></label>`,
+    `<label>Notas<input type="text" data-role="attack-edit-notes" value="${notes}" autocomplete="off"></label>`,
+    `<button type="button" data-action="attack-update" data-attack-id="${id}">Aplicar edição</button>`,
+    "</div>",
+    "</details>",
   ].join("");
 }
 
@@ -425,6 +456,15 @@ function localizedEquipmentState(state) {
   if (state === "dropped") return "Largado";
   if (state === "ignored") return "Ignorado";
   return state;
+}
+
+function selected(condition) {
+  return condition ? " selected" : "";
+}
+
+function inputValue(value) {
+  if (value === null || value === undefined) return "";
+  return escapeAttribute(value);
 }
 
 function normalizeMode(value) {
