@@ -2,7 +2,7 @@ import {
   serializeCharacterMobileSheetRenderModel,
 } from "./CharacterMobileSheetRenderModel.js";
 
-const HTML_SHELL_SCHEMA_VERSION = 11;
+const HTML_SHELL_SCHEMA_VERSION = 12;
 
 export function renderCharacterMobileSheetHtml(renderModel, options = {}) {
   const model = serializeCharacterMobileSheetRenderModel(renderModel);
@@ -137,6 +137,8 @@ function renderCard(card, mode) {
     body = renderEquipmentCard(card, mode);
   } else if (card.id === "spells") {
     body = renderSpellsCard(card, mode);
+  } else if (card.id === "powers") {
+    body = renderPowersCard(card, mode);
   } else {
     body = renderCardBody(card);
   }
@@ -292,6 +294,57 @@ function renderSpellControls(item, index, total) {
     up,
     down,
     `<button type="button" data-action="spell-remove" data-spell-id="${id}" aria-label="Excluir ${escapeAttribute(item.value)}">Excluir</button>`,
+    "</span>",
+  ].join("");
+}
+
+function renderPowersCard(card, mode) {
+  const editor = mode === "creation" ? renderPowerEditor() : "";
+  const list = card.items.length === 0
+    ? "<p class=\"singular-mobile-sheet__empty\">Nenhum poder declarado.</p>"
+    : [
+      '<dl class="singular-mobile-sheet__power-list">',
+      card.items.map(item => renderPowerItem(item, mode)).join(""),
+      "</dl>",
+    ].join("");
+  return `${editor}${list}`;
+}
+
+function renderPowerEditor() {
+  return [
+    '<div class="singular-mobile-sheet__power-editor" data-role="power-editor">',
+    '<label>Nome<input type="text" data-role="power-name" autocomplete="off"></label>',
+    '<label>Fonte<input type="text" data-role="power-source" autocomplete="off"></label>',
+    '<label>Modificador<input type="text" data-role="power-modifier-name" autocomplete="off"></label>',
+    '<label>% Mod.<input type="number" step="1" data-role="power-modifier-value-percent"></label>',
+    '<label>Notas do mod.<input type="text" data-role="power-modifier-notes" autocomplete="off"></label>',
+    '<label>Talento (Trait ID)<input type="text" data-role="power-talent-trait-id" autocomplete="off"></label>',
+    '<label>Membros (Trait IDs)<input type="text" data-role="power-member-trait-ids" autocomplete="off"></label>',
+    '<label>Tags<input type="text" data-role="power-tags" autocomplete="off"></label>',
+    '<label>Notas<input type="text" data-role="power-notes" autocomplete="off"></label>',
+    '<button type="button" data-action="power-add">Adicionar poder</button>',
+    "</div>",
+  ].join("");
+}
+
+function renderPowerItem(item, mode) {
+  const controls = mode === "creation" ? renderPowerControls(item) : "";
+  return [
+    `<div data-power-id="${escapeAttribute(item.id)}">`,
+    `<dt>${escapeText(item.label)}</dt>`,
+    `<dd>${formatValue(item.value)}${renderItemDetails(item)}${controls}</dd>`,
+    "</div>",
+  ].join("");
+}
+
+function renderPowerControls(item) {
+  const id = escapeAttribute(item.id);
+  const value = escapeAttribute(item.value);
+  return [
+    '<span class="singular-mobile-sheet__power-actions">',
+    `<label>Nome<input type="text" data-role="power-rename" data-power-id="${id}" value="${value}" autocomplete="off"></label>`,
+    `<button type="button" data-action="power-rename" data-power-id="${id}" aria-label="Renomear ${value}">Renomear</button>`,
+    `<button type="button" data-action="power-remove" data-power-id="${id}" aria-label="Excluir ${value}">Excluir</button>`,
     "</span>",
   ].join("");
 }
@@ -490,6 +543,11 @@ function renderItemDetails(item) {
   if (item.castingTime) details.push(`TO ${item.castingTime}`);
   if (item.duration) details.push(`Duração ${item.duration}`);
   if (Array.isArray(item.colleges) && item.colleges.length > 0) details.push(`Escolas ${item.colleges.join(", ")}`);
+  if (item.source) details.push(`Fonte ${item.source}`);
+  if (item.powerModifier) details.push(formatPowerModifier(item.powerModifier));
+  if (item.talentTraitId) details.push(`Talento ${item.talentTraitId}`);
+  if (Array.isArray(item.memberTraitIds) && item.memberTraitIds.length > 0) details.push(`Membros ${item.memberTraitIds.join(", ")}`);
+  if (Array.isArray(item.diagnosticCodes) && item.diagnosticCodes.length > 0) details.push(`Diagnósticos ${item.diagnosticCodes.join(", ")}`);
   if (item.quantity !== undefined) details.push(`Qtd ${formatValue(item.quantity)}`);
   if (item.weightKg !== undefined) details.push(`${formatValue(item.weightKg)} kg/un`);
   if (item.cost !== undefined) details.push(`$ ${formatValue(item.cost)}/un`);
@@ -500,6 +558,16 @@ function renderItemDetails(item) {
   if (item.notes) details.push(item.notes);
   if (details.length === 0) return "";
   return ` <small>${escapeText(details.join(" · "))}</small>`;
+}
+
+function formatPowerModifier(modifier) {
+  const parts = [];
+  if (modifier.name) parts.push(modifier.name);
+  if (modifier.valuePercent !== null && modifier.valuePercent !== undefined) {
+    parts.push(`${formatSignedNumber(modifier.valuePercent)}%`);
+  }
+  if (modifier.notes) parts.push(modifier.notes);
+  return parts.length === 0 ? "Modificador de poder declarado" : `Mod. ${parts.join(" ")}`;
 }
 
 function renderTextItem(item) {
