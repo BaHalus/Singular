@@ -36,7 +36,7 @@ export function addTrait(traits, traitInput) {
   validateTraits(traits);
   return createTraits([
     ...serializeTraits(traits),
-    traitInput,
+    clonePortableValue(traitInput),
   ]);
 }
 
@@ -56,10 +56,10 @@ export function updateTrait(traits, traitId, patch = {}) {
     id: current.id,
     source: patch.source === undefined
       ? current.source
-      : { ...current.source, ...patch.source },
+      : { ...current.source, ...clonePortableValue(patch.source) },
     pointValue: patch.pointValue === undefined
       ? current.pointValue
-      : { ...current.pointValue, ...patch.pointValue },
+      : { ...current.pointValue, ...clonePortableValue(patch.pointValue) },
   };
   const nextTrait = createTrait(nextInput);
   const next = serializeTraits(traits);
@@ -121,7 +121,18 @@ function assertPatchKeys(patch) {
 }
 
 function clonePortableValue(value, seen = new WeakMap()) {
-  if (value === null || typeof value !== "object") return value;
+  if (value === null || typeof value === "string" || typeof value === "boolean") {
+    return value;
+  }
+  if (typeof value === "number") {
+    if (!Number.isFinite(value)) {
+      throw new Error("Trait operation values must be JSON portable");
+    }
+    return value;
+  }
+  if (typeof value !== "object") {
+    throw new Error("Trait operation values must be JSON portable");
+  }
   if (seen.has(value)) throw new Error("Trait operation values must not contain cycles");
 
   if (Array.isArray(value)) {
