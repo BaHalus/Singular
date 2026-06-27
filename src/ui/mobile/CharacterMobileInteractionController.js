@@ -10,12 +10,16 @@ export function mountCharacterMobileInteractionController(options = {}) {
   requireFunction(options.commands?.removeEquipment, "Mobile equipment removal command");
   requireFunction(options.commands?.reorderEquipment, "Mobile equipment reorder command");
   requireFunction(options.commands?.setEquipmentState, "Mobile equipment state command");
+  requireFunction(options.commands?.addSpell, "Mobile spell addition command");
+  requireFunction(options.commands?.removeSpell, "Mobile spell removal command");
+  requireFunction(options.commands?.reorderSpell, "Mobile spell reorder command");
   requireFunction(options.ui?.getState, "Mobile UI state reader");
   requireFunction(options.getMode, "Mobile mode reader");
   requireFunction(options.setMode, "Mobile mode writer");
   requireFunction(options.readCharacterSummary, "Mobile character summary reader");
   requireFunction(options.readAttackDraft, "Mobile attack draft reader");
   requireFunction(options.readEquipmentDraft, "Mobile equipment draft reader");
+  requireFunction(options.readSpellDraft, "Mobile spell draft reader");
   requireFunction(options.render, "Mobile render callback");
   requireFunction(options.syncMode, "Mobile mode sync callback");
   const root = options.root;
@@ -133,6 +137,40 @@ export function mountCharacterMobileInteractionController(options = {}) {
       return applyResult(
         options.commands.reorderEquipment({
           itemId,
+          targetIndex: targetIndexValue === null
+            ? Number.NaN
+            : Number(targetIndexValue),
+        }),
+        root,
+        rerender,
+      );
+    }
+
+    if (["spell-add", "spell-remove", "spell-reorder"].includes(action)) {
+      event.preventDefault?.();
+      if (structuralActionBlocked(options, root)) return null;
+
+      if (action === "spell-add") {
+        return applyResult(
+          options.commands.addSpell(options.readSpellDraft()),
+          root,
+          rerender,
+        );
+      }
+
+      const spellId = readDataset(actionTarget, "spellId");
+      if (action === "spell-remove") {
+        return applyResult(
+          options.commands.removeSpell({ spellId }),
+          root,
+          rerender,
+        );
+      }
+
+      const targetIndexValue = readDataset(actionTarget, "targetIndex");
+      return applyResult(
+        options.commands.reorderSpell({
+          spellId,
           targetIndex: targetIndexValue === null
             ? Number.NaN
             : Number(targetIndexValue),
