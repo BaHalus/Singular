@@ -11,9 +11,11 @@ import {
 } from "./CharacterMobileSpellsPowersReadModel.js";
 
 export function createCharacterMobileSheetRenderModelForCharacter(character) {
-  const baseModel = withMobilePresentationLabels(serializeCharacterMobileSheetRenderModel(
-    createCharacterMobileSheetRenderModel(projectCharacterForMobileSheet(character)),
-  ));
+  const baseModel = withMobilePresentationLabels(
+    serializeCharacterMobileSheetRenderModel(
+      createCharacterMobileSheetRenderModel(projectCharacterForMobileSheet(character)),
+    ),
+  );
   const spellsPowersModel = serializeCharacterMobileSpellsPowersReadModel(
     createCharacterMobileSpellsPowersReadModel(character),
   );
