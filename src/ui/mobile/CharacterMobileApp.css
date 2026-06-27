@@ -149,20 +149,58 @@ html, body {
   min-height: 2.75rem;
 }
 
+.singular-mobile-sheet__languages-culture-list,
+.singular-mobile-sheet__equipment-totals,
+.singular-mobile-sheet__equipment-list,
+.singular-mobile-sheet__attack-list {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.singular-mobile-sheet__languages-culture-list > div,
+.singular-mobile-sheet__equipment-list > div,
 .singular-mobile-sheet__attack-list > div {
   display: grid;
   gap: 0.35rem;
 }
 
-.singular-mobile-sheet__attack-list dd {
-  display: grid;
-  gap: 0.45rem;
+.singular-mobile-sheet__equipment-totals {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-bottom: 0.5rem;
 }
 
+.singular-mobile-sheet__equipment-totals > div,
+.singular-mobile-sheet__equipment-list > div[data-depth="1"] {
+  background: #1b2531;
+}
+
+.singular-mobile-sheet__equipment-list > div[data-depth="2"] {
+  background: #17202a;
+}
+
+.singular-mobile-sheet__equipment-list > div[data-depth="3"],
+.singular-mobile-sheet__equipment-list > div[data-depth="4"] {
+  background: #141c25;
+}
+
+.singular-mobile-sheet__equipment-list [data-depth="1"] dd,
+.singular-mobile-sheet__equipment-list [data-depth="2"] dd,
+.singular-mobile-sheet__equipment-list [data-depth="3"] dd,
+.singular-mobile-sheet__equipment-list [data-depth="4"] dd {
+  padding-left: 0.5rem;
+}
+
+.singular-mobile-sheet__languages-culture-list small,
+.singular-mobile-sheet__equipment-list small,
 .singular-mobile-sheet__attack-list small {
   display: block;
   font-weight: 600;
   line-height: 1.35;
+}
+
+.singular-mobile-sheet__attack-list dd {
+  display: grid;
+  gap: 0.45rem;
 }
 
 .singular-mobile-sheet__attack-actions {
@@ -241,7 +279,8 @@ html, body {
 
 @media (max-width: 25rem) {
   .singular-mobile-sheet__attribute-strip,
-  .singular-mobile-sheet__pool-strip {
+  .singular-mobile-sheet__pool-strip,
+  .singular-mobile-sheet__equipment-totals {
     grid-template-columns: minmax(0, 1fr);
   }
 }
