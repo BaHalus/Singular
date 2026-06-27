@@ -40,7 +40,7 @@ test("projects identity, attributes and pools for the mobile sheet", () => {
   const projection = projectCharacterForMobileSheet(character);
 
   assert.equal(validateCharacterMobileProjection(projection), true);
-  assert.equal(projection.schemaVersion, 3);
+  assert.equal(projection.schemaVersion, 4);
   assert.equal(projection.identity.name, "Aventureira Mobile");
   assert.equal(projection.attributes.ST.level, 12);
   assert.equal(projection.attributes.ST.source, "override");

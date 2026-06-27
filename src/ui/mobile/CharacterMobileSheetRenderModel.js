@@ -2,7 +2,7 @@ import {
   serializeCharacterMobileProjection,
 } from "./CharacterMobileProjection.js";
 
-const RENDER_MODEL_SCHEMA_VERSION = 3;
+const RENDER_MODEL_SCHEMA_VERSION = 4;
 const RENDER_MODEL_KEYS = Object.freeze([
   "schemaVersion",
   "title",
@@ -149,6 +149,7 @@ function createCards(projection) {
     },
     createTraitsCard(projection.traits),
     createSkillsTechniquesCard(projection.skills, projection.techniques),
+    createAttacksCard(projection.attacks),
     createEquipmentCard(projection.equipment),
   ];
 }
@@ -207,6 +208,32 @@ function createSkillsTechniquesCard(skills, techniques) {
         status: technique.status,
       })),
     ],
+  };
+}
+
+function createAttacksCard(attacks) {
+  return {
+    id: "attacks",
+    title: "Ataques",
+    status: attacks.items.length === 0 ? "empty" : "declared-only",
+    authority: attacks.authority,
+    characterId: attacks.characterId,
+    items: attacks.items.map(attack => ({
+      id: attack.id,
+      label: attack.category === "ranged" ? "À distância" : "Corpo a corpo",
+      value: attack.name || "Ataque sem nome",
+      category: attack.category,
+      skillId: attack.skillId,
+      sourceKind: attack.source.kind,
+      sourceId: attack.source.id,
+      damageValue: attack.damage.value,
+      damageType: attack.damage.type,
+      damageAuthority: attack.damage.authority,
+      reach: attack.reach,
+      range: attack.range,
+      notes: attack.notes,
+      status: attack.status,
+    })),
   };
 }
 
@@ -306,7 +333,27 @@ function validateCards(cards) {
     if (!Array.isArray(card.items)) {
       throw new Error(`Character mobile sheet card ${card.id} items must be an array`);
     }
+    if (card.id === "attacks") validateAttacksCard(card);
     if (card.id === "equipment") validateEquipmentCard(card);
+  }
+}
+
+function validateAttacksCard(card) {
+  if (card.authority !== "application.attack-read-projection") {
+    throw new Error("Character mobile attacks authority is invalid");
+  }
+  requireString(card.characterId, "Character mobile attacks characterId");
+  for (const attack of card.items) {
+    requirePlainObject(attack, "Character mobile attack item");
+    requireString(attack.id, "Character mobile attack item id");
+    requireString(attack.label, `Character mobile attack item ${attack.id} label`);
+    requireString(attack.value, `Character mobile attack item ${attack.id} value`);
+    if (!['melee', 'ranged'].includes(attack.category)) {
+      throw new Error(`Character mobile attack item ${attack.id} category is invalid`);
+    }
+    if (attack.damageAuthority !== "declared") {
+      throw new Error(`Character mobile attack item ${attack.id} damage authority is invalid`);
+    }
   }
 }
 
