@@ -17,9 +17,10 @@ import {
 } from "./SecondaryCommandHandlers.js";
 
 function runtime() {
+  let nextId = 0;
   return {
     clock: { now: () => "2026-06-27T15:00:00.000Z" },
-    idGenerator: { next: prefix => `${prefix}:secondary-edit` },
+    idGenerator: { next: prefix => `${prefix}:secondary-edit:${++nextId}` },
   };
 }
 
@@ -59,6 +60,10 @@ function command(type, payload, expectedRevision = 0) {
   };
 }
 
+function diagnosticMessage(result) {
+  return result.diagnostics.map(diagnostic => diagnostic.message ?? "").join("\n");
+}
+
 test("edits declared secondary characteristics immutably without calculating derived values", () => {
   const before = character().secondaryCharacteristics;
   const withWillBase = setSecondaryCharacteristicBase(before, "Will", 12);
@@ -83,6 +88,7 @@ test("rejects unknown secondary keys and non-finite declared values", () => {
 test("applies secondary commands through CommandExecutor with revision and history", () => {
   const beforeSession = session();
   const beforeCharacter = serializeCharacter(beforeSession.character);
+  const appRuntime = runtime();
   const first = executeCommand(
     beforeSession,
     command(SECONDARY_COMMAND_TYPES.SET_SECONDARY_OVERRIDE, {
@@ -90,7 +96,7 @@ test("applies secondary commands through CommandExecutor with revision and histo
       override: 13,
     }),
     registry(),
-    runtime(),
+    appRuntime,
   );
   const second = executeCommand(
     first.session,
@@ -99,13 +105,14 @@ test("applies secondary commands through CommandExecutor with revision and histo
       base: 6,
     }, 1),
     registry(),
-    runtime(),
+    appRuntime,
   );
 
   assert.equal(first.status, "applied");
   assert.equal(first.session.revision, 1);
   assert.equal(first.session.history[0].commandType, "secondary.override.set");
   assert.equal(first.session.character.secondaryCharacteristics.Will.override, 13);
+  assert.equal(second.status, "applied");
   assert.equal(second.session.revision, 2);
   assert.equal(second.session.character.secondaryCharacteristics.BasicMove.base, 6);
   assert.deepEqual(serializeCharacter(second.session.character).identity, beforeCharacter.identity);
@@ -151,14 +158,18 @@ test("returns no-op for unchanged secondary declarations and maximums", () => {
 });
 
 test("rejects unsupported command payloads and unsupported structural pools", () => {
-  assert.throws(() => executeCommand(session(), command(SECONDARY_COMMAND_TYPES.SET_SECONDARY_BASE, {
+  const unsupportedPayload = executeCommand(session(), command(SECONDARY_COMMAND_TYPES.SET_SECONDARY_BASE, {
     characteristicKey: "Will",
     base: 12,
     formula: "IQ+2",
-  }), registry(), runtime()), /unsupported properties/);
-
-  assert.throws(() => executeCommand(session(), command(SECONDARY_COMMAND_TYPES.SET_POOL_MAXIMUM, {
+  }), registry(), runtime());
+  const unsupportedPool = executeCommand(session(), command(SECONDARY_COMMAND_TYPES.SET_POOL_MAXIMUM, {
     poolKey: "EnergyReserve",
     maximum: 3,
-  }), registry(), runtime()), /Unsupported structural pool maximum/);
+  }), registry(), runtime());
+
+  assert.equal(unsupportedPayload.status, "failed");
+  assert.match(diagnosticMessage(unsupportedPayload), /unsupported properties/);
+  assert.equal(unsupportedPool.status, "failed");
+  assert.match(diagnosticMessage(unsupportedPool), /Unsupported structural pool maximum/);
 });
