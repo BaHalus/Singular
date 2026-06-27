@@ -6,11 +6,16 @@ export function mountCharacterMobileInteractionController(options = {}) {
   requireFunction(options.commands?.addAttack, "Mobile attack addition command");
   requireFunction(options.commands?.removeAttack, "Mobile attack removal command");
   requireFunction(options.commands?.reorderAttack, "Mobile attack reorder command");
+  requireFunction(options.commands?.addEquipment, "Mobile equipment addition command");
+  requireFunction(options.commands?.removeEquipment, "Mobile equipment removal command");
+  requireFunction(options.commands?.reorderEquipment, "Mobile equipment reorder command");
+  requireFunction(options.commands?.setEquipmentState, "Mobile equipment state command");
   requireFunction(options.ui?.getState, "Mobile UI state reader");
   requireFunction(options.getMode, "Mobile mode reader");
   requireFunction(options.setMode, "Mobile mode writer");
   requireFunction(options.readCharacterSummary, "Mobile character summary reader");
   requireFunction(options.readAttackDraft, "Mobile attack draft reader");
+  requireFunction(options.readEquipmentDraft, "Mobile equipment draft reader");
   requireFunction(options.render, "Mobile render callback");
   requireFunction(options.syncMode, "Mobile mode sync callback");
   const root = options.root;
@@ -83,6 +88,51 @@ export function mountCharacterMobileInteractionController(options = {}) {
       return applyResult(
         options.commands.reorderAttack({
           attackId,
+          targetIndex: targetIndexValue === null
+            ? Number.NaN
+            : Number(targetIndexValue),
+        }),
+        root,
+        rerender,
+      );
+    }
+
+    if (["equipment-add", "equipment-remove", "equipment-reorder", "equipment-state-set"].includes(action)) {
+      event.preventDefault?.();
+      if (structuralActionBlocked(options, root)) return null;
+
+      if (action === "equipment-add") {
+        return applyResult(
+          options.commands.addEquipment(options.readEquipmentDraft()),
+          root,
+          rerender,
+        );
+      }
+
+      const itemId = readDataset(actionTarget, "equipmentId");
+      if (action === "equipment-remove") {
+        return applyResult(
+          options.commands.removeEquipment({ itemId }),
+          root,
+          rerender,
+        );
+      }
+
+      if (action === "equipment-state-set") {
+        return applyResult(
+          options.commands.setEquipmentState({
+            itemId,
+            state: readDataset(actionTarget, "equipmentState"),
+          }),
+          root,
+          rerender,
+        );
+      }
+
+      const targetIndexValue = readDataset(actionTarget, "targetIndex");
+      return applyResult(
+        options.commands.reorderEquipment({
+          itemId,
           targetIndex: targetIndexValue === null
             ? Number.NaN
             : Number(targetIndexValue),
