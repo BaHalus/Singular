@@ -1,37 +1,48 @@
 import {
+  createAlphaCommandCatalogEntries,
+} from "../alpha/AlphaCommandCatalog.js";
+import {
   executeCommand,
 } from "../commands/CommandExecutor.js";
 import {
   createCommandRegistry,
 } from "../commands/CommandRegistry.js";
 import {
-  createAttackCommandHandlerEntries,
   ATTACK_COMMAND_TYPES,
 } from "../attacks/AttackCommandHandlers.js";
 import {
-  createAttributeCommandHandlerEntries,
   ATTRIBUTE_COMMAND_TYPES,
 } from "../attributes/AttributeCommandHandlers.js";
 import {
-  createCharacterSummaryCommandHandlerEntries,
   CHARACTER_SUMMARY_COMMAND_TYPES,
 } from "../character/CharacterSummaryCommandHandlers.js";
 import {
-  createEquipmentCommandHandlerEntries,
   EQUIPMENT_COMMAND_TYPES,
 } from "../equipment/EquipmentCommandHandlers.js";
 import {
-  createPoolCommandHandlerEntries,
+  LANGUAGE_CULTURE_COMMAND_TYPES,
+} from "../languages/LanguageCultureCommandHandlers.js";
+import {
+  NOTES_COMMAND_TYPES,
+} from "../notes/NotesCommandHandlers.js";
+import {
   POOL_COMMAND_TYPES,
 } from "../pools/PoolCommandHandlers.js";
 import {
-  createPowerCommandHandlerEntries,
   POWER_COMMAND_TYPES,
 } from "../powers/PowerCommandHandlers.js";
 import {
-  createSpellCommandHandlerEntries,
+  SECONDARY_COMMAND_TYPES,
+} from "../secondary/SecondaryCommandHandlers.js";
+import {
+  SKILL_COMMAND_TYPES,
+} from "../skills/SkillCommandHandlers.js";
+import {
   SPELL_COMMAND_TYPES,
 } from "../spells/SpellCommandHandlers.js";
+import {
+  TRAIT_COMMAND_TYPES,
+} from "../traits/TraitCommandHandlers.js";
 import {
   createApplicationSession,
   serializeApplicationSession,
@@ -128,15 +139,7 @@ export function createAlphaMobilePersistenceBootstrap(options = {}) {
       coordinator = createCoordinator(nextSession);
     },
   });
-  const registry = createCommandRegistry([
-    ...createPoolCommandHandlerEntries(),
-    ...createCharacterSummaryCommandHandlerEntries(),
-    ...createAttributeCommandHandlerEntries(),
-    ...createAttackCommandHandlerEntries(),
-    ...createEquipmentCommandHandlerEntries(),
-    ...createPowerCommandHandlerEntries(),
-    ...createSpellCommandHandlerEntries(),
-  ]);
+  const registry = createCommandRegistry(createAlphaCommandCatalogEntries());
   const commands = createAlphaMobileCommands({
     persistence,
     registry,
@@ -218,6 +221,7 @@ function createActiveSessionPersistenceFacade(options) {
       return coordinator().getActiveSession();
     },
   };
+
   return Object.freeze(facade);
 }
 
@@ -242,8 +246,13 @@ function createAlphaMobileCommands({ persistence, registry, runtime }) {
     }
     return result;
   };
+  const run = type => payload => execute(type, payload ?? {});
 
   return Object.freeze({
+    setCurrentPool: run(POOL_COMMAND_TYPES.SET_CURRENT),
+    adjustCurrentPool: run(POOL_COMMAND_TYPES.ADJUST_CURRENT),
+    resetCurrentPoolToMaximum: run(POOL_COMMAND_TYPES.RESET_CURRENT_TO_MAXIMUM),
+
     adjustPoolCurrent(input = {}) {
       requirePlainObject(input, "Alpha mobile pool adjustment");
       return execute(POOL_COMMAND_TYPES.ADJUST_CURRENT, {
@@ -290,6 +299,7 @@ function createAlphaMobileCommands({ persistence, registry, runtime }) {
         },
       });
     },
+    updateAttack: run(ATTACK_COMMAND_TYPES.UPDATE),
 
     removeAttack(input = {}) {
       requirePlainObject(input, "Alpha mobile attack removal");
@@ -323,6 +333,15 @@ function createAlphaMobileCommands({ persistence, registry, runtime }) {
         },
       });
     },
+    renameEquipment: run(EQUIPMENT_COMMAND_TYPES.RENAME),
+    setEquipmentQuantity: run(EQUIPMENT_COMMAND_TYPES.SET_QUANTITY),
+    setEquipmentState(input = {}) {
+      requirePlainObject(input, "Alpha mobile equipment state");
+      return execute(EQUIPMENT_COMMAND_TYPES.SET_STATE, {
+        itemId: input.itemId,
+        state: input.state,
+      });
+    },
 
     removeEquipment(input = {}) {
       requirePlainObject(input, "Alpha mobile equipment removal");
@@ -330,20 +349,13 @@ function createAlphaMobileCommands({ persistence, registry, runtime }) {
         itemId: input.itemId,
       });
     },
+    moveEquipment: run(EQUIPMENT_COMMAND_TYPES.MOVE),
 
     reorderEquipment(input = {}) {
       requirePlainObject(input, "Alpha mobile equipment reorder");
       return execute(EQUIPMENT_COMMAND_TYPES.REORDER, {
         itemId: input.itemId,
         targetIndex: input.targetIndex,
-      });
-    },
-
-    setEquipmentState(input = {}) {
-      requirePlainObject(input, "Alpha mobile equipment state");
-      return execute(EQUIPMENT_COMMAND_TYPES.SET_STATE, {
-        itemId: input.itemId,
-        state: input.state,
       });
     },
 
@@ -367,6 +379,7 @@ function createAlphaMobileCommands({ persistence, registry, runtime }) {
         },
       });
     },
+    updateSpell: run(SPELL_COMMAND_TYPES.UPDATE),
 
     removeSpell(input = {}) {
       requirePlainObject(input, "Alpha mobile spell removal");
@@ -413,6 +426,36 @@ function createAlphaMobileCommands({ persistence, registry, runtime }) {
         powerId: input.powerId,
       });
     },
+
+    addTrait: run(TRAIT_COMMAND_TYPES.ADD),
+    updateTrait: run(TRAIT_COMMAND_TYPES.UPDATE),
+    removeTrait: run(TRAIT_COMMAND_TYPES.REMOVE),
+    reorderTrait: run(TRAIT_COMMAND_TYPES.REORDER),
+    addSkill: run(SKILL_COMMAND_TYPES.ADD_SKILL),
+    updateSkill: run(SKILL_COMMAND_TYPES.UPDATE_SKILL),
+    removeSkill: run(SKILL_COMMAND_TYPES.REMOVE_SKILL),
+    reorderSkill: run(SKILL_COMMAND_TYPES.REORDER_SKILL),
+    addTechnique: run(SKILL_COMMAND_TYPES.ADD_TECHNIQUE),
+    updateTechnique: run(SKILL_COMMAND_TYPES.UPDATE_TECHNIQUE),
+    removeTechnique: run(SKILL_COMMAND_TYPES.REMOVE_TECHNIQUE),
+    reorderTechnique: run(SKILL_COMMAND_TYPES.REORDER_TECHNIQUE),
+    addLanguage: run(LANGUAGE_CULTURE_COMMAND_TYPES.ADD_LANGUAGE),
+    updateLanguage: run(LANGUAGE_CULTURE_COMMAND_TYPES.UPDATE_LANGUAGE),
+    removeLanguage: run(LANGUAGE_CULTURE_COMMAND_TYPES.REMOVE_LANGUAGE),
+    reorderLanguage: run(LANGUAGE_CULTURE_COMMAND_TYPES.REORDER_LANGUAGE),
+    addFamiliarity: run(LANGUAGE_CULTURE_COMMAND_TYPES.ADD_FAMILIARITY),
+    updateFamiliarity: run(LANGUAGE_CULTURE_COMMAND_TYPES.UPDATE_FAMILIARITY),
+    removeFamiliarity: run(LANGUAGE_CULTURE_COMMAND_TYPES.REMOVE_FAMILIARITY),
+    reorderFamiliarity: run(LANGUAGE_CULTURE_COMMAND_TYPES.REORDER_FAMILIARITY),
+    setSecondaryBase: run(SECONDARY_COMMAND_TYPES.SET_SECONDARY_BASE),
+    setSecondaryOverride: run(SECONDARY_COMMAND_TYPES.SET_SECONDARY_OVERRIDE),
+    clearSecondaryOverride: run(SECONDARY_COMMAND_TYPES.CLEAR_SECONDARY_OVERRIDE),
+    setPoolMaximum: run(SECONDARY_COMMAND_TYPES.SET_POOL_MAXIMUM),
+    setGeneralNotes: run(NOTES_COMMAND_TYPES.SET_GENERAL),
+    addStructuredNote: run(NOTES_COMMAND_TYPES.ADD_STRUCTURED),
+    updateStructuredNote: run(NOTES_COMMAND_TYPES.UPDATE_STRUCTURED),
+    removeStructuredNote: run(NOTES_COMMAND_TYPES.REMOVE_STRUCTURED),
+    reorderStructuredNote: run(NOTES_COMMAND_TYPES.REORDER_STRUCTURED),
   });
 }
 
@@ -444,11 +487,11 @@ function normalizeOptionalText(value) {
 
 function requirePlainObject(value, label) {
   if (
-    value === null ||
-    typeof value !== "object" ||
-    Array.isArray(value) ||
-    (Object.getPrototypeOf(value) !== Object.prototype &&
-      Object.getPrototypeOf(value) !== null)
+    value === null
+    || typeof value !== "object"
+    || Array.isArray(value)
+    || (Object.getPrototypeOf(value) !== Object.prototype
+      && Object.getPrototypeOf(value) !== null)
   ) {
     throw new Error(`${label} must be a plain object`);
   }
