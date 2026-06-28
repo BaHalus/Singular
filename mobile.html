@@ -14,13 +14,13 @@
 
     <script type="module">
       import { bootstrapCharacterMobileApp } from "./src/ui/mobile/CharacterMobileApp.js";
-      import { bootstrapCharacterMobileLanguageCultureApp } from "./src/ui/mobile/CharacterMobileLanguageCultureApp.js";
+      import { bootstrapCharacterMobileSecondaryNotesApp } from "./src/ui/mobile/CharacterMobileSecondaryNotesApp.js";
 
       // Preserva a âncora de smoke test da página executável: await bootstrapCharacterMobileApp()
       void bootstrapCharacterMobileApp;
 
       try {
-        await bootstrapCharacterMobileLanguageCultureApp();
+        await bootstrapCharacterMobileSecondaryNotesApp();
       } catch (error) {
         const root = document.querySelector("[data-singular-mobile-root]");
         if (root) {
