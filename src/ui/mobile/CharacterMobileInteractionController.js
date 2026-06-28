@@ -13,9 +13,6 @@ export function mountCharacterMobileInteractionController(options = {}) {
   requireFunction(options.commands?.addSpell, "Mobile spell addition command");
   requireFunction(options.commands?.removeSpell, "Mobile spell removal command");
   requireFunction(options.commands?.reorderSpell, "Mobile spell reorder command");
-  requireFunction(options.commands?.addPower, "Mobile power addition command");
-  requireFunction(options.commands?.renamePower, "Mobile power rename command");
-  requireFunction(options.commands?.removePower, "Mobile power removal command");
   requireFunction(options.ui?.getState, "Mobile UI state reader");
   requireFunction(options.getMode, "Mobile mode reader");
   requireFunction(options.setMode, "Mobile mode writer");
@@ -23,10 +20,10 @@ export function mountCharacterMobileInteractionController(options = {}) {
   requireFunction(options.readAttackDraft, "Mobile attack draft reader");
   requireFunction(options.readEquipmentDraft, "Mobile equipment draft reader");
   requireFunction(options.readSpellDraft, "Mobile spell draft reader");
-  requireFunction(options.readPowerDraft, "Mobile power draft reader");
-  requireFunction(options.readPowerRenameDraft, "Mobile power rename reader");
   requireFunction(options.render, "Mobile render callback");
   requireFunction(options.syncMode, "Mobile mode sync callback");
+  const powerCommands = createOptionalPowerCommands(options.commands);
+  const powerReaders = createOptionalPowerReaders(options);
   const root = options.root;
   if (!root || typeof root !== "object") {
     throw new Error("Mobile interaction root must be an object");
@@ -191,7 +188,7 @@ export function mountCharacterMobileInteractionController(options = {}) {
 
       if (action === "power-add") {
         return applyResult(
-          options.commands.addPower(options.readPowerDraft()),
+          powerCommands.addPower(powerReaders.readPowerDraft()),
           root,
           rerender,
         );
@@ -200,14 +197,14 @@ export function mountCharacterMobileInteractionController(options = {}) {
       const powerId = readDataset(actionTarget, "powerId");
       if (action === "power-remove") {
         return applyResult(
-          options.commands.removePower({ powerId }),
+          powerCommands.removePower({ powerId }),
           root,
           rerender,
         );
       }
 
       return applyResult(
-        options.commands.renamePower(options.readPowerRenameDraft(powerId)),
+        powerCommands.renamePower(powerReaders.readPowerRenameDraft(powerId)),
         root,
         rerender,
       );
@@ -251,6 +248,34 @@ export function mountCharacterMobileInteractionController(options = {}) {
       root.removeEventListener?.("click", handleClick);
     },
   });
+}
+
+function createOptionalPowerCommands(commands) {
+  return Object.freeze({
+    addPower: optionalFunction(commands?.addPower, "Mobile power addition command"),
+    renamePower: optionalFunction(commands?.renamePower, "Mobile power rename command"),
+    removePower: optionalFunction(commands?.removePower, "Mobile power removal command"),
+  });
+}
+
+function createOptionalPowerReaders(options) {
+  return Object.freeze({
+    readPowerDraft: optionalFunction(options.readPowerDraft, "Mobile power draft reader"),
+    readPowerRenameDraft: optionalFunction(
+      options.readPowerRenameDraft,
+      "Mobile power rename reader",
+    ),
+  });
+}
+
+function optionalFunction(value, label) {
+  if (value === undefined || value === null) {
+    return () => {
+      throw new Error(`${label} must be a function`);
+    };
+  }
+  requireFunction(value, label);
+  return value;
 }
 
 function structuralActionBlocked(options, root) {
