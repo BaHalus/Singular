@@ -179,7 +179,7 @@ test("ApplicationSession and Character objects remain frozen after rehydration",
 
 test("Character save snapshots rehydrate independently of the source object", () => {
   const character = createAppliedSession().character;
-  const snapshot = serializeCharacter(character);
+  const snapshot = cloneJson(serializeCharacter(character));
   const rehydrated = createCharacter(cloneJson(snapshot));
   const before = serializeCharacter(rehydrated);
 
