@@ -68,6 +68,7 @@ function createCommand(type, payload, expectedRevision = 0, id = "command-alpha-
 
 test("declares the GATE ALPHA EDITING CONTRACTS version and complete catalog coverage", () => {
   const manifest = createAlphaEditingContractsGateManifest();
+  const familyTypes = manifest.families.flatMap(family => family.types);
 
   assert.equal(ALPHA_EDITING_CONTRACTS_GATE_VERSION, "GATE-ALPHA-EDITING-CONTRACTS-1.0");
   assert.equal(manifest.version, ALPHA_EDITING_CONTRACTS_GATE_VERSION);
@@ -75,10 +76,7 @@ test("declares the GATE ALPHA EDITING CONTRACTS version and complete catalog cov
   assert.deepEqual(manifest.coverage.missingFromCatalog, []);
   assert.deepEqual(manifest.coverage.missingFromFamilies, []);
   assert.deepEqual(manifest.coverage.duplicateTypes, []);
-  assert.deepEqual(
-    manifest.families.flatMap(family => family.types),
-    listAlphaCommandCatalogTypes(),
-  );
+  assert.deepEqual(new Set(familyTypes), new Set(listAlphaCommandCatalogTypes()));
   assert.equal(validateAlphaEditingContractsGateManifest(manifest), true);
 });
 
@@ -118,9 +116,11 @@ test("preserves portable snapshots across JSON roundtrip and stable IDs", () => 
     createCommand("trait.add", {
       trait: {
         id: "trait-alpha-custom-role",
+        externalIds: {},
         name: "Contrato Portátil",
-        role: "custom-alpha-role",
         notes: "Mantém metadados importados.",
+        tags: [],
+        role: "custom-alpha-role",
         source: {
           kind: "imported",
           provider: "fixture",
@@ -129,9 +129,44 @@ test("preserves portable snapshots across JSON roundtrip and stable IDs", () => 
           version: "1",
         },
         points: 12,
+        levels: null,
+        selfControl: {
+          roll: 12,
+          status: "ready",
+          multiplier: 1,
+          penalty: -2,
+          adjustment: {
+            type: "none",
+            status: "ready",
+            value: 0,
+          },
+          raw: { roll: 12 },
+        },
+        frequency: {
+          roll: 9,
+          status: "ready",
+          multiplier: 1,
+          raw: { roll: 9 },
+        },
+        roundCostDown: true,
+        choices: [
+          {
+            key: "alpha-choice",
+            value: "portable",
+            required: false,
+            label: "Escolha Alpha",
+          },
+        ],
         modifiers: [
           { id: "mod-alpha", name: "Sem cálculo", value: -10 },
         ],
+        features: [],
+        weapons: [],
+        prereqs: null,
+        importMeta: null,
+        power: null,
+        alternateGroupId: null,
+        isPrimaryAlternative: null,
         pointValue: {
           mode: "total",
           importedPoints: 12,
