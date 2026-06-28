@@ -22,6 +22,8 @@ export function mountCharacterMobileInteractionController(options = {}) {
   requireFunction(options.readSpellDraft, "Mobile spell draft reader");
   requireFunction(options.render, "Mobile render callback");
   requireFunction(options.syncMode, "Mobile mode sync callback");
+  const powerCommands = createOptionalPowerCommands(options.commands);
+  const powerReaders = createOptionalPowerReaders(options);
   const root = options.root;
   if (!root || typeof root !== "object") {
     throw new Error("Mobile interaction root must be an object");
@@ -180,6 +182,34 @@ export function mountCharacterMobileInteractionController(options = {}) {
       );
     }
 
+    if (["power-add", "power-rename", "power-remove"].includes(action)) {
+      event.preventDefault?.();
+      if (structuralActionBlocked(options, root)) return null;
+
+      if (action === "power-add") {
+        return applyResult(
+          powerCommands.addPower(powerReaders.readPowerDraft()),
+          root,
+          rerender,
+        );
+      }
+
+      const powerId = readDataset(actionTarget, "powerId");
+      if (action === "power-remove") {
+        return applyResult(
+          powerCommands.removePower({ powerId }),
+          root,
+          rerender,
+        );
+      }
+
+      return applyResult(
+        powerCommands.renamePower(powerReaders.readPowerRenameDraft(powerId)),
+        root,
+        rerender,
+      );
+    }
+
     const attributeTarget = findAttributeTarget(event?.target);
     if (attributeTarget !== null) {
       event.preventDefault?.();
@@ -218,6 +248,34 @@ export function mountCharacterMobileInteractionController(options = {}) {
       root.removeEventListener?.("click", handleClick);
     },
   });
+}
+
+function createOptionalPowerCommands(commands) {
+  return Object.freeze({
+    addPower: optionalFunction(commands?.addPower, "Mobile power addition command"),
+    renamePower: optionalFunction(commands?.renamePower, "Mobile power rename command"),
+    removePower: optionalFunction(commands?.removePower, "Mobile power removal command"),
+  });
+}
+
+function createOptionalPowerReaders(options) {
+  return Object.freeze({
+    readPowerDraft: optionalFunction(options.readPowerDraft, "Mobile power draft reader"),
+    readPowerRenameDraft: optionalFunction(
+      options.readPowerRenameDraft,
+      "Mobile power rename reader",
+    ),
+  });
+}
+
+function optionalFunction(value, label) {
+  if (value === undefined || value === null) {
+    return () => {
+      throw new Error(`${label} must be a function`);
+    };
+  }
+  requireFunction(value, label);
+  return value;
 }
 
 function structuralActionBlocked(options, root) {
