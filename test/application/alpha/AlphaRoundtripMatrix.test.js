@@ -38,10 +38,20 @@ const COMMAND_CASES = Object.freeze([
           version: "1",
         },
         points: 7,
-        selfControl: null,
-        frequency: null,
-        roundCostDown: false,
-        choices: [],
+        selfControl: {
+          roll: 12,
+          adjustment: "none",
+        },
+        frequency: { roll: 9 },
+        roundCostDown: true,
+        choices: [
+          {
+            key: "specialization",
+            value: "portable-control",
+            required: false,
+            label: "Portable Control",
+          },
+        ],
         modifiers: [
           { id: "modifier-alpha-roundtrip", name: "Portable Modifier", value: -10 },
         ],
@@ -59,6 +69,17 @@ const COMMAND_CASES = Object.freeze([
     assertItem(item) {
       assert.equal(item.role, "custom-alpha-role");
       assert.equal(item.source.reference, "alpha-roundtrip-trait");
+      assert.equal(item.selfControl.roll, 12);
+      assert.equal(item.frequency.roll, 9);
+      assert.equal(item.roundCostDown, true);
+      assert.deepEqual(item.choices, [
+        {
+          key: "specialization",
+          value: "portable-control",
+          required: false,
+          label: "Portable Control",
+        },
+      ]);
       assert.equal(item.pointValue.importedPoints, 7);
       assert.deepEqual(item.raw, { imported: true, family: "Traits" });
     },
