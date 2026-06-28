@@ -84,7 +84,7 @@ const CASES = Object.freeze([
     type: "attack.add",
     payload: { attack: { id: "attack-alpha-roundtrip", name: "Attack", category: "ranged", source: { kind: "manual", id: "source-alpha-roundtrip" }, damage: { value: "1d+1", type: "burn" }, reach: null, range: "10/100", notes: "notes" } },
     path: snapshot => snapshot.character.attacks.find(item => item.id === "attack-alpha-roundtrip"),
-    check: item => assert.deepEqual(item.damage, { value: "1d+1", type: "burn" }),
+    check: item => assert.deepEqual(item.damage, { value: "1d+1", type: "burn", authority: "declared" }),
   },
   {
     family: "Equipment",
