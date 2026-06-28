@@ -1,40 +1,33 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 
-import { injectLanguageCultureCreationControls } from "../../../src/ui/mobile/CharacterMobileLanguageCultureApp.js";
+const moduleSource = readFileSync(
+  new URL("../../../src/ui/mobile/CharacterMobileLanguageCultureApp.js", import.meta.url),
+  "utf8",
+);
+const mobileHtml = readFileSync(
+  new URL("../../../mobile.html", import.meta.url),
+  "utf8",
+);
 
-const baseHtml = `<article><section data-card="languages-culture"><h2>Idiomas e Cultura</h2><dl><div data-entry-kind="language" data-canonical-id="lang_a"><dt>Idioma</dt><dd>Português</dd></div><div data-entry-kind="familiarity" data-canonical-id="fam_a"><dt>Cultura</dt><dd>Brasil</dd></div></dl></section></article>`;
+test("language/culture mobile bootstrap is wired by mobile.html", () => {
+  assert.match(mobileHtml, /CharacterMobileLanguageCultureApp\.js/);
+  assert.match(mobileHtml, /bootstrapCharacterMobileLanguageCultureApp/);
+});
 
-test("adds creation editors and actions", () => {
-  const html = injectLanguageCultureCreationControls(baseHtml, {
-    languages: [{ id: "lang_a", name: "Português" }],
-    familiarities: [{ id: "fam_a", name: "Brasil" }],
-  }, "creation");
-
+test("language/culture mobile bootstrap exposes creation controls and blocks table mode", () => {
   for (const fragment of [
-    "language-editor",
-    "language-add",
-    "language-remove",
-    "lang_a",
-    "familiarity-editor",
-    "familiarity-add",
-    "familiarity-remove",
-    "fam_a",
+    "data-role=\"language-editor\"",
+    "data-action=\"language-add\"",
+    "data-action=\"language-remove\"",
+    "data-action=\"language-reorder\"",
+    "data-role=\"familiarity-editor\"",
+    "data-action=\"familiarity-add\"",
+    "data-action=\"familiarity-remove\"",
+    "data-action=\"familiarity-reorder\"",
+    "blocked-by-mode",
   ]) {
-    assert.ok(html.includes(fragment), fragment);
+    assert.ok(moduleSource.includes(fragment), fragment);
   }
-});
-
-test("keeps table mode unchanged", () => {
-  const html = injectLanguageCultureCreationControls(baseHtml, {
-    languages: [{ id: "lang_a", name: "Português" }],
-    familiarities: [{ id: "fam_a", name: "Brasil" }],
-  }, "table");
-
-  assert.equal(html, baseHtml);
-});
-
-test("keeps unrelated html unchanged", () => {
-  const html = `<section data-card="traits"><h2>Traços</h2></section>`;
-  assert.equal(injectLanguageCultureCreationControls(html, { languages: [], familiarities: [] }, "creation"), html);
 });
