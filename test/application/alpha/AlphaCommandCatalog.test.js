@@ -17,6 +17,8 @@ const EXPECTED_ALPHA_COMMAND_TYPES = Object.freeze([
   "pool.current.set",
   "pool.current.adjust",
   "pool.current.reset-to-maximum",
+  "character.summary.set",
+  "attribute.base.adjust",
   "attack.add",
   "attack.update",
   "attack.remove",
@@ -98,6 +100,8 @@ test("can be consumed by the canonical CommandRegistry without changing composit
   const registry = createCommandRegistry(createAlphaCommandCatalogEntries());
 
   assert.deepEqual(listCommandTypes(registry), EXPECTED_ALPHA_COMMAND_TYPES);
+  assert.equal(typeof resolveCommandHandler(registry, "character.summary.set"), "function");
+  assert.equal(typeof resolveCommandHandler(registry, "attribute.base.adjust"), "function");
   assert.equal(typeof resolveCommandHandler(registry, "trait.add"), "function");
   assert.equal(typeof resolveCommandHandler(registry, "skill.add"), "function");
   assert.equal(typeof resolveCommandHandler(registry, "notes.general.set"), "function");
