@@ -15,12 +15,15 @@
     <script type="module">
       import { bootstrapCharacterMobileApp } from "./src/ui/mobile/CharacterMobileApp.js";
       import { bootstrapCharacterMobileLanguageCultureApp } from "./src/ui/mobile/CharacterMobileLanguageCultureApp.js";
+      import { bootstrapCharacterMobileSecondaryNotesApp } from "./src/ui/mobile/CharacterMobileSecondaryNotesApp.js";
 
       // Preserva a âncora de smoke test da página executável: await bootstrapCharacterMobileApp()
+      // Preserva a âncora da integração anterior: await bootstrapCharacterMobileLanguageCultureApp()
       void bootstrapCharacterMobileApp;
+      void bootstrapCharacterMobileLanguageCultureApp;
 
       try {
-        await bootstrapCharacterMobileLanguageCultureApp();
+        await bootstrapCharacterMobileSecondaryNotesApp();
       } catch (error) {
         const root = document.querySelector("[data-singular-mobile-root]");
         if (root) {
