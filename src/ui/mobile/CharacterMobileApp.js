@@ -210,6 +210,18 @@ export function getCharacterMobileModes() {
   return [...MOBILE_MODES];
 }
 
+function resolveMobileRoot(documentOption) {
+  const documentRef = documentOption ?? globalThis.document;
+  if (!documentRef || typeof documentRef.querySelector !== "function") {
+    throw new Error("Character mobile bootstrap requires a document");
+  }
+  const root = documentRef.querySelector(MOBILE_ROOT_SELECTOR);
+  if (root === null) {
+    throw new Error("Character mobile bootstrap root was not found");
+  }
+  return root;
+}
+
 function injectTraitControls(html, character, mode) {
   const marker = 'data-card="traits"';
   const markerIndex = html.indexOf(marker);
