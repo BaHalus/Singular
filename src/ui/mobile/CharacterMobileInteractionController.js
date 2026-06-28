@@ -30,6 +30,8 @@ export function mountCharacterMobileInteractionController(options = {}) {
   const powerReaders = createOptionalPowerReaders(options);
   const skillCommands = createOptionalSkillTechniqueCommands(options.commands);
   const skillReaders = createOptionalSkillTechniqueReaders(options);
+  const languageCultureCommands = createOptionalLanguageCultureCommands(options.commands);
+  const languageCultureReaders = createOptionalLanguageCultureReaders(options);
   const root = options.root;
   if (!root || typeof root !== "object") {
     throw new Error("Mobile interaction root must be an object");
@@ -290,6 +292,74 @@ export function mountCharacterMobileInteractionController(options = {}) {
       );
     }
 
+    if (["language-add", "language-remove", "language-reorder"].includes(action)) {
+      event.preventDefault?.();
+      if (structuralActionBlocked(options, root)) return null;
+
+      if (action === "language-add") {
+        return applyResult(
+          languageCultureCommands.addLanguage(languageCultureReaders.readLanguageDraft()),
+          root,
+          rerender,
+        );
+      }
+
+      const languageId = readDataset(actionTarget, "languageId");
+      if (action === "language-remove") {
+        return applyResult(
+          languageCultureCommands.removeLanguage({ languageId }),
+          root,
+          rerender,
+        );
+      }
+
+      const targetIndexValue = readDataset(actionTarget, "targetIndex");
+      return applyResult(
+        languageCultureCommands.reorderLanguage({
+          languageId,
+          targetIndex: targetIndexValue === null
+            ? Number.NaN
+            : Number(targetIndexValue),
+        }),
+        root,
+        rerender,
+      );
+    }
+
+    if (["familiarity-add", "familiarity-remove", "familiarity-reorder"].includes(action)) {
+      event.preventDefault?.();
+      if (structuralActionBlocked(options, root)) return null;
+
+      if (action === "familiarity-add") {
+        return applyResult(
+          languageCultureCommands.addFamiliarity(languageCultureReaders.readFamiliarityDraft()),
+          root,
+          rerender,
+        );
+      }
+
+      const familiarityId = readDataset(actionTarget, "familiarityId");
+      if (action === "familiarity-remove") {
+        return applyResult(
+          languageCultureCommands.removeFamiliarity({ familiarityId }),
+          root,
+          rerender,
+        );
+      }
+
+      const targetIndexValue = readDataset(actionTarget, "targetIndex");
+      return applyResult(
+        languageCultureCommands.reorderFamiliarity({
+          familiarityId,
+          targetIndex: targetIndexValue === null
+            ? Number.NaN
+            : Number(targetIndexValue),
+        }),
+        root,
+        rerender,
+      );
+    }
+
     if (["power-add", "power-rename", "power-remove"].includes(action)) {
       event.preventDefault?.();
       if (structuralActionBlocked(options, root)) return null;
@@ -391,6 +461,24 @@ function createOptionalSkillTechniqueReaders(options) {
   return Object.freeze({
     readSkillDraft: optionalFunction(options.readSkillDraft, "Mobile skill draft reader"),
     readTechniqueDraft: optionalFunction(options.readTechniqueDraft, "Mobile technique draft reader"),
+  });
+}
+
+function createOptionalLanguageCultureCommands(commands) {
+  return Object.freeze({
+    addLanguage: optionalFunction(commands?.addLanguage, "Mobile language addition command"),
+    removeLanguage: optionalFunction(commands?.removeLanguage, "Mobile language removal command"),
+    reorderLanguage: optionalFunction(commands?.reorderLanguage, "Mobile language reorder command"),
+    addFamiliarity: optionalFunction(commands?.addFamiliarity, "Mobile familiarity addition command"),
+    removeFamiliarity: optionalFunction(commands?.removeFamiliarity, "Mobile familiarity removal command"),
+    reorderFamiliarity: optionalFunction(commands?.reorderFamiliarity, "Mobile familiarity reorder command"),
+  });
+}
+
+function createOptionalLanguageCultureReaders(options) {
+  return Object.freeze({
+    readLanguageDraft: optionalFunction(options.readLanguageDraft, "Mobile language draft reader"),
+    readFamiliarityDraft: optionalFunction(options.readFamiliarityDraft, "Mobile familiarity draft reader"),
   });
 }
 
