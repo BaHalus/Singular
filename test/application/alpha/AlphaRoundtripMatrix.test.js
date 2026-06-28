@@ -82,14 +82,14 @@ const CASES = Object.freeze([
   {
     family: "Attacks",
     type: "attack.add",
-    payload: { attack: { id: "attack-alpha-roundtrip", name: "Attack", category: "ranged", source: { kind: "manual", id: "source-alpha-roundtrip" }, damage: { value: "1d+1", type: "burn" }, reach: null, range: "10/100", notes: "notes" } },
+    payload: { attack: { id: "attack-alpha-roundtrip", name: "Attack", category: "ranged", source: { kind: "manual", id: "source-alpha-roundtrip" }, damage: { value: "1d+1", type: "burn", authority: "declared" }, reach: null, range: "10/100", notes: "notes" } },
     path: snapshot => snapshot.character.attacks.find(item => item.id === "attack-alpha-roundtrip"),
     check: item => assert.deepEqual(item.damage, { value: "1d+1", type: "burn", authority: "declared" }),
   },
   {
     family: "Equipment",
     type: "equipment.add",
-    payload: { item: { id: "equipment-alpha-roundtrip", kind: "item", name: "Equipment", quantity: 3, weightKg: 0.5, cost: 12, state: "carried", containerId: null, notes: "notes" } },
+    payload: { item: { id: "equipment-alpha-roundtrip", kind: "item", name: "Equipment", quantity: 3, weightKg: 0.5, cost: 12, state: "carried", notes: "notes" } },
     path: snapshot => snapshot.character.equipment.find(item => item.id === "equipment-alpha-roundtrip"),
     check: item => assert.equal(item.quantity, 3),
   },
