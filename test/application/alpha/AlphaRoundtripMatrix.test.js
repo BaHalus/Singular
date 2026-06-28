@@ -68,8 +68,8 @@ const CASES = Object.freeze([
   {
     family: "Secondary",
     type: "secondary.base.set",
-    payload: { characteristicKey: "Perception", base: 2 },
-    path: snapshot => snapshot.character.secondary.characteristics.Perception,
+    payload: { characteristicKey: "Per", base: 2 },
+    path: snapshot => snapshot.character.secondaryCharacteristics.Per,
     check: item => assert.equal(item.base, 2),
   },
   {
