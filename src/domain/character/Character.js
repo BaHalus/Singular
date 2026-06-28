@@ -80,6 +80,11 @@ import {
   serializeFamiliarities,
 } from "./Familiarities.js";
 import {
+  createNotes,
+  validateNotes,
+  serializeNotes,
+} from "./Notes.js";
+import {
   createEquipment,
   validateEquipment,
   serializeEquipment,
@@ -150,6 +155,7 @@ export function createCharacter(input = {}) {
     attacks: createAttacks(input.attacks),
     languages: createLanguages(input.languages),
     familiarities: createFamiliarities(input.familiarities),
+    notes: createNotes(input.notes),
     templates: createTemplates(input.templates),
     templateApplications: createTemplateApplications(input.templateApplications),
     alternateFormSets: createAlternateFormSets(input.alternateFormSets),
@@ -205,6 +211,7 @@ export function validateCharacter(character) {
   validatePowerReferencesForCharacter(character);
   validateLanguages(character.languages);
   validateFamiliarities(character.familiarities);
+  validateNotes(character.notes);
   validateEquipment(character.equipment);
   validateAttacks(character.attacks);
   validateTemplates(character.templates);
@@ -252,6 +259,7 @@ export function serializeCharacter(character) {
     attacks: serializeAttacks(character.attacks),
     languages: serializeLanguages(character.languages),
     familiarities: serializeFamiliarities(character.familiarities),
+    notes: serializeNotes(character.notes),
     templates: serializeTemplates(character.templates),
     templateApplications:
       serializeTemplateApplications(character.templateApplications),
