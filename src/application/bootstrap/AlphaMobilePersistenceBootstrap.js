@@ -20,14 +20,29 @@ import {
   EQUIPMENT_COMMAND_TYPES,
 } from "../equipment/EquipmentCommandHandlers.js";
 import {
+  LANGUAGE_CULTURE_COMMAND_TYPES,
+} from "../languages/LanguageCultureCommandHandlers.js";
+import {
+  NOTES_COMMAND_TYPES,
+} from "../notes/NotesCommandHandlers.js";
+import {
   POOL_COMMAND_TYPES,
 } from "../pools/PoolCommandHandlers.js";
 import {
   POWER_COMMAND_TYPES,
 } from "../powers/PowerCommandHandlers.js";
 import {
+  SECONDARY_COMMAND_TYPES,
+} from "../secondary/SecondaryCommandHandlers.js";
+import {
+  SKILL_COMMAND_TYPES,
+} from "../skills/SkillCommandHandlers.js";
+import {
   SPELL_COMMAND_TYPES,
 } from "../spells/SpellCommandHandlers.js";
+import {
+  TRAIT_COMMAND_TYPES,
+} from "../traits/TraitCommandHandlers.js";
 import {
   createApplicationSession,
   serializeApplicationSession,
@@ -247,6 +262,35 @@ function createAlphaMobileCommands({ persistence, registry, runtime }) {
     addPower: run(POWER_COMMAND_TYPES.ADD),
     renamePower: run(POWER_COMMAND_TYPES.RENAME),
     removePower: run(POWER_COMMAND_TYPES.REMOVE),
+    addTrait: run(TRAIT_COMMAND_TYPES.ADD),
+    updateTrait: run(TRAIT_COMMAND_TYPES.UPDATE),
+    removeTrait: run(TRAIT_COMMAND_TYPES.REMOVE),
+    reorderTrait: run(TRAIT_COMMAND_TYPES.REORDER),
+    addSkill: run(SKILL_COMMAND_TYPES.ADD_SKILL),
+    updateSkill: run(SKILL_COMMAND_TYPES.UPDATE_SKILL),
+    removeSkill: run(SKILL_COMMAND_TYPES.REMOVE_SKILL),
+    reorderSkill: run(SKILL_COMMAND_TYPES.REORDER_SKILL),
+    addTechnique: run(SKILL_COMMAND_TYPES.ADD_TECHNIQUE),
+    updateTechnique: run(SKILL_COMMAND_TYPES.UPDATE_TECHNIQUE),
+    removeTechnique: run(SKILL_COMMAND_TYPES.REMOVE_TECHNIQUE),
+    reorderTechnique: run(SKILL_COMMAND_TYPES.REORDER_TECHNIQUE),
+    addLanguage: run(LANGUAGE_CULTURE_COMMAND_TYPES.ADD_LANGUAGE),
+    updateLanguage: run(LANGUAGE_CULTURE_COMMAND_TYPES.UPDATE_LANGUAGE),
+    removeLanguage: run(LANGUAGE_CULTURE_COMMAND_TYPES.REMOVE_LANGUAGE),
+    reorderLanguage: run(LANGUAGE_CULTURE_COMMAND_TYPES.REORDER_LANGUAGE),
+    addFamiliarity: run(LANGUAGE_CULTURE_COMMAND_TYPES.ADD_FAMILIARITY),
+    updateFamiliarity: run(LANGUAGE_CULTURE_COMMAND_TYPES.UPDATE_FAMILIARITY),
+    removeFamiliarity: run(LANGUAGE_CULTURE_COMMAND_TYPES.REMOVE_FAMILIARITY),
+    reorderFamiliarity: run(LANGUAGE_CULTURE_COMMAND_TYPES.REORDER_FAMILIARITY),
+    setSecondaryBase: run(SECONDARY_COMMAND_TYPES.SET_SECONDARY_BASE),
+    setSecondaryOverride: run(SECONDARY_COMMAND_TYPES.SET_SECONDARY_OVERRIDE),
+    clearSecondaryOverride: run(SECONDARY_COMMAND_TYPES.CLEAR_SECONDARY_OVERRIDE),
+    setPoolMaximum: run(SECONDARY_COMMAND_TYPES.SET_POOL_MAXIMUM),
+    setGeneralNotes: run(NOTES_COMMAND_TYPES.SET_GENERAL),
+    addStructuredNote: run(NOTES_COMMAND_TYPES.ADD_STRUCTURED),
+    updateStructuredNote: run(NOTES_COMMAND_TYPES.UPDATE_STRUCTURED),
+    removeStructuredNote: run(NOTES_COMMAND_TYPES.REMOVE_STRUCTURED),
+    reorderStructuredNote: run(NOTES_COMMAND_TYPES.REORDER_STRUCTURED),
   });
 }
 
