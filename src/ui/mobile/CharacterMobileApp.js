@@ -250,7 +250,7 @@ function createDefaultTraitSelfControl() {
       status: "ready",
       value: 0,
     },
-    raw: null,
+    raw: "none",
   };
 }
 
@@ -259,7 +259,7 @@ function createDefaultTraitFrequency() {
     roll: 0,
     status: "none",
     multiplier: 1,
-    raw: null,
+    raw: "none",
   };
 }
 
