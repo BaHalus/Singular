@@ -90,7 +90,7 @@ const CASES = Object.freeze([
     family: "Equipment",
     type: "equipment.add",
     payload: { item: { id: "equipment-alpha-roundtrip", kind: "item", name: "Equipment", quantity: 3, weightKg: 0.5, cost: 12, state: "carried", containerId: null, notes: "notes" } },
-    path: snapshot => snapshot.character.equipment.items.find(item => item.id === "equipment-alpha-roundtrip"),
+    path: snapshot => snapshot.character.equipment.find(item => item.id === "equipment-alpha-roundtrip"),
     check: item => assert.equal(item.quantity, 3),
   },
   {
