@@ -74,7 +74,7 @@ const CASES = Object.freeze([
   },
   {
     family: "Notes",
-    type: "notes.structured.add",
+    type: "note.add",
     payload: { note: { id: "note-alpha-roundtrip", title: "Note", text: "text", category: "alpha" } },
     path: snapshot => snapshot.character.notes.structured.find(item => item.id === "note-alpha-roundtrip"),
     check: item => assert.equal(item.category, "alpha"),
@@ -157,7 +157,11 @@ test("Alpha structural command families preserve portable snapshots across JSON 
       createRuntime(),
     );
 
-    assert.equal(result.status, "applied", `${commandCase.family} command should apply`);
+    assert.equal(
+      result.status,
+      "applied",
+      `${commandCase.family} command should apply: ${JSON.stringify(result.diagnostics)}`,
+    );
 
     const { serialized, reparsed, restoredSerialized } = roundtripSession(result.session);
     assert.deepEqual(restoredSerialized, reparsed, `${commandCase.family} should survive JSON roundtrip`);
@@ -169,7 +173,8 @@ test("Alpha structural command families preserve portable snapshots across JSON 
 
     const item = commandCase.path(restoredSerialized);
     assert.ok(item, `${commandCase.family} item should survive roundtrip`);
-    if (item.id) assert.equal(item.id, Object.values(commandCase.payload)[0].id);
+    const payloadEntity = Object.values(commandCase.payload).find(value => value && typeof value === "object" && "id" in value);
+    if (item.id && payloadEntity) assert.equal(item.id, payloadEntity.id);
     commandCase.check(item);
   }
 });
