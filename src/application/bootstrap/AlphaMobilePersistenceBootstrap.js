@@ -1,35 +1,31 @@
 import {
+  createAlphaCommandCatalogEntries,
+} from "../alpha/AlphaCommandCatalog.js";
+import {
   executeCommand,
 } from "../commands/CommandExecutor.js";
 import {
   createCommandRegistry,
 } from "../commands/CommandRegistry.js";
 import {
-  createAttackCommandHandlerEntries,
   ATTACK_COMMAND_TYPES,
 } from "../attacks/AttackCommandHandlers.js";
 import {
-  createAttributeCommandHandlerEntries,
   ATTRIBUTE_COMMAND_TYPES,
 } from "../attributes/AttributeCommandHandlers.js";
 import {
-  createCharacterSummaryCommandHandlerEntries,
   CHARACTER_SUMMARY_COMMAND_TYPES,
 } from "../character/CharacterSummaryCommandHandlers.js";
 import {
-  createEquipmentCommandHandlerEntries,
   EQUIPMENT_COMMAND_TYPES,
 } from "../equipment/EquipmentCommandHandlers.js";
 import {
-  createPoolCommandHandlerEntries,
   POOL_COMMAND_TYPES,
 } from "../pools/PoolCommandHandlers.js";
 import {
-  createPowerCommandHandlerEntries,
   POWER_COMMAND_TYPES,
 } from "../powers/PowerCommandHandlers.js";
 import {
-  createSpellCommandHandlerEntries,
   SPELL_COMMAND_TYPES,
 } from "../spells/SpellCommandHandlers.js";
 import {
@@ -128,15 +124,7 @@ export function createAlphaMobilePersistenceBootstrap(options = {}) {
       coordinator = createCoordinator(nextSession);
     },
   });
-  const registry = createCommandRegistry([
-    ...createPoolCommandHandlerEntries(),
-    ...createCharacterSummaryCommandHandlerEntries(),
-    ...createAttributeCommandHandlerEntries(),
-    ...createAttackCommandHandlerEntries(),
-    ...createEquipmentCommandHandlerEntries(),
-    ...createPowerCommandHandlerEntries(),
-    ...createSpellCommandHandlerEntries(),
-  ]);
+  const registry = createCommandRegistry(createAlphaCommandCatalogEntries());
   const commands = createAlphaMobileCommands({
     persistence,
     registry,
@@ -218,237 +206,55 @@ function createActiveSessionPersistenceFacade(options) {
       return coordinator().getActiveSession();
     },
   };
+
   return Object.freeze(facade);
 }
 
 function createAlphaMobileCommands({ persistence, registry, runtime }) {
-  const execute = (type, payload) => {
-    const activeSession = persistence.getActiveSession();
-    const result = executeCommand(
-      activeSession,
-      {
-        id: generateId(runtime.idGenerator, "command"),
-        type,
-        expectedRevision: activeSession.revision,
-        issuedAt: readClock(runtime.clock),
-        payload,
-      },
+  const run = type => payload => {
+    const receipt = executeCommand({
+      session: persistence.getActiveSession(),
       registry,
+      type,
+      payload,
       runtime,
-    );
-
-    if (result.status === "applied") {
-      persistence.replaceActiveSession(result.session);
-    }
-    return result;
+    });
+    persistence.replaceActiveSession(receipt.session);
+    return receipt;
   };
 
   return Object.freeze({
-    adjustPoolCurrent(input = {}) {
-      requirePlainObject(input, "Alpha mobile pool adjustment");
-      return execute(POOL_COMMAND_TYPES.ADJUST_CURRENT, {
-        poolKey: input.poolKey,
-        delta: input.delta,
-      });
-    },
-
-    setCharacterSummary(input = {}) {
-      requirePlainObject(input, "Alpha mobile character summary");
-      return execute(CHARACTER_SUMMARY_COMMAND_TYPES.SET, {
-        name: input.name,
-        concept: input.concept,
-      });
-    },
-
-    adjustAttributeBase(input = {}) {
-      requirePlainObject(input, "Alpha mobile attribute adjustment");
-      return execute(ATTRIBUTE_COMMAND_TYPES.ADJUST_BASE, {
-        attributeKey: input.attributeKey,
-        delta: input.delta,
-      });
-    },
-
-    addAttack(input = {}) {
-      requirePlainObject(input, "Alpha mobile attack addition");
-      return execute(ATTACK_COMMAND_TYPES.ADD, {
-        attack: {
-          id: input.id ?? generateId(runtime.idGenerator, "attack"),
-          name: input.name ?? "",
-          category: input.category ?? "melee",
-          skillId: normalizeOptionalText(input.skillId),
-          source: {
-            kind: "manual",
-            id: null,
-          },
-          damage: {
-            value: input.damageValue ?? "",
-            type: input.damageType ?? "",
-          },
-          reach: normalizeOptionalText(input.reach),
-          range: normalizeOptionalText(input.range),
-          notes: input.notes ?? "",
-        },
-      });
-    },
-
-    removeAttack(input = {}) {
-      requirePlainObject(input, "Alpha mobile attack removal");
-      return execute(ATTACK_COMMAND_TYPES.REMOVE, {
-        attackId: input.attackId,
-      });
-    },
-
-    reorderAttack(input = {}) {
-      requirePlainObject(input, "Alpha mobile attack reorder");
-      return execute(ATTACK_COMMAND_TYPES.REORDER, {
-        attackId: input.attackId,
-        targetIndex: input.targetIndex,
-      });
-    },
-
-    addEquipment(input = {}) {
-      requirePlainObject(input, "Alpha mobile equipment addition");
-      const kind = input.kind === "container" ? "container" : "item";
-      return execute(EQUIPMENT_COMMAND_TYPES.ADD, {
-        item: {
-          id: input.id ?? generateId(runtime.idGenerator, "equipment"),
-          kind,
-          containerKind: kind === "container" ? "physical" : null,
-          name: input.name ?? "",
-          quantity: input.quantity ?? 1,
-          weightKg: input.weightKg ?? 0,
-          cost: input.cost ?? 0,
-          state: input.state ?? "carried",
-          notes: input.notes ?? "",
-        },
-      });
-    },
-
-    removeEquipment(input = {}) {
-      requirePlainObject(input, "Alpha mobile equipment removal");
-      return execute(EQUIPMENT_COMMAND_TYPES.REMOVE, {
-        itemId: input.itemId,
-      });
-    },
-
-    reorderEquipment(input = {}) {
-      requirePlainObject(input, "Alpha mobile equipment reorder");
-      return execute(EQUIPMENT_COMMAND_TYPES.REORDER, {
-        itemId: input.itemId,
-        targetIndex: input.targetIndex,
-      });
-    },
-
-    setEquipmentState(input = {}) {
-      requirePlainObject(input, "Alpha mobile equipment state");
-      return execute(EQUIPMENT_COMMAND_TYPES.SET_STATE, {
-        itemId: input.itemId,
-        state: input.state,
-      });
-    },
-
-    addSpell(input = {}) {
-      requirePlainObject(input, "Alpha mobile spell addition");
-      return execute(SPELL_COMMAND_TYPES.ADD, {
-        spell: {
-          id: input.id ?? generateId(runtime.idGenerator, "spell"),
-          spellType: input.spellType === "ritualMagic" ? "ritualMagic" : "standard",
-          name: input.name ?? "",
-          attribute: normalizeOptionalText(input.attribute),
-          difficulty: normalizeOptionalText(input.difficulty),
-          points: input.points ?? 0,
-          spellClass: input.spellClass ?? "",
-          resistance: input.resistance ?? "",
-          castingCost: input.castingCost ?? "",
-          maintenanceCost: input.maintenanceCost ?? "",
-          castingTime: input.castingTime ?? "",
-          duration: input.duration ?? "",
-          notes: input.notes ?? "",
-        },
-      });
-    },
-
-    removeSpell(input = {}) {
-      requirePlainObject(input, "Alpha mobile spell removal");
-      return execute(SPELL_COMMAND_TYPES.REMOVE, {
-        spellId: input.spellId,
-      });
-    },
-
-    reorderSpell(input = {}) {
-      requirePlainObject(input, "Alpha mobile spell reorder");
-      return execute(SPELL_COMMAND_TYPES.REORDER, {
-        spellId: input.spellId,
-        targetIndex: input.targetIndex,
-      });
-    },
-
-    addPower(input = {}) {
-      requirePlainObject(input, "Alpha mobile power addition");
-      return execute(POWER_COMMAND_TYPES.ADD, {
-        power: {
-          id: input.id ?? generateId(runtime.idGenerator, "power"),
-          name: input.name ?? "",
-          source: input.source ?? "",
-          powerModifier: createPowerModifier(input),
-          talentTraitId: normalizeOptionalText(input.talentTraitId),
-          memberTraitIds: splitTextList(input.memberTraitIds),
-          notes: input.notes ?? "",
-          tags: splitTextList(input.tags),
-        },
-      });
-    },
-
-    renamePower(input = {}) {
-      requirePlainObject(input, "Alpha mobile power rename");
-      return execute(POWER_COMMAND_TYPES.RENAME, {
-        powerId: input.powerId,
-        name: input.name ?? "",
-      });
-    },
-
-    removePower(input = {}) {
-      requirePlainObject(input, "Alpha mobile power removal");
-      return execute(POWER_COMMAND_TYPES.REMOVE, {
-        powerId: input.powerId,
-      });
-    },
+    setCurrentPool: run(POOL_COMMAND_TYPES.SET_CURRENT),
+    adjustCurrentPool: run(POOL_COMMAND_TYPES.ADJUST_CURRENT),
+    resetCurrentPoolToMaximum: run(POOL_COMMAND_TYPES.RESET_CURRENT_TO_MAXIMUM),
+    setCharacterSummary: run(CHARACTER_SUMMARY_COMMAND_TYPES.SET),
+    adjustAttributeBase: run(ATTRIBUTE_COMMAND_TYPES.ADJUST_BASE),
+    addAttack: run(ATTACK_COMMAND_TYPES.ADD),
+    updateAttack: run(ATTACK_COMMAND_TYPES.UPDATE),
+    removeAttack: run(ATTACK_COMMAND_TYPES.REMOVE),
+    reorderAttack: run(ATTACK_COMMAND_TYPES.REORDER),
+    addEquipment: run(EQUIPMENT_COMMAND_TYPES.ADD),
+    renameEquipment: run(EQUIPMENT_COMMAND_TYPES.RENAME),
+    setEquipmentQuantity: run(EQUIPMENT_COMMAND_TYPES.SET_QUANTITY),
+    setEquipmentState: run(EQUIPMENT_COMMAND_TYPES.SET_STATE),
+    removeEquipment: run(EQUIPMENT_COMMAND_TYPES.REMOVE),
+    moveEquipment: run(EQUIPMENT_COMMAND_TYPES.MOVE),
+    reorderEquipment: run(EQUIPMENT_COMMAND_TYPES.REORDER),
+    addSpell: run(SPELL_COMMAND_TYPES.ADD),
+    updateSpell: run(SPELL_COMMAND_TYPES.UPDATE),
+    removeSpell: run(SPELL_COMMAND_TYPES.REMOVE),
+    reorderSpell: run(SPELL_COMMAND_TYPES.REORDER),
+    addPower: run(POWER_COMMAND_TYPES.ADD),
+    renamePower: run(POWER_COMMAND_TYPES.RENAME),
+    removePower: run(POWER_COMMAND_TYPES.REMOVE),
   });
-}
-
-function createPowerModifier(input) {
-  const name = normalizeOptionalText(input.powerModifierName);
-  const valuePercent = input.powerModifierValuePercent;
-  const notes = input.powerModifierNotes ?? "";
-  if (name === null && (valuePercent === null || valuePercent === undefined) && notes === "") return null;
-  return {
-    name: name ?? "",
-    valuePercent: valuePercent === undefined ? null : valuePercent,
-    notes,
-  };
-}
-
-function splitTextList(value) {
-  if (Array.isArray(value)) return value;
-  if (typeof value !== "string") return [];
-  return value
-    .split(",")
-    .map(item => item.trim())
-    .filter(Boolean);
-}
-
-function normalizeOptionalText(value) {
-  if (value === undefined || value === null || value === "") return null;
-  return value;
 }
 
 function requirePlainObject(value, label) {
   if (
-    value === null ||
-    typeof value !== "object" ||
-    Array.isArray(value) ||
-    (Object.getPrototypeOf(value) !== Object.prototype &&
-      Object.getPrototypeOf(value) !== null)
+    value === null
+    || typeof value !== "object"
+    || Array.isArray(value)
   ) {
     throw new Error(`${label} must be a plain object`);
   }
