@@ -59,7 +59,11 @@ export async function bootstrapCharacterMobileApp(options = {}) {
 
   const render = () => {
     const activeSession = application.persistence.getActiveSession();
-    root.innerHTML = injectTraitControls(ui.render({ mode }), activeSession.character, mode);
+    root.innerHTML = injectMobileCreationControls(
+      ui.render({ mode }),
+      activeSession.character,
+      mode,
+    );
     setRootAttribute(root, "data-singular-mounted", "true");
     setRootAttribute(root, "data-session-id", activeSession.id);
     setRootAttribute(root, "data-character-id", activeSession.character.identity.id);
@@ -147,6 +151,37 @@ export async function bootstrapCharacterMobileApp(options = {}) {
         },
       };
     },
+    readSkillDraft() {
+      return {
+        skill: {
+          name: readInputValue(root, '[data-role="skill-name"]'),
+          specialization: readInputValue(root, '[data-role="skill-specialization"]'),
+          techLevel: normalizeOptionalText(readInputValue(root, '[data-role="skill-tech-level"]')),
+          attribute: normalizeOptionalText(readInputValue(root, '[data-role="skill-attribute"]')),
+          difficulty: normalizeOptionalText(readInputValue(root, '[data-role="skill-difficulty"]')),
+          points: readInputNumber(root, '[data-role="skill-points"]', 0),
+          notes: readInputValue(root, '[data-role="skill-notes"]'),
+          tags: splitTextList(readInputValue(root, '[data-role="skill-tags"]')),
+        },
+      };
+    },
+    readTechniqueDraft() {
+      return {
+        technique: {
+          name: readInputValue(root, '[data-role="technique-name"]'),
+          specialization: readInputValue(root, '[data-role="technique-specialization"]'),
+          skillId: normalizeOptionalText(readInputValue(root, '[data-role="technique-skill-id"]')),
+          skillName: readInputValue(root, '[data-role="technique-skill-name"]'),
+          skillSpecialization: readInputValue(root, '[data-role="technique-skill-specialization"]'),
+          difficulty: normalizeOptionalText(readInputValue(root, '[data-role="technique-difficulty"]')),
+          points: readInputNumber(root, '[data-role="technique-points"]', 0),
+          defaultPenalty: readInputNumber(root, '[data-role="technique-default-penalty"]', null),
+          maximumRelativeLevel: readInputNumber(root, '[data-role="technique-maximum-relative-level"]', null),
+          notes: readInputValue(root, '[data-role="technique-notes"]'),
+          tags: splitTextList(readInputValue(root, '[data-role="technique-tags"]')),
+        },
+      };
+    },
     readPowerDraft() {
       return {
         name: readInputValue(root, '[data-role="power-name"]'),
@@ -199,7 +234,7 @@ export function renderCharacterMobileApp(character, options = {}) {
   requirePlainObject(options, "Character mobile render options");
   const mode = normalizeMode(options.mode ?? "creation");
   const renderModel = createCharacterMobileSheetRenderModelForCharacter(character);
-  return injectTraitControls(renderCharacterMobileSheetHtml(renderModel, { mode }), character, mode);
+  return injectMobileCreationControls(renderCharacterMobileSheetHtml(renderModel, { mode }), character, mode);
 }
 
 export function getCharacterMobileRootSelector() {
@@ -220,6 +255,14 @@ function resolveMobileRoot(documentOption) {
     throw new Error("Character mobile bootstrap root was not found");
   }
   return root;
+}
+
+function injectMobileCreationControls(html, character, mode) {
+  return injectSkillTechniqueControls(
+    injectTraitControls(html, character, mode),
+    character,
+    mode,
+  );
 }
 
 function injectTraitControls(html, character, mode) {
@@ -319,6 +362,178 @@ function localizedTraitRole(role) {
   return "Traço";
 }
 
+function injectSkillTechniqueControls(html, character, mode) {
+  const marker = 'data-card="skills-techniques"';
+  const markerIndex = html.indexOf(marker);
+  if (markerIndex < 0) return html;
+
+  const sectionStart = html.lastIndexOf("<section", markerIndex);
+  const headerEnd = html.indexOf("</h2>", markerIndex);
+  const sectionEnd = html.indexOf("</section>", markerIndex);
+  if (sectionStart < 0 || headerEnd < 0 || sectionEnd < 0) return html;
+
+  const header = html.slice(sectionStart, headerEnd + "</h2>".length);
+  const before = html.slice(0, sectionStart);
+  const after = html.slice(sectionEnd + "</section>".length);
+  return [
+    before,
+    header,
+    renderSkillTechniqueCardBody(character.skills ?? [], character.techniques ?? [], mode),
+    "</section>",
+    after,
+  ].join("");
+}
+
+function renderSkillTechniqueCardBody(skills, techniques, mode) {
+  const editor = mode === "creation" ? renderSkillTechniqueEditors() : "";
+  const empty = skills.length === 0 && techniques.length === 0;
+  const list = empty
+    ? '<p class="singular-mobile-sheet__empty">Nenhuma perícia ou técnica declarada.</p>'
+    : [
+      '<dl class="singular-mobile-sheet__skill-technique-list">',
+      skills.map((skill, index) => renderSkillItem(skill, mode, index, skills.length)).join(""),
+      techniques.map((technique, index) => renderTechniqueItem(
+        technique,
+        mode,
+        index,
+        techniques.length,
+      )).join(""),
+      "</dl>",
+    ].join("");
+  return `${editor}${list}`;
+}
+
+function renderSkillTechniqueEditors() {
+  return [
+    '<div class="singular-mobile-sheet__skill-editor" data-role="skill-editor">',
+    '<h3>Nova perícia</h3>',
+    '<label>Nome<input type="text" data-role="skill-name" autocomplete="off"></label>',
+    '<label>Especialização<input type="text" data-role="skill-specialization" autocomplete="off"></label>',
+    '<label>TL<input type="text" data-role="skill-tech-level" autocomplete="off"></label>',
+    '<label>Atributo<input type="text" data-role="skill-attribute" autocomplete="off"></label>',
+    '<label>Dif<input type="text" data-role="skill-difficulty" autocomplete="off"></label>',
+    '<label>Pontos<input type="number" min="0" step="1" data-role="skill-points" value="0"></label>',
+    '<label>Tags<input type="text" data-role="skill-tags" autocomplete="off"></label>',
+    '<label>Notas<input type="text" data-role="skill-notes" autocomplete="off"></label>',
+    '<button type="button" data-action="skill-add">Adicionar perícia</button>',
+    "</div>",
+    '<div class="singular-mobile-sheet__technique-editor" data-role="technique-editor">',
+    '<h3>Nova técnica</h3>',
+    '<label>Nome<input type="text" data-role="technique-name" autocomplete="off"></label>',
+    '<label>Especialização<input type="text" data-role="technique-specialization" autocomplete="off"></label>',
+    '<label>Perícia base (ID)<input type="text" data-role="technique-skill-id" autocomplete="off"></label>',
+    '<label>Perícia base<input type="text" data-role="technique-skill-name" autocomplete="off"></label>',
+    '<label>Especialização base<input type="text" data-role="technique-skill-specialization" autocomplete="off"></label>',
+    '<label>Dif<input type="text" data-role="technique-difficulty" autocomplete="off"></label>',
+    '<label>Pontos<input type="number" min="0" step="1" data-role="technique-points" value="0"></label>',
+    '<label>PD<input type="number" step="1" data-role="technique-default-penalty"></label>',
+    '<label>Máx rel.<input type="number" step="1" data-role="technique-maximum-relative-level"></label>',
+    '<label>Tags<input type="text" data-role="technique-tags" autocomplete="off"></label>',
+    '<label>Notas<input type="text" data-role="technique-notes" autocomplete="off"></label>',
+    '<button type="button" data-action="technique-add">Adicionar técnica</button>',
+    "</div>",
+  ].join("");
+}
+
+function renderSkillItem(skill, mode, index, total) {
+  const id = escapeAttribute(skill.id);
+  const name = escapeText(formatNamedSpecialization(skill.name, skill.specialization) || "Perícia sem nome");
+  const controls = mode === "creation" ? renderSkillControls(skill, index, total) : "";
+  return [
+    `<div data-skill-id="${id}">`,
+    "<dt>Perícia</dt>",
+    `<dd>${name}${renderSkillDetails(skill)}${controls}</dd>`,
+    "</div>",
+  ].join("");
+}
+
+function renderSkillControls(skill, index, total) {
+  const id = escapeAttribute(skill.id);
+  const name = escapeAttribute(formatNamedSpecialization(skill.name, skill.specialization) || "perícia");
+  const up = index > 0
+    ? `<button type="button" data-action="skill-reorder" data-skill-id="${id}" data-target-index="${index - 1}" aria-label="Mover ${name} para cima">↑</button>`
+    : "";
+  const down = index < total - 1
+    ? `<button type="button" data-action="skill-reorder" data-skill-id="${id}" data-target-index="${index + 1}" aria-label="Mover ${name} para baixo">↓</button>`
+    : "";
+  return [
+    '<span class="singular-mobile-sheet__skill-actions">',
+    up,
+    down,
+    `<button type="button" data-action="skill-remove" data-skill-id="${id}" aria-label="Excluir ${name}">Excluir</button>`,
+    "</span>",
+  ].join("");
+}
+
+function renderTechniqueItem(technique, mode, index, total) {
+  const id = escapeAttribute(technique.id);
+  const name = escapeText(
+    formatNamedSpecialization(technique.name, technique.specialization) || "Técnica sem nome",
+  );
+  const controls = mode === "creation" ? renderTechniqueControls(technique, index, total) : "";
+  return [
+    `<div data-technique-id="${id}">`,
+    "<dt>Técnica</dt>",
+    `<dd>${name}${renderTechniqueDetails(technique)}${controls}</dd>`,
+    "</div>",
+  ].join("");
+}
+
+function renderTechniqueControls(technique, index, total) {
+  const id = escapeAttribute(technique.id);
+  const name = escapeAttribute(
+    formatNamedSpecialization(technique.name, technique.specialization) || "técnica",
+  );
+  const up = index > 0
+    ? `<button type="button" data-action="technique-reorder" data-technique-id="${id}" data-target-index="${index - 1}" aria-label="Mover ${name} para cima">↑</button>`
+    : "";
+  const down = index < total - 1
+    ? `<button type="button" data-action="technique-reorder" data-technique-id="${id}" data-target-index="${index + 1}" aria-label="Mover ${name} para baixo">↓</button>`
+    : "";
+  return [
+    '<span class="singular-mobile-sheet__technique-actions">',
+    up,
+    down,
+    `<button type="button" data-action="technique-remove" data-technique-id="${id}" aria-label="Excluir ${name}">Excluir</button>`,
+    "</span>",
+  ].join("");
+}
+
+function renderSkillDetails(skill) {
+  const details = [];
+  if (skill.attribute || skill.difficulty) details.push([skill.attribute, skill.difficulty].filter(Boolean).join("/"));
+  if (skill.points !== undefined && skill.points !== null) details.push(`${formatValue(skill.points)} pts`);
+  if (skill.importedLevel !== undefined && skill.importedLevel !== null) details.push(`NH importado ${formatValue(skill.importedLevel)}`);
+  if (skill.importedRelativeLevel !== undefined && skill.importedRelativeLevel !== null) details.push(`rel. importado ${formatSignedNumber(skill.importedRelativeLevel)}`);
+  if (skill.notes) details.push(skill.notes);
+  if (Array.isArray(skill.tags) && skill.tags.length > 0) details.push(`Tags ${skill.tags.join(", ")}`);
+  if (details.length === 0) return "";
+  return ` <small>${escapeText(details.join(" · "))}</small>`;
+}
+
+function renderTechniqueDetails(technique) {
+  const details = [];
+  const baseSkill = formatNamedSpecialization(technique.skillName, technique.skillSpecialization);
+  if (baseSkill) details.push(`base ${baseSkill}`);
+  if (technique.difficulty) details.push(technique.difficulty);
+  if (technique.points !== undefined && technique.points !== null) details.push(`${formatValue(technique.points)} pts`);
+  if (technique.defaultPenalty !== undefined && technique.defaultPenalty !== null) details.push(`pd ${formatSignedNumber(technique.defaultPenalty)}`);
+  if (technique.maximumRelativeLevel !== undefined && technique.maximumRelativeLevel !== null) details.push(`máx ${formatSignedNumber(technique.maximumRelativeLevel)}`);
+  if (technique.importedLevel !== undefined && technique.importedLevel !== null) details.push(`NH importado ${formatValue(technique.importedLevel)}`);
+  if (technique.importedRelativeLevel !== undefined && technique.importedRelativeLevel !== null) details.push(`rel. importado ${formatSignedNumber(technique.importedRelativeLevel)}`);
+  if (technique.notes) details.push(technique.notes);
+  if (Array.isArray(technique.tags) && technique.tags.length > 0) details.push(`Tags ${technique.tags.join(", ")}`);
+  if (details.length === 0) return "";
+  return ` <small>${escapeText(details.join(" · "))}</small>`;
+}
+
+function formatNamedSpecialization(name, specialization) {
+  if (specialization === null || specialization === undefined || specialization === "") {
+    return name ?? "";
+  }
+  return `${name ?? ""} (${specialization})`;
+}
+
 function createInitialSession(options) {
   if (options.session !== undefined) {
     if (options.character !== undefined || options.sessionId !== undefined) {
@@ -372,6 +587,11 @@ function readInputNumber(root, selector, fallback) {
   return Number.isFinite(value) ? value : fallback;
 }
 
+function normalizeOptionalText(value) {
+  if (value === undefined || value === null || value === "") return null;
+  return value;
+}
+
 function splitTextList(value) {
   if (typeof value !== "string") return [];
   return value
@@ -398,6 +618,13 @@ function escapeText(value) {
 function formatValue(value) {
   if (value === undefined || value === null || value === "") return "—";
   return String(value);
+}
+
+function formatSignedNumber(value) {
+  if (value === undefined || value === null || value === "") return "—";
+  const number = Number(value);
+  if (!Number.isFinite(number)) return String(value);
+  return number > 0 ? `+${number}` : String(number);
 }
 
 function normalizeMode(value) {
