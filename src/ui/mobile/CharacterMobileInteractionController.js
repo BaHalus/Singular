@@ -16,12 +16,6 @@ export function mountCharacterMobileInteractionController(options = {}) {
   requireFunction(options.commands?.addTrait, "Mobile trait addition command");
   requireFunction(options.commands?.removeTrait, "Mobile trait removal command");
   requireFunction(options.commands?.reorderTrait, "Mobile trait reorder command");
-  requireFunction(options.commands?.addSkill, "Mobile skill addition command");
-  requireFunction(options.commands?.removeSkill, "Mobile skill removal command");
-  requireFunction(options.commands?.reorderSkill, "Mobile skill reorder command");
-  requireFunction(options.commands?.addTechnique, "Mobile technique addition command");
-  requireFunction(options.commands?.removeTechnique, "Mobile technique removal command");
-  requireFunction(options.commands?.reorderTechnique, "Mobile technique reorder command");
   requireFunction(options.ui?.getState, "Mobile UI state reader");
   requireFunction(options.getMode, "Mobile mode reader");
   requireFunction(options.setMode, "Mobile mode writer");
@@ -30,12 +24,12 @@ export function mountCharacterMobileInteractionController(options = {}) {
   requireFunction(options.readEquipmentDraft, "Mobile equipment draft reader");
   requireFunction(options.readSpellDraft, "Mobile spell draft reader");
   requireFunction(options.readTraitDraft, "Mobile trait draft reader");
-  requireFunction(options.readSkillDraft, "Mobile skill draft reader");
-  requireFunction(options.readTechniqueDraft, "Mobile technique draft reader");
   requireFunction(options.render, "Mobile render callback");
   requireFunction(options.syncMode, "Mobile mode sync callback");
   const powerCommands = createOptionalPowerCommands(options.commands);
   const powerReaders = createOptionalPowerReaders(options);
+  const skillCommands = createOptionalSkillTechniqueCommands(options.commands);
+  const skillReaders = createOptionalSkillTechniqueReaders(options);
   const root = options.root;
   if (!root || typeof root !== "object") {
     throw new Error("Mobile interaction root must be an object");
@@ -234,7 +228,7 @@ export function mountCharacterMobileInteractionController(options = {}) {
 
       if (action === "skill-add") {
         return applyResult(
-          options.commands.addSkill(options.readSkillDraft()),
+          skillCommands.addSkill(skillReaders.readSkillDraft()),
           root,
           rerender,
         );
@@ -243,7 +237,7 @@ export function mountCharacterMobileInteractionController(options = {}) {
       const skillId = readDataset(actionTarget, "skillId");
       if (action === "skill-remove") {
         return applyResult(
-          options.commands.removeSkill({ skillId }),
+          skillCommands.removeSkill({ skillId }),
           root,
           rerender,
         );
@@ -251,7 +245,7 @@ export function mountCharacterMobileInteractionController(options = {}) {
 
       const targetIndexValue = readDataset(actionTarget, "targetIndex");
       return applyResult(
-        options.commands.reorderSkill({
+        skillCommands.reorderSkill({
           skillId,
           targetIndex: targetIndexValue === null
             ? Number.NaN
@@ -268,7 +262,7 @@ export function mountCharacterMobileInteractionController(options = {}) {
 
       if (action === "technique-add") {
         return applyResult(
-          options.commands.addTechnique(options.readTechniqueDraft()),
+          skillCommands.addTechnique(skillReaders.readTechniqueDraft()),
           root,
           rerender,
         );
@@ -277,7 +271,7 @@ export function mountCharacterMobileInteractionController(options = {}) {
       const techniqueId = readDataset(actionTarget, "techniqueId");
       if (action === "technique-remove") {
         return applyResult(
-          options.commands.removeTechnique({ techniqueId }),
+          skillCommands.removeTechnique({ techniqueId }),
           root,
           rerender,
         );
@@ -285,7 +279,7 @@ export function mountCharacterMobileInteractionController(options = {}) {
 
       const targetIndexValue = readDataset(actionTarget, "targetIndex");
       return applyResult(
-        options.commands.reorderTechnique({
+        skillCommands.reorderTechnique({
           techniqueId,
           targetIndex: targetIndexValue === null
             ? Number.NaN
@@ -379,6 +373,24 @@ function createOptionalPowerReaders(options) {
       options.readPowerRenameDraft,
       "Mobile power rename reader",
     ),
+  });
+}
+
+function createOptionalSkillTechniqueCommands(commands) {
+  return Object.freeze({
+    addSkill: optionalFunction(commands?.addSkill, "Mobile skill addition command"),
+    removeSkill: optionalFunction(commands?.removeSkill, "Mobile skill removal command"),
+    reorderSkill: optionalFunction(commands?.reorderSkill, "Mobile skill reorder command"),
+    addTechnique: optionalFunction(commands?.addTechnique, "Mobile technique addition command"),
+    removeTechnique: optionalFunction(commands?.removeTechnique, "Mobile technique removal command"),
+    reorderTechnique: optionalFunction(commands?.reorderTechnique, "Mobile technique reorder command"),
+  });
+}
+
+function createOptionalSkillTechniqueReaders(options) {
+  return Object.freeze({
+    readSkillDraft: optionalFunction(options.readSkillDraft, "Mobile skill draft reader"),
+    readTechniqueDraft: optionalFunction(options.readTechniqueDraft, "Mobile technique draft reader"),
   });
 }
 
