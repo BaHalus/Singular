@@ -28,6 +28,8 @@ export function mountCharacterMobileInteractionController(options = {}) {
   requireFunction(options.syncMode, "Mobile mode sync callback");
   const powerCommands = createOptionalPowerCommands(options.commands);
   const powerReaders = createOptionalPowerReaders(options);
+  const skillCommands = createOptionalSkillTechniqueCommands(options.commands);
+  const skillReaders = createOptionalSkillTechniqueReaders(options);
   const root = options.root;
   if (!root || typeof root !== "object") {
     throw new Error("Mobile interaction root must be an object");
@@ -220,6 +222,74 @@ export function mountCharacterMobileInteractionController(options = {}) {
       );
     }
 
+    if (["skill-add", "skill-remove", "skill-reorder"].includes(action)) {
+      event.preventDefault?.();
+      if (structuralActionBlocked(options, root)) return null;
+
+      if (action === "skill-add") {
+        return applyResult(
+          skillCommands.addSkill(skillReaders.readSkillDraft()),
+          root,
+          rerender,
+        );
+      }
+
+      const skillId = readDataset(actionTarget, "skillId");
+      if (action === "skill-remove") {
+        return applyResult(
+          skillCommands.removeSkill({ skillId }),
+          root,
+          rerender,
+        );
+      }
+
+      const targetIndexValue = readDataset(actionTarget, "targetIndex");
+      return applyResult(
+        skillCommands.reorderSkill({
+          skillId,
+          targetIndex: targetIndexValue === null
+            ? Number.NaN
+            : Number(targetIndexValue),
+        }),
+        root,
+        rerender,
+      );
+    }
+
+    if (["technique-add", "technique-remove", "technique-reorder"].includes(action)) {
+      event.preventDefault?.();
+      if (structuralActionBlocked(options, root)) return null;
+
+      if (action === "technique-add") {
+        return applyResult(
+          skillCommands.addTechnique(skillReaders.readTechniqueDraft()),
+          root,
+          rerender,
+        );
+      }
+
+      const techniqueId = readDataset(actionTarget, "techniqueId");
+      if (action === "technique-remove") {
+        return applyResult(
+          skillCommands.removeTechnique({ techniqueId }),
+          root,
+          rerender,
+        );
+      }
+
+      const targetIndexValue = readDataset(actionTarget, "targetIndex");
+      return applyResult(
+        skillCommands.reorderTechnique({
+          techniqueId,
+          targetIndex: targetIndexValue === null
+            ? Number.NaN
+            : Number(targetIndexValue),
+        }),
+        root,
+        rerender,
+      );
+    }
+
     if (["power-add", "power-rename", "power-remove"].includes(action)) {
       event.preventDefault?.();
       if (structuralActionBlocked(options, root)) return null;
@@ -303,6 +373,24 @@ function createOptionalPowerReaders(options) {
       options.readPowerRenameDraft,
       "Mobile power rename reader",
     ),
+  });
+}
+
+function createOptionalSkillTechniqueCommands(commands) {
+  return Object.freeze({
+    addSkill: optionalFunction(commands?.addSkill, "Mobile skill addition command"),
+    removeSkill: optionalFunction(commands?.removeSkill, "Mobile skill removal command"),
+    reorderSkill: optionalFunction(commands?.reorderSkill, "Mobile skill reorder command"),
+    addTechnique: optionalFunction(commands?.addTechnique, "Mobile technique addition command"),
+    removeTechnique: optionalFunction(commands?.removeTechnique, "Mobile technique removal command"),
+    reorderTechnique: optionalFunction(commands?.reorderTechnique, "Mobile technique reorder command"),
+  });
+}
+
+function createOptionalSkillTechniqueReaders(options) {
+  return Object.freeze({
+    readSkillDraft: optionalFunction(options.readSkillDraft, "Mobile skill draft reader"),
+    readTechniqueDraft: optionalFunction(options.readTechniqueDraft, "Mobile technique draft reader"),
   });
 }
 
