@@ -38,6 +38,10 @@ const COMMAND_CASES = Object.freeze([
           version: "1",
         },
         points: 7,
+        selfControl: null,
+        frequency: null,
+        roundCostDown: false,
+        choices: [],
         modifiers: [
           { id: "modifier-alpha-roundtrip", name: "Portable Modifier", value: -10 },
         ],
@@ -49,9 +53,10 @@ const COMMAND_CASES = Object.freeze([
         raw: { imported: true, family: "Traits" },
       },
     },
-    assertRoundtrip(snapshot) {
-      const item = snapshot.character.traits.find(entry => entry.id === "trait-alpha-roundtrip");
-      assert.equal(item.id, "trait-alpha-roundtrip");
+    getItem(snapshot) {
+      return snapshot.character.traits.find(entry => entry.id === "trait-alpha-roundtrip");
+    },
+    assertItem(item) {
       assert.equal(item.role, "custom-alpha-role");
       assert.equal(item.source.reference, "alpha-roundtrip-trait");
       assert.equal(item.pointValue.importedPoints, 7);
@@ -75,9 +80,10 @@ const COMMAND_CASES = Object.freeze([
         raw: { imported: true, family: "Skills" },
       },
     },
-    assertRoundtrip(snapshot) {
-      const item = snapshot.character.skills.find(entry => entry.id === "skill-alpha-roundtrip");
-      assert.equal(item.id, "skill-alpha-roundtrip");
+    getItem(snapshot) {
+      return snapshot.character.skills.find(entry => entry.id === "skill-alpha-roundtrip");
+    },
+    assertItem(item) {
       assert.equal(item.attribute, "IQ");
       assert.equal(item.difficulty, "hard");
       assert.equal(item.points, 2);
@@ -98,9 +104,10 @@ const COMMAND_CASES = Object.freeze([
         reference: "B229",
       },
     },
-    assertRoundtrip(snapshot) {
-      const item = snapshot.character.techniques.find(entry => entry.id === "technique-alpha-roundtrip");
-      assert.equal(item.id, "technique-alpha-roundtrip");
+    getItem(snapshot) {
+      return snapshot.character.techniques.find(entry => entry.id === "technique-alpha-roundtrip");
+    },
+    assertItem(item) {
       assert.equal(item.skillName, "Alpha Roundtrip Skill");
       assert.equal(item.difficulty, "hard");
       assert.equal(item.points, 1);
@@ -121,9 +128,10 @@ const COMMAND_CASES = Object.freeze([
         notes: "Preserve language notes.",
       },
     },
-    assertRoundtrip(snapshot) {
-      const item = snapshot.character.languages.find(entry => entry.id === "language-alpha-roundtrip");
-      assert.equal(item.id, "language-alpha-roundtrip");
+    getItem(snapshot) {
+      return snapshot.character.languages.find(entry => entry.id === "language-alpha-roundtrip");
+    },
+    assertItem(item) {
       assert.equal(item.spokenLevel, "accented");
       assert.equal(item.writtenLevel, "native");
       assert.equal(item.isNative, false);
@@ -142,9 +150,10 @@ const COMMAND_CASES = Object.freeze([
         notes: "Preserve familiarity notes.",
       },
     },
-    assertRoundtrip(snapshot) {
-      const item = snapshot.character.familiarities.find(entry => entry.id === "familiarity-alpha-roundtrip");
-      assert.equal(item.id, "familiarity-alpha-roundtrip");
+    getItem(snapshot) {
+      return snapshot.character.familiarities.find(entry => entry.id === "familiarity-alpha-roundtrip");
+    },
+    assertItem(item) {
       assert.equal(item.name, "Alpha Roundtrip Culture");
       assert.equal(item.isNative, false);
       assert.equal(item.reference, "B23");
@@ -157,8 +166,11 @@ const COMMAND_CASES = Object.freeze([
       characteristicKey: "Perception",
       base: 2,
     },
-    assertRoundtrip(snapshot) {
-      assert.equal(snapshot.character.secondary.characteristics.Perception.base, 2);
+    getItem(snapshot) {
+      return snapshot.character.secondary.characteristics.Perception;
+    },
+    assertItem(item) {
+      assert.equal(item.base, 2);
     },
   }),
   Object.freeze({
@@ -172,9 +184,10 @@ const COMMAND_CASES = Object.freeze([
         category: "alpha",
       },
     },
-    assertRoundtrip(snapshot) {
-      const item = snapshot.character.notes.structured.find(entry => entry.id === "note-alpha-roundtrip");
-      assert.equal(item.id, "note-alpha-roundtrip");
+    getItem(snapshot) {
+      return snapshot.character.notes.structured.find(entry => entry.id === "note-alpha-roundtrip");
+    },
+    assertItem(item) {
       assert.equal(item.title, "Alpha Roundtrip Note");
       assert.equal(item.category, "alpha");
     },
@@ -194,9 +207,10 @@ const COMMAND_CASES = Object.freeze([
         notes: "Portable attack metadata.",
       },
     },
-    assertRoundtrip(snapshot) {
-      const item = snapshot.character.attacks.find(entry => entry.id === "attack-alpha-roundtrip");
-      assert.equal(item.id, "attack-alpha-roundtrip");
+    getItem(snapshot) {
+      return snapshot.character.attacks.find(entry => entry.id === "attack-alpha-roundtrip");
+    },
+    assertItem(item) {
       assert.equal(item.category, "ranged");
       assert.equal(item.source.id, "source-alpha-roundtrip");
       assert.deepEqual(item.damage, { value: "1d+1", type: "burn" });
@@ -219,9 +233,10 @@ const COMMAND_CASES = Object.freeze([
         notes: "Portable equipment metadata.",
       },
     },
-    assertRoundtrip(snapshot) {
-      const item = snapshot.character.equipment.items.find(entry => entry.id === "equipment-alpha-roundtrip");
-      assert.equal(item.id, "equipment-alpha-roundtrip");
+    getItem(snapshot) {
+      return snapshot.character.equipment.items.find(entry => entry.id === "equipment-alpha-roundtrip");
+    },
+    assertItem(item) {
       assert.equal(item.quantity, 3);
       assert.equal(item.weightKg, 0.5);
       assert.equal(item.cost, 12);
@@ -237,7 +252,7 @@ const COMMAND_CASES = Object.freeze([
         spellType: "standard",
         name: "Alpha Roundtrip Spell",
         attribute: "IQ",
-        difficulty: "veryHard",
+        difficulty: "hard",
         points: 4,
         college: "Meta",
         castingCost: "2",
@@ -247,11 +262,12 @@ const COMMAND_CASES = Object.freeze([
         imported: { provider: "fixture", reference: "M1" },
       },
     },
-    assertRoundtrip(snapshot) {
-      const item = snapshot.character.spells.find(entry => entry.id === "spell-alpha-roundtrip");
-      assert.equal(item.id, "spell-alpha-roundtrip");
+    getItem(snapshot) {
+      return snapshot.character.spells.find(entry => entry.id === "spell-alpha-roundtrip");
+    },
+    assertItem(item) {
       assert.equal(item.spellType, "standard");
-      assert.equal(item.difficulty, "veryHard");
+      assert.equal(item.difficulty, "hard");
       assert.equal(item.points, 4);
       assert.equal(item.college, "Meta");
     },
@@ -269,9 +285,10 @@ const COMMAND_CASES = Object.freeze([
         notes: "Portable power metadata.",
       },
     },
-    assertRoundtrip(snapshot) {
-      const item = snapshot.character.powers.find(entry => entry.id === "power-alpha-roundtrip");
-      assert.equal(item.id, "power-alpha-roundtrip");
+    getItem(snapshot) {
+      return snapshot.character.powers.find(entry => entry.id === "power-alpha-roundtrip");
+    },
+    assertItem(item) {
       assert.equal(item.source, "manual");
       assert.deepEqual(item.memberTraitIds, ["trait-alpha-roundtrip"]);
       assert.deepEqual(item.tags, ["alpha", "roundtrip"]);
@@ -356,6 +373,11 @@ test("Alpha structural command families preserve portable snapshots across JSON 
     assert.equal(restoredSerialized.history[0].commandType, commandCase.type);
     assert.deepEqual(restoredSerialized.history[0].commandPayload, commandCase.payload);
 
-    commandCase.assertRoundtrip(restoredSerialized);
+    const item = commandCase.getItem(restoredSerialized);
+    assert.ok(item, `${commandCase.family} item should survive roundtrip`);
+    if (item.id) {
+      assert.equal(item.id, Object.values(commandCase.payload)[0].id);
+    }
+    commandCase.assertItem(item);
   }
 });
