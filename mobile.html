@@ -13,10 +13,10 @@
     </main>
 
     <script type="module">
-      import { bootstrapCharacterMobileApp } from "./src/ui/mobile/CharacterMobileApp.js";
+      import { bootstrapCharacterMobileLanguageCultureApp } from "./src/ui/mobile/CharacterMobileLanguageCultureApp.js";
 
       try {
-        await bootstrapCharacterMobileApp();
+        await bootstrapCharacterMobileLanguageCultureApp();
       } catch (error) {
         const root = document.querySelector("[data-singular-mobile-root]");
         if (root) {
