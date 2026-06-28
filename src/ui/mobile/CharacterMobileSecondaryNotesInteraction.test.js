@@ -145,6 +145,7 @@ test("edits secondary structure and notes in creation mode through canonical com
   assert.match(root.innerHTML, /data-action="secondary-override-set"/);
   assert.match(root.innerHTML, /data-card="notes"/);
   assert.match(root.innerHTML, /data-action="notes-general-save"/);
+  assert.match(root.innerHTML, /data-action="note-update"/);
   assert.match(root.innerHTML, /Evita entrar sozinha em ruínas\./);
   assert.match(root.innerHTML, /Contato/);
 
@@ -176,6 +177,21 @@ test("edits secondary structure and notes in creation mode through canonical com
   assert.equal(mounted.character.notes.general, "Nunca abandona mapa incompleto.");
   assert.match(root.innerHTML, /Nunca abandona mapa incompleto\./);
 
+  root.setInput('[data-role="note-edit-title-note:contact"]', "Contato atualizado");
+  root.setInput('[data-role="note-edit-text-note:contact"]', "Guia em Megalos e Caithness");
+  root.setInput('[data-role="note-edit-category-note:contact"]', "Aliado");
+  root.setInput('[data-role="note-edit-reference-note:contact"]', "Yrth revisado");
+  root.setInput('[data-role="note-edit-tags-note:contact"]', "aliado, viagem");
+  await root.dispatch("click", click("note-update", { noteId: "note:contact" }));
+
+  assert.equal(root.getAttribute("data-last-command-status"), "applied");
+  assert.equal(mounted.session.revision, 4);
+  assert.equal(mounted.session.history[3].commandType, "note.update");
+  assert.equal(mounted.character.notes.structured[0].title, "Contato atualizado");
+  assert.equal(mounted.character.notes.structured[0].text, "Guia em Megalos e Caithness");
+  assert.deepEqual(mounted.character.notes.structured[0].tags, ["aliado", "viagem"]);
+  assert.match(root.innerHTML, /Contato atualizado/);
+
   root.setInput('[data-role="note-title"]', "Pista");
   root.setInput('[data-role="note-text"]', "Marca de casco na lama");
   root.setInput('[data-role="note-category"]', "Investigação");
@@ -184,8 +200,8 @@ test("edits secondary structure and notes in creation mode through canonical com
   await root.dispatch("click", click("note-add"));
 
   assert.equal(root.getAttribute("data-last-command-status"), "applied");
-  assert.equal(mounted.session.revision, 4);
-  assert.equal(mounted.session.history[3].commandType, "note.add");
+  assert.equal(mounted.session.revision, 5);
+  assert.equal(mounted.session.history[4].commandType, "note.add");
   assert.equal(mounted.character.notes.structured.length, 2);
   assert.equal(mounted.character.notes.structured[1].title, "Pista");
   assert.deepEqual(mounted.character.notes.structured[1].tags, ["rastro", "viagem"]);
@@ -194,15 +210,15 @@ test("edits secondary structure and notes in creation mode through canonical com
   await root.dispatch("click", click("note-remove", { noteId: "note:contact" }));
 
   assert.equal(root.getAttribute("data-last-command-status"), "applied");
-  assert.equal(mounted.session.revision, 5);
-  assert.equal(mounted.session.history[4].commandType, "note.remove");
+  assert.equal(mounted.session.revision, 6);
+  assert.equal(mounted.session.history[5].commandType, "note.remove");
   assert.deepEqual(mounted.character.notes.structured.map(note => note.title), ["Pista"]);
-  assert.doesNotMatch(root.innerHTML, /Contato/);
+  assert.doesNotMatch(root.innerHTML, /Contato atualizado/);
 
   await root.dispatch("click", click("persistence-save"));
   const saved = await mounted.repositories.session.load("session-mobile-secondary-notes");
 
-  assert.equal(saved.revision, 5);
+  assert.equal(saved.revision, 6);
   assert.equal(saved.character.secondaryCharacteristics.Will.override, 13);
   assert.equal(saved.character.pools.HP.maximum, 12);
   assert.equal(saved.character.notes.general, "Nunca abandona mapa incompleto.");
@@ -223,6 +239,7 @@ test("blocks structural secondary and notes actions in table mode while preservi
 
   assert.doesNotMatch(root.innerHTML, /data-action="secondary-override-set"/);
   assert.doesNotMatch(root.innerHTML, /data-action="notes-general-save"/);
+  assert.doesNotMatch(root.innerHTML, /data-action="note-update"/);
   assert.match(root.innerHTML, /data-card="notes"/);
 
   await root.dispatch("click", click("secondary-override-set", { secondaryKey: "Will" }));
@@ -230,6 +247,12 @@ test("blocks structural secondary and notes actions in table mode while preservi
   assert.equal(root.getAttribute("data-last-command-status"), "blocked-by-mode");
   assert.equal(mounted.session.revision, 0);
   assert.equal(mounted.character.secondaryCharacteristics.Will.override, null);
+
+  await root.dispatch("click", click("note-update", { noteId: "note:contact" }));
+
+  assert.equal(root.getAttribute("data-last-command-status"), "blocked-by-mode");
+  assert.equal(mounted.session.revision, 0);
+  assert.deepEqual(mounted.character.notes.structured.map(note => note.title), ["Contato"]);
 
   await root.dispatch("click", click("note-remove", { noteId: "note:contact" }));
 
