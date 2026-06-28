@@ -13,7 +13,10 @@
     </main>
 
     <script type="module">
+      import { bootstrapCharacterMobileApp } from "./src/ui/mobile/CharacterMobileApp.js";
       import { bootstrapCharacterMobileLanguageCultureApp } from "./src/ui/mobile/CharacterMobileLanguageCultureApp.js";
+
+      void bootstrapCharacterMobileApp;
 
       try {
         await bootstrapCharacterMobileLanguageCultureApp();
