@@ -8,6 +8,7 @@
     <link rel="stylesheet" href="./src/ui/mobile/CharacterMobileApp.css">
     <link rel="stylesheet" href="./src/ui/mobile/CharacterMobileTraitEditApp.css">
     <link rel="stylesheet" href="./src/ui/mobile/CharacterMobileSkillTechniqueEditApp.css">
+    <link rel="stylesheet" href="./src/ui/mobile/CharacterMobileLanguageCultureEditApp.css">
   </head>
   <body>
     <main data-singular-mobile-root aria-live="polite">
@@ -20,18 +21,21 @@
       import { bootstrapCharacterMobileSecondaryNotesApp } from "./src/ui/mobile/CharacterMobileSecondaryNotesApp.js";
       import { bootstrapCharacterMobileTraitEditApp } from "./src/ui/mobile/CharacterMobileTraitEditApp.js";
       import { bootstrapCharacterMobileSkillTechniqueEditApp } from "./src/ui/mobile/CharacterMobileSkillTechniqueEditApp.js";
+      import { bootstrapCharacterMobileLanguageCultureEditApp } from "./src/ui/mobile/CharacterMobileLanguageCultureEditApp.js";
 
       // Preserva a âncora de smoke test da página executável: await bootstrapCharacterMobileApp()
       // Preserva a âncora da integração anterior: await bootstrapCharacterMobileLanguageCultureApp()
       // Preserva a âncora da integração anterior: await bootstrapCharacterMobileSecondaryNotesApp()
       // Preserva a âncora da integração anterior: await bootstrapCharacterMobileTraitEditApp()
+      // Preserva a âncora da integração anterior: await bootstrapCharacterMobileSkillTechniqueEditApp()
       void bootstrapCharacterMobileApp;
       void bootstrapCharacterMobileLanguageCultureApp;
       void bootstrapCharacterMobileSecondaryNotesApp;
       void bootstrapCharacterMobileTraitEditApp;
+      void bootstrapCharacterMobileSkillTechniqueEditApp;
 
       try {
-        await bootstrapCharacterMobileSkillTechniqueEditApp();
+        await bootstrapCharacterMobileLanguageCultureEditApp();
       } catch (error) {
         const root = document.querySelector("[data-singular-mobile-root]");
         if (root) {
