@@ -5,13 +5,13 @@ import {
   createCommandRegistry,
   listCommandTypes,
   resolveCommandHandler,
-} from "../../src/application/commands/CommandRegistry.js";
+} from "../../../src/application/commands/CommandRegistry.js";
 import {
   ALPHA_COMMAND_CATALOG_VERSION,
   createAlphaCommandCatalogEntries,
   listAlphaCommandCatalogTypes,
   validateAlphaCommandCatalogEntries,
-} from "../../src/application/alpha/AlphaCommandCatalog.js";
+} from "../../../src/application/alpha/AlphaCommandCatalog.js";
 
 const EXPECTED_ALPHA_COMMAND_TYPES = Object.freeze([
   "pool.current.set",
