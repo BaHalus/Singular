@@ -163,7 +163,12 @@ test("edits Traits in Creation through ApplicationSession commands and manual pe
   assert.equal(mounted.session.history.at(-1).commandType, "trait.remove");
 
   await click(root, { action: "persistence-save" });
-  const saved = await mounted.repositories.session.load("session-mobile-traits");
+  const uiState = mounted.ui.getState();
+  assert.equal(uiState.feedback, "Sessão salva: session-mobile-traits");
+  assert.deepEqual(uiState.savedSessions.map(session => session.id), ["session-mobile-traits"]);
+  assert.equal(uiState.savedSessions[0].revision, 4);
+  const saved = await mounted.repositories.session.load(uiState.savedSessions[0].id);
+  assert.notEqual(saved, null);
   assert.equal(saved.revision, 4);
   assert.equal(saved.character.traits.length, 1);
   assert.equal(saved.character.traits[0].id, firstTraitId);
