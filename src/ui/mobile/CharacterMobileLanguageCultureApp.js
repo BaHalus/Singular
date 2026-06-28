@@ -18,8 +18,9 @@ export async function bootstrapCharacterMobileLanguageCultureApp(options = {}) {
 
   enhanceLanguageCultureSection(root, app.persistence.getActiveSession().character, app.mode);
 
-  const observer = typeof options.MutationObserver === "function"
-    ? new options.MutationObserver(() => {
+  const MutationObserverRef = options.MutationObserver ?? globalThis.MutationObserver;
+  const observer = typeof MutationObserverRef === "function"
+    ? new MutationObserverRef(() => {
       enhanceLanguageCultureSection(root, app.persistence.getActiveSession().character, app.mode);
     })
     : null;
@@ -49,7 +50,25 @@ export async function bootstrapCharacterMobileLanguageCultureApp(options = {}) {
   root.addEventListener("click", handleClick);
 
   return Object.freeze({
-    ...app,
+    get character() {
+      return app.character;
+    },
+    get session() {
+      return app.session;
+    },
+    get html() {
+      return root.innerHTML;
+    },
+    get mode() {
+      return app.mode;
+    },
+    interactions: app.interactions,
+    modeSync: app.modeSync,
+    ui: app.ui,
+    persistence: app.persistence,
+    commands: app.commands,
+    repositories: app.repositories,
+    runtime: app.runtime,
     render,
     languageCulture: Object.freeze({
       enhance() {
@@ -96,8 +115,8 @@ function enhanceLanguageCultureSection(root, character, mode) {
 function enhanceLanguageCultureItems(section, character) {
   const languageIds = new Set((character.languages ?? []).map(language => language.id));
   const familiarityIds = new Set((character.familiarities ?? []).map(familiarity => familiarity.id));
-  const languageItems = [...section.querySelectorAll?.('[data-entry-kind="language"][data-canonical-id]') ?? []];
-  const familiarityItems = [...section.querySelectorAll?.('[data-entry-kind="familiarity"][data-canonical-id]') ?? []];
+  const languageItems = Array.from(section.querySelectorAll?.('[data-entry-kind="language"][data-canonical-id]') ?? []);
+  const familiarityItems = Array.from(section.querySelectorAll?.('[data-entry-kind="familiarity"][data-canonical-id]') ?? []);
 
   languageItems.forEach((item, index) => {
     const languageId = item.getAttribute("data-canonical-id");
