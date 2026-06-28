@@ -6,6 +6,7 @@
     <meta name="theme-color" content="#10151d">
     <title>SINGULAR Alpha</title>
     <link rel="stylesheet" href="./src/ui/mobile/CharacterMobileApp.css">
+    <link rel="stylesheet" href="./src/ui/mobile/CharacterMobileTraitEditApp.css">
   </head>
   <body>
     <main data-singular-mobile-root aria-live="polite">
@@ -16,14 +17,17 @@
       import { bootstrapCharacterMobileApp } from "./src/ui/mobile/CharacterMobileApp.js";
       import { bootstrapCharacterMobileLanguageCultureApp } from "./src/ui/mobile/CharacterMobileLanguageCultureApp.js";
       import { bootstrapCharacterMobileSecondaryNotesApp } from "./src/ui/mobile/CharacterMobileSecondaryNotesApp.js";
+      import { bootstrapCharacterMobileTraitEditApp } from "./src/ui/mobile/CharacterMobileTraitEditApp.js";
 
       // Preserva a âncora de smoke test da página executável: await bootstrapCharacterMobileApp()
       // Preserva a âncora da integração anterior: await bootstrapCharacterMobileLanguageCultureApp()
+      // Preserva a âncora da integração anterior: await bootstrapCharacterMobileSecondaryNotesApp()
       void bootstrapCharacterMobileApp;
       void bootstrapCharacterMobileLanguageCultureApp;
+      void bootstrapCharacterMobileSecondaryNotesApp;
 
       try {
-        await bootstrapCharacterMobileSecondaryNotesApp();
+        await bootstrapCharacterMobileTraitEditApp();
       } catch (error) {
         const root = document.querySelector("[data-singular-mobile-root]");
         if (root) {
