@@ -97,7 +97,8 @@ const COMMAND_CASES = Object.freeze([
         defaults: [
           { type: "attribute", attribute: "IQ", modifier: -5 },
         ],
-        reference: "B170",
+        externalIds: { basicSet: "B170" },
+        importMeta: { provider: "fixture", reference: "B170" },
         raw: { imported: true, family: "Skills" },
       },
     },
@@ -108,7 +109,12 @@ const COMMAND_CASES = Object.freeze([
       assert.equal(item.attribute, "IQ");
       assert.equal(item.difficulty, "hard");
       assert.equal(item.points, 2);
-      assert.equal(item.reference, "B170");
+      assert.deepEqual(item.defaults, [
+        { type: "attribute", attribute: "IQ", modifier: -5 },
+      ]);
+      assert.deepEqual(item.externalIds, { basicSet: "B170" });
+      assert.deepEqual(item.importMeta, { provider: "fixture", reference: "B170" });
+      assert.deepEqual(item.raw, { imported: true, family: "Skills" });
     },
   }),
   Object.freeze({
@@ -121,8 +127,10 @@ const COMMAND_CASES = Object.freeze([
         skillName: "Alpha Roundtrip Skill",
         difficulty: "hard",
         points: 1,
-        default: { type: "skill", name: "Alpha Roundtrip Skill", modifier: -2 },
-        reference: "B229",
+        defaults: [{ type: "skill", name: "Alpha Roundtrip Skill", modifier: -2 }],
+        externalIds: { basicSet: "B229" },
+        importMeta: { provider: "fixture", reference: "B229" },
+        raw: { imported: true, family: "Techniques" },
       },
     },
     getItem(snapshot) {
@@ -132,7 +140,12 @@ const COMMAND_CASES = Object.freeze([
       assert.equal(item.skillName, "Alpha Roundtrip Skill");
       assert.equal(item.difficulty, "hard");
       assert.equal(item.points, 1);
-      assert.equal(item.reference, "B229");
+      assert.deepEqual(item.defaults, [
+        { type: "skill", name: "Alpha Roundtrip Skill", modifier: -2 },
+      ]);
+      assert.deepEqual(item.externalIds, { basicSet: "B229" });
+      assert.deepEqual(item.importMeta, { provider: "fixture", reference: "B229" });
+      assert.deepEqual(item.raw, { imported: true, family: "Techniques" });
     },
   }),
   Object.freeze({
