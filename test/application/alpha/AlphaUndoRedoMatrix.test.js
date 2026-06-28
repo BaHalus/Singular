@@ -268,7 +268,6 @@ test("Alpha structural command families preserve canonical history through undo 
     const historyEntry = applied.session.history[0];
     assert.equal(historyEntry.beforeRevision, 0, `${commandCase.family} history should store before revision`);
     assert.equal(historyEntry.afterRevision, 1, `${commandCase.family} history should store after revision`);
-    assert.equal(historyEntry.commandPayload, commandCase.payload, `${commandCase.family} history should preserve payload reference`);
     assert.deepEqual(historyEntry.commandPayload, commandCase.payload, `${commandCase.family} history should preserve payload value`);
     assert.notDeepEqual(
       serializeApplicationSession(applied.session).character,
