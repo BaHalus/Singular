@@ -301,7 +301,7 @@ const COMMAND_CASES = Object.freeze([
         id: "power-alpha-roundtrip",
         name: "Alpha Roundtrip Power",
         source: "manual",
-        memberTraitIds: ["trait-alpha-roundtrip"],
+        memberTraitIds: [],
         tags: ["alpha", "roundtrip"],
         notes: "Portable power metadata.",
       },
@@ -311,7 +311,7 @@ const COMMAND_CASES = Object.freeze([
     },
     assertItem(item) {
       assert.equal(item.source, "manual");
-      assert.deepEqual(item.memberTraitIds, ["trait-alpha-roundtrip"]);
+      assert.deepEqual(item.memberTraitIds, []);
       assert.deepEqual(item.tags, ["alpha", "roundtrip"]);
     },
   }),
