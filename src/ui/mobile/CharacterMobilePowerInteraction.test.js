@@ -167,7 +167,7 @@ test("edits powers in creation mode through canonical commands and manual persis
   assert.deepEqual(mounted.character.powers[1].memberTraitIds, ["trait:iron-hand", "trait:leap"]);
   assert.deepEqual(mounted.character.powers[1].tags, ["marcial", "chi"]);
   assert.match(root.innerHTML, /Chi/);
-  assert.match(root.innerHTML, /Místico -10%/);
+  assert.match(root.innerHTML, /Mod\. Místico -10%/);
 
   const addedId = mounted.character.powers[1].id;
   root.setInput(`[data-role="power-rename"][data-power-id="${addedId}"]`, "Chi Interior");
