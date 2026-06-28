@@ -158,6 +158,20 @@ test("renders spell controls only in creation mode", () => {
 
 test("renders power controls only in creation mode", () => {
   const character = composedModel({
+    traits: [
+      {
+        id: "trait_fire_talent",
+        role: "advantage",
+        name: "Talento de Piromancia",
+        points: 5,
+      },
+      {
+        id: "trait_firebolt",
+        role: "advantage",
+        name: "Raio de Fogo",
+        points: 10,
+      },
+    ],
     powers: [
       {
         id: "power_fire",
