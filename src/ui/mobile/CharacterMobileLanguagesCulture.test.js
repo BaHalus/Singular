@@ -127,7 +127,7 @@ test("renders fluency, nativities and imported costs explicitly", () => {
     { mode: "table" },
   );
 
-  assert.match(html, /data-schema-version="11"/);
+  assert.match(html, /data-schema-version="12"/);
   assert.match(html, /data-card="languages-culture" data-status="declared-only"/);
   assert.match(
     html,
