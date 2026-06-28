@@ -263,6 +263,6 @@ test("Alpha composed mobile render model remains a frozen read model, not a live
   assert.ok(renderModel.cards.some(card => card.id === "skills-techniques"));
   assert.ok(renderModel.cards.some(card => card.id === "spells"));
   assert.ok(renderModel.cards.some(card => card.id === "powers"));
-  assert.equal(renderModel.identity.name, character.identity.name);
+  assert.equal(renderModel.title, character.identity.name);
   assert.notStrictEqual(renderModel, character);
 });
