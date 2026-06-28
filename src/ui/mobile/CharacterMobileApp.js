@@ -58,8 +58,8 @@ export async function bootstrapCharacterMobileApp(options = {}) {
   });
 
   const render = () => {
-    root.innerHTML = ui.render({ mode });
     const activeSession = application.persistence.getActiveSession();
+    root.innerHTML = injectTraitControls(ui.render({ mode }), activeSession.character, mode);
     setRootAttribute(root, "data-singular-mounted", "true");
     setRootAttribute(root, "data-session-id", activeSession.id);
     setRootAttribute(root, "data-character-id", activeSession.character.identity.id);
@@ -124,6 +124,29 @@ export async function bootstrapCharacterMobileApp(options = {}) {
         notes: readInputValue(root, '[data-role="spell-notes"]'),
       };
     },
+    readTraitDraft() {
+      const points = readInputNumber(root, '[data-role="trait-points"]', null);
+      const levels = readInputNumber(root, '[data-role="trait-levels"]', null);
+      return {
+        trait: {
+          name: readInputValue(root, '[data-role="trait-name"]'),
+          role: readInputValue(root, '[data-role="trait-role"]') || "advantage",
+          points,
+          levels,
+          selfControl: createDefaultTraitSelfControl(),
+          frequency: createDefaultTraitFrequency(),
+          roundCostDown: false,
+          choices: [],
+          notes: readInputValue(root, '[data-role="trait-notes"]'),
+          tags: splitTextList(readInputValue(root, '[data-role="trait-tags"]')),
+          source: { kind: "singular" },
+          pointValue: {
+            declaredPoints: points,
+            levels,
+          },
+        },
+      };
+    },
     readPowerDraft() {
       return {
         name: readInputValue(root, '[data-role="power-name"]'),
@@ -176,7 +199,7 @@ export function renderCharacterMobileApp(character, options = {}) {
   requirePlainObject(options, "Character mobile render options");
   const mode = normalizeMode(options.mode ?? "creation");
   const renderModel = createCharacterMobileSheetRenderModelForCharacter(character);
-  return renderCharacterMobileSheetHtml(renderModel, { mode });
+  return injectTraitControls(renderCharacterMobileSheetHtml(renderModel, { mode }), character, mode);
 }
 
 export function getCharacterMobileRootSelector() {
@@ -199,6 +222,103 @@ function resolveMobileRoot(documentOption) {
   return root;
 }
 
+function injectTraitControls(html, character, mode) {
+  const marker = 'data-card="traits"';
+  const markerIndex = html.indexOf(marker);
+  if (markerIndex < 0) return html;
+
+  const sectionStart = html.lastIndexOf("<section", markerIndex);
+  const headerEnd = html.indexOf("</h2>", markerIndex);
+  const sectionEnd = html.indexOf("</section>", markerIndex);
+  if (sectionStart < 0 || headerEnd < 0 || sectionEnd < 0) return html;
+
+  const header = html.slice(sectionStart, headerEnd + "</h2>".length);
+  const before = html.slice(0, sectionStart);
+  const after = html.slice(sectionEnd + "</section>".length);
+  return [
+    before,
+    header,
+    renderTraitCardBody(character.traits ?? [], mode),
+    "</section>",
+    after,
+  ].join("");
+}
+
+function renderTraitCardBody(traits, mode) {
+  const editor = mode === "creation" ? renderTraitEditor() : "";
+  const list = traits.length === 0
+    ? '<p class="singular-mobile-sheet__empty">Nenhum traço declarado.</p>'
+    : [
+      '<dl class="singular-mobile-sheet__trait-list">',
+      traits.map((trait, index) => renderTraitItem(trait, mode, index, traits.length)).join(""),
+      "</dl>",
+    ].join("");
+  return `${editor}${list}`;
+}
+
+function renderTraitEditor() {
+  return [
+    '<div class="singular-mobile-sheet__trait-editor" data-role="trait-editor">',
+    '<label>Nome<input type="text" data-role="trait-name" autocomplete="off"></label>',
+    '<label>Tipo<select data-role="trait-role"><option value="advantage">Vantagem</option><option value="disadvantage">Desvantagem</option><option value="perk">Peculiaridade positiva</option><option value="quirk">Peculiaridade negativa</option><option value="feature">Característica</option></select></label>',
+    '<label>Pontos<input type="number" step="1" data-role="trait-points"></label>',
+    '<label>Níveis<input type="number" min="0" step="1" data-role="trait-levels"></label>',
+    '<label>Tags<input type="text" data-role="trait-tags" autocomplete="off"></label>',
+    '<label>Notas<input type="text" data-role="trait-notes" autocomplete="off"></label>',
+    '<button type="button" data-action="trait-add">Adicionar traço</button>',
+    "</div>",
+  ].join("");
+}
+
+function renderTraitItem(trait, mode, index, total) {
+  const id = escapeAttribute(trait.id);
+  const name = escapeText(trait.name ?? "Traço sem nome");
+  const controls = mode === "creation" ? renderTraitControls(trait, index, total) : "";
+  return [
+    `<div data-trait-id="${id}" data-trait-role="${escapeAttribute(trait.role ?? "trait")}">`,
+    `<dt>${escapeText(localizedTraitRole(trait.role))}</dt>`,
+    `<dd>${name}${renderTraitDetails(trait)}${controls}</dd>`,
+    "</div>",
+  ].join("");
+}
+
+function renderTraitControls(trait, index, total) {
+  const id = escapeAttribute(trait.id);
+  const name = escapeAttribute(trait.name ?? "traço");
+  const up = index > 0
+    ? `<button type="button" data-action="trait-reorder" data-trait-id="${id}" data-target-index="${index - 1}" aria-label="Mover ${name} para cima">↑</button>`
+    : "";
+  const down = index < total - 1
+    ? `<button type="button" data-action="trait-reorder" data-trait-id="${id}" data-target-index="${index + 1}" aria-label="Mover ${name} para baixo">↓</button>`
+    : "";
+  return [
+    '<span class="singular-mobile-sheet__trait-actions">',
+    up,
+    down,
+    `<button type="button" data-action="trait-remove" data-trait-id="${id}" aria-label="Excluir ${name}">Excluir</button>`,
+    "</span>",
+  ].join("");
+}
+
+function renderTraitDetails(trait) {
+  const details = [];
+  if (trait.points !== undefined && trait.points !== null) details.push(`${formatValue(trait.points)} pts`);
+  if (trait.levels !== undefined && trait.levels !== null) details.push(`Nv ${formatValue(trait.levels)}`);
+  if (trait.notes) details.push(trait.notes);
+  if (Array.isArray(trait.tags) && trait.tags.length > 0) details.push(`Tags ${trait.tags.join(", ")}`);
+  if (details.length === 0) return "";
+  return ` <small>${escapeText(details.join(" · "))}</small>`;
+}
+
+function localizedTraitRole(role) {
+  if (role === "advantage") return "Vantagem";
+  if (role === "disadvantage") return "Desvantagem";
+  if (role === "perk") return "Peculiaridade positiva";
+  if (role === "quirk") return "Peculiaridade negativa";
+  if (role === "feature") return "Característica";
+  return "Traço";
+}
+
 function createInitialSession(options) {
   if (options.session !== undefined) {
     if (options.character !== undefined || options.sessionId !== undefined) {
@@ -216,6 +336,30 @@ function createInitialSession(options) {
   });
 }
 
+function createDefaultTraitSelfControl() {
+  return {
+    roll: 0,
+    status: "none",
+    multiplier: 1,
+    penalty: 0,
+    adjustment: {
+      type: "none",
+      status: "ready",
+      value: 0,
+    },
+    raw: null,
+  };
+}
+
+function createDefaultTraitFrequency() {
+  return {
+    roll: 0,
+    status: "none",
+    multiplier: 1,
+    raw: null,
+  };
+}
+
 function readInputValue(root, selector) {
   const input = root.querySelector?.(selector);
   return typeof input?.value === "string" ? input.value : "";
@@ -228,8 +372,32 @@ function readInputNumber(root, selector, fallback) {
   return Number.isFinite(value) ? value : fallback;
 }
 
+function splitTextList(value) {
+  if (typeof value !== "string") return [];
+  return value
+    .split(",")
+    .map(item => item.trim())
+    .filter(Boolean);
+}
+
 function escapeSelectorValue(value) {
   return String(value ?? "").replaceAll("\\", "\\\\").replaceAll('"', '\\"');
+}
+
+function escapeAttribute(value) {
+  return escapeText(value).replaceAll('"', "&quot;");
+}
+
+function escapeText(value) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;");
+}
+
+function formatValue(value) {
+  if (value === undefined || value === null || value === "") return "—";
+  return String(value);
 }
 
 function normalizeMode(value) {

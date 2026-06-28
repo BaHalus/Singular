@@ -13,6 +13,9 @@ export function mountCharacterMobileInteractionController(options = {}) {
   requireFunction(options.commands?.addSpell, "Mobile spell addition command");
   requireFunction(options.commands?.removeSpell, "Mobile spell removal command");
   requireFunction(options.commands?.reorderSpell, "Mobile spell reorder command");
+  requireFunction(options.commands?.addTrait, "Mobile trait addition command");
+  requireFunction(options.commands?.removeTrait, "Mobile trait removal command");
+  requireFunction(options.commands?.reorderTrait, "Mobile trait reorder command");
   requireFunction(options.ui?.getState, "Mobile UI state reader");
   requireFunction(options.getMode, "Mobile mode reader");
   requireFunction(options.setMode, "Mobile mode writer");
@@ -20,6 +23,7 @@ export function mountCharacterMobileInteractionController(options = {}) {
   requireFunction(options.readAttackDraft, "Mobile attack draft reader");
   requireFunction(options.readEquipmentDraft, "Mobile equipment draft reader");
   requireFunction(options.readSpellDraft, "Mobile spell draft reader");
+  requireFunction(options.readTraitDraft, "Mobile trait draft reader");
   requireFunction(options.render, "Mobile render callback");
   requireFunction(options.syncMode, "Mobile mode sync callback");
   const powerCommands = createOptionalPowerCommands(options.commands);
@@ -173,6 +177,40 @@ export function mountCharacterMobileInteractionController(options = {}) {
       return applyResult(
         options.commands.reorderSpell({
           spellId,
+          targetIndex: targetIndexValue === null
+            ? Number.NaN
+            : Number(targetIndexValue),
+        }),
+        root,
+        rerender,
+      );
+    }
+
+    if (["trait-add", "trait-remove", "trait-reorder"].includes(action)) {
+      event.preventDefault?.();
+      if (structuralActionBlocked(options, root)) return null;
+
+      if (action === "trait-add") {
+        return applyResult(
+          options.commands.addTrait(options.readTraitDraft()),
+          root,
+          rerender,
+        );
+      }
+
+      const traitId = readDataset(actionTarget, "traitId");
+      if (action === "trait-remove") {
+        return applyResult(
+          options.commands.removeTrait({ traitId }),
+          root,
+          rerender,
+        );
+      }
+
+      const targetIndexValue = readDataset(actionTarget, "targetIndex");
+      return applyResult(
+        options.commands.reorderTrait({
+          traitId,
           targetIndex: targetIndexValue === null
             ? Number.NaN
             : Number(targetIndexValue),
