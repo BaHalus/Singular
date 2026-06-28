@@ -59,7 +59,7 @@ test("ApplicationSession rejects corrupted history fingerprints without mutating
     () => createApplicationSession(corrupted),
     /afterFingerprint is inconsistent/,
   );
-  assert.deepEqual(createApplicationSession(valid) |> serializeApplicationSession, valid);
+  assert.deepEqual(serializeApplicationSession(createApplicationSession(valid)), valid);
 });
 
 test("ApplicationSession rejects disconnected current character snapshots", () => {
