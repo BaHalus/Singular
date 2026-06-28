@@ -223,11 +223,12 @@ function renderStructuredNotes(notes, mode) {
 
 function renderStructuredNote(note, index, total, mode) {
   const controls = mode === "creation" ? renderStructuredNoteControls(note, index, total) : "";
+  const editor = mode === "creation" ? renderStructuredNoteInlineEditor(note) : "";
   const details = [note.category, note.reference, ...(note.tags ?? []).map(tag => `#${tag}`)].filter(Boolean).join(" · ");
   return [
     `<div data-note-id="${escapeAttribute(note.id)}">`,
     `<dt>${escapeText(note.title || "Nota sem título")}</dt>`,
-    `<dd>${escapeText(note.text || "")}${details === "" ? "" : ` <small>${escapeText(details)}</small>`}${controls}</dd>`,
+    `<dd>${escapeText(note.text || "")}${details === "" ? "" : ` <small>${escapeText(details)}</small>`}${controls}${editor}</dd>`,
     "</div>",
   ].join("");
 }
@@ -247,6 +248,21 @@ function renderStructuredNoteControls(note, index, total) {
     down,
     `<button type="button" data-action="note-remove" data-note-id="${id}" aria-label="Excluir ${title}">Excluir</button>`,
     "</span>",
+  ].join("");
+}
+
+function renderStructuredNoteInlineEditor(note) {
+  const id = escapeAttribute(note.id);
+  const tags = Array.isArray(note.tags) ? note.tags.join(", ") : "";
+  return [
+    `<div class="singular-mobile-sheet__structured-note-inline-editor" data-role="structured-note-inline-editor" data-note-id="${id}">`,
+    `<label>Título <input type="text" data-role="note-edit-title-${id}" value="${escapeAttribute(note.title ?? "")}" autocomplete="off"></label>`,
+    `<label>Texto <input type="text" data-role="note-edit-text-${id}" value="${escapeAttribute(note.text ?? "")}" autocomplete="off"></label>`,
+    `<label>Categoria <input type="text" data-role="note-edit-category-${id}" value="${escapeAttribute(note.category ?? "")}" autocomplete="off"></label>`,
+    `<label>Referência <input type="text" data-role="note-edit-reference-${id}" value="${escapeAttribute(note.reference ?? "")}" autocomplete="off"></label>`,
+    `<label>Tags <input type="text" data-role="note-edit-tags-${id}" value="${escapeAttribute(tags)}" autocomplete="off"></label>`,
+    `<button type="button" data-action="note-update" data-note-id="${id}">Salvar nota</button>`,
+    "</div>",
   ].join("");
 }
 
@@ -279,6 +295,13 @@ function executeSecondaryNotesAction(action, actionTarget, root, commands) {
     return commands.setGeneralNotes({ text: readInputValue(root, '[data-role="notes-general"]') });
   }
   if (action === "note-add") return commands.addStructuredNote({ note: readStructuredNoteDraft(root) });
+  if (action === "note-update") {
+    const noteId = readDataset(actionTarget, "noteId");
+    return commands.updateStructuredNote({
+      noteId,
+      patch: readStructuredNotePatch(root, noteId),
+    });
+  }
   if (action === "note-remove") return commands.removeStructuredNote({ noteId: readDataset(actionTarget, "noteId") });
   return commands.reorderStructuredNote({
     noteId: readDataset(actionTarget, "noteId"),
@@ -297,6 +320,17 @@ function readStructuredNoteDraft(root) {
   };
 }
 
+function readStructuredNotePatch(root, noteId) {
+  const suffix = escapeSelectorValue(noteId);
+  return {
+    title: readInputValue(root, `[data-role="note-edit-title-${suffix}"]`),
+    text: readInputValue(root, `[data-role="note-edit-text-${suffix}"]`),
+    category: normalizeOptionalText(readInputValue(root, `[data-role="note-edit-category-${suffix}"]`)),
+    reference: normalizeOptionalText(readInputValue(root, `[data-role="note-edit-reference-${suffix}"]`)),
+    tags: splitTextList(readInputValue(root, `[data-role="note-edit-tags-${suffix}"]`)),
+  };
+}
+
 function isSecondaryNotesAction(action) {
   return [
     "secondary-base-set",
@@ -305,6 +339,7 @@ function isSecondaryNotesAction(action) {
     "pool-maximum-set",
     "notes-general-save",
     "note-add",
+    "note-update",
     "note-remove",
     "note-reorder",
   ].includes(action);
