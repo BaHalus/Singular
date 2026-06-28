@@ -31,3 +31,18 @@ test("language/culture mobile bootstrap exposes creation controls and blocks tab
     assert.ok(moduleSource.includes(fragment), fragment);
   }
 });
+
+test("language/culture rerender delegates to the base mobile render pipeline", () => {
+  assert.match(
+    moduleSource,
+    /root\.innerHTML = renderCharacterMobileApp\(session\.character, \{ mode: app\.mode \}\);/,
+  );
+  assert.doesNotMatch(
+    moduleSource,
+    /root\.innerHTML = app\.ui\.render\(/,
+  );
+  assert.doesNotMatch(
+    moduleSource,
+    /root\.innerHTML = ui\.render\(/,
+  );
+});
