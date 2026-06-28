@@ -45,6 +45,14 @@ html, body {
 .singular-mobile-sheet__sections,
 .singular-mobile-sheet__summary-editor,
 .singular-mobile-sheet__attack-editor,
+.singular-mobile-sheet__trait-editor,
+.singular-mobile-sheet__skill-editor,
+.singular-mobile-sheet__technique-editor,
+.singular-mobile-sheet__language-editor,
+.singular-mobile-sheet__familiarity-editor,
+.singular-mobile-sheet__general-notes-editor,
+.singular-mobile-sheet__structured-note-editor,
+.singular-mobile-sheet__structured-note-inline-editor,
 .singular-alpha-mobile__persistence,
 .singular-alpha-mobile__persistence-actions,
 .singular-alpha-mobile__import,
@@ -79,7 +87,31 @@ html, body {
 .singular-mobile-sheet__attack-editor input,
 .singular-mobile-sheet__attack-editor select,
 .singular-mobile-sheet__attack-editor button,
+.singular-mobile-sheet__trait-editor input,
+.singular-mobile-sheet__trait-editor select,
+.singular-mobile-sheet__trait-editor button,
+.singular-mobile-sheet__skill-editor input,
+.singular-mobile-sheet__skill-editor button,
+.singular-mobile-sheet__technique-editor input,
+.singular-mobile-sheet__technique-editor button,
+.singular-mobile-sheet__language-editor input,
+.singular-mobile-sheet__language-editor select,
+.singular-mobile-sheet__language-editor button,
+.singular-mobile-sheet__familiarity-editor input,
+.singular-mobile-sheet__familiarity-editor button,
+.singular-mobile-sheet__general-notes-editor textarea,
+.singular-mobile-sheet__general-notes-editor button,
+.singular-mobile-sheet__structured-note-editor input,
+.singular-mobile-sheet__structured-note-editor button,
+.singular-mobile-sheet__structured-note-inline-editor input,
+.singular-mobile-sheet__structured-note-inline-editor button,
+.singular-mobile-sheet__secondary-actions input,
+.singular-mobile-sheet__secondary-actions button,
 .singular-mobile-sheet__attack-actions button,
+.singular-mobile-sheet__trait-actions button,
+.singular-mobile-sheet__skill-actions button,
+.singular-mobile-sheet__technique-actions button,
+.singular-mobile-sheet__note-actions button,
 .singular-alpha-mobile button,
 .singular-alpha-mobile textarea,
 .singular-alpha-mobile__save-list li {
@@ -93,7 +125,20 @@ html, body {
 .singular-mobile-sheet__action,
 .singular-mobile-sheet__summary-editor button,
 .singular-mobile-sheet__attack-editor button,
+.singular-mobile-sheet__trait-editor button,
+.singular-mobile-sheet__skill-editor button,
+.singular-mobile-sheet__technique-editor button,
+.singular-mobile-sheet__language-editor button,
+.singular-mobile-sheet__familiarity-editor button,
+.singular-mobile-sheet__general-notes-editor button,
+.singular-mobile-sheet__structured-note-editor button,
+.singular-mobile-sheet__structured-note-inline-editor button,
+.singular-mobile-sheet__secondary-actions button,
 .singular-mobile-sheet__attack-actions button,
+.singular-mobile-sheet__trait-actions button,
+.singular-mobile-sheet__skill-actions button,
+.singular-mobile-sheet__technique-actions button,
+.singular-mobile-sheet__note-actions button,
 .singular-alpha-mobile button {
   min-height: 2.75rem;
   font-weight: 700;
@@ -131,12 +176,29 @@ html, body {
 }
 
 .singular-mobile-sheet__summary-editor,
-.singular-mobile-sheet__attack-editor {
+.singular-mobile-sheet__attack-editor,
+.singular-mobile-sheet__trait-editor,
+.singular-mobile-sheet__skill-editor,
+.singular-mobile-sheet__technique-editor,
+.singular-mobile-sheet__language-editor,
+.singular-mobile-sheet__familiarity-editor,
+.singular-mobile-sheet__general-notes-editor,
+.singular-mobile-sheet__structured-note-editor,
+.singular-mobile-sheet__structured-note-inline-editor {
   margin-top: 0.65rem;
 }
 
 .singular-mobile-sheet__summary-editor label,
-.singular-mobile-sheet__attack-editor label {
+.singular-mobile-sheet__attack-editor label,
+.singular-mobile-sheet__trait-editor label,
+.singular-mobile-sheet__skill-editor label,
+.singular-mobile-sheet__technique-editor label,
+.singular-mobile-sheet__language-editor label,
+.singular-mobile-sheet__familiarity-editor label,
+.singular-mobile-sheet__general-notes-editor label,
+.singular-mobile-sheet__structured-note-editor label,
+.singular-mobile-sheet__structured-note-inline-editor label,
+.singular-mobile-sheet__secondary-actions label {
   display: grid;
   gap: 0.25rem;
   font-weight: 700;
@@ -144,22 +206,68 @@ html, body {
 
 .singular-mobile-sheet__summary-editor input,
 .singular-mobile-sheet__attack-editor input,
-.singular-mobile-sheet__attack-editor select {
+.singular-mobile-sheet__attack-editor select,
+.singular-mobile-sheet__trait-editor input,
+.singular-mobile-sheet__trait-editor select,
+.singular-mobile-sheet__skill-editor input,
+.singular-mobile-sheet__technique-editor input,
+.singular-mobile-sheet__language-editor input,
+.singular-mobile-sheet__language-editor select,
+.singular-mobile-sheet__familiarity-editor input,
+.singular-mobile-sheet__general-notes-editor textarea,
+.singular-mobile-sheet__structured-note-editor input,
+.singular-mobile-sheet__structured-note-inline-editor input,
+.singular-mobile-sheet__secondary-actions input {
   width: 100%;
   min-height: 2.75rem;
+}
+
+.singular-mobile-sheet__secondary-actions,
+.singular-mobile-sheet__attack-actions,
+.singular-mobile-sheet__trait-actions,
+.singular-mobile-sheet__skill-actions,
+.singular-mobile-sheet__technique-actions,
+.singular-mobile-sheet__note-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-top: 0.5rem;
+}
+
+.singular-mobile-sheet__secondary-actions button,
+.singular-mobile-sheet__attack-actions button,
+.singular-mobile-sheet__trait-actions button,
+.singular-mobile-sheet__skill-actions button,
+.singular-mobile-sheet__technique-actions button,
+.singular-mobile-sheet__note-actions button {
+  flex: 1 1 auto;
+  min-width: 3rem;
+  touch-action: manipulation;
+}
+
+.singular-mobile-sheet__structured-note-inline-editor {
+  border-top: 1px solid #344457;
+  margin-top: 0.65rem;
+  padding-top: 0.65rem;
 }
 
 .singular-mobile-sheet__languages-culture-list,
 .singular-mobile-sheet__equipment-totals,
 .singular-mobile-sheet__equipment-list,
-.singular-mobile-sheet__attack-list {
+.singular-mobile-sheet__attack-list,
+.singular-mobile-sheet__trait-list,
+.singular-mobile-sheet__skill-technique-list,
+.singular-mobile-sheet__structured-note-list {
   display: grid;
   gap: 0.5rem;
 }
 
 .singular-mobile-sheet__languages-culture-list > div,
 .singular-mobile-sheet__equipment-list > div,
-.singular-mobile-sheet__attack-list > div {
+.singular-mobile-sheet__attack-list > div,
+.singular-mobile-sheet__trait-list > div,
+.singular-mobile-sheet__skill-technique-list > div,
+.singular-mobile-sheet__structured-note-list > div {
   display: grid;
   gap: 0.35rem;
 }
@@ -207,7 +315,10 @@ html, body {
 
 .singular-mobile-sheet__languages-culture-list small,
 .singular-mobile-sheet__equipment-list small,
-.singular-mobile-sheet__attack-list small {
+.singular-mobile-sheet__attack-list small,
+.singular-mobile-sheet__trait-list small,
+.singular-mobile-sheet__skill-technique-list small,
+.singular-mobile-sheet__structured-note-list small {
   display: block;
   font-weight: 600;
   line-height: 1.35;
@@ -260,22 +371,12 @@ html, body {
   font-weight: 700;
 }
 
-.singular-mobile-sheet__attack-list dd {
+.singular-mobile-sheet__attack-list dd,
+.singular-mobile-sheet__trait-list dd,
+.singular-mobile-sheet__skill-technique-list dd,
+.singular-mobile-sheet__structured-note-list dd {
   display: grid;
   gap: 0.45rem;
-}
-
-.singular-mobile-sheet__attack-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.35rem;
-  margin-top: 0.5rem;
-}
-
-.singular-mobile-sheet__attack-actions button {
-  flex: 1 1 auto;
-  min-width: 3rem;
-  touch-action: manipulation;
 }
 
 [data-mode="table"] .singular-mobile-sheet__summary-editor,
@@ -337,6 +438,7 @@ html, body {
 .singular-mobile-sheet dd { margin: 0; font-weight: 800; }
 .singular-mobile-sheet h1,
 .singular-mobile-sheet h2,
+.singular-mobile-sheet h3,
 .singular-mobile-sheet p { overflow-wrap: anywhere; }
 
 @media (max-width: 25rem) {
@@ -353,11 +455,25 @@ html, body {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .singular-mobile-sheet__attack-editor {
+  .singular-mobile-sheet__attack-editor,
+  .singular-mobile-sheet__trait-editor,
+  .singular-mobile-sheet__skill-editor,
+  .singular-mobile-sheet__technique-editor,
+  .singular-mobile-sheet__language-editor,
+  .singular-mobile-sheet__familiarity-editor,
+  .singular-mobile-sheet__structured-note-editor,
+  .singular-mobile-sheet__structured-note-inline-editor {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .singular-mobile-sheet__attack-editor > button {
+  .singular-mobile-sheet__attack-editor > button,
+  .singular-mobile-sheet__trait-editor > button,
+  .singular-mobile-sheet__skill-editor > button,
+  .singular-mobile-sheet__technique-editor > button,
+  .singular-mobile-sheet__language-editor > button,
+  .singular-mobile-sheet__familiarity-editor > button,
+  .singular-mobile-sheet__structured-note-editor > button,
+  .singular-mobile-sheet__structured-note-inline-editor > button {
     grid-column: 1 / -1;
   }
 }
