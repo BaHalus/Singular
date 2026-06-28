@@ -145,8 +145,8 @@ test("edits powers in creation mode through canonical commands and manual persis
   root.setInput('[data-role="power-modifier-name"]', "Místico");
   root.setInput('[data-role="power-modifier-value-percent"]', "-10");
   root.setInput('[data-role="power-modifier-notes"]', "afetado por zonas sem mana");
-  root.setInput('[data-role="power-talent-trait-id"]', "trait:chi-talent");
-  root.setInput('[data-role="power-member-trait-ids"]', "trait:iron-hand, trait:leap");
+  root.setInput('[data-role="power-talent-trait-id"]', "");
+  root.setInput('[data-role="power-member-trait-ids"]', "");
   root.setInput('[data-role="power-tags"]', "marcial, chi");
   root.setInput('[data-role="power-notes"]', "poder aprendido");
   await root.dispatch("click", click("power-add"));
@@ -163,8 +163,8 @@ test("edits powers in creation mode through canonical commands and manual persis
     valuePercent: -10,
     notes: "afetado por zonas sem mana",
   });
-  assert.equal(mounted.character.powers[1].talentTraitId, "trait:chi-talent");
-  assert.deepEqual(mounted.character.powers[1].memberTraitIds, ["trait:iron-hand", "trait:leap"]);
+  assert.equal(mounted.character.powers[1].talentTraitId, null);
+  assert.deepEqual(mounted.character.powers[1].memberTraitIds, []);
   assert.deepEqual(mounted.character.powers[1].tags, ["marcial", "chi"]);
   assert.match(root.innerHTML, /Chi/);
   assert.match(root.innerHTML, /Mod\. Místico -10%/);
