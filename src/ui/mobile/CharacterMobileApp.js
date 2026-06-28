@@ -133,6 +133,10 @@ export async function bootstrapCharacterMobileApp(options = {}) {
           role: readInputValue(root, '[data-role="trait-role"]') || "advantage",
           points,
           levels,
+          selfControl: createDefaultTraitSelfControl(),
+          frequency: createDefaultTraitFrequency(),
+          roundCostDown: false,
+          choices: [],
           notes: readInputValue(root, '[data-role="trait-notes"]'),
           tags: splitTextList(readInputValue(root, '[data-role="trait-tags"]')),
           source: { kind: "singular" },
@@ -233,6 +237,30 @@ function createInitialSession(options) {
     character,
     metadata: { source: "alpha-mobile-bootstrap" },
   });
+}
+
+function createDefaultTraitSelfControl() {
+  return {
+    roll: 0,
+    status: "none",
+    multiplier: 1,
+    penalty: 0,
+    adjustment: {
+      type: "none",
+      status: "ready",
+      value: 0,
+    },
+    raw: null,
+  };
+}
+
+function createDefaultTraitFrequency() {
+  return {
+    roll: 0,
+    status: "none",
+    multiplier: 1,
+    raw: null,
+  };
 }
 
 function readInputValue(root, selector) {
