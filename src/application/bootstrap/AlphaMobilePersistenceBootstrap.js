@@ -246,7 +246,10 @@ function createAlphaMobileCommands({ persistence, registry, runtime }) {
     }
     return result;
   };
-  const run = type => payload => execute(type, payload ?? {});
+  const run = type => payload => execute(
+    type,
+    payload === undefined ? {} : payload,
+  );
 
   return Object.freeze({
     setCurrentPool: run(POOL_COMMAND_TYPES.SET_CURRENT),

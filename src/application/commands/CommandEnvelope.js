@@ -6,7 +6,7 @@ export function createCommandEnvelope(input = {}) {
     type: normalizeRequiredString(input.type, "Command type"),
     expectedRevision: normalizeRevision(input.expectedRevision),
     issuedAt: normalizeTimestamp(input.issuedAt),
-    payload: cloneApplicationValue(input.payload ?? {}),
+    payload: cloneApplicationValue(input.payload === undefined ? {} : input.payload),
   };
 
   validateCommandEnvelope(envelope);
