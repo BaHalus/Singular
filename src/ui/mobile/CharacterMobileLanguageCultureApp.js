@@ -1,4 +1,4 @@
-import { bootstrapCharacterMobileApp } from "./CharacterMobileApp.js";
+import { bootstrapCharacterMobileApp, renderCharacterMobileApp } from "./CharacterMobileApp.js";
 
 const MOBILE_ROOT_SELECTOR = "[data-singular-mobile-root]";
 const LANGUAGE_LEVELS = Object.freeze(["none", "broken", "accented", "native"]);
@@ -10,7 +10,7 @@ export async function bootstrapCharacterMobileLanguageCultureApp(options = {}) {
 
   const render = () => {
     const session = app.persistence.getActiveSession();
-    root.innerHTML = app.ui.render({ mode: app.mode });
+    root.innerHTML = renderCharacterMobileApp(session.character, { mode: app.mode });
     setMobileRootAttributes(root, session, app.mode);
     enhanceLanguageCultureSection(root, session.character, app.mode);
     app.modeSync.sync();
