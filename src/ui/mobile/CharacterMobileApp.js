@@ -124,6 +124,29 @@ export async function bootstrapCharacterMobileApp(options = {}) {
         notes: readInputValue(root, '[data-role="spell-notes"]'),
       };
     },
+    readTraitDraft() {
+      const points = readInputNumber(root, '[data-role="trait-points"]', null);
+      const levels = readInputNumber(root, '[data-role="trait-levels"]', null);
+      return {
+        trait: {
+          name: readInputValue(root, '[data-role="trait-name"]'),
+          role: readInputValue(root, '[data-role="trait-role"]') || "advantage",
+          points,
+          levels,
+          selfControl: createDefaultTraitSelfControl(),
+          frequency: createDefaultTraitFrequency(),
+          roundCostDown: false,
+          choices: [],
+          notes: readInputValue(root, '[data-role="trait-notes"]'),
+          tags: splitTextList(readInputValue(root, '[data-role="trait-tags"]')),
+          source: { kind: "singular" },
+          pointValue: {
+            declaredPoints: points,
+            levels,
+          },
+        },
+      };
+    },
     readPowerDraft() {
       return {
         name: readInputValue(root, '[data-role="power-name"]'),
@@ -216,6 +239,30 @@ function createInitialSession(options) {
   });
 }
 
+function createDefaultTraitSelfControl() {
+  return {
+    roll: 0,
+    status: "none",
+    multiplier: 1,
+    penalty: 0,
+    adjustment: {
+      type: "none",
+      status: "ready",
+      value: 0,
+    },
+    raw: null,
+  };
+}
+
+function createDefaultTraitFrequency() {
+  return {
+    roll: 0,
+    status: "none",
+    multiplier: 1,
+    raw: null,
+  };
+}
+
 function readInputValue(root, selector) {
   const input = root.querySelector?.(selector);
   return typeof input?.value === "string" ? input.value : "";
@@ -226,6 +273,14 @@ function readInputNumber(root, selector, fallback) {
   if (raw.trim() === "") return fallback;
   const value = Number(raw);
   return Number.isFinite(value) ? value : fallback;
+}
+
+function splitTextList(value) {
+  if (typeof value !== "string") return [];
+  return value
+    .split(",")
+    .map(item => item.trim())
+    .filter(Boolean);
 }
 
 function escapeSelectorValue(value) {
