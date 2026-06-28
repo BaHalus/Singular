@@ -1,4 +1,6 @@
 import { createAttackCommandHandlerEntries } from "../attacks/AttackCommandHandlers.js";
+import { createAttributeCommandHandlerEntries } from "../attributes/AttributeCommandHandlers.js";
+import { createCharacterSummaryCommandHandlerEntries } from "../character/CharacterSummaryCommandHandlers.js";
 import { createEquipmentCommandHandlerEntries } from "../equipment/EquipmentCommandHandlers.js";
 import { createLanguageCultureCommandHandlerEntries } from "../languages/LanguageCultureCommandHandlers.js";
 import { createNotesCommandHandlerEntries } from "../notes/NotesCommandHandlers.js";
@@ -14,6 +16,8 @@ export const ALPHA_COMMAND_CATALOG_VERSION = "APP-ALPHA-COMMAND-CATALOG-1.0";
 export function createAlphaCommandCatalogEntries() {
   const entries = [
     ...createPoolCommandHandlerEntries(),
+    ...createCharacterSummaryCommandHandlerEntries(),
+    ...createAttributeCommandHandlerEntries(),
     ...createAttackCommandHandlerEntries(),
     ...createEquipmentCommandHandlerEntries(),
     ...createSpellCommandHandlerEntries(),
