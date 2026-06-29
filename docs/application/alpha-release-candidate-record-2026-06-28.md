@@ -10,7 +10,7 @@ Release-candidate record for the Alpha application/domain boundary.
 Alpha RC: alpha-app-domain-2026-06-29-bb41978
 Main SHA: bb41978f1e5d03fac7ffe8f3d609c96bbb98be3e
 Date/time: 29/06/2026 07:12 America/Sao_Paulo
-Test evidence: mobile recovery PR #202 head 7ea78f0f9acb867380f6ed820a3018e070f22bfa had Tests success; mobile equipment regression PR #203 head 8e99e57f359c97c2788df6889fb7023241b28878 had Tests success before merge; mobile trait persistence render evidence PR #205 head 93d4e62f2d22e874dc066db4ceb9c67b18d7685d had Tests success before merge; this refreshed RC PR must still get Tests success on its new head before merge
+Test evidence: mobile recovery PR #202 head 7ea78f0f9acb867380f6ed820a3018e070f22bfa had Tests success; mobile equipment regression PR #203 head 8e99e57f359c97c2788df6889fb7023241b28878 had Tests success before merge; mobile trait persistence gate PR #205 head 93d4e62f2d22e874dc066db4ceb9c67b18d7685d had Tests success before merge; this refreshed RC PR must still get Tests success on its new head before merge
 Open PR overlap: no open PRs found before refreshing this record
 Medium risks accepted: residual Alpha caveats from docs/application/alpha-release-risk-register.md
 Release notes checked: yes, through docs/application/alpha-release-notes-verification.md
@@ -20,7 +20,7 @@ Decision: refresh application/domain RC baseline after the mobile trait persiste
 
 ## Purpose
 
-This record captures the current application/domain release-candidate baseline after the mobile lane integrated structured-note, trait, skill/technique, language/culture, attack and equipment editing, restored the Trait editor persistence/custom-role regression through the mobile hotfix path, added mobile Equipment editor regression coverage for canonical commands, manual persistence and table-mode structural blocking, and documented the mobile Trait editor persistence-shell evidence gate after `trait.update`.
+This record captures the current application/domain release-candidate baseline after the mobile lane integrated structured-note, trait, skill/technique, language/culture, attack and equipment editing, restored the Trait editor persistence/custom-role regression through the mobile hotfix path, added mobile Equipment editor regression coverage for canonical commands, manual persistence and table-mode structural blocking, and added the mobile Trait editor persistence-shell evidence gate.
 
 It intentionally does not claim that the whole mobile UI is complete. The record only says that the application/domain boundary remains fit for Alpha release-candidate preparation if the documented CI and overlap checks stay true.
 
@@ -29,7 +29,7 @@ It intentionally does not claim that the whole mobile UI is complete. The record
 - `main`: `bb41978f1e5d03fac7ffe8f3d609c96bbb98be3e`.
 - Recovery evidence: `HOTFIX UI-MOBILE-TRAIT-EDIT: preservar persistência e roles customizados` (#202) merged after its head `7ea78f0f9acb867380f6ed820a3018e070f22bfa` reached `Tests` success.
 - Regression evidence: `UI-MOBILE-EQUIPMENT-EDIT REGRESSION: cobrir persistência manual` (#203) merged after its head `8e99e57f359c97c2788df6889fb7023241b28878` reached `Tests` success.
-- Persistence-shell evidence: `Fix mobile trait edit persistence render` (#205) merged after its head `93d4e62f2d22e874dc066db4ceb9c67b18d7685d` reached `Tests` success; its merge commit added the gate note that records the already-integrated mobile Trait persistence-shell recovery evidence.
+- Persistence-shell evidence: `Fix mobile trait edit persistence render` (#205) merged after its head `93d4e62f2d22e874dc066db4ceb9c67b18d7685d` reached `Tests` success; compare `ea11360a76df1fde1c857ba8cfb224bff30e761c..32ac74c7fef9863ae01a638aa2959a4333efab57` shows the merge commit only added `docs/gates/UI-MOBILE-TRAIT-EDIT-PERSISTENCE-FIX.md`, so this record treats #205 as a documentation/evidence gate and not as a new application/domain or mobile-source change.
 - Review-thread evidence: the P1/P2 threads reviewed in the mobile recovery path were resolved before the relevant record refreshes; no open PRs were found before this refresh.
 - Latest mobile lane PRs reviewed for boundary impact:
   - `UI-MOBILE-STRUCTURED-NOTE-EDIT 1.0` (#195), scoped to `src/ui/mobile/*`.
