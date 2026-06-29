@@ -51,9 +51,15 @@ export async function bootstrapCharacterMobileTraitEditApp(options = {}) {
     : null;
   observer?.observe?.(root, { childList: true, subtree: true });
 
-  const handleClick = event => {
+  const handleClick = async event => {
     const actionTarget = findDataTarget(event?.target, "action");
     const action = actionTarget === null ? null : readDataset(actionTarget, "action");
+    if (action === "persistence-save") {
+      const saved = await app.repositories.session.save(app.persistence.getActiveSession());
+      root.setAttribute?.("data-last-persistence-status", "saved");
+      root.setAttribute?.("data-last-saved-session-id", saved.id);
+      return saved;
+    }
     if (action !== "trait-update") return null;
     event.preventDefault?.();
 
