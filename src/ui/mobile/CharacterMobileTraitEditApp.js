@@ -51,15 +51,9 @@ export async function bootstrapCharacterMobileTraitEditApp(options = {}) {
     : null;
   observer?.observe?.(root, { childList: true, subtree: true });
 
-  const handleClick = async event => {
+  const handleClick = event => {
     const actionTarget = findDataTarget(event?.target, "action");
     const action = actionTarget === null ? null : readDataset(actionTarget, "action");
-    if (action === "persistence-save") {
-      const saved = await app.repositories.session.save(app.persistence.getActiveSession());
-      root.setAttribute?.("data-last-persistence-status", "saved");
-      root.setAttribute?.("data-last-saved-session-id", saved.id);
-      return saved;
-    }
     if (action !== "trait-update") return null;
     event.preventDefault?.();
 
@@ -232,6 +226,10 @@ function readTraitPatch(root, traitId, character) {
   const points = readInputNumber(root, `[data-role="trait-edit-points-${suffix}"]`, null);
   const levels = readInputNumber(root, `[data-role="trait-edit-levels-${suffix}"]`, null);
   return {
+    selfControl: existingTrait?.selfControl,
+    frequency: existingTrait?.frequency,
+    roundCostDown: existingTrait?.roundCostDown ?? false,
+    choices: Array.isArray(existingTrait?.choices) ? existingTrait.choices : [],
     name: readInputValue(root, `[data-role="trait-edit-name-${suffix}"]`),
     role: readInputValue(root, `[data-role="trait-edit-role-${suffix}"]`) || existingTrait?.role || "advantage",
     points,
