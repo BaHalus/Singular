@@ -2,7 +2,6 @@ import {
   bootstrapCharacterMobileSecondaryNotesApp,
   injectMobileSecondaryNotesControls,
 } from "./CharacterMobileSecondaryNotesApp.js";
-import { renderCharacterMobileApp } from "./CharacterMobileApp.js";
 import { injectLanguageCultureCreationControls } from "./CharacterMobileLanguageCultureApp.js";
 
 const MOBILE_ROOT_SELECTOR = "[data-singular-mobile-root]";
@@ -12,6 +11,14 @@ const TRAIT_ROLES = Object.freeze([
   ["perk", "Peculiaridade positiva"],
   ["quirk", "Peculiaridade negativa"],
   ["feature", "Característica"],
+]);
+const PERSISTENCE_RENDER_ACTIONS = Object.freeze([
+  "persistence-save",
+  "persistence-refresh",
+  "persistence-open",
+  "persistence-remove",
+  "persistence-export",
+  "persistence-import",
 ]);
 
 export async function bootstrapCharacterMobileTraitEditApp(options = {}) {
@@ -24,7 +31,7 @@ export async function bootstrapCharacterMobileTraitEditApp(options = {}) {
     root.innerHTML = injectMobileTraitEditControls(
       injectMobileSecondaryNotesControls(
         injectLanguageCultureCreationControls(
-          renderCharacterMobileApp(session.character, { mode: app.mode }),
+          app.ui.render({ mode: app.mode }),
           session.character,
           app.mode,
         ),
@@ -52,9 +59,17 @@ export async function bootstrapCharacterMobileTraitEditApp(options = {}) {
     : null;
   observer?.observe?.(root, { childList: true, subtree: true });
 
-  const handleClick = event => {
+  const handleClick = async event => {
     const actionTarget = findDataTarget(event?.target, "action");
     const action = actionTarget === null ? null : readDataset(actionTarget, "action");
+
+    if (isPersistenceRenderAction(action)) {
+      const result = action === "persistence-save" ? await app.ui.save() : null;
+      render();
+      root.setAttribute?.("data-last-persistence-status", result?.status ?? "rendered");
+      return result;
+    }
+
     if (action !== "trait-update") return null;
     event.preventDefault?.();
 
@@ -70,7 +85,7 @@ export async function bootstrapCharacterMobileTraitEditApp(options = {}) {
     const traitId = readDataset(actionTarget, "traitId");
     const result = app.commands.updateTrait({
       traitId,
-      patch: readTraitPatch(root, traitId),
+      patch: readTraitPatch(root, traitId, app.persistence.getActiveSession().character),
     });
     root.setAttribute?.("data-last-command-status", result.status);
     if (["applied", "no-op"].includes(result.status)) render();
@@ -201,9 +216,13 @@ function renderTraitInlineEditor(trait) {
 }
 
 function renderRoleOptions(activeRole) {
-  return TRAIT_ROLES.map(([value, label]) => {
+  const knownRoles = TRAIT_ROLES.map(([value]) => value);
+  const customRoleOption = typeof activeRole === "string" && activeRole !== "" && !knownRoles.includes(activeRole)
+    ? [[activeRole, activeRole]]
+    : [];
+  return [...customRoleOption, ...TRAIT_ROLES].map(([value, label]) => {
     const selected = value === activeRole ? " selected" : "";
-    return `<option value="${value}"${selected}>${escapeText(label)}</option>`;
+    return `<option value="${escapeAttribute(value)}"${selected}>${escapeText(label)}</option>`;
   }).join("");
 }
 
@@ -217,22 +236,47 @@ function renderTraitDetails(trait) {
   return ` <small>${escapeText(details.join(" · "))}</small>`;
 }
 
-function readTraitPatch(root, traitId) {
+function readTraitPatch(root, traitId, character) {
   const suffix = escapeSelectorValue(traitId);
+  const existingTrait = findTrait(character, traitId);
   const points = readInputNumber(root, `[data-role="trait-edit-points-${suffix}"]`, null);
   const levels = readInputNumber(root, `[data-role="trait-edit-levels-${suffix}"]`, null);
-  return {
+  const patch = {
     name: readInputValue(root, `[data-role="trait-edit-name-${suffix}"]`),
-    role: readInputValue(root, `[data-role="trait-edit-role-${suffix}"]`) || "advantage",
+    role: readInputValue(root, `[data-role="trait-edit-role-${suffix}"]`) || existingTrait?.role || "advantage",
     points,
     levels,
     notes: readInputValue(root, `[data-role="trait-edit-notes-${suffix}"]`),
     tags: splitTextList(readInputValue(root, `[data-role="trait-edit-tags-${suffix}"]`)),
     pointValue: {
+      legacyPoints: points,
       declaredPoints: points,
       levels,
     },
   };
+
+  preserveExistingTraitField(patch, existingTrait, "selfControl");
+  preserveExistingTraitField(patch, existingTrait, "frequency");
+  preserveExistingTraitField(patch, existingTrait, "roundCostDown");
+  preserveExistingTraitField(patch, existingTrait, "source");
+  if (Array.isArray(existingTrait?.choices)) patch.choices = [...existingTrait.choices];
+
+  return patch;
+}
+
+function preserveExistingTraitField(patch, trait, field) {
+  if (
+    trait !== null &&
+    trait !== undefined &&
+    Object.prototype.hasOwnProperty.call(trait, field) &&
+    trait[field] !== undefined
+  ) {
+    patch[field] = trait[field];
+  }
+}
+
+function findTrait(character, traitId) {
+  return (character?.traits ?? []).find(trait => trait.id === traitId) ?? null;
 }
 
 function localizedTraitRole(role) {
@@ -241,26 +285,30 @@ function localizedTraitRole(role) {
   if (role === "perk") return "Peculiaridade positiva";
   if (role === "quirk") return "Peculiaridade negativa";
   if (role === "feature") return "Característica";
-  return "Traço";
+  return role || "Traço";
 }
 
 function setMobileRootAttributes(root, session, mode) {
-  root.setAttribute?.("data-singular-mounted", "true");
   root.setAttribute?.("data-session-id", session.id);
   root.setAttribute?.("data-character-id", session.character.identity.id);
   root.setAttribute?.("data-mode", mode);
 }
 
 function resolveMobileRoot(documentOption) {
-  const documentRef = documentOption ?? globalThis.document;
-  if (!documentRef || typeof documentRef.querySelector !== "function") {
-    throw new Error("Character mobile trait edit bootstrap requires a document");
-  }
+  const documentRef = optionsDocument(documentOption);
   const root = documentRef.querySelector(MOBILE_ROOT_SELECTOR);
   if (root === null) {
     throw new Error("Character mobile trait edit bootstrap root was not found");
   }
   return root;
+}
+
+function optionsDocument(documentOption) {
+  const documentRef = documentOption ?? globalThis.document;
+  if (!documentRef || typeof documentRef.querySelector !== "function") {
+    throw new Error("Character mobile trait edit bootstrap requires a document");
+  }
+  return documentRef;
 }
 
 function findDataTarget(target, key) {
@@ -313,6 +361,10 @@ function escapeText(value) {
 function formatValue(value) {
   if (value === undefined || value === null || value === "") return "—";
   return String(value);
+}
+
+function isPersistenceRenderAction(action) {
+  return PERSISTENCE_RENDER_ACTIONS.includes(action);
 }
 
 function requirePlainObject(value, label) {

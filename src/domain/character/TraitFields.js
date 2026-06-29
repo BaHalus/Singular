@@ -133,6 +133,7 @@ export function validateTraitRecord(record, label) {
 
 export function serializeTraitRecord(record, label) {
   validateTraitRecord(record, label);
+  const canonical = label === "Trait";
 
   return {
     id: record.id,
@@ -144,14 +145,16 @@ export function serializeTraitRecord(record, label) {
     points: record.points,
     levels: record.levels,
 
-    ...(hasOwn(record, "selfControl") && shouldSerializeSelfControl(record.selfControl)
+    ...(hasOwn(record, "selfControl") && (canonical || shouldSerializeSelfControl(record.selfControl))
       ? { selfControl: serializeTraitSelfControl(record.selfControl) }
       : {}),
-    ...(hasOwn(record, "frequency") && shouldSerializeFrequency(record.frequency)
+    ...(hasOwn(record, "frequency") && (canonical || shouldSerializeFrequency(record.frequency))
       ? { frequency: serializeTraitFrequency(record.frequency) }
       : {}),
-    ...(record.roundCostDown === true ? { roundCostDown: true } : {}),
-    ...(Array.isArray(record.choices) && record.choices.length > 0
+    ...(canonical || record.roundCostDown === true
+      ? { roundCostDown: record.roundCostDown }
+      : {}),
+    ...(canonical || (Array.isArray(record.choices) && record.choices.length > 0)
       ? { choices: serializeTraitChoices(record.choices) }
       : {}),
 
