@@ -225,11 +225,7 @@ function readTraitPatch(root, traitId, character) {
   const existingTrait = findTrait(character, traitId);
   const points = readInputNumber(root, `[data-role="trait-edit-points-${suffix}"]`, null);
   const levels = readInputNumber(root, `[data-role="trait-edit-levels-${suffix}"]`, null);
-  return {
-    selfControl: existingTrait?.selfControl,
-    frequency: existingTrait?.frequency,
-    roundCostDown: existingTrait?.roundCostDown ?? false,
-    choices: Array.isArray(existingTrait?.choices) ? existingTrait.choices : [],
+  const patch = {
     name: readInputValue(root, `[data-role="trait-edit-name-${suffix}"]`),
     role: readInputValue(root, `[data-role="trait-edit-role-${suffix}"]`) || existingTrait?.role || "advantage",
     points,
@@ -241,6 +237,25 @@ function readTraitPatch(root, traitId, character) {
       levels,
     },
   };
+
+  preserveExistingTraitField(patch, existingTrait, "selfControl");
+  preserveExistingTraitField(patch, existingTrait, "frequency");
+  preserveExistingTraitField(patch, existingTrait, "roundCostDown");
+  preserveExistingTraitField(patch, existingTrait, "source");
+  if (Array.isArray(existingTrait?.choices)) patch.choices = [...existingTrait.choices];
+
+  return patch;
+}
+
+function preserveExistingTraitField(patch, trait, field) {
+  if (
+    trait !== null &&
+    trait !== undefined &&
+    Object.prototype.hasOwnProperty.call(trait, field) &&
+    trait[field] !== undefined
+  ) {
+    patch[field] = trait[field];
+  }
 }
 
 function findTrait(character, traitId) {
