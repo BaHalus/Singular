@@ -226,11 +226,6 @@ function readTraitPatch(root, traitId, character) {
   const points = readInputNumber(root, `[data-role="trait-edit-points-${suffix}"]`, null);
   const levels = readInputNumber(root, `[data-role="trait-edit-levels-${suffix}"]`, null);
   return {
-    selfControl: existingTrait?.selfControl,
-    frequency: existingTrait?.frequency,
-    roundCostDown: existingTrait?.roundCostDown ?? false,
-    choices: Array.isArray(existingTrait?.choices) ? existingTrait.choices : [],
-    source: existingTrait?.source,
     name: readInputValue(root, `[data-role="trait-edit-name-${suffix}"]`),
     role: readInputValue(root, `[data-role="trait-edit-role-${suffix}"]`) || existingTrait?.role || "advantage",
     points,
@@ -258,7 +253,6 @@ function localizedTraitRole(role) {
 }
 
 function setMobileRootAttributes(root, session, mode) {
-  root.setAttribute?.("data-singular-mounted", "true");
   root.setAttribute?.("data-session-id", session.id);
   root.setAttribute?.("data-character-id", session.character.identity.id);
   root.setAttribute?.("data-mode", mode);
