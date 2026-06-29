@@ -102,7 +102,7 @@ function renderEditor(spell) {
     `<label>Manut <input type="text" data-role="spell-edit-maintenance-cost-${id}" value="${escapeAttribute(spell.maintenanceCost ?? "")}" autocomplete="off"></label>`,
     `<label>TO <input type="text" data-role="spell-edit-casting-time-${id}" value="${escapeAttribute(spell.castingTime ?? "")}" autocomplete="off"></label>`,
     `<label>Duração <input type="text" data-role="spell-edit-duration-${id}" value="${escapeAttribute(spell.duration ?? "")}" autocomplete="off"></label>`,
-    `<label>Notas <input type="text" data-role="spell-edit-notes-${id}" value="${escapeAttribute(spell.notes ?? "")}" autocomplete="off"></label>`,
+    `<label class="singular-mobile-sheet__spell-inline-editor-notes">Notas <textarea data-role="spell-edit-notes-${id}" autocomplete="off">${escapeTextContent(spell.notes ?? "")}</textarea></label>`,
     `<button type="button" data-action="spell-update" data-spell-id="${id}">Salvar magia</button>`,
     "</div>",
   ].join("");
@@ -160,6 +160,10 @@ function normalizeOptionalText(value) {
 
 function escapeSelectorValue(value) {
   return String(value ?? "").replaceAll("\\", "\\\\").replaceAll('"', '\\"');
+}
+
+function escapeTextContent(value) {
+  return String(value ?? "").replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
 }
 
 function escapeAttribute(value) {
