@@ -133,7 +133,7 @@ test("edits existing mobile equipment through canonical commands and manual pers
   assert.equal(mounted.session.revision, 3);
   assert.deepEqual(
     mounted.session.history.map(entry => entry.commandType),
-    ["equipment.rename", "equipment.setQuantity", "equipment.setState"],
+    ["equipment.rename", "equipment.quantity.set", "equipment.state.set"],
   );
   assert.equal(mounted.character.equipment[0].name, "Corda de escalada");
   assert.equal(mounted.character.equipment[0].quantity, 2);
