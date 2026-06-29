@@ -2,7 +2,6 @@ import {
   bootstrapCharacterMobileSecondaryNotesApp,
   injectMobileSecondaryNotesControls,
 } from "./CharacterMobileSecondaryNotesApp.js";
-import { renderCharacterMobileApp } from "./CharacterMobileApp.js";
 import { injectLanguageCultureCreationControls } from "./CharacterMobileLanguageCultureApp.js";
 
 const MOBILE_ROOT_SELECTOR = "[data-singular-mobile-root]";
@@ -24,7 +23,7 @@ export async function bootstrapCharacterMobileTraitEditApp(options = {}) {
     root.innerHTML = injectMobileTraitEditControls(
       injectMobileSecondaryNotesControls(
         injectLanguageCultureCreationControls(
-          renderCharacterMobileApp(session.character, { mode: app.mode }),
+          app.ui.render({ mode: app.mode }),
           session.character,
           app.mode,
         ),
