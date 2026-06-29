@@ -18,7 +18,7 @@ function character() {
       {
         id: "trait:voice",
         name: "Voz Melodiosa",
-        role: "advantage",
+        role: "social-edge",
         points: 10,
         levels: null,
         selfControl: {
@@ -132,10 +132,12 @@ test("edits an existing mobile trait through the canonical update command and ma
   });
 
   assert.match(root.innerHTML, /data-action="trait-update"/);
+  assert.match(root.innerHTML, /data-action="persistence-save"/);
   assert.match(root.innerHTML, /Voz Melodiosa/);
+  assert.match(root.innerHTML, /value="social-edge" selected/);
 
   root.setInput('[data-role="trait-edit-name-trait:voice"]', "Voz Hipnótica");
-  root.setInput('[data-role="trait-edit-role-trait:voice"]', "advantage");
+  root.setInput('[data-role="trait-edit-role-trait:voice"]', "social-edge");
   root.setInput('[data-role="trait-edit-points-trait:voice"]', "12");
   root.setInput('[data-role="trait-edit-levels-trait:voice"]', "2");
   root.setInput('[data-role="trait-edit-tags-trait:voice"]', "social, voz");
@@ -146,17 +148,20 @@ test("edits an existing mobile trait through the canonical update command and ma
   assert.equal(mounted.session.revision, 1);
   assert.equal(mounted.session.history[0].commandType, "trait.update");
   assert.equal(mounted.character.traits[0].name, "Voz Hipnótica");
+  assert.equal(mounted.character.traits[0].role, "social-edge");
   assert.equal(mounted.character.traits[0].points, 12);
   assert.equal(mounted.character.traits[0].levels, 2);
   assert.deepEqual(mounted.character.traits[0].tags, ["social", "voz"]);
   assert.equal(mounted.character.traits[0].pointValue.declaredPoints, 12);
   assert.match(root.innerHTML, /Voz Hipnótica/);
+  assert.match(root.innerHTML, /data-action="persistence-save"/);
 
   await root.dispatch("click", click("persistence-save"));
   const saved = await mounted.repositories.session.load("session-mobile-trait-edit");
 
   assert.equal(saved.revision, 1);
   assert.equal(saved.character.traits[0].name, "Voz Hipnótica");
+  assert.equal(saved.character.traits[0].role, "social-edge");
   assert.equal(saved.character.traits[0].points, 12);
 });
 
