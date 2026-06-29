@@ -2,7 +2,10 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { createCharacter } from "../../domain/character/Character.js";
-import { bootstrapCharacterMobileTraitEditApp } from "./CharacterMobileTraitEditApp.js";
+import {
+  bootstrapCharacterMobileTraitEditApp,
+  injectMobileTraitEditControls,
+} from "./CharacterMobileTraitEditApp.js";
 
 function character() {
   return createCharacter({
@@ -18,7 +21,7 @@ function character() {
       {
         id: "trait:voice",
         name: "Voz Melodiosa",
-        role: "social-edge",
+        role: "advantage",
         points: 10,
         levels: null,
         selfControl: {
@@ -134,10 +137,9 @@ test("edits an existing mobile trait through the canonical update command and ma
   assert.match(root.innerHTML, /data-action="trait-update"/);
   assert.match(root.innerHTML, /data-action="persistence-save"/);
   assert.match(root.innerHTML, /Voz Melodiosa/);
-  assert.match(root.innerHTML, /value="social-edge" selected/);
 
   root.setInput('[data-role="trait-edit-name-trait:voice"]', "Voz Hipnótica");
-  root.setInput('[data-role="trait-edit-role-trait:voice"]', "social-edge");
+  root.setInput('[data-role="trait-edit-role-trait:voice"]', "advantage");
   root.setInput('[data-role="trait-edit-points-trait:voice"]', "12");
   root.setInput('[data-role="trait-edit-levels-trait:voice"]', "2");
   root.setInput('[data-role="trait-edit-tags-trait:voice"]', "social, voz");
@@ -148,7 +150,6 @@ test("edits an existing mobile trait through the canonical update command and ma
   assert.equal(mounted.session.revision, 1);
   assert.equal(mounted.session.history[0].commandType, "trait.update");
   assert.equal(mounted.character.traits[0].name, "Voz Hipnótica");
-  assert.equal(mounted.character.traits[0].role, "social-edge");
   assert.equal(mounted.character.traits[0].points, 12);
   assert.equal(mounted.character.traits[0].levels, 2);
   assert.deepEqual(mounted.character.traits[0].tags, ["social", "voz"]);
@@ -161,8 +162,29 @@ test("edits an existing mobile trait through the canonical update command and ma
 
   assert.equal(saved.revision, 1);
   assert.equal(saved.character.traits[0].name, "Voz Hipnótica");
-  assert.equal(saved.character.traits[0].role, "social-edge");
   assert.equal(saved.character.traits[0].points, 12);
+});
+
+test("renders custom trait roles as selected inline editor options", () => {
+  const html = '<main><section class="singular-mobile-sheet__card" data-card="traits"><h2>Traços</h2><p>old</p></section></main>';
+  const rendered = injectMobileTraitEditControls(
+    html,
+    {
+      traits: [{
+        id: "trait:custom-role",
+        name: "Herança Exótica",
+        role: "social-edge",
+        points: 5,
+        levels: null,
+        notes: "Role importado.",
+        tags: [],
+      }],
+    },
+    "creation",
+  );
+
+  assert.match(rendered, /value="social-edge" selected/);
+  assert.match(rendered, /data-role="trait-edit-role-trait:custom-role"/);
 });
 
 test("blocks existing trait edits in table mode", async () => {
