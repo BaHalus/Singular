@@ -27,6 +27,7 @@
       import { bootstrapCharacterMobileAttackEditApp } from "./src/ui/mobile/CharacterMobileAttackEditApp.js";
       import { bootstrapCharacterMobileEquipmentEditApp } from "./src/ui/mobile/CharacterMobileEquipmentEditApp.js";
       import { bootstrapCharacterMobileSpellEditApp } from "./src/ui/mobile/CharacterMobileSpellEditApp.js";
+      import { bootstrapCharacterMobilePowerEditApp } from "./src/ui/mobile/CharacterMobilePowerEditApp.js";
 
       // Preserva a âncora de smoke test da página executável: await bootstrapCharacterMobileApp()
       // Preserva a âncora da integração anterior: await bootstrapCharacterMobileLanguageCultureApp()
@@ -36,6 +37,7 @@
       // Preserva a âncora da integração anterior: await bootstrapCharacterMobileLanguageCultureEditApp()
       // Preserva a âncora da integração anterior: await bootstrapCharacterMobileAttackEditApp()
       // Preserva a âncora da integração anterior: await bootstrapCharacterMobileEquipmentEditApp()
+      // Preserva a âncora da integração anterior: await bootstrapCharacterMobileSpellEditApp()
       void bootstrapCharacterMobileApp;
       void bootstrapCharacterMobileLanguageCultureApp;
       void bootstrapCharacterMobileSecondaryNotesApp;
@@ -44,9 +46,10 @@
       void bootstrapCharacterMobileLanguageCultureEditApp;
       void bootstrapCharacterMobileAttackEditApp;
       void bootstrapCharacterMobileEquipmentEditApp;
+      void bootstrapCharacterMobileSpellEditApp;
 
       try {
-        await bootstrapCharacterMobileSpellEditApp();
+        await bootstrapCharacterMobilePowerEditApp();
       } catch (error) {
         const root = document.querySelector("[data-singular-mobile-root]");
         if (root) {
