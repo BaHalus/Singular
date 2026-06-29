@@ -233,6 +233,7 @@ function readTraitPatch(root, traitId, character) {
     notes: readInputValue(root, `[data-role="trait-edit-notes-${suffix}"]`),
     tags: splitTextList(readInputValue(root, `[data-role="trait-edit-tags-${suffix}"]`)),
     pointValue: {
+      legacyPoints: points,
       declaredPoints: points,
       levels,
     },
@@ -278,15 +279,20 @@ function setMobileRootAttributes(root, session, mode) {
 }
 
 function resolveMobileRoot(documentOption) {
-  const documentRef = documentOption ?? globalThis.document;
-  if (!documentRef || typeof documentRef.querySelector !== "function") {
-    throw new Error("Character mobile trait edit bootstrap requires a document");
-  }
+  const documentRef = optionsDocument(documentOption);
   const root = documentRef.querySelector(MOBILE_ROOT_SELECTOR);
   if (root === null) {
     throw new Error("Character mobile trait edit bootstrap root was not found");
   }
   return root;
+}
+
+function optionsDocument(documentOption) {
+  const documentRef = documentOption ?? globalThis.document;
+  if (!documentRef || typeof documentRef.querySelector !== "function") {
+    throw new Error("Character mobile trait edit bootstrap requires a document");
+  }
+  return documentRef;
 }
 
 function findDataTarget(target, key) {
