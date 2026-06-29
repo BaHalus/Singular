@@ -226,6 +226,11 @@ function readTraitPatch(root, traitId, character) {
   const points = readInputNumber(root, `[data-role="trait-edit-points-${suffix}"]`, null);
   const levels = readInputNumber(root, `[data-role="trait-edit-levels-${suffix}"]`, null);
   return {
+    selfControl: existingTrait?.selfControl,
+    frequency: existingTrait?.frequency,
+    roundCostDown: existingTrait?.roundCostDown ?? false,
+    choices: Array.isArray(existingTrait?.choices) ? existingTrait.choices : [],
+    source: existingTrait?.source,
     name: readInputValue(root, `[data-role="trait-edit-name-${suffix}"]`),
     role: readInputValue(root, `[data-role="trait-edit-role-${suffix}"]`) || existingTrait?.role || "advantage",
     points,
