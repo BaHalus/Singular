@@ -1,0 +1,66 @@
+.singular-mobile-sheet__card[data-card="notes"] {
+  display: grid;
+  gap: 0.7rem;
+}
+
+.singular-mobile-sheet__card[data-card="notes"] > h2 {
+  margin-bottom: 0.1rem;
+}
+
+.singular-mobile-sheet__general-notes-editor,
+.singular-mobile-sheet__structured-note-editor,
+.singular-mobile-sheet__structured-note-inline-editor {
+  border: 1px solid #344457;
+  border-radius: 0.75rem;
+  background: #17202a;
+  padding: 0.65rem;
+}
+
+.singular-mobile-sheet__structured-note-editor > h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.singular-mobile-sheet__general-notes-editor textarea,
+.singular-mobile-sheet__structured-note-editor input,
+.singular-mobile-sheet__structured-note-inline-editor input {
+  font: inherit;
+  line-height: 1.35;
+}
+
+.singular-mobile-sheet__general-notes-editor textarea {
+  min-height: 7rem;
+}
+
+.singular-mobile-sheet__card[data-card="notes"] [data-role="notes-general-display"] {
+  border: 1px solid #344457;
+  border-radius: 0.65rem;
+  background: #202b38;
+  margin: 0;
+  padding: 0.65rem;
+  line-height: 1.45;
+  white-space: pre-wrap;
+}
+
+.singular-mobile-sheet__structured-note-list dd {
+  line-height: 1.45;
+  white-space: pre-wrap;
+}
+
+.singular-mobile-sheet__structured-note-list small {
+  margin-top: 0.35rem;
+  white-space: normal;
+}
+
+@media (min-width: 42rem) {
+  .singular-mobile-sheet__structured-note-editor,
+  .singular-mobile-sheet__structured-note-inline-editor {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .singular-mobile-sheet__structured-note-editor > h3,
+  .singular-mobile-sheet__structured-note-editor > button,
+  .singular-mobile-sheet__structured-note-inline-editor > button {
+    grid-column: 1 / -1;
+  }
+}
