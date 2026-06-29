@@ -160,7 +160,7 @@ test("edits an existing mobile trait through the canonical update command and ma
   await root.dispatch("click", click("persistence-save"));
   const saved = await mounted.repositories.session.load("session-mobile-trait-edit");
 
-  assert.notEqual(saved, null, root.innerHTML);
+  assert.notEqual(saved, null, JSON.stringify({ state: mounted.ui.getState(), html: root.innerHTML }));
   assert.equal(saved.revision, 1);
   assert.equal(saved.character.traits[0].name, "Voz Hipnótica");
   assert.equal(saved.character.traits[0].points, 12);
