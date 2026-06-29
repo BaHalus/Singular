@@ -2,7 +2,6 @@ import {
   bootstrapCharacterMobileSecondaryNotesApp,
   injectMobileSecondaryNotesControls,
 } from "./CharacterMobileSecondaryNotesApp.js";
-import { renderCharacterMobileApp } from "./CharacterMobileApp.js";
 import { injectLanguageCultureCreationControls } from "./CharacterMobileLanguageCultureApp.js";
 
 const MOBILE_ROOT_SELECTOR = "[data-singular-mobile-root]";
@@ -24,7 +23,7 @@ export async function bootstrapCharacterMobileTraitEditApp(options = {}) {
     root.innerHTML = injectMobileTraitEditControls(
       injectMobileSecondaryNotesControls(
         injectLanguageCultureCreationControls(
-          renderCharacterMobileApp(session.character, { mode: app.mode }),
+          app.ui.render({ mode: app.mode }),
           session.character,
           app.mode,
         ),
@@ -70,7 +69,7 @@ export async function bootstrapCharacterMobileTraitEditApp(options = {}) {
     const traitId = readDataset(actionTarget, "traitId");
     const result = app.commands.updateTrait({
       traitId,
-      patch: readTraitPatch(root, traitId),
+      patch: readTraitPatch(root, traitId, app.persistence.getActiveSession().character),
     });
     root.setAttribute?.("data-last-command-status", result.status);
     if (["applied", "no-op"].includes(result.status)) render();
@@ -201,9 +200,13 @@ function renderTraitInlineEditor(trait) {
 }
 
 function renderRoleOptions(activeRole) {
-  return TRAIT_ROLES.map(([value, label]) => {
+  const knownRoles = TRAIT_ROLES.map(([value]) => value);
+  const customRoleOption = typeof activeRole === "string" && activeRole !== "" && !knownRoles.includes(activeRole)
+    ? [[activeRole, activeRole]]
+    : [];
+  return [...customRoleOption, ...TRAIT_ROLES].map(([value, label]) => {
     const selected = value === activeRole ? " selected" : "";
-    return `<option value="${value}"${selected}>${escapeText(label)}</option>`;
+    return `<option value="${escapeAttribute(value)}"${selected}>${escapeText(label)}</option>`;
   }).join("");
 }
 
@@ -217,13 +220,14 @@ function renderTraitDetails(trait) {
   return ` <small>${escapeText(details.join(" · "))}</small>`;
 }
 
-function readTraitPatch(root, traitId) {
+function readTraitPatch(root, traitId, character) {
   const suffix = escapeSelectorValue(traitId);
+  const existingTrait = findTrait(character, traitId);
   const points = readInputNumber(root, `[data-role="trait-edit-points-${suffix}"]`, null);
   const levels = readInputNumber(root, `[data-role="trait-edit-levels-${suffix}"]`, null);
   return {
     name: readInputValue(root, `[data-role="trait-edit-name-${suffix}"]`),
-    role: readInputValue(root, `[data-role="trait-edit-role-${suffix}"]`) || "advantage",
+    role: readInputValue(root, `[data-role="trait-edit-role-${suffix}"]`) || existingTrait?.role || "advantage",
     points,
     levels,
     notes: readInputValue(root, `[data-role="trait-edit-notes-${suffix}"]`),
@@ -235,13 +239,17 @@ function readTraitPatch(root, traitId) {
   };
 }
 
+function findTrait(character, traitId) {
+  return (character?.traits ?? []).find(trait => trait.id === traitId) ?? null;
+}
+
 function localizedTraitRole(role) {
   if (role === "advantage") return "Vantagem";
   if (role === "disadvantage") return "Desvantagem";
   if (role === "perk") return "Peculiaridade positiva";
   if (role === "quirk") return "Peculiaridade negativa";
   if (role === "feature") return "Característica";
-  return "Traço";
+  return role || "Traço";
 }
 
 function setMobileRootAttributes(root, session, mode) {
