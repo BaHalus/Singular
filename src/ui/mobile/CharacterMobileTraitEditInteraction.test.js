@@ -143,7 +143,7 @@ test("edits an existing mobile trait through the canonical update command and ma
   root.setInput('[data-role="trait-edit-points-trait:voice"]', "12");
   root.setInput('[data-role="trait-edit-levels-trait:voice"]', "2");
   root.setInput('[data-role="trait-edit-tags-trait:voice"]', "social, voz");
-  root.setInput('[data-role="trait-edit-notes-trait:voice"]', "Afeta reações por canto e fala.");
+  root.setInput('[data-role="trait-edit-notes-trait:voice"]', "Afeta reações por canto e fala.\nPreserva segunda linha.");
   await root.dispatch("click", click("trait-update", { traitId: "trait:voice" }));
 
   assert.equal(root.getAttribute("data-last-command-status"), "applied");
@@ -153,6 +153,7 @@ test("edits an existing mobile trait through the canonical update command and ma
   assert.equal(mounted.character.traits[0].points, 12);
   assert.equal(mounted.character.traits[0].levels, 2);
   assert.deepEqual(mounted.character.traits[0].tags, ["social", "voz"]);
+  assert.equal(mounted.character.traits[0].notes, "Afeta reações por canto e fala.\nPreserva segunda linha.");
   assert.equal(mounted.character.traits[0].pointValue.declaredPoints, 12);
   assert.match(root.innerHTML, /Voz Hipnótica/);
   assert.match(root.innerHTML, /data-action="persistence-save"/);
@@ -164,6 +165,34 @@ test("edits an existing mobile trait through the canonical update command and ma
   assert.equal(saved.revision, 1);
   assert.equal(saved.character.traits[0].name, "Voz Hipnótica");
   assert.equal(saved.character.traits[0].points, 12);
+  assert.equal(saved.character.traits[0].notes, "Afeta reações por canto e fala.\nPreserva segunda linha.");
+});
+
+test("renders trait notes as textareas for multiline input", () => {
+  const rendered = injectMobileTraitEditControls(
+    '<main><section class="singular-mobile-sheet__card" data-card="traits"><h2>Traços</h2><p>old</p></section></main>',
+    {
+      traits: [{
+        id: "trait:multiline",
+        name: "Reputação",
+        role: "advantage",
+        points: 5,
+        levels: null,
+        notes: `Linha 1
+Linha 2 com & < > "aspas"`,
+        tags: [],
+      }],
+    },
+    "creation",
+  );
+
+  assert.match(rendered, /<textarea data-role="trait-notes" autocomplete="off"><\/textarea>/);
+  assert.ok(rendered.includes(
+    `<textarea data-role="trait-edit-notes-trait:multiline" autocomplete="off">
+Linha 1
+Linha 2 com &amp; &lt; &gt; "aspas"</textarea>`,
+  ));
+  assert.doesNotMatch(rendered, /data-role="trait-edit-notes-trait:multiline" value=/);
 });
 
 test("renders custom trait roles as selected inline editor options", () => {

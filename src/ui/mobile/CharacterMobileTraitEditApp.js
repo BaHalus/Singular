@@ -163,7 +163,7 @@ function renderTraitCreationEditor() {
     '<label>Pontos<input type="number" step="1" data-role="trait-points"></label>',
     '<label>Níveis<input type="number" min="0" step="1" data-role="trait-levels"></label>',
     '<label>Tags<input type="text" data-role="trait-tags" autocomplete="off"></label>',
-    '<label>Notas<input type="text" data-role="trait-notes" autocomplete="off"></label>',
+    '<label>Notas<textarea data-role="trait-notes" autocomplete="off"></textarea></label>',
     '<button type="button" data-action="trait-add">Adicionar traço</button>',
     "</div>",
   ].join("");
@@ -209,7 +209,7 @@ function renderTraitInlineEditor(trait) {
     `<label>Pontos <input type="number" step="1" data-role="trait-edit-points-${id}" value="${escapeAttribute(trait.points ?? "")}"></label>`,
     `<label>Níveis <input type="number" min="0" step="1" data-role="trait-edit-levels-${id}" value="${escapeAttribute(trait.levels ?? "")}"></label>`,
     `<label>Tags <input type="text" data-role="trait-edit-tags-${id}" value="${escapeAttribute(tags)}" autocomplete="off"></label>`,
-    `<label>Notas <input type="text" data-role="trait-edit-notes-${id}" value="${escapeAttribute(trait.notes ?? "")}" autocomplete="off"></label>`,
+    `<label>Notas <textarea data-role="trait-edit-notes-${id}" autocomplete="off">${renderTextareaText(trait.notes ?? "")}</textarea></label>`,
     `<button type="button" data-action="trait-update" data-trait-id="${id}">Salvar traço</button>`,
     "</div>",
   ].join("");
@@ -349,6 +349,10 @@ function escapeSelectorValue(value) {
 
 function escapeAttribute(value) {
   return escapeText(value).replaceAll('"', "&quot;");
+}
+
+function renderTextareaText(value) {
+  return `\n${escapeText(value)}`;
 }
 
 function escapeText(value) {
