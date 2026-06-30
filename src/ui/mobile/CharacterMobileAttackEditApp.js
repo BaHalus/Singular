@@ -1,6 +1,15 @@
 import {
   bootstrapCharacterMobileLanguageCultureEditApp,
 } from "./CharacterMobileLanguageCultureEditApp.js";
+import {
+  escapeAttribute,
+  escapeSelectorValue,
+  findDataTarget,
+  normalizeOptionalText,
+  readDataset,
+  readInputValue,
+  renderTextareaText,
+} from "./MobileInlineEditHelpers.js";
 
 const MOBILE_ROOT_SELECTOR = "[data-singular-mobile-root]";
 
@@ -144,50 +153,6 @@ function resolveMobileRoot(documentOption) {
   const root = documentRef.querySelector(MOBILE_ROOT_SELECTOR);
   if (root === null) throw new Error("Character mobile attack edit bootstrap root was not found");
   return root;
-}
-
-function findDataTarget(target, key) {
-  let current = target ?? null;
-  while (current !== null) {
-    if (readDataset(current, key) !== null) return current;
-    current = current.parentElement ?? null;
-  }
-  return null;
-}
-
-function readDataset(target, key) {
-  if (!target || typeof target !== "object") return null;
-  const value = target.dataset?.[key];
-  return typeof value === "string" && value !== "" ? value : null;
-}
-
-function readInputValue(root, selector) {
-  const input = root.querySelector?.(selector);
-  return typeof input?.value === "string" ? input.value : "";
-}
-
-function normalizeOptionalText(value) {
-  if (value === undefined || value === null || value === "") return null;
-  return value;
-}
-
-function escapeSelectorValue(value) {
-  return String(value ?? "").replaceAll("\\", "\\\\").replaceAll('"', '\\"');
-}
-
-function escapeAttribute(value) {
-  return escapeText(value).replaceAll('"', "&quot;");
-}
-
-function renderTextareaText(value) {
-  return `\n${escapeText(value)}`;
-}
-
-function escapeText(value) {
-  return String(value ?? "")
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;");
 }
 
 function requirePlainObject(value, label) {
