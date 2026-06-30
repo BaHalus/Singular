@@ -20,13 +20,12 @@ jobs:
     timeout-minutes: 10
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
+      - name: Checkout quiet
+        run: |
+          git init -q .
+          git remote add origin "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY"
+          git fetch -q --depth=1 origin "$GITHUB_SHA"
+          git checkout -q --detach FETCH_HEAD
 
       - name: Show runtime versions
         run: |
@@ -34,4 +33,22 @@ jobs:
           npm --version
 
       - name: Run full test suite
-        run: npm test
+        run: |
+          set +e
+          npm test > singular-test.log 2>&1
+          status=$?
+          {
+            grep -n -B 8 -A 30 -E "^not ok|^[[:space:]]+failureType:|^[[:space:]]+error:|^[[:space:]]+code:|^[[:space:]]+expected:|^[[:space:]]+actual:" singular-test.log || true
+            echo "--- SUMMARY ---"
+            tail -n 20 singular-test.log
+          } > singular-test-tail.txt
+          cat singular-test-tail.txt
+          exit $status
+
+      - name: Upload test tail
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: singular-test-tail
+          path: singular-test-tail.txt
+          if-no-files-found: error
