@@ -105,13 +105,14 @@ function appendEditor(html, item) {
 
 function renderEditor(item) {
   const id = escapeAttribute(item.id);
+  const state = item.state ?? "carried";
   return [
     `<div class="singular-mobile-sheet__equipment-inline-editor" data-role="equipment-inline-editor" data-equipment-id="${id}">`,
     `<label>Nome <input type="text" data-role="equipment-edit-name-${id}" value="${escapeAttribute(item.name ?? "")}" autocomplete="off"></label>`,
     `<label>Qtd <input type="number" min="0" step="1" data-role="equipment-edit-quantity-${id}" value="${escapeAttribute(item.quantity ?? 1)}"></label>`,
     `<label>Peso kg <input type="number" min="0" step="0.001" data-role="equipment-edit-weight-${id}" value="${escapeAttribute(item.weightKg ?? 0)}"></label>`,
     `<label>Custo <input type="number" min="0" step="0.01" data-role="equipment-edit-cost-${id}" value="${escapeAttribute(item.cost ?? 0)}"></label>`,
-    `<label>Estado <select data-role="equipment-edit-state-${id}">${stateOptions(item.state)}</select></label>`,
+    `<label>Estado <select data-role="equipment-edit-state-${id}">${stateOptions(state)}</select></label>`,
     `<label>Notas <textarea data-role="equipment-edit-notes-${id}" autocomplete="off">${renderTextareaText(item.notes ?? "")}</textarea></label>`,
     `<button type="button" data-action="equipment-update" data-equipment-id="${id}">Salvar equipamento</button>`,
     "</div>",
@@ -141,15 +142,15 @@ function applyLegacyEquipmentPatch(commands, payload) {
   if (unsupportedKeys.length > 0) return Object.freeze({ status: "unsupported", unsupportedKeys });
 
   const results = [];
-  if (Object.hasOwn(payload.patch, "name")) {
+  if (hasOwn(payload.patch, "name")) {
     if (typeof commands.renameEquipment !== "function") return Object.freeze({ status: "unsupported" });
     results.push(commands.renameEquipment({ itemId: payload.itemId, name: payload.patch.name }));
   }
-  if (Object.hasOwn(payload.patch, "quantity")) {
+  if (hasOwn(payload.patch, "quantity")) {
     if (typeof commands.setEquipmentQuantity !== "function") return Object.freeze({ status: "unsupported" });
     results.push(commands.setEquipmentQuantity({ itemId: payload.itemId, quantity: payload.patch.quantity }));
   }
-  if (Object.hasOwn(payload.patch, "state")) {
+  if (hasOwn(payload.patch, "state")) {
     if (typeof commands.setEquipmentState !== "function") return Object.freeze({ status: "unsupported" });
     results.push(commands.setEquipmentState({ itemId: payload.itemId, state: payload.patch.state }));
   }
@@ -193,6 +194,10 @@ function readNumber(root, selector, fallback) {
   if (raw.trim() === "") return fallback;
   const value = Number(raw);
   return Number.isFinite(value) ? value : fallback;
+}
+
+function hasOwn(object, key) {
+  return Object.prototype.hasOwnProperty.call(object, key);
 }
 
 function escapeAttribute(value) {
