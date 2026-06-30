@@ -120,7 +120,7 @@ function renderEditor(power) {
     `<label>Talento <input type="text" data-role="power-edit-talent-${id}" value="${escapeAttribute(power.talentTraitId ?? "")}" autocomplete="off" disabled></label>`,
     `<label>Membros <input type="text" data-role="power-edit-members-${id}" value="${escapeAttribute((power.memberTraitIds ?? []).join(", "))}" autocomplete="off" disabled></label>`,
     `<label>Tags <input type="text" data-role="power-edit-tags-${id}" value="${escapeAttribute((power.tags ?? []).join(", "))}" autocomplete="off" disabled></label>`,
-    `<label>Notas <input type="text" data-role="power-edit-notes-${id}" value="${escapeAttribute(power.notes ?? "")}" autocomplete="off" disabled></label>`,
+    `<label class="singular-mobile-sheet__power-inline-editor-notes">Notas <textarea data-role="power-edit-notes-${id}" autocomplete="off" disabled>\n${escapeTextContent(power.notes ?? "")}</textarea></label>`,
     `<button type="button" data-action="power-update" data-power-id="${id}">Salvar poder</button>`,
     "</div>",
   ].join("");
@@ -175,6 +175,10 @@ function normalizeOptionalText(value) {
 
 function escapeSelectorValue(value) {
   return String(value ?? "").replaceAll("\\", "\\\\").replaceAll('"', '\\"');
+}
+
+function escapeTextContent(value) {
+  return String(value ?? "").replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
 }
 
 function escapeAttribute(value) {

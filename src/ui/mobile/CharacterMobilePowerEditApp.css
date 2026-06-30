@@ -13,6 +13,7 @@
 }
 
 .singular-mobile-sheet__power-inline-editor input,
+.singular-mobile-sheet__power-inline-editor textarea,
 .singular-mobile-sheet__power-inline-editor button {
   width: 100%;
   min-height: 2.75rem;
@@ -23,7 +24,15 @@
   padding: 0.55rem;
 }
 
-.singular-mobile-sheet__power-inline-editor input:disabled {
+.singular-mobile-sheet__power-inline-editor textarea {
+  min-height: 5.5rem;
+  resize: vertical;
+  font: inherit;
+  line-height: 1.35;
+}
+
+.singular-mobile-sheet__power-inline-editor input:disabled,
+.singular-mobile-sheet__power-inline-editor textarea:disabled {
   opacity: 0.72;
 }
 
@@ -36,7 +45,8 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .singular-mobile-sheet__power-inline-editor > button {
+  .singular-mobile-sheet__power-inline-editor > button,
+  .singular-mobile-sheet__power-inline-editor-notes {
     grid-column: 1 / -1;
   }
 }
