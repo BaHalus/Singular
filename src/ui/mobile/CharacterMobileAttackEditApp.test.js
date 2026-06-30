@@ -189,7 +189,7 @@ test("edits existing mobile attacks through canonical update commands", async ()
   assert.equal(mounted.character.attacks[0].name, "Espada longa defensiva");
   assert.equal(mounted.character.attacks[0].category, "melee");
   assert.equal(mounted.character.attacks[0].skillId, "skill:broadsword");
-  assert.deepEqual(mounted.character.attacks[0].damage, { value: "1d+3", type: "cut" });
+  assert.deepEqual(mounted.character.attacks[0].damage, { value: "1d+3", type: "cut", authority: "declared" });
   assert.equal(mounted.character.attacks[0].reach, "1,2");
   assert.equal(mounted.character.attacks[0].range, null);
   assert.equal(mounted.character.attacks[0].notes, "Usar com escudo.\nLinha 2");
