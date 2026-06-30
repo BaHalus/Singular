@@ -43,11 +43,17 @@ test("mobile entrypoint keeps bootstrap anchors unique", async () => {
   assert.deepEqual(findDuplicateValues(bootstrapReferences), []);
 });
 
-test("mobile entrypoint does not import both legacy and edit language/culture bootstraps twice", async () => {
+test("mobile entrypoint references each imported bootstrap exactly once as a preservation anchor", async () => {
   const html = await readMobileHtml();
-  const languageCultureBootstrapNames = [
-    ...html.matchAll(/\b(bootstrapCharacterMobileLanguageCulture(?:Edit)?App)\b/g),
-  ].map(match => match[1]);
+  const importedBootstraps = [...html.matchAll(/import\s+\{\s*(bootstrapCharacterMobile[A-Za-z0-9]+App)\s*\}\s+from\s+"[^"]+";/g)]
+    .map(match => match[1]);
+  const preservedBootstraps = [...html.matchAll(/void\s+(bootstrapCharacterMobile[A-Za-z0-9]+App)\s*;/g)]
+    .map(match => match[1]);
 
-  assert.deepEqual(findDuplicateValues(languageCultureBootstrapNames), []);
+  assert.deepEqual(
+    preservedBootstraps.toSorted(),
+    importedBootstraps
+      .filter(name => name !== "bootstrapCharacterMobilePowerEditApp")
+      .toSorted(),
+  );
 });
