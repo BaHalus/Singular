@@ -21,7 +21,7 @@ function character() {
         maintenanceCost: "0",
         castingTime: "1s",
         duration: "1 min",
-        notes: "funciona melhor em pavio seco\nsem cálculo na UI",
+        notes: "\nfunciona melhor em pavio seco\nsem cálculo na UI",
       },
     ],
   };
@@ -34,7 +34,7 @@ test("injects mobile spell inline controls with multiline notes editor only in c
   assert.match(creation, /data-role="spell-inline-editor"/);
   assert.match(creation, /data-action="spell-update"/);
   assert.match(creation, /<textarea data-role="spell-edit-notes-spell:ignite"/);
-  assert.match(creation, /funciona melhor em pavio seco\nsem cálculo na UI/);
+  assert.match(creation, /<textarea data-role="spell-edit-notes-spell:ignite" autocomplete="off">\n\nfunciona melhor em pavio seco\nsem cálculo na UI<\/textarea>/);
 
   const table = injectMobileSpellEditControls(html, character(), "table");
   assert.doesNotMatch(table, /data-role="spell-inline-editor"/);
