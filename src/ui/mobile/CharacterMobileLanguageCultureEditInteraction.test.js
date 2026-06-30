@@ -146,6 +146,7 @@ test("edits existing mobile languages and cultural familiarities through canonic
   assert.equal(mounted.session.history[0].commandType, "language.update");
   assert.equal(mounted.character.languages[0].name, "Latim Imperial");
   assert.equal(mounted.character.languages[0].spokenLevel, "native");
+  assert.equal(mounted.character.languages[0].writtenLevel, "native");
   assert.equal(mounted.character.languages[0].isNative, true);
   assert.equal(mounted.character.languages[0].notes, "Uso diplomático.\nLinha 2");
   assert.deepEqual(mounted.character.languages[0].tags, ["erudito", "corte"]);
@@ -171,9 +172,15 @@ test("edits existing mobile languages and cultural familiarities through canonic
 
   assert.equal(saved.revision, 2);
   assert.equal(saved.character.languages[0].name, "Latim Imperial");
+  assert.equal(saved.character.languages[0].spokenLevel, "native");
+  assert.equal(saved.character.languages[0].writtenLevel, "native");
+  assert.equal(saved.character.languages[0].isNative, true);
   assert.equal(saved.character.languages[0].notes, "Uso diplomático.\nLinha 2");
+  assert.deepEqual(saved.character.languages[0].tags, ["erudito", "corte"]);
   assert.equal(saved.character.familiarities[0].name, "Corte Imperial");
+  assert.equal(saved.character.familiarities[0].isNative, true);
   assert.equal(saved.character.familiarities[0].notes, "Etiqueta cortesã.\nLinha 2");
+  assert.deepEqual(saved.character.familiarities[0].tags, ["história", "etiqueta"]);
 });
 
 test("blocks existing mobile language and culture edits in table mode", async () => {
