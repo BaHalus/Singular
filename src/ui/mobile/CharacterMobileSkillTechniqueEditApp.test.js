@@ -63,6 +63,33 @@ test("injects mobile skill and technique inline controls in creation mode", () =
   assert.match(creation, /combate/);
 });
 
+test("renders skill and technique notes as textareas for multiline input", () => {
+  const source = character();
+  source.skills[0].notes = 'Linha 1\nLinha 2 com & < > "aspas"';
+  source.techniques[0].notes = 'Técnica linha 1\nTécnica linha 2 com & < > "aspas"';
+
+  const creation = injectMobileSkillTechniqueEditControls(html, source, "creation");
+
+  assert.match(
+    creation,
+    /<textarea data-role="skill-notes" autocomplete="off"><\/textarea>/,
+  );
+  assert.match(
+    creation,
+    /<textarea data-role="technique-notes" autocomplete="off"><\/textarea>/,
+  );
+  assert.match(
+    creation,
+    /<textarea data-role="skill-edit-notes-skill:stealth" autocomplete="off">Linha 1\nLinha 2 com &amp; &lt; &gt; "aspas"<\/textarea>/,
+  );
+  assert.match(
+    creation,
+    /<textarea data-role="technique-edit-notes-technique:arm-lock" autocomplete="off">Técnica linha 1\nTécnica linha 2 com &amp; &lt; &gt; "aspas"<\/textarea>/,
+  );
+  assert.doesNotMatch(creation, /data-role="skill-edit-notes-skill:stealth" value=/);
+  assert.doesNotMatch(creation, /data-role="technique-edit-notes-technique:arm-lock" value=/);
+});
+
 test("keeps skill and technique structural edit controls out of table mode", () => {
   const table = injectMobileSkillTechniqueEditControls(html, character(), "table");
 
