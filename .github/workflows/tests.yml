@@ -34,4 +34,8 @@ jobs:
           npm --version
 
       - name: Run full test suite
-        run: npm test
+        run: |
+          npm test > /tmp/singular-test.log 2>&1 || {
+            tail -n 240 /tmp/singular-test.log
+            exit 1
+          }
