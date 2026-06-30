@@ -65,6 +65,17 @@ export function injectMobileEquipmentEditControls(html, character, mode) {
   return nextHtml;
 }
 
+export function buildEquipmentUpdatePayload(current, itemId, patch) {
+  const nextPatch = {};
+  if (patch.name !== current.name) nextPatch.name = patch.name;
+  if (!Object.is(patch.quantity, current.quantity)) nextPatch.quantity = patch.quantity;
+  if (patch.state !== current.state) nextPatch.state = patch.state;
+  if (!Object.is(patch.weightKg, current.weightKg)) nextPatch.weightKg = patch.weightKg;
+  if (!Object.is(patch.cost, current.cost)) nextPatch.cost = patch.cost;
+  if (patch.notes !== (current.notes ?? "")) nextPatch.notes = patch.notes;
+  return Object.freeze({ itemId, patch: nextPatch });
+}
+
 function injectCurrentEquipmentControls(root, app) {
   root.innerHTML = injectMobileEquipmentEditControls(root.innerHTML, app.character, app.mode);
   app.modeSync.sync();
@@ -87,7 +98,10 @@ function renderEditor(item) {
     `<div class="singular-mobile-sheet__equipment-inline-editor" data-role="equipment-inline-editor" data-equipment-id="${id}">`,
     `<label>Nome <input type="text" data-role="equipment-edit-name-${id}" value="${escapeAttribute(item.name ?? "")}" autocomplete="off"></label>`,
     `<label>Qtd <input type="number" min="0" step="1" data-role="equipment-edit-quantity-${id}" value="${escapeAttribute(item.quantity ?? 1)}"></label>`,
+    `<label>Peso kg <input type="number" min="0" step="0.001" data-role="equipment-edit-weight-${id}" value="${escapeAttribute(item.weightKg ?? 0)}"></label>`,
+    `<label>Custo <input type="number" min="0" step="0.01" data-role="equipment-edit-cost-${id}" value="${escapeAttribute(item.cost ?? 0)}"></label>`,
     `<label>Estado <select data-role="equipment-edit-state-${id}">${stateOptions(item.state)}</select></label>`,
+    `<label>Notas <textarea data-role="equipment-edit-notes-${id}" autocomplete="off">${renderTextareaText(item.notes ?? "")}</textarea></label>`,
     `<button type="button" data-action="equipment-update" data-equipment-id="${id}">Salvar equipamento</button>`,
     "</div>",
   ].join("");
@@ -104,20 +118,22 @@ function readEquipmentPatch(root, itemId) {
   return {
     name: readValue(root, `[data-role="equipment-edit-name-${suffix}"]`),
     quantity: readNumber(root, `[data-role="equipment-edit-quantity-${suffix}"]`, 1),
+    weightKg: readNumber(root, `[data-role="equipment-edit-weight-${suffix}"]`, 0),
+    cost: readNumber(root, `[data-role="equipment-edit-cost-${suffix}"]`, 0),
     state: readValue(root, `[data-role="equipment-edit-state-${suffix}"]`) || "carried",
+    notes: readValue(root, `[data-role="equipment-edit-notes-${suffix}"]`),
   };
 }
 
 function applyEquipmentPatch(app, itemId, patch) {
   const current = findEquipmentItem(app.character.equipment ?? [], itemId);
   if (current === null) return Object.freeze({ status: "rejected" });
-  const results = [];
-  if (patch.name !== current.name) results.push(app.commands.renameEquipment({ itemId, name: patch.name }));
-  if (!Object.is(patch.quantity, current.quantity)) results.push(app.commands.setEquipmentQuantity({ itemId, quantity: patch.quantity }));
-  if (patch.state !== current.state) results.push(app.commands.setEquipmentState({ itemId, state: patch.state }));
-  if (results.length === 0) return Object.freeze({ status: "no-op" });
-  const failed = results.find(result => !["applied", "no-op"].includes(result.status));
-  return failed ?? Object.freeze({ status: results.some(result => result.status === "applied") ? "applied" : "no-op" });
+  if (typeof app.commands.updateEquipment !== "function") {
+    return Object.freeze({ status: "unsupported" });
+  }
+  const payload = buildEquipmentUpdatePayload(current, itemId, patch);
+  if (Object.keys(payload.patch).length === 0) return Object.freeze({ status: "no-op" });
+  return app.commands.updateEquipment(payload);
 }
 
 function flattenEquipment(items, output = []) {
@@ -159,5 +175,13 @@ function readNumber(root, selector, fallback) {
 }
 
 function escapeAttribute(value) {
-  return String(value ?? "").replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;");
+  return escapeText(value).replaceAll('"', "&quot;");
+}
+
+function renderTextareaText(value) {
+  return `\n${escapeText(value)}`;
+}
+
+function escapeText(value) {
+  return String(value ?? "").replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
 }
