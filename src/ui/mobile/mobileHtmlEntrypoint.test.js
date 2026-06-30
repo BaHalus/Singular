@@ -4,6 +4,7 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 
 const mobileHtmlPath = path.resolve("mobile.html");
+const bootstrapNamePattern = "bootstrapCharacterMobile(?:[A-Za-z0-9]+)?App";
 
 async function readMobileHtml() {
   return readFile(mobileHtmlPath, "utf8");
@@ -34,9 +35,9 @@ test("mobile entrypoint imports each module path once", async () => {
 
 test("mobile entrypoint keeps bootstrap anchors unique", async () => {
   const html = await readMobileHtml();
-  const bootstrapAnchors = [...html.matchAll(/await\s+(bootstrapCharacterMobile[A-Za-z0-9]+App)\(\)/g)]
+  const bootstrapAnchors = [...html.matchAll(new RegExp(`await\\s+(${bootstrapNamePattern})\\(\\)`, "g"))]
     .map(match => match[1]);
-  const bootstrapReferences = [...html.matchAll(/void\s+(bootstrapCharacterMobile[A-Za-z0-9]+App)\s*;/g)]
+  const bootstrapReferences = [...html.matchAll(new RegExp(`void\\s+(${bootstrapNamePattern})\\s*;`, "g"))]
     .map(match => match[1]);
 
   assert.ok(
@@ -49,9 +50,9 @@ test("mobile entrypoint keeps bootstrap anchors unique", async () => {
 
 test("mobile entrypoint references each imported bootstrap exactly once as a preservation anchor", async () => {
   const html = await readMobileHtml();
-  const importedBootstraps = [...html.matchAll(/import\s+\{\s*(bootstrapCharacterMobile[A-Za-z0-9]+App)\s*\}\s+from\s+"[^"]+";/g)]
+  const importedBootstraps = [...html.matchAll(new RegExp(`import\\s+\\{\\s*(${bootstrapNamePattern})\\s*\\}\\s+from\\s+"[^"]+";`, "g"))]
     .map(match => match[1]);
-  const preservedBootstraps = [...html.matchAll(/void\s+(bootstrapCharacterMobile[A-Za-z0-9]+App)\s*;/g)]
+  const preservedBootstraps = [...html.matchAll(new RegExp(`void\\s+(${bootstrapNamePattern})\\s*;`, "g"))]
     .map(match => match[1]);
 
   assert.deepEqual(
