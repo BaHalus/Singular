@@ -1,8 +1,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
+import { createCharacter } from "../../domain/character/Character.js";
 import {
   applyEquipmentPatch,
+  bootstrapCharacterMobileEquipmentEditApp,
   buildEquipmentUpdatePayload,
   injectMobileEquipmentEditControls,
   shouldBlockMobileEquipmentEdit,
@@ -52,6 +54,98 @@ function sparseCharacter() {
         state: "carried",
       },
     ],
+  };
+}
+
+function fullCharacter() {
+  return createCharacter({
+    identity: {
+      id: "character-mobile-equipment-edit",
+      name: "Aldric",
+      concept: "Guarda de muralha",
+      playerId: "player-one",
+      campaignId: "campaign-alpha",
+    },
+    attributes: { ST: 12, DX: 11, IQ: 10, HT: 10 },
+    ...character(),
+    metadata: {
+      createdAt: "2026-06-30T14:40:00.000Z",
+      updatedAt: "2026-06-30T14:40:00.000Z",
+      source: "test",
+    },
+  });
+}
+
+function createMemoryStorage() {
+  const values = new Map();
+  return {
+    getItem(key) {
+      return values.has(String(key)) ? values.get(String(key)) : null;
+    },
+    setItem(key, value) {
+      values.set(String(key), String(value));
+    },
+    removeItem(key) {
+      values.delete(String(key));
+    },
+  };
+}
+
+function runtime() {
+  let sequence = 0;
+  return {
+    clock: { now: () => "2026-06-30T14:41:00.000Z" },
+    idGenerator: {
+      next(prefix) {
+        sequence += 1;
+        return `${prefix}:equipment-edit-mobile-${sequence}`;
+      },
+    },
+  };
+}
+
+function rootFixture() {
+  const attributes = new Map();
+  const listeners = new Map();
+  const inputValues = new Map();
+  return {
+    innerHTML: "",
+    setAttribute(name, value) {
+      attributes.set(name, value);
+    },
+    getAttribute(name) {
+      return attributes.get(name) ?? null;
+    },
+    addEventListener(type, listener) {
+      const entries = listeners.get(type) ?? [];
+      entries.push(listener);
+      listeners.set(type, entries);
+    },
+    removeEventListener(type, listener) {
+      const entries = listeners.get(type) ?? [];
+      listeners.set(type, entries.filter(entry => entry !== listener));
+    },
+    querySelector(selector) {
+      return { value: inputValues.get(selector) ?? "" };
+    },
+    querySelectorAll() {
+      return [];
+    },
+    setInput(selector, value) {
+      inputValues.set(selector, value);
+    },
+    async dispatch(type, event) {
+      for (const listener of listeners.get(type) ?? []) {
+        await listener(event);
+      }
+    },
+  };
+}
+
+function click(action, dataset = {}) {
+  return {
+    target: { dataset: { action, ...dataset }, parentElement: null },
+    preventDefault() {},
   };
 }
 
@@ -203,6 +297,49 @@ test("uses canonical equipment.update for weight cost and notes when available",
       notes: "Tem bolsos internos\ne fivela nova",
     },
   }]);
+});
+
+test("persists existing mobile equipment edits through canonical update commands", async () => {
+  const root = rootFixture();
+  const mounted = await bootstrapCharacterMobileEquipmentEditApp({
+    root,
+    character: fullCharacter(),
+    sessionId: "session-mobile-equipment-edit",
+    storage: createMemoryStorage(),
+    namespace: "test.mobile.equipment-edit",
+    runtime: runtime(),
+    mode: "creation",
+  });
+
+  assert.match(root.innerHTML, /data-action="equipment-update"/);
+
+  root.setInput('[data-role="equipment-edit-name-equipment:backpack"]', "Mochila reforçada");
+  root.setInput('[data-role="equipment-edit-quantity-equipment:backpack"]', "3");
+  root.setInput('[data-role="equipment-edit-weight-equipment:backpack"]', "0.75");
+  root.setInput('[data-role="equipment-edit-cost-equipment:backpack"]', "80");
+  root.setInput('[data-role="equipment-edit-state-equipment:backpack"]', "stored");
+  root.setInput('[data-role="equipment-edit-notes-equipment:backpack"]', "Tem bolsos internos\ne fivela nova");
+  await root.dispatch("click", click("equipment-update", { equipmentId: "equipment:backpack" }));
+
+  assert.equal(root.getAttribute("data-last-command-status"), "applied");
+  assert.equal(mounted.session.history[0].commandType, "equipment.update");
+  assert.equal(mounted.character.equipment[0].name, "Mochila reforçada");
+  assert.equal(mounted.character.equipment[0].quantity, 3);
+  assert.equal(mounted.character.equipment[0].weightKg, 0.75);
+  assert.equal(mounted.character.equipment[0].cost, 80);
+  assert.equal(mounted.character.equipment[0].state, "stored");
+  assert.equal(mounted.character.equipment[0].notes, "Tem bolsos internos\ne fivela nova");
+
+  await root.dispatch("click", click("persistence-save"));
+  const saved = await mounted.repositories.session.load("session-mobile-equipment-edit");
+
+  assert.equal(saved.revision, 1);
+  assert.equal(saved.character.equipment[0].name, "Mochila reforçada");
+  assert.equal(saved.character.equipment[0].quantity, 3);
+  assert.equal(saved.character.equipment[0].weightKg, 0.75);
+  assert.equal(saved.character.equipment[0].cost, 80);
+  assert.equal(saved.character.equipment[0].state, "stored");
+  assert.equal(saved.character.equipment[0].notes, "Tem bolsos internos\ne fivela nova");
 });
 
 test("preserves legacy equipment commands when updateEquipment is unavailable", () => {
