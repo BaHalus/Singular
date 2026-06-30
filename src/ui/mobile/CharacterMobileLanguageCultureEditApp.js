@@ -141,7 +141,7 @@ function renderLanguageInlineEditor(language) {
     `<label>Escrita ${renderLevelSelect(`language-edit-written-level-${id}`, language.writtenLevel)}</label>`,
     `<label>Nativo <select data-role="language-edit-native-${id}"><option value="false"${language.isNative ? "" : " selected"}>Não</option><option value="true"${language.isNative ? " selected" : ""}>Sim</option></select></label>`,
     `<label>Tags <input type="text" data-role="language-edit-tags-${id}" value="${escapeAttribute(tags)}" autocomplete="off"></label>`,
-    `<label>Notas <input type="text" data-role="language-edit-notes-${id}" value="${escapeAttribute(language.notes ?? "")}" autocomplete="off"></label>`,
+    `<label>Notas <textarea data-role="language-edit-notes-${id}" autocomplete="off">${renderTextareaText(language.notes ?? "")}</textarea></label>`,
     `<button type="button" data-action="language-update" data-language-id="${id}">Salvar idioma</button>`,
     "</div>",
   ].join("");
@@ -155,7 +155,7 @@ function renderFamiliarityInlineEditor(familiarity) {
     `<label>Nome <input type="text" data-role="familiarity-edit-name-${id}" value="${escapeAttribute(familiarity.name ?? "")}" autocomplete="off"></label>`,
     `<label>Nativa <select data-role="familiarity-edit-native-${id}"><option value="false"${familiarity.isNative ? "" : " selected"}>Não</option><option value="true"${familiarity.isNative ? " selected" : ""}>Sim</option></select></label>`,
     `<label>Tags <input type="text" data-role="familiarity-edit-tags-${id}" value="${escapeAttribute(tags)}" autocomplete="off"></label>`,
-    `<label>Notas <input type="text" data-role="familiarity-edit-notes-${id}" value="${escapeAttribute(familiarity.notes ?? "")}" autocomplete="off"></label>`,
+    `<label>Notas <textarea data-role="familiarity-edit-notes-${id}" autocomplete="off">${renderTextareaText(familiarity.notes ?? "")}</textarea></label>`,
     `<button type="button" data-action="familiarity-update" data-familiarity-id="${id}">Salvar familiaridade</button>`,
     "</div>",
   ].join("");
@@ -249,6 +249,10 @@ function escapeSelectorValue(value) {
 
 function escapeAttribute(value) {
   return escapeText(value).replaceAll('"', "&quot;");
+}
+
+function renderTextareaText(value) {
+  return `\n${escapeText(value)}`;
 }
 
 function escapeText(value) {
