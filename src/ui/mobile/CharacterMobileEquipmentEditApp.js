@@ -67,11 +67,11 @@ export function injectMobileEquipmentEditControls(html, character, mode) {
 
 export function buildEquipmentUpdatePayload(current, itemId, patch) {
   const nextPatch = {};
-  if (patch.name !== current.name) nextPatch.name = patch.name;
-  if (!Object.is(patch.quantity, current.quantity)) nextPatch.quantity = patch.quantity;
-  if (patch.state !== current.state) nextPatch.state = patch.state;
-  if (!Object.is(patch.weightKg, current.weightKg)) nextPatch.weightKg = patch.weightKg;
-  if (!Object.is(patch.cost, current.cost)) nextPatch.cost = patch.cost;
+  if (patch.name !== (current.name ?? "")) nextPatch.name = patch.name;
+  if (!Object.is(patch.quantity, current.quantity ?? 1)) nextPatch.quantity = patch.quantity;
+  if (patch.state !== (current.state ?? "carried")) nextPatch.state = patch.state;
+  if (!Object.is(patch.weightKg, current.weightKg ?? 0)) nextPatch.weightKg = patch.weightKg;
+  if (!Object.is(patch.cost, current.cost ?? 0)) nextPatch.cost = patch.cost;
   if (patch.notes !== (current.notes ?? "")) nextPatch.notes = patch.notes;
   return Object.freeze({ itemId, patch: nextPatch });
 }
