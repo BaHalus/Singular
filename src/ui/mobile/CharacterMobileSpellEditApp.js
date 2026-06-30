@@ -1,6 +1,16 @@
 import {
   bootstrapCharacterMobileEquipmentEditApp,
 } from "./CharacterMobileEquipmentEditApp.js";
+import {
+  escapeAttribute,
+  escapeSelectorValue,
+  escapeTextContent,
+  findDataTarget,
+  normalizeOptionalText,
+  readDataset,
+  readInputValue,
+  readNumberInputValue,
+} from "./MobileInlineEditHelpers.js";
 
 export async function bootstrapCharacterMobileSpellEditApp(options = {}) {
   const app = await bootstrapCharacterMobileEquipmentEditApp(options);
@@ -16,7 +26,7 @@ export async function bootstrapCharacterMobileSpellEditApp(options = {}) {
 
   const handleClick = event => {
     const target = findDataTarget(event?.target, "action");
-    const action = target?.dataset?.action;
+    const action = target === null ? null : readDataset(target, "action");
     if (action !== "spell-update") return null;
     event.preventDefault?.();
     if (app.mode !== "creation") {
@@ -28,7 +38,7 @@ export async function bootstrapCharacterMobileSpellEditApp(options = {}) {
       return null;
     }
 
-    const spellId = target.dataset.spellId;
+    const spellId = readDataset(target, "spellId");
     const result = app.commands.updateSpell({
       spellId,
       patch: readSpellPatch(root, spellId),
@@ -117,55 +127,17 @@ function spellTypeOptions(active) {
 function readSpellPatch(root, spellId) {
   const suffix = escapeSelectorValue(spellId);
   return {
-    name: readValue(root, `[data-role="spell-edit-name-${suffix}"]`),
-    spellType: readValue(root, `[data-role="spell-edit-type-${suffix}"]`) || "standard",
-    attribute: normalizeOptionalText(readValue(root, `[data-role="spell-edit-attribute-${suffix}"]`)),
-    difficulty: normalizeOptionalText(readValue(root, `[data-role="spell-edit-difficulty-${suffix}"]`)),
-    points: readNumber(root, `[data-role="spell-edit-points-${suffix}"]`, 0),
-    spellClass: readValue(root, `[data-role="spell-edit-class-${suffix}"]`),
-    resistance: readValue(root, `[data-role="spell-edit-resistance-${suffix}"]`),
-    castingCost: readValue(root, `[data-role="spell-edit-casting-cost-${suffix}"]`),
-    maintenanceCost: readValue(root, `[data-role="spell-edit-maintenance-cost-${suffix}"]`),
-    castingTime: readValue(root, `[data-role="spell-edit-casting-time-${suffix}"]`),
-    duration: readValue(root, `[data-role="spell-edit-duration-${suffix}"]`),
-    notes: readValue(root, `[data-role="spell-edit-notes-${suffix}"]`),
+    name: readInputValue(root, `[data-role="spell-edit-name-${suffix}"]`),
+    spellType: readInputValue(root, `[data-role="spell-edit-type-${suffix}"]`) || "standard",
+    attribute: normalizeOptionalText(readInputValue(root, `[data-role="spell-edit-attribute-${suffix}"]`)),
+    difficulty: normalizeOptionalText(readInputValue(root, `[data-role="spell-edit-difficulty-${suffix}"]`)),
+    points: readNumberInputValue(root, `[data-role="spell-edit-points-${suffix}"]`, 0),
+    spellClass: readInputValue(root, `[data-role="spell-edit-class-${suffix}"]`),
+    resistance: readInputValue(root, `[data-role="spell-edit-resistance-${suffix}"]`),
+    castingCost: readInputValue(root, `[data-role="spell-edit-casting-cost-${suffix}"]`),
+    maintenanceCost: readInputValue(root, `[data-role="spell-edit-maintenance-cost-${suffix}"]`),
+    castingTime: readInputValue(root, `[data-role="spell-edit-casting-time-${suffix}"]`),
+    duration: readInputValue(root, `[data-role="spell-edit-duration-${suffix}"]`),
+    notes: readInputValue(root, `[data-role="spell-edit-notes-${suffix}"]`),
   };
-}
-
-function findDataTarget(target, key) {
-  let current = target ?? null;
-  while (current !== null) {
-    if (current.dataset?.[key]) return current;
-    current = current.parentElement ?? null;
-  }
-  return null;
-}
-
-function readValue(root, selector) {
-  const input = root.querySelector?.(selector);
-  return typeof input?.value === "string" ? input.value : "";
-}
-
-function readNumber(root, selector, fallback) {
-  const raw = readValue(root, selector);
-  if (raw.trim() === "") return fallback;
-  const value = Number(raw);
-  return Number.isFinite(value) ? value : fallback;
-}
-
-function normalizeOptionalText(value) {
-  if (value === undefined || value === null || value === "") return null;
-  return value;
-}
-
-function escapeSelectorValue(value) {
-  return String(value ?? "").replaceAll("\\", "\\\\").replaceAll('"', '\\"');
-}
-
-function escapeTextContent(value) {
-  return String(value ?? "").replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
-}
-
-function escapeAttribute(value) {
-  return String(value ?? "").replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;");
 }
