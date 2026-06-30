@@ -140,20 +140,21 @@ function applyLegacyEquipmentPatch(commands, payload) {
   const unsupportedKeys = Object.keys(payload.patch).filter(key => !["name", "quantity", "state"].includes(key));
   if (unsupportedKeys.length > 0) return Object.freeze({ status: "unsupported", unsupportedKeys });
 
-  let result = null;
+  const results = [];
   if (Object.hasOwn(payload.patch, "name")) {
     if (typeof commands.renameEquipment !== "function") return Object.freeze({ status: "unsupported" });
-    result = commands.renameEquipment({ itemId: payload.itemId, name: payload.patch.name });
+    results.push(commands.renameEquipment({ itemId: payload.itemId, name: payload.patch.name }));
   }
   if (Object.hasOwn(payload.patch, "quantity")) {
     if (typeof commands.setEquipmentQuantity !== "function") return Object.freeze({ status: "unsupported" });
-    result = commands.setEquipmentQuantity({ itemId: payload.itemId, quantity: payload.patch.quantity });
+    results.push(commands.setEquipmentQuantity({ itemId: payload.itemId, quantity: payload.patch.quantity }));
   }
   if (Object.hasOwn(payload.patch, "state")) {
     if (typeof commands.setEquipmentState !== "function") return Object.freeze({ status: "unsupported" });
-    result = commands.setEquipmentState({ itemId: payload.itemId, state: payload.patch.state });
+    results.push(commands.setEquipmentState({ itemId: payload.itemId, state: payload.patch.state }));
   }
-  return result ?? Object.freeze({ status: "no-op" });
+  const failed = results.find(result => !["applied", "no-op"].includes(result.status));
+  return failed ?? Object.freeze({ status: results.some(result => result.status === "applied") ? "applied" : "no-op" });
 }
 
 function flattenEquipment(items, output = []) {
