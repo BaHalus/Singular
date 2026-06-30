@@ -239,7 +239,7 @@ function renderSkillInlineEditor(skill) {
     `<label>Dif <select data-role="skill-edit-difficulty-${id}">${renderOptions(SKILL_DIFFICULTIES, skill.difficulty)}</select></label>`,
     `<label>Pontos <input type="number" min="0" step="1" data-role="skill-edit-points-${id}" value="${escapeAttribute(skill.points ?? "")}"></label>`,
     `<label>Tags <input type="text" data-role="skill-edit-tags-${id}" value="${escapeAttribute(tags)}" autocomplete="off"></label>`,
-    `<label>Notas <textarea data-role="skill-edit-notes-${id}" autocomplete="off">${escapeText(skill.notes ?? "")}</textarea></label>`,
+    `<label>Notas <textarea data-role="skill-edit-notes-${id}" autocomplete="off">${renderTextareaText(skill.notes ?? "")}</textarea></label>`,
     `<button type="button" data-action="skill-update" data-skill-id="${id}">Salvar perícia</button>`,
     "</div>",
   ].join("");
@@ -260,7 +260,7 @@ function renderTechniqueInlineEditor(technique) {
     `<label>PD <input type="number" step="1" data-role="technique-edit-default-penalty-${id}" value="${escapeAttribute(technique.defaultPenalty ?? "")}"></label>`,
     `<label>Máx rel. <input type="number" step="1" data-role="technique-edit-maximum-relative-level-${id}" value="${escapeAttribute(technique.maximumRelativeLevel ?? "")}"></label>`,
     `<label>Tags <input type="text" data-role="technique-edit-tags-${id}" value="${escapeAttribute(tags)}" autocomplete="off"></label>`,
-    `<label>Notas <textarea data-role="technique-edit-notes-${id}" autocomplete="off">${escapeText(technique.notes ?? "")}</textarea></label>`,
+    `<label>Notas <textarea data-role="technique-edit-notes-${id}" autocomplete="off">${renderTextareaText(technique.notes ?? "")}</textarea></label>`,
     `<button type="button" data-action="technique-update" data-technique-id="${id}">Salvar técnica</button>`,
     "</div>",
   ].join("");
@@ -397,6 +397,10 @@ function escapeSelectorValue(value) {
 
 function escapeAttribute(value) {
   return escapeText(value).replaceAll('"', "&quot;");
+}
+
+function renderTextareaText(value) {
+  return `\n${escapeText(value)}`;
 }
 
 function escapeText(value) {
