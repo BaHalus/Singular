@@ -1,6 +1,16 @@
 import {
   bootstrapCharacterMobileSpellEditApp,
 } from "./CharacterMobileSpellEditApp.js";
+import {
+  escapeAttribute,
+  escapeSelectorValue,
+  escapeTextContent,
+  findDataTarget,
+  normalizeOptionalText,
+  readDataset,
+  readInputValue,
+  readNumberInputValue,
+} from "./MobileInlineEditHelpers.js";
 
 export async function bootstrapCharacterMobilePowerEditApp(options = {}) {
   const app = await bootstrapCharacterMobileSpellEditApp(options);
@@ -16,7 +26,7 @@ export async function bootstrapCharacterMobilePowerEditApp(options = {}) {
 
   const handleClick = event => {
     const target = findDataTarget(event?.target, "action");
-    const action = target?.dataset?.action;
+    const action = target === null ? null : readDataset(target, "action");
     if (action !== "power-update") return null;
     event.preventDefault?.();
     if (app.mode !== "creation") {
@@ -28,7 +38,7 @@ export async function bootstrapCharacterMobilePowerEditApp(options = {}) {
       return null;
     }
 
-    const powerId = target.dataset.powerId;
+    const powerId = readDataset(target, "powerId");
     const patch = readPowerPatch(root, powerId);
     const current = app.character.powers.find(power => power.id === powerId);
     if (current === undefined) {
@@ -129,58 +139,20 @@ function renderEditor(power) {
 function readPowerPatch(root, powerId) {
   const suffix = escapeSelectorValue(powerId);
   return readPowerPatchFromValues({
-    name: readValue(root, `[data-role="power-edit-name-${suffix}"]`),
-    source: readValue(root, `[data-role="power-edit-source-${suffix}"]`),
-    powerModifierName: readValue(root, `[data-role="power-edit-modifier-name-${suffix}"]`),
-    powerModifierValuePercent: readNumber(root, `[data-role="power-edit-modifier-value-${suffix}"]`, null),
-    powerModifierNotes: readValue(root, `[data-role="power-edit-modifier-notes-${suffix}"]`),
-    talentTraitId: readValue(root, `[data-role="power-edit-talent-${suffix}"]`),
-    memberTraitIds: readValue(root, `[data-role="power-edit-members-${suffix}"]`),
-    tags: readValue(root, `[data-role="power-edit-tags-${suffix}"]`),
-    notes: readValue(root, `[data-role="power-edit-notes-${suffix}"]`),
+    name: readInputValue(root, `[data-role="power-edit-name-${suffix}"]`),
+    source: readInputValue(root, `[data-role="power-edit-source-${suffix}"]`),
+    powerModifierName: readInputValue(root, `[data-role="power-edit-modifier-name-${suffix}"]`),
+    powerModifierValuePercent: readNumberInputValue(root, `[data-role="power-edit-modifier-value-${suffix}"]`, null),
+    powerModifierNotes: readInputValue(root, `[data-role="power-edit-modifier-notes-${suffix}"]`),
+    talentTraitId: readInputValue(root, `[data-role="power-edit-talent-${suffix}"]`),
+    memberTraitIds: readInputValue(root, `[data-role="power-edit-members-${suffix}"]`),
+    tags: readInputValue(root, `[data-role="power-edit-tags-${suffix}"]`),
+    notes: readInputValue(root, `[data-role="power-edit-notes-${suffix}"]`),
   });
-}
-
-function findDataTarget(target, key) {
-  let current = target ?? null;
-  while (current !== null) {
-    if (current.dataset?.[key]) return current;
-    current = current.parentElement ?? null;
-  }
-  return null;
-}
-
-function readValue(root, selector) {
-  const input = root.querySelector?.(selector);
-  return typeof input?.value === "string" ? input.value : "";
-}
-
-function readNumber(root, selector, fallback) {
-  const raw = readValue(root, selector);
-  if (raw.trim() === "") return fallback;
-  const value = Number(raw);
-  return Number.isFinite(value) ? value : fallback;
 }
 
 function splitTextList(value) {
   if (Array.isArray(value)) return value;
   if (typeof value !== "string") return [];
   return value.split(",").map(item => item.trim()).filter(Boolean);
-}
-
-function normalizeOptionalText(value) {
-  if (value === undefined || value === null || value === "") return null;
-  return value;
-}
-
-function escapeSelectorValue(value) {
-  return String(value ?? "").replaceAll("\\", "\\\\").replaceAll('"', '\\"');
-}
-
-function escapeTextContent(value) {
-  return String(value ?? "").replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
-}
-
-function escapeAttribute(value) {
-  return String(value ?? "").replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;");
 }
