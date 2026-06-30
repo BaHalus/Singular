@@ -33,11 +33,17 @@ jobs:
           node --version
           npm --version
 
-      - name: Run equipment edit focal test
-        run: node --test src/ui/mobile/CharacterMobileEquipmentEditApp.test.js
+      - name: Run domain tests
+        run: node --test $(find src/domain -name '*.test.js' -print)
 
-      - name: Run alpha mobile bootstrap focal test
-        run: node --test src/application/bootstrap/AlphaMobilePersistenceBootstrap.test.js
+      - name: Run application tests
+        run: node --test $(find src/application -name '*.test.js' -print)
 
-      - name: Run full test suite
+      - name: Run infrastructure tests
+        run: node --test $(find src/infrastructure -name '*.test.js' -print)
+
+      - name: Run mobile UI tests
+        run: node --test $(find src/ui/mobile -name '*.test.js' -print)
+
+      - name: Run remaining full test suite
         run: npm test
