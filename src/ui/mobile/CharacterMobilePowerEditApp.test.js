@@ -232,3 +232,27 @@ test("persists existing mobile power rename through canonical session save", asy
   assert.deepEqual(saved.character.powers[0].memberTraitIds, ["trait:telepathy", "trait:tk"]);
   assert.deepEqual(saved.character.powers[0].tags, ["psionics", "alpha"]);
 });
+
+test("blocks mobile power structural edit in table mode", async () => {
+  const root = rootFixture();
+  const mounted = await bootstrapCharacterMobilePowerEditApp({
+    root,
+    character: fullCharacter(),
+    sessionId: "session-mobile-power-edit-table",
+    storage: createMemoryStorage(),
+    namespace: "test.mobile.power-edit-table",
+    runtime: runtime(),
+    mode: "table",
+  });
+
+  assert.doesNotMatch(root.innerHTML, /data-role="power-inline-editor"/);
+
+  root.setInput('[data-role="power-edit-name-power:psi"]', "Telepatia Bloqueada");
+  const result = await root.dispatch("click", click("power-update", { powerId: "power:psi" }));
+
+  assert.equal(result, undefined);
+  assert.equal(root.getAttribute("data-last-command-status"), "blocked-by-mode");
+  assert.equal(mounted.session.revision, 0);
+  assert.equal(mounted.session.history.length, 0);
+  assert.equal(mounted.character.powers[0].name, "Psiquismo");
+});
