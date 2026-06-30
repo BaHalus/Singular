@@ -198,7 +198,7 @@ function renderNotesEditors(general) {
     '<div class="singular-mobile-sheet__structured-note-editor" data-role="structured-note-editor">',
     "<h3>Nova nota</h3>",
     '<label>Título<input type="text" data-role="note-title" autocomplete="off"></label>',
-    '<label>Texto<input type="text" data-role="note-text" autocomplete="off"></label>',
+    '<label>Texto<textarea data-role="note-text" autocomplete="off"></textarea></label>',
     '<label>Categoria<input type="text" data-role="note-category" autocomplete="off"></label>',
     '<label>Referência<input type="text" data-role="note-reference" autocomplete="off"></label>',
     '<label>Tags<input type="text" data-role="note-tags" autocomplete="off"></label>',
@@ -257,7 +257,7 @@ function renderStructuredNoteInlineEditor(note) {
   return [
     `<div class="singular-mobile-sheet__structured-note-inline-editor" data-role="structured-note-inline-editor" data-note-id="${id}">`,
     `<label>Título <input type="text" data-role="note-edit-title-${id}" value="${escapeAttribute(note.title ?? "")}" autocomplete="off"></label>`,
-    `<label>Texto <input type="text" data-role="note-edit-text-${id}" value="${escapeAttribute(note.text ?? "")}" autocomplete="off"></label>`,
+    `<label>Texto <textarea data-role="note-edit-text-${id}" autocomplete="off">${escapeText(note.text ?? "")}</textarea></label>`,
     `<label>Categoria <input type="text" data-role="note-edit-category-${id}" value="${escapeAttribute(note.category ?? "")}" autocomplete="off"></label>`,
     `<label>Referência <input type="text" data-role="note-edit-reference-${id}" value="${escapeAttribute(note.reference ?? "")}" autocomplete="off"></label>`,
     `<label>Tags <input type="text" data-role="note-edit-tags-${id}" value="${escapeAttribute(tags)}" autocomplete="off"></label>`,
