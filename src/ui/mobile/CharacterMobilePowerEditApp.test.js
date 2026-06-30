@@ -21,7 +21,7 @@ function character() {
         talentTraitId: "trait:talent",
         memberTraitIds: ["trait:telepathy", "trait:tk"],
         tags: ["psionics", "alpha"],
-        notes: "linha de poderes psíquicos\ncom nota longa",
+        notes: "\nlinha de poderes psíquicos\ncom nota longa",
       },
     ],
   };
@@ -36,7 +36,7 @@ test("injects mobile power inline controls only in creation mode", () => {
   assert.match(creation, /power-edit-source-power:psi/);
   assert.match(creation, /trait:telepathy, trait:tk/);
   assert.match(creation, /<textarea data-role="power-edit-notes-power:psi"/);
-  assert.match(creation, /linha de poderes psíquicos\ncom nota longa/);
+  assert.match(creation, /<textarea data-role="power-edit-notes-power:psi" autocomplete="off" disabled>\n\nlinha de poderes psíquicos\ncom nota longa<\/textarea>/);
 
   const table = injectMobilePowerEditControls(html, character(), "table");
   assert.doesNotMatch(table, /data-role="power-inline-editor"/);
