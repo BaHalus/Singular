@@ -29,6 +29,41 @@ function character() {
   };
 }
 
+function traitsReferencedByPower() {
+  return [
+    {
+      id: "trait:talent",
+      name: "Talento Psi",
+      role: "advantage",
+      points: 5,
+      levels: 1,
+      tags: ["psi"],
+      notes: "referenciado como talento do poder",
+      source: { kind: "singular" },
+    },
+    {
+      id: "trait:telepathy",
+      name: "Telepatia",
+      role: "advantage",
+      points: 30,
+      levels: null,
+      tags: ["psi"],
+      notes: "membro do poder",
+      source: { kind: "singular" },
+    },
+    {
+      id: "trait:tk",
+      name: "Telecinese",
+      role: "advantage",
+      points: 20,
+      levels: null,
+      tags: ["psi"],
+      notes: "membro do poder",
+      source: { kind: "singular" },
+    },
+  ];
+}
+
 function fullCharacter() {
   return createCharacter({
     identity: {
@@ -39,6 +74,7 @@ function fullCharacter() {
       campaignId: "campaign-alpha",
     },
     attributes: { ST: 10, DX: 10, IQ: 12, HT: 10 },
+    traits: traitsReferencedByPower(),
     ...character(),
     metadata: {
       createdAt: "2026-06-30T12:58:00.000Z",
