@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import {
+  buildEquipmentUpdatePayload,
   injectMobileEquipmentEditControls,
   shouldBlockMobileEquipmentEdit,
 } from "./CharacterMobileEquipmentEditApp.js";
@@ -20,13 +21,19 @@ function character() {
         id: "equipment:backpack",
         name: "Mochila",
         quantity: 1,
+        weightKg: 0.5,
+        cost: 60,
         state: "carried",
+        notes: "Tem bolsos internos",
         children: [
           {
             id: "equipment:rope",
             name: "Corda 15 m",
             quantity: 2,
+            weightKg: 1.5,
+            cost: 30,
             state: "stored",
+            notes: "Enrolada\nem couro",
           },
         ],
       },
@@ -41,7 +48,10 @@ test("injects mobile equipment inline editors in creation mode", () => {
   assert.match(creation, /data-action="equipment-update"/);
   assert.match(creation, /data-role="equipment-edit-name-equipment:backpack"/);
   assert.match(creation, /data-role="equipment-edit-quantity-equipment:backpack"/);
+  assert.match(creation, /data-role="equipment-edit-weight-equipment:backpack"/);
+  assert.match(creation, /data-role="equipment-edit-cost-equipment:backpack"/);
   assert.match(creation, /data-role="equipment-edit-state-equipment:backpack"/);
+  assert.match(creation, /data-role="equipment-edit-notes-equipment:backpack"/);
   assert.match(creation, /<option value="carried" selected>Carregado<\/option>/);
 });
 
@@ -52,6 +62,9 @@ test("injects editors for nested equipment items", () => {
   assert.match(creation, /data-role="equipment-edit-name-equipment:rope"/);
   assert.match(creation, /value="Corda 15 m"/);
   assert.match(creation, /value="2"/);
+  assert.match(creation, /value="1.5"/);
+  assert.match(creation, /value="30"/);
+  assert.match(creation, /Enrolada\nem couro/);
   assert.match(creation, /<option value="stored" selected>Guardado<\/option>/);
 });
 
@@ -70,6 +83,28 @@ test("does not duplicate equipment editors when reinjected", () => {
 
   const matches = reinjected.match(/data-role="equipment-inline-editor"/g) ?? [];
   assert.equal(matches.length, 2);
+});
+
+test("builds canonical equipment.update payload with only changed fields", () => {
+  const current = character().equipment[0];
+  const payload = buildEquipmentUpdatePayload(current, "equipment:backpack", {
+    name: "Mochila reforçada",
+    quantity: 1,
+    weightKg: 0.75,
+    cost: 80,
+    state: "carried",
+    notes: "Tem bolsos internos\ne fivela nova",
+  });
+
+  assert.deepEqual(payload, {
+    itemId: "equipment:backpack",
+    patch: {
+      name: "Mochila reforçada",
+      weightKg: 0.75,
+      cost: 80,
+      notes: "Tem bolsos internos\ne fivela nova",
+    },
+  });
 });
 
 test("blocks equipment structural edits while UI is busy", () => {
