@@ -138,7 +138,7 @@ test("edits existing mobile equipment through canonical commands and manual pers
     mounted.session.history.map(entry => entry.commandType),
     ["equipment.update"],
   );
-  assert.deepEqual(mounted.session.history[0].payload, {
+  assert.deepEqual(mounted.session.history[0].commandPayload, {
     itemId: "eq:rope",
     patch: {
       name: "Corda de escalada",
