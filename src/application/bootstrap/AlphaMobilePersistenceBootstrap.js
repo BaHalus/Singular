@@ -336,6 +336,7 @@ function createAlphaMobileCommands({ persistence, registry, runtime }) {
         },
       });
     },
+    updateEquipment: run(EQUIPMENT_COMMAND_TYPES.UPDATE),
     renameEquipment: run(EQUIPMENT_COMMAND_TYPES.RENAME),
     setEquipmentQuantity: run(EQUIPMENT_COMMAND_TYPES.SET_QUANTITY),
     setEquipmentState(input = {}) {

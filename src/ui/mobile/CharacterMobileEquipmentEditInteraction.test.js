@@ -126,15 +126,26 @@ test("edits existing mobile equipment through canonical commands and manual pers
 
   root.setInput('[data-role="equipment-edit-name-eq:rope"]', "Corda de escalada");
   root.setInput('[data-role="equipment-edit-quantity-eq:rope"]', "2");
+  root.setInput('[data-role="equipment-edit-weight-eq:rope"]', "1");
+  root.setInput('[data-role="equipment-edit-cost-eq:rope"]', "10");
   root.setInput('[data-role="equipment-edit-state-eq:rope"]', "stored");
+  root.setInput('[data-role="equipment-edit-notes-eq:rope"]', "");
   await root.dispatch("click", click("equipment-update", { equipmentId: "eq:rope" }));
 
   assert.equal(root.getAttribute("data-last-command-status"), "applied");
-  assert.equal(mounted.session.revision, 3);
+  assert.equal(mounted.session.revision, 1);
   assert.deepEqual(
     mounted.session.history.map(entry => entry.commandType),
-    ["equipment.rename", "equipment.quantity.set", "equipment.state.set"],
+    ["equipment.update"],
   );
+  assert.deepEqual(mounted.session.history[0].commandPayload, {
+    itemId: "eq:rope",
+    patch: {
+      name: "Corda de escalada",
+      quantity: 2,
+      state: "stored",
+    },
+  });
   assert.equal(mounted.character.equipment[0].name, "Corda de escalada");
   assert.equal(mounted.character.equipment[0].quantity, 2);
   assert.equal(mounted.character.equipment[0].state, "stored");
@@ -145,7 +156,7 @@ test("edits existing mobile equipment through canonical commands and manual pers
   const saved = await mounted.repositories.session.load("session-mobile-equipment-edit");
 
   assert.notEqual(saved, null, JSON.stringify({ state: mounted.ui.getState(), html: root.innerHTML }));
-  assert.equal(saved.revision, 3);
+  assert.equal(saved.revision, 1);
   assert.equal(saved.character.equipment[0].name, "Corda de escalada");
   assert.equal(saved.character.equipment[0].quantity, 2);
   assert.equal(saved.character.equipment[0].state, "stored");
