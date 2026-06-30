@@ -23,13 +23,18 @@
 
 .singular-mobile-sheet__general-notes-editor textarea,
 .singular-mobile-sheet__structured-note-editor input,
-.singular-mobile-sheet__structured-note-inline-editor input {
+.singular-mobile-sheet__structured-note-editor textarea,
+.singular-mobile-sheet__structured-note-inline-editor input,
+.singular-mobile-sheet__structured-note-inline-editor textarea {
   font: inherit;
   line-height: 1.35;
 }
 
-.singular-mobile-sheet__general-notes-editor textarea {
+.singular-mobile-sheet__general-notes-editor textarea,
+.singular-mobile-sheet__structured-note-editor textarea,
+.singular-mobile-sheet__structured-note-inline-editor textarea {
   min-height: 7rem;
+  resize: vertical;
 }
 
 .singular-mobile-sheet__card[data-card="notes"] [data-role="notes-general-display"] {
