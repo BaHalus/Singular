@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import {
+  applyEquipmentPatch,
   buildEquipmentUpdatePayload,
   injectMobileEquipmentEditControls,
   shouldBlockMobileEquipmentEdit,
@@ -105,6 +106,91 @@ test("builds canonical equipment.update payload with only changed fields", () =>
       notes: "Tem bolsos internos\ne fivela nova",
     },
   });
+});
+
+test("uses canonical equipment.update command when available", () => {
+  const calls = [];
+  const result = applyEquipmentPatch({
+    character: character(),
+    commands: {
+      updateEquipment(payload) {
+        calls.push(payload);
+        return Object.freeze({ status: "applied" });
+      },
+    },
+  }, "equipment:backpack", {
+    name: "Mochila reforçada",
+    quantity: 1,
+    weightKg: 0.5,
+    cost: 60,
+    state: "carried",
+    notes: "Tem bolsos internos",
+  });
+
+  assert.equal(result.status, "applied");
+  assert.deepEqual(calls, [{
+    itemId: "equipment:backpack",
+    patch: { name: "Mochila reforçada" },
+  }]);
+});
+
+test("preserves legacy equipment commands when updateEquipment is unavailable", () => {
+  const calls = [];
+  const result = applyEquipmentPatch({
+    character: character(),
+    commands: {
+      renameEquipment(input) {
+        calls.push(["rename", input]);
+        return Object.freeze({ status: "applied" });
+      },
+      setEquipmentQuantity(input) {
+        calls.push(["quantity", input]);
+        return Object.freeze({ status: "applied" });
+      },
+      setEquipmentState(input) {
+        calls.push(["state", input]);
+        return Object.freeze({ status: "applied" });
+      },
+    },
+  }, "equipment:backpack", {
+    name: "Mochila reforçada",
+    quantity: 3,
+    weightKg: 0.5,
+    cost: 60,
+    state: "stored",
+    notes: "Tem bolsos internos",
+  });
+
+  assert.equal(result.status, "applied");
+  assert.deepEqual(calls, [
+    ["rename", { itemId: "equipment:backpack", name: "Mochila reforçada" }],
+    ["quantity", { itemId: "equipment:backpack", quantity: 3 }],
+    ["state", { itemId: "equipment:backpack", state: "stored" }],
+  ]);
+});
+
+test("blocks unsupported equipment patch fields without updateEquipment", () => {
+  const calls = [];
+  const result = applyEquipmentPatch({
+    character: character(),
+    commands: {
+      renameEquipment(input) {
+        calls.push(input);
+        return Object.freeze({ status: "applied" });
+      },
+    },
+  }, "equipment:backpack", {
+    name: "Mochila",
+    quantity: 1,
+    weightKg: 0.75,
+    cost: 60,
+    state: "carried",
+    notes: "Tem bolsos internos",
+  });
+
+  assert.equal(result.status, "unsupported");
+  assert.deepEqual(result.unsupportedKeys, ["weightKg"]);
+  assert.deepEqual(calls, []);
 });
 
 test("blocks equipment structural edits while UI is busy", () => {
