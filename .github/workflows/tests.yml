@@ -33,26 +33,17 @@ jobs:
           node --version
           npm --version
 
-      - name: Run mobile attack tests
-        run: files=$(find src/ui/mobile -name '*Attack*.test.js' -print); [ -z "$files" ] || node --test $files
+      - name: Run mobile equipment add tests
+        run: files=$(find src/ui/mobile -name '*Equipment*Add*.test.js' -print); [ -z "$files" ] || node --test $files
 
-      - name: Run mobile equipment tests
-        run: files=$(find src/ui/mobile -name '*Equipment*.test.js' -print); [ -z "$files" ] || node --test $files
+      - name: Run mobile equipment edit tests
+        run: files=$(find src/ui/mobile -name '*Equipment*Edit*.test.js' -print); [ -z "$files" ] || node --test $files
 
-      - name: Run mobile spell tests
-        run: files=$(find src/ui/mobile -name '*Spell*.test.js' -print); [ -z "$files" ] || node --test $files
+      - name: Run mobile equipment move tests
+        run: files=$(find src/ui/mobile -name '*Equipment*Move*.test.js' -print); [ -z "$files" ] || node --test $files
 
-      - name: Run mobile power tests
-        run: files=$(find src/ui/mobile -name '*Power*.test.js' -print); [ -z "$files" ] || node --test $files
+      - name: Run mobile equipment state tests
+        run: files=$(find src/ui/mobile -name '*Equipment*State*.test.js' -print); [ -z "$files" ] || node --test $files
 
-      - name: Run mobile trait tests
-        run: files=$(find src/ui/mobile -name '*Trait*.test.js' -print); [ -z "$files" ] || node --test $files
-
-      - name: Run mobile skill tests
-        run: files=$(find src/ui/mobile -name '*Skill*.test.js' -print); [ -z "$files" ] || node --test $files
-
-      - name: Run mobile secondary tests
-        run: files=$(find src/ui/mobile -name '*Secondary*.test.js' -print); [ -z "$files" ] || node --test $files
-
-      - name: Run mobile remaining tests
-        run: node --test $(find src/ui/mobile -name '*.test.js' ! -name '*Attack*.test.js' ! -name '*Equipment*.test.js' ! -name '*Spell*.test.js' ! -name '*Power*.test.js' ! -name '*Trait*.test.js' ! -name '*Skill*.test.js' ! -name '*Secondary*.test.js' -print)
+      - name: Run mobile equipment remaining tests
+        run: node --test $(find src/ui/mobile -name '*Equipment*.test.js' ! -name '*Equipment*Add*.test.js' ! -name '*Equipment*Edit*.test.js' ! -name '*Equipment*Move*.test.js' ! -name '*Equipment*State*.test.js' -print)
