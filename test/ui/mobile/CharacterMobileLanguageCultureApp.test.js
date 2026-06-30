@@ -6,14 +6,14 @@ const moduleSource = readFileSync(
   new URL("../../../src/ui/mobile/CharacterMobileLanguageCultureApp.js", import.meta.url),
   "utf8",
 );
-const mobileHtml = readFileSync(
-  new URL("../../../mobile.html", import.meta.url),
+const compositionRootSource = readFileSync(
+  new URL("../../../src/ui/mobile/CharacterMobileCompositionRoot.js", import.meta.url),
   "utf8",
 );
 
-test("language/culture mobile bootstrap is wired by mobile.html", () => {
-  assert.match(mobileHtml, /CharacterMobileLanguageCultureApp\.js/);
-  assert.match(mobileHtml, /bootstrapCharacterMobileLanguageCultureApp/);
+test("language/culture mobile bootstrap is wired by the composition root", () => {
+  assert.ok(compositionRootSource.includes("CharacterMobileLanguageCultureApp.js"));
+  assert.ok(compositionRootSource.includes("bootstrapCharacterMobileLanguageCultureApp"));
 });
 
 test("language/culture mobile bootstrap exposes creation controls and blocks table mode", () => {
@@ -33,16 +33,7 @@ test("language/culture mobile bootstrap exposes creation controls and blocks tab
 });
 
 test("language/culture rerender delegates to the base mobile render pipeline", () => {
-  assert.match(
-    moduleSource,
-    /root\.innerHTML = renderCharacterMobileApp\(session\.character, \{ mode: app\.mode \}\);/,
-  );
-  assert.doesNotMatch(
-    moduleSource,
-    /root\.innerHTML = app\.ui\.render\(/,
-  );
-  assert.doesNotMatch(
-    moduleSource,
-    /root\.innerHTML = ui\.render\(/,
-  );
+  assert.ok(moduleSource.includes("root.innerHTML = renderCharacterMobileApp(session.character, { mode: app.mode });"));
+  assert.ok(!moduleSource.includes("root.innerHTML = app.ui.render("));
+  assert.ok(!moduleSource.includes("root.innerHTML = ui.render("));
 });
