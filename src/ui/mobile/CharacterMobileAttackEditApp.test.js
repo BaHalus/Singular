@@ -174,37 +174,37 @@ test("edits existing mobile attacks through canonical update commands", async ()
 
   assert.match(root.innerHTML, /data-action="attack-update"/);
 
-  root.setInput('[data-role="attack-edit-name-attack:sword"]', "Espada longa defensiva");
-  root.setInput('[data-role="attack-edit-category-attack:sword"]', "melee");
-  root.setInput('[data-role="attack-edit-skill-id-attack:sword"]', "skill:broadsword");
-  root.setInput('[data-role="attack-edit-damage-value-attack:sword"]', "1d+3");
-  root.setInput('[data-role="attack-edit-damage-type-attack:sword"]', "cut");
-  root.setInput('[data-role="attack-edit-reach-attack:sword"]', "1,2");
-  root.setInput('[data-role="attack-edit-range-attack:sword"]', "");
-  root.setInput('[data-role="attack-edit-notes-attack:sword"]', "Usar com escudo.\nLinha 2");
+  root.setInput('[data-role="attack-edit-name-attack:sword"]', "Arco defensivo");
+  root.setInput('[data-role="attack-edit-category-attack:sword"]', "ranged");
+  root.setInput('[data-role="attack-edit-skill-id-attack:sword"]', "skill:bow");
+  root.setInput('[data-role="attack-edit-damage-value-attack:sword"]', "1d+1");
+  root.setInput('[data-role="attack-edit-damage-type-attack:sword"]', "imp");
+  root.setInput('[data-role="attack-edit-reach-attack:sword"]', "");
+  root.setInput('[data-role="attack-edit-range-attack:sword"]', "100/200");
+  root.setInput('[data-role="attack-edit-notes-attack:sword"]', "Manter distância.\nLinha 2");
   await root.dispatch("click", click("attack-update", { attackId: "attack:sword" }));
 
   assert.equal(root.getAttribute("data-last-command-status"), "applied");
   assert.equal(mounted.session.history[0].commandType, "attack.update");
-  assert.equal(mounted.character.attacks[0].name, "Espada longa defensiva");
-  assert.equal(mounted.character.attacks[0].category, "melee");
-  assert.equal(mounted.character.attacks[0].skillId, "skill:broadsword");
-  assert.deepEqual(mounted.character.attacks[0].damage, { value: "1d+3", type: "cut", authority: "declared" });
-  assert.equal(mounted.character.attacks[0].reach, "1,2");
-  assert.equal(mounted.character.attacks[0].range, null);
-  assert.equal(mounted.character.attacks[0].notes, "Usar com escudo.\nLinha 2");
+  assert.equal(mounted.character.attacks[0].name, "Arco defensivo");
+  assert.equal(mounted.character.attacks[0].category, "ranged");
+  assert.equal(mounted.character.attacks[0].skillId, "skill:bow");
+  assert.deepEqual(mounted.character.attacks[0].damage, { value: "1d+1", type: "imp", authority: "declared" });
+  assert.equal(mounted.character.attacks[0].reach, null);
+  assert.equal(mounted.character.attacks[0].range, "100/200");
+  assert.equal(mounted.character.attacks[0].notes, "Manter distância.\nLinha 2");
 
   await root.dispatch("click", click("persistence-save"));
   const saved = await mounted.repositories.session.load("session-mobile-attack-edit");
 
   assert.equal(saved.revision, 1);
-  assert.equal(saved.character.attacks[0].name, "Espada longa defensiva");
-  assert.equal(saved.character.attacks[0].category, "melee");
-  assert.equal(saved.character.attacks[0].skillId, "skill:broadsword");
-  assert.deepEqual(saved.character.attacks[0].damage, { value: "1d+3", type: "cut", authority: "declared" });
-  assert.equal(saved.character.attacks[0].reach, "1,2");
-  assert.equal(saved.character.attacks[0].range, null);
-  assert.equal(saved.character.attacks[0].notes, "Usar com escudo.\nLinha 2");
+  assert.equal(saved.character.attacks[0].name, "Arco defensivo");
+  assert.equal(saved.character.attacks[0].category, "ranged");
+  assert.equal(saved.character.attacks[0].skillId, "skill:bow");
+  assert.deepEqual(saved.character.attacks[0].damage, { value: "1d+1", type: "imp", authority: "declared" });
+  assert.equal(saved.character.attacks[0].reach, null);
+  assert.equal(saved.character.attacks[0].range, "100/200");
+  assert.equal(saved.character.attacks[0].notes, "Manter distância.\nLinha 2");
 });
 
 test("keeps attack structural edit controls out of table mode", () => {
