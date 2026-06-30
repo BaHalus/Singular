@@ -2,6 +2,7 @@ import {
   bootstrapCharacterMobileSpellEditApp,
 } from "./CharacterMobileSpellEditApp.js";
 import {
+  appendInlineEditorToDefinitionListItem,
   escapeAttribute,
   escapeSelectorValue,
   escapeTextContent,
@@ -10,12 +11,16 @@ import {
   readDataset,
   readInputValue,
   readNumberInputValue,
+  resolveMobileRoot,
+  splitTextList,
 } from "./MobileInlineEditHelpers.js";
 
 export async function bootstrapCharacterMobilePowerEditApp(options = {}) {
   const app = await bootstrapCharacterMobileSpellEditApp(options);
-  const root = options.root ?? options.document?.querySelector?.("[data-singular-mobile-root]") ?? globalThis.document?.querySelector?.("[data-singular-mobile-root]");
-  if (!root) throw new Error("Character mobile power edit bootstrap root was not found");
+  const root = options.root ?? resolveMobileRoot(
+    options.document,
+    "Character mobile power edit bootstrap root was not found",
+  );
 
   const render = () => {
     app.render();
@@ -83,7 +88,7 @@ export function injectMobilePowerEditControls(html, character, mode) {
   if (mode !== "creation") return html;
   let nextHtml = html;
   for (const power of character.powers ?? []) {
-    nextHtml = appendEditor(nextHtml, power);
+    nextHtml = appendPowerInlineEditor(nextHtml, power);
   }
   return nextHtml;
 }
@@ -107,15 +112,13 @@ function injectCurrentPowerControls(root, app) {
   app.modeSync.sync();
 }
 
-function appendEditor(html, power) {
-  const id = String(power.id);
-  const markerIndex = html.indexOf(`data-power-id="${escapeAttribute(id)}"`);
-  if (markerIndex < 0) return html;
-  const ddEnd = html.indexOf("</dd>", markerIndex);
-  if (ddEnd < 0) return html;
-  const existing = html.indexOf(`data-role="power-inline-editor" data-power-id="${escapeAttribute(id)}"`, markerIndex);
-  if (existing >= 0 && existing < ddEnd) return html;
-  return html.slice(0, ddEnd) + renderEditor(power) + html.slice(ddEnd);
+function appendPowerInlineEditor(html, power) {
+  return appendInlineEditorToDefinitionListItem(html, {
+    entityId: power.id,
+    markerAttribute: "data-power-id",
+    editorRole: "power-inline-editor",
+    renderEditor: () => renderEditor(power),
+  });
 }
 
 function renderEditor(power) {
@@ -130,7 +133,8 @@ function renderEditor(power) {
     `<label>Talento <input type="text" data-role="power-edit-talent-${id}" value="${escapeAttribute(power.talentTraitId ?? "")}" autocomplete="off" disabled></label>`,
     `<label>Membros <input type="text" data-role="power-edit-members-${id}" value="${escapeAttribute((power.memberTraitIds ?? []).join(", "))}" autocomplete="off" disabled></label>`,
     `<label>Tags <input type="text" data-role="power-edit-tags-${id}" value="${escapeAttribute((power.tags ?? []).join(", "))}" autocomplete="off" disabled></label>`,
-    `<label class="singular-mobile-sheet__power-inline-editor-notes">Notas <textarea data-role="power-edit-notes-${id}" autocomplete="off" disabled>\n${escapeTextContent(power.notes ?? "")}</textarea></label>`,
+    `<label class="singular-mobile-sheet__power-inline-editor-notes">Notas <textarea data-role="power-edit-notes-${id}" autocomplete="off" disabled>
+${escapeTextContent(power.notes ?? "")}</textarea></label>`,
     `<button type="button" data-action="power-update" data-power-id="${id}">Salvar poder</button>`,
     "</div>",
   ].join("");
@@ -149,10 +153,4 @@ function readPowerPatch(root, powerId) {
     tags: readInputValue(root, `[data-role="power-edit-tags-${suffix}"]`),
     notes: readInputValue(root, `[data-role="power-edit-notes-${suffix}"]`),
   });
-}
-
-function splitTextList(value) {
-  if (Array.isArray(value)) return value;
-  if (typeof value !== "string") return [];
-  return value.split(",").map(item => item.trim()).filter(Boolean);
 }
