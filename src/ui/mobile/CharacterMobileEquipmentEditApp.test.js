@@ -297,3 +297,21 @@ test("blocks equipment structural edits while UI is busy", () => {
 
   assert.equal(status, "busy");
 });
+
+test("blocks equipment structural edits outside creation mode", () => {
+  const status = shouldBlockMobileEquipmentEdit({
+    mode: "table",
+    ui: { getState: () => ({ busy: false }) },
+  });
+
+  assert.equal(status, "blocked-by-mode");
+});
+
+test("allows equipment structural edits when creation mode is idle", () => {
+  const status = shouldBlockMobileEquipmentEdit({
+    mode: "creation",
+    ui: { getState: () => ({ busy: false }) },
+  });
+
+  assert.equal(status, null);
+});
