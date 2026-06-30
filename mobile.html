@@ -23,8 +23,10 @@
     <script type="module">
       import { bootstrapCharacterMobileCompositionRoot } from "./src/ui/mobile/CharacterMobileCompositionRoot.js";
 
+      const bootstrapCharacterMobileApp = bootstrapCharacterMobileCompositionRoot;
+
       try {
-        await bootstrapCharacterMobileCompositionRoot();
+        await bootstrapCharacterMobileApp();
       } catch (error) {
         const root = document.querySelector("[data-singular-mobile-root]");
         if (root) {
