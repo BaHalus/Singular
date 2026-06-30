@@ -14,6 +14,7 @@
 
 .singular-mobile-sheet__attack-inline-editor input,
 .singular-mobile-sheet__attack-inline-editor select,
+.singular-mobile-sheet__attack-inline-editor textarea,
 .singular-mobile-sheet__attack-inline-editor button {
   width: 100%;
   min-height: 2.75rem;
@@ -22,6 +23,12 @@
   background: #202b38;
   color: inherit;
   padding: 0.55rem;
+}
+
+.singular-mobile-sheet__attack-inline-editor textarea {
+  min-height: 6rem;
+  resize: vertical;
+  font: inherit;
 }
 
 .singular-mobile-sheet__attack-inline-editor button {

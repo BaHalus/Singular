@@ -114,7 +114,7 @@ function renderAttackInlineEditor(attack) {
     `<label>Tipo de dano <input type="text" data-role="attack-edit-damage-type-${id}" value="${escapeAttribute(attack.damage?.type ?? "")}" autocomplete="off"></label>`,
     `<label>Reach <input type="text" data-role="attack-edit-reach-${id}" value="${escapeAttribute(attack.reach ?? "")}" autocomplete="off"></label>`,
     `<label>Alcance <input type="text" data-role="attack-edit-range-${id}" value="${escapeAttribute(attack.range ?? "")}" autocomplete="off"></label>`,
-    `<label>Notas <input type="text" data-role="attack-edit-notes-${id}" value="${escapeAttribute(attack.notes ?? "")}" autocomplete="off"></label>`,
+    `<label>Notas <textarea data-role="attack-edit-notes-${id}" autocomplete="off">${renderTextareaText(attack.notes ?? "")}</textarea></label>`,
     `<button type="button" data-action="attack-update" data-attack-id="${id}">Salvar ataque</button>`,
     "</div>",
   ].join("");
@@ -177,6 +177,10 @@ function escapeSelectorValue(value) {
 
 function escapeAttribute(value) {
   return escapeText(value).replaceAll('"', "&quot;");
+}
+
+function renderTextareaText(value) {
+  return `\n${escapeText(value)}`;
 }
 
 function escapeText(value) {
