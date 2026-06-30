@@ -275,9 +275,21 @@ test("edits existing mobile skills and techniques through canonical update comma
 
   assert.equal(saved.revision, 2);
   assert.equal(saved.character.skills[0].name, "Furtividade Urbana");
+  assert.equal(saved.character.skills[0].specialization, "Becos");
+  assert.equal(saved.character.skills[0].techLevel, "3");
+  assert.equal(saved.character.skills[0].difficulty, "H");
+  assert.equal(saved.character.skills[0].points, 4);
   assert.equal(saved.character.skills[0].notes, "Mover em silêncio.\nLinha 2");
+  assert.deepEqual(saved.character.skills[0].tags, ["mesa", "furtivo"]);
   assert.equal(saved.character.techniques[0].name, "Chave Relâmpago");
+  assert.equal(saved.character.techniques[0].specialization, "Judô Defensivo");
+  assert.equal(saved.character.techniques[0].skillSpecialization, "Defesa");
+  assert.equal(saved.character.techniques[0].difficulty, "A");
+  assert.equal(saved.character.techniques[0].points, 5);
+  assert.equal(saved.character.techniques[0].defaultPenalty, -1);
+  assert.equal(saved.character.techniques[0].maximumRelativeLevel, 1);
   assert.equal(saved.character.techniques[0].notes, "Entrada rápida.\nLinha 2");
+  assert.deepEqual(saved.character.techniques[0].tags, ["combate", "controle"]);
 });
 
 test("keeps skill and technique structural edit controls out of table mode", () => {
