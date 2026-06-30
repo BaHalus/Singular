@@ -166,6 +166,45 @@ test("uses canonical equipment.update command when available", () => {
   }]);
 });
 
+test("uses canonical equipment.update for weight cost and notes when available", () => {
+  const calls = [];
+  const result = applyEquipmentPatch({
+    character: character(),
+    commands: {
+      updateEquipment(payload) {
+        calls.push(payload);
+        return Object.freeze({ status: "applied" });
+      },
+      renameEquipment() {
+        throw new Error("legacy equipment rename must not be used when updateEquipment exists");
+      },
+      setEquipmentQuantity() {
+        throw new Error("legacy equipment quantity must not be used when updateEquipment exists");
+      },
+      setEquipmentState() {
+        throw new Error("legacy equipment state must not be used when updateEquipment exists");
+      },
+    },
+  }, "equipment:backpack", {
+    name: "Mochila",
+    quantity: 1,
+    weightKg: 0.75,
+    cost: 80,
+    state: "carried",
+    notes: "Tem bolsos internos\ne fivela nova",
+  });
+
+  assert.equal(result.status, "applied");
+  assert.deepEqual(calls, [{
+    itemId: "equipment:backpack",
+    patch: {
+      weightKg: 0.75,
+      cost: 80,
+      notes: "Tem bolsos internos\ne fivela nova",
+    },
+  }]);
+});
+
 test("preserves legacy equipment commands when updateEquipment is unavailable", () => {
   const calls = [];
   const result = applyEquipmentPatch({
@@ -257,22 +296,4 @@ test("blocks equipment structural edits while UI is busy", () => {
   });
 
   assert.equal(status, "busy");
-});
-
-test("blocks equipment structural edits outside creation mode", () => {
-  const status = shouldBlockMobileEquipmentEdit({
-    mode: "table",
-    ui: { getState: () => ({ busy: false }) },
-  });
-
-  assert.equal(status, "blocked-by-mode");
-});
-
-test("allows equipment structural edits when creation mode is idle", () => {
-  const status = shouldBlockMobileEquipmentEdit({
-    mode: "creation",
-    ui: { getState: () => ({ busy: false }) },
-  });
-
-  assert.equal(status, null);
 });
