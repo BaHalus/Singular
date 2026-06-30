@@ -1,7 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
+import { createCharacter } from "../../domain/character/Character.js";
 import {
+  bootstrapCharacterMobileAttackEditApp,
   injectMobileAttackEditControls,
 } from "./CharacterMobileAttackEditApp.js";
 
@@ -24,6 +26,98 @@ function character() {
         notes: "usar com escudo",
       },
     ],
+  };
+}
+
+function fullCharacter() {
+  return createCharacter({
+    identity: {
+      id: "character-mobile-attack-edit",
+      name: "Aldric",
+      concept: "Guarda de muralha",
+      playerId: "player-one",
+      campaignId: "campaign-alpha",
+    },
+    attributes: { ST: 12, DX: 11, IQ: 10, HT: 10 },
+    ...character(),
+    metadata: {
+      createdAt: "2026-06-30T11:40:00.000Z",
+      updatedAt: "2026-06-30T11:40:00.000Z",
+      source: "test",
+    },
+  });
+}
+
+function createMemoryStorage() {
+  const values = new Map();
+  return {
+    getItem(key) {
+      return values.has(String(key)) ? values.get(String(key)) : null;
+    },
+    setItem(key, value) {
+      values.set(String(key), String(value));
+    },
+    removeItem(key) {
+      values.delete(String(key));
+    },
+  };
+}
+
+function runtime() {
+  let sequence = 0;
+  return {
+    clock: { now: () => "2026-06-30T11:41:00.000Z" },
+    idGenerator: {
+      next(prefix) {
+        sequence += 1;
+        return `${prefix}:attack-edit-mobile-${sequence}`;
+      },
+    },
+  };
+}
+
+function rootFixture() {
+  const attributes = new Map();
+  const listeners = new Map();
+  const inputValues = new Map();
+  return {
+    innerHTML: "",
+    setAttribute(name, value) {
+      attributes.set(name, value);
+    },
+    getAttribute(name) {
+      return attributes.get(name) ?? null;
+    },
+    addEventListener(type, listener) {
+      const entries = listeners.get(type) ?? [];
+      entries.push(listener);
+      listeners.set(type, entries);
+    },
+    removeEventListener(type, listener) {
+      const entries = listeners.get(type) ?? [];
+      listeners.set(type, entries.filter(entry => entry !== listener));
+    },
+    querySelector(selector) {
+      return { value: inputValues.get(selector) ?? "" };
+    },
+    querySelectorAll() {
+      return [];
+    },
+    setInput(selector, value) {
+      inputValues.set(selector, value);
+    },
+    async dispatch(type, event) {
+      for (const listener of listeners.get(type) ?? []) {
+        await listener(event);
+      }
+    },
+  };
+}
+
+function click(action, dataset = {}) {
+  return {
+    target: { dataset: { action, ...dataset }, parentElement: null },
+    preventDefault() {},
   };
 }
 
@@ -64,6 +158,49 @@ Linha inicial de ataque`;
 
 Linha inicial de ataque</textarea>`,
   ));
+});
+
+test("edits existing mobile attacks through canonical update commands", async () => {
+  const root = rootFixture();
+  const mounted = await bootstrapCharacterMobileAttackEditApp({
+    root,
+    character: fullCharacter(),
+    sessionId: "session-mobile-attack-edit",
+    storage: createMemoryStorage(),
+    namespace: "test.mobile.attack-edit",
+    runtime: runtime(),
+    mode: "creation",
+  });
+
+  assert.match(root.innerHTML, /data-action="attack-update"/);
+
+  root.setInput('[data-role="attack-edit-name-attack:sword"]', "Espada longa defensiva");
+  root.setInput('[data-role="attack-edit-category-attack:sword"]', "melee");
+  root.setInput('[data-role="attack-edit-skill-id-attack:sword"]', "skill:broadsword");
+  root.setInput('[data-role="attack-edit-damage-value-attack:sword"]', "1d+3");
+  root.setInput('[data-role="attack-edit-damage-type-attack:sword"]', "cut");
+  root.setInput('[data-role="attack-edit-reach-attack:sword"]', "1,2");
+  root.setInput('[data-role="attack-edit-range-attack:sword"]', "");
+  root.setInput('[data-role="attack-edit-notes-attack:sword"]', "Usar com escudo.\nLinha 2");
+  await root.dispatch("click", click("attack-update", { attackId: "attack:sword" }));
+
+  assert.equal(root.getAttribute("data-last-command-status"), "applied");
+  assert.equal(mounted.session.history[0].commandType, "attack.update");
+  assert.equal(mounted.character.attacks[0].name, "Espada longa defensiva");
+  assert.equal(mounted.character.attacks[0].category, "melee");
+  assert.equal(mounted.character.attacks[0].skillId, "skill:broadsword");
+  assert.deepEqual(mounted.character.attacks[0].damage, { value: "1d+3", type: "cut", authority: "declared" });
+  assert.equal(mounted.character.attacks[0].reach, "1,2");
+  assert.equal(mounted.character.attacks[0].range, null);
+  assert.equal(mounted.character.attacks[0].notes, "Usar com escudo.\nLinha 2");
+
+  await root.dispatch("click", click("persistence-save"));
+  const saved = await mounted.repositories.session.load("session-mobile-attack-edit");
+
+  assert.equal(saved.revision, 1);
+  assert.equal(saved.character.attacks[0].name, "Espada longa defensiva");
+  assert.equal(saved.character.attacks[0].damage.value, "1d+3");
+  assert.equal(saved.character.attacks[0].notes, "Usar com escudo.\nLinha 2");
 });
 
 test("keeps attack structural edit controls out of table mode", () => {
