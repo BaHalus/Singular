@@ -19,6 +19,10 @@ function findDuplicateValues(values) {
     .map(([value]) => value);
 }
 
+function sortedValues(values) {
+  return [...values].sort();
+}
+
 test("mobile entrypoint imports each module path once", async () => {
   const html = await readMobileHtml();
   const importPaths = [...html.matchAll(/import\s+\{[^}]+\}\s+from\s+"([^"]+)";/g)]
@@ -51,9 +55,8 @@ test("mobile entrypoint references each imported bootstrap exactly once as a pre
     .map(match => match[1]);
 
   assert.deepEqual(
-    preservedBootstraps.toSorted(),
-    importedBootstraps
-      .filter(name => name !== "bootstrapCharacterMobilePowerEditApp")
-      .toSorted(),
+    sortedValues(preservedBootstraps),
+    sortedValues(importedBootstraps
+      .filter(name => name !== "bootstrapCharacterMobilePowerEditApp")),
   );
 });
