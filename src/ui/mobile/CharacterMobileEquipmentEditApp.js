@@ -23,6 +23,10 @@ export async function bootstrapCharacterMobileEquipmentEditApp(options = {}) {
       root.setAttribute?.("data-last-command-status", "blocked-by-mode");
       return null;
     }
+    if (app.ui.getState().busy) {
+      root.setAttribute?.("data-last-command-status", "busy");
+      return null;
+    }
     const itemId = target.dataset.equipmentId;
     const result = applyEquipmentPatch(app, itemId, readEquipmentPatch(root, itemId));
     root.setAttribute?.("data-last-command-status", result.status);
