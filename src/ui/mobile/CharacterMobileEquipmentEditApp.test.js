@@ -42,6 +42,19 @@ function character() {
   };
 }
 
+function sparseCharacter() {
+  return {
+    equipment: [
+      {
+        id: "equipment:torch",
+        name: "Tocha",
+        quantity: 1,
+        state: "carried",
+      },
+    ],
+  };
+}
+
 test("injects mobile equipment inline editors in creation mode", () => {
   const creation = injectMobileEquipmentEditControls(html, character(), "creation");
 
@@ -108,6 +121,25 @@ test("builds canonical equipment.update payload with only changed fields", () =>
   });
 });
 
+test("does not mark missing optional equipment fields as changed by editor defaults", () => {
+  const current = sparseCharacter().equipment[0];
+  const payload = buildEquipmentUpdatePayload(current, "equipment:torch", {
+    name: "Tocha resinada",
+    quantity: 1,
+    weightKg: 0,
+    cost: 0,
+    state: "carried",
+    notes: "",
+  });
+
+  assert.deepEqual(payload, {
+    itemId: "equipment:torch",
+    patch: {
+      name: "Tocha resinada",
+    },
+  });
+});
+
 test("uses canonical equipment.update command when available", () => {
   const calls = [];
   const result = applyEquipmentPatch({
@@ -166,6 +198,31 @@ test("preserves legacy equipment commands when updateEquipment is unavailable", 
     ["rename", { itemId: "equipment:backpack", name: "Mochila reforçada" }],
     ["quantity", { itemId: "equipment:backpack", quantity: 3 }],
     ["state", { itemId: "equipment:backpack", state: "stored" }],
+  ]);
+});
+
+test("preserves legacy edits on sparse equipment items", () => {
+  const calls = [];
+  const result = applyEquipmentPatch({
+    character: sparseCharacter(),
+    commands: {
+      renameEquipment(input) {
+        calls.push(["rename", input]);
+        return Object.freeze({ status: "applied" });
+      },
+    },
+  }, "equipment:torch", {
+    name: "Tocha resinada",
+    quantity: 1,
+    weightKg: 0,
+    cost: 0,
+    state: "carried",
+    notes: "",
+  });
+
+  assert.equal(result.status, "applied");
+  assert.deepEqual(calls, [
+    ["rename", { itemId: "equipment:torch", name: "Tocha resinada" }],
   ]);
 });
 
