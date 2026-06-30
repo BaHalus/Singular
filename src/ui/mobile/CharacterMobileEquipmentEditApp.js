@@ -76,6 +76,17 @@ export function buildEquipmentUpdatePayload(current, itemId, patch) {
   return Object.freeze({ itemId, patch: nextPatch });
 }
 
+export function applyEquipmentPatch(app, itemId, patch) {
+  const current = findEquipmentItem(app.character.equipment ?? [], itemId);
+  if (current === null) return Object.freeze({ status: "rejected" });
+  const payload = buildEquipmentUpdatePayload(current, itemId, patch);
+  if (Object.keys(payload.patch).length === 0) return Object.freeze({ status: "no-op" });
+  if (typeof app.commands.updateEquipment === "function") {
+    return app.commands.updateEquipment(payload);
+  }
+  return applyLegacyEquipmentPatch(app.commands, payload);
+}
+
 function injectCurrentEquipmentControls(root, app) {
   root.innerHTML = injectMobileEquipmentEditControls(root.innerHTML, app.character, app.mode);
   app.modeSync.sync();
@@ -125,15 +136,24 @@ function readEquipmentPatch(root, itemId) {
   };
 }
 
-function applyEquipmentPatch(app, itemId, patch) {
-  const current = findEquipmentItem(app.character.equipment ?? [], itemId);
-  if (current === null) return Object.freeze({ status: "rejected" });
-  if (typeof app.commands.updateEquipment !== "function") {
-    return Object.freeze({ status: "unsupported" });
+function applyLegacyEquipmentPatch(commands, payload) {
+  const unsupportedKeys = Object.keys(payload.patch).filter(key => !["name", "quantity", "state"].includes(key));
+  if (unsupportedKeys.length > 0) return Object.freeze({ status: "unsupported", unsupportedKeys });
+
+  let result = null;
+  if (Object.hasOwn(payload.patch, "name")) {
+    if (typeof commands.renameEquipment !== "function") return Object.freeze({ status: "unsupported" });
+    result = commands.renameEquipment({ itemId: payload.itemId, name: payload.patch.name });
   }
-  const payload = buildEquipmentUpdatePayload(current, itemId, patch);
-  if (Object.keys(payload.patch).length === 0) return Object.freeze({ status: "no-op" });
-  return app.commands.updateEquipment(payload);
+  if (Object.hasOwn(payload.patch, "quantity")) {
+    if (typeof commands.setEquipmentQuantity !== "function") return Object.freeze({ status: "unsupported" });
+    result = commands.setEquipmentQuantity({ itemId: payload.itemId, quantity: payload.patch.quantity });
+  }
+  if (Object.hasOwn(payload.patch, "state")) {
+    if (typeof commands.setEquipmentState !== "function") return Object.freeze({ status: "unsupported" });
+    result = commands.setEquipmentState({ itemId: payload.itemId, state: payload.patch.state });
+  }
+  return result ?? Object.freeze({ status: "no-op" });
 }
 
 function flattenEquipment(items, output = []) {
