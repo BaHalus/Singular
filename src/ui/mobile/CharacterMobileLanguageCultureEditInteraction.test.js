@@ -139,7 +139,7 @@ test("edits existing mobile languages and cultural familiarities through canonic
   root.setInput('[data-role="language-edit-written-level-language:latin"]', "native");
   root.setInput('[data-role="language-edit-native-language:latin"]', "true");
   root.setInput('[data-role="language-edit-tags-language:latin"]', "erudito, corte");
-  root.setInput('[data-role="language-edit-notes-language:latin"]', "Uso diplomático.");
+  root.setInput('[data-role="language-edit-notes-language:latin"]', "Uso diplomático.\nLinha 2");
   await root.dispatch("click", click("language-update", { languageId: "language:latin" }));
 
   assert.equal(root.getAttribute("data-last-command-status"), "applied");
@@ -147,13 +147,14 @@ test("edits existing mobile languages and cultural familiarities through canonic
   assert.equal(mounted.character.languages[0].name, "Latim Imperial");
   assert.equal(mounted.character.languages[0].spokenLevel, "native");
   assert.equal(mounted.character.languages[0].isNative, true);
+  assert.equal(mounted.character.languages[0].notes, "Uso diplomático.\nLinha 2");
   assert.deepEqual(mounted.character.languages[0].tags, ["erudito", "corte"]);
   assert.match(root.innerHTML, /Latim Imperial/);
 
   root.setInput('[data-role="familiarity-edit-name-familiarity:imperial"]', "Corte Imperial");
   root.setInput('[data-role="familiarity-edit-native-familiarity:imperial"]', "true");
   root.setInput('[data-role="familiarity-edit-tags-familiarity:imperial"]', "história, etiqueta");
-  root.setInput('[data-role="familiarity-edit-notes-familiarity:imperial"]', "Etiqueta cortesã.");
+  root.setInput('[data-role="familiarity-edit-notes-familiarity:imperial"]', "Etiqueta cortesã.\nLinha 2");
   await root.dispatch("click", click("familiarity-update", { familiarityId: "familiarity:imperial" }));
 
   assert.equal(root.getAttribute("data-last-command-status"), "applied");
@@ -161,6 +162,7 @@ test("edits existing mobile languages and cultural familiarities through canonic
   assert.equal(mounted.session.history[1].commandType, "familiarity.update");
   assert.equal(mounted.character.familiarities[0].name, "Corte Imperial");
   assert.equal(mounted.character.familiarities[0].isNative, true);
+  assert.equal(mounted.character.familiarities[0].notes, "Etiqueta cortesã.\nLinha 2");
   assert.deepEqual(mounted.character.familiarities[0].tags, ["história", "etiqueta"]);
   assert.match(root.innerHTML, /Corte Imperial/);
 
@@ -169,7 +171,9 @@ test("edits existing mobile languages and cultural familiarities through canonic
 
   assert.equal(saved.revision, 2);
   assert.equal(saved.character.languages[0].name, "Latim Imperial");
+  assert.equal(saved.character.languages[0].notes, "Uso diplomático.\nLinha 2");
   assert.equal(saved.character.familiarities[0].name, "Corte Imperial");
+  assert.equal(saved.character.familiarities[0].notes, "Etiqueta cortesã.\nLinha 2");
 });
 
 test("blocks existing mobile language and culture edits in table mode", async () => {
