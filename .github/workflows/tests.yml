@@ -34,4 +34,23 @@ jobs:
           npm --version
 
       - name: Run full test suite
-        run: npm test
+        run: |
+          set -o pipefail
+          npm test 2>&1 | tee singular-test.log
+
+      - name: Capture test tail
+        if: always()
+        run: |
+          if [ -f singular-test.log ]; then
+            tail -n 200 singular-test.log > singular-test-tail.txt
+          else
+            echo "singular-test.log was not created" > singular-test-tail.txt
+          fi
+
+      - name: Upload test tail
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: singular-test-tail
+          path: singular-test-tail.txt
+          if-no-files-found: error
