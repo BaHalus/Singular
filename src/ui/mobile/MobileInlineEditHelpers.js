@@ -48,3 +48,47 @@ export function escapeAttribute(value) {
 export function renderTextareaText(value) {
   return `\n${escapeTextContent(value)}`;
 }
+
+export function appendInlineEditorToDefinitionListItem(html, {
+  entityId,
+  markerAttribute,
+  editorRole,
+  renderEditor,
+}) {
+  const id = escapeAttribute(entityId);
+  const markerIndex = html.indexOf(`${markerAttribute}="${id}"`);
+  if (markerIndex < 0) return html;
+
+  const ddEnd = html.indexOf("</dd>", markerIndex);
+  if (ddEnd < 0) return html;
+
+  const existingMarker = `data-role="${editorRole}" ${markerAttribute}="${id}"`;
+  const existingIndex = html.indexOf(existingMarker, markerIndex);
+  if (existingIndex >= 0 && existingIndex < ddEnd) return html;
+
+  return `${html.slice(0, ddEnd)}${renderEditor()}${html.slice(ddEnd)}`;
+}
+
+export function resolveMobileRoot(documentOption, errorMessage) {
+  const documentRef = documentOption ?? globalThis.document;
+  const root = documentRef?.querySelector?.("[data-singular-mobile-root]") ?? null;
+  if (root === null) throw new Error(errorMessage);
+  return root;
+}
+
+export function requirePlainObject(value, label) {
+  if (
+    value === null ||
+    typeof value !== "object" ||
+    Array.isArray(value) ||
+    (Object.getPrototypeOf(value) !== Object.prototype && Object.getPrototypeOf(value) !== null)
+  ) {
+    throw new Error(`${label} must be a plain object`);
+  }
+}
+
+export function splitTextList(value) {
+  if (Array.isArray(value)) return value;
+  if (typeof value !== "string") return [];
+  return value.split(",").map(item => item.trim()).filter(Boolean);
+}
