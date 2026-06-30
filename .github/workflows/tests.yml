@@ -34,17 +34,4 @@ jobs:
           npm --version
 
       - name: Run full test suite
-        run: |
-          npm test > /tmp/singular-test.log 2>&1 || {
-            tail -n 240 /tmp/singular-test.log > /tmp/singular-test-tail.log
-            cat /tmp/singular-test-tail.log
-            exit 1
-          }
-
-      - name: Upload failure tail
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: singular-test-tail
-          path: /tmp/singular-test-tail.log
-          if-no-files-found: ignore
+        run: npm test
