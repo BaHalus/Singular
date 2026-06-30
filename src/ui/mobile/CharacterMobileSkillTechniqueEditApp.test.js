@@ -65,8 +65,10 @@ test("injects mobile skill and technique inline controls in creation mode", () =
 
 test("renders skill and technique notes as textareas for multiline input", () => {
   const source = character();
-  source.skills[0].notes = 'Linha 1\nLinha 2 com & < > "aspas"';
-  source.techniques[0].notes = 'Técnica linha 1\nTécnica linha 2 com & < > "aspas"';
+  source.skills[0].notes = `Linha 1
+Linha 2 com & < > "aspas"`;
+  source.techniques[0].notes = `Técnica linha 1
+Técnica linha 2 com & < > "aspas"`;
 
   const creation = injectMobileSkillTechniqueEditControls(html, source, "creation");
 
@@ -78,14 +80,14 @@ test("renders skill and technique notes as textareas for multiline input", () =>
     creation,
     /<textarea data-role="technique-notes" autocomplete="off"><\/textarea>/,
   );
-  assert.match(
-    creation,
-    /<textarea data-role="skill-edit-notes-skill:stealth" autocomplete="off">Linha 1\nLinha 2 com &amp; &lt; &gt; "aspas"<\/textarea>/,
-  );
-  assert.match(
-    creation,
-    /<textarea data-role="technique-edit-notes-technique:arm-lock" autocomplete="off">Técnica linha 1\nTécnica linha 2 com &amp; &lt; &gt; "aspas"<\/textarea>/,
-  );
+  assert.ok(creation.includes(
+    `<textarea data-role="skill-edit-notes-skill:stealth" autocomplete="off">Linha 1
+Linha 2 com &amp; &lt; &gt; "aspas"</textarea>`,
+  ));
+  assert.ok(creation.includes(
+    `<textarea data-role="technique-edit-notes-technique:arm-lock" autocomplete="off">Técnica linha 1
+Técnica linha 2 com &amp; &lt; &gt; "aspas"</textarea>`,
+  ));
   assert.doesNotMatch(creation, /data-role="skill-edit-notes-skill:stealth" value=/);
   assert.doesNotMatch(creation, /data-role="technique-edit-notes-technique:arm-lock" value=/);
 });
