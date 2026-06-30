@@ -2,6 +2,7 @@ import {
   bootstrapCharacterMobileLanguageCultureEditApp,
 } from "./CharacterMobileLanguageCultureEditApp.js";
 import {
+  appendInlineEditorToDefinitionListItem,
   escapeAttribute,
   escapeSelectorValue,
   findDataTarget,
@@ -9,14 +10,17 @@ import {
   readDataset,
   readInputValue,
   renderTextareaText,
+  requirePlainObject,
+  resolveMobileRoot,
 } from "./MobileInlineEditHelpers.js";
-
-const MOBILE_ROOT_SELECTOR = "[data-singular-mobile-root]";
 
 export async function bootstrapCharacterMobileAttackEditApp(options = {}) {
   requirePlainObject(options, "Character mobile attack edit bootstrap options");
   const app = await bootstrapCharacterMobileLanguageCultureEditApp(options);
-  const root = options.root ?? resolveMobileRoot(options.document);
+  const root = options.root ?? resolveMobileRoot(
+    options.document,
+    "Character mobile attack edit bootstrap root was not found",
+  );
 
   const render = () => {
     app.render();
@@ -100,16 +104,12 @@ function injectCurrentAttackControls(root, app) {
 }
 
 function appendInlineEditorToAttack(html, attack) {
-  const id = escapeAttribute(attack.id);
-  const marker = `data-attack-id="${id}"`;
-  const markerIndex = html.indexOf(marker);
-  if (markerIndex < 0) return html;
-  const ddEnd = html.indexOf("</dd>", markerIndex);
-  if (ddEnd < 0) return html;
-  const existingMarker = `data-role="attack-inline-editor" data-attack-id="${id}"`;
-  const existingIndex = html.indexOf(existingMarker, markerIndex);
-  if (existingIndex >= 0 && existingIndex < ddEnd) return html;
-  return `${html.slice(0, ddEnd)}${renderAttackInlineEditor(attack)}${html.slice(ddEnd)}`;
+  return appendInlineEditorToDefinitionListItem(html, {
+    entityId: attack.id,
+    markerAttribute: "data-attack-id",
+    editorRole: "attack-inline-editor",
+    renderEditor: () => renderAttackInlineEditor(attack),
+  });
 }
 
 function renderAttackInlineEditor(attack) {
@@ -143,25 +143,4 @@ function readAttackPatch(root, attackId) {
     range: normalizeOptionalText(readInputValue(root, `[data-role="attack-edit-range-${suffix}"]`)),
     notes: readInputValue(root, `[data-role="attack-edit-notes-${suffix}"]`),
   };
-}
-
-function resolveMobileRoot(documentOption) {
-  const documentRef = documentOption ?? globalThis.document;
-  if (!documentRef || typeof documentRef.querySelector !== "function") {
-    throw new Error("Character mobile attack edit bootstrap requires a document");
-  }
-  const root = documentRef.querySelector(MOBILE_ROOT_SELECTOR);
-  if (root === null) throw new Error("Character mobile attack edit bootstrap root was not found");
-  return root;
-}
-
-function requirePlainObject(value, label) {
-  if (
-    value === null ||
-    typeof value !== "object" ||
-    Array.isArray(value) ||
-    (Object.getPrototypeOf(value) !== Object.prototype && Object.getPrototypeOf(value) !== null)
-  ) {
-    throw new Error(`${label} must be a plain object`);
-  }
 }

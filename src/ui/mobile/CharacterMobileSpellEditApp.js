@@ -2,6 +2,7 @@ import {
   bootstrapCharacterMobileEquipmentEditApp,
 } from "./CharacterMobileEquipmentEditApp.js";
 import {
+  appendInlineEditorToDefinitionListItem,
   escapeAttribute,
   escapeSelectorValue,
   escapeTextContent,
@@ -10,12 +11,15 @@ import {
   readDataset,
   readInputValue,
   readNumberInputValue,
+  resolveMobileRoot,
 } from "./MobileInlineEditHelpers.js";
 
 export async function bootstrapCharacterMobileSpellEditApp(options = {}) {
   const app = await bootstrapCharacterMobileEquipmentEditApp(options);
-  const root = options.root ?? options.document?.querySelector?.("[data-singular-mobile-root]") ?? globalThis.document?.querySelector?.("[data-singular-mobile-root]");
-  if (!root) throw new Error("Character mobile spell edit bootstrap root was not found");
+  const root = options.root ?? resolveMobileRoot(
+    options.document,
+    "Character mobile spell edit bootstrap root was not found",
+  );
 
   const render = () => {
     app.render();
@@ -76,7 +80,7 @@ export function injectMobileSpellEditControls(html, character, mode) {
   if (mode !== "creation") return html;
   let nextHtml = html;
   for (const spell of character.spells ?? []) {
-    nextHtml = appendEditor(nextHtml, spell);
+    nextHtml = appendSpellInlineEditor(nextHtml, spell);
   }
   return nextHtml;
 }
@@ -86,15 +90,13 @@ function injectCurrentSpellControls(root, app) {
   app.modeSync.sync();
 }
 
-function appendEditor(html, spell) {
-  const id = String(spell.id);
-  const markerIndex = html.indexOf(`data-spell-id="${escapeAttribute(id)}"`);
-  if (markerIndex < 0) return html;
-  const ddEnd = html.indexOf("</dd>", markerIndex);
-  if (ddEnd < 0) return html;
-  const existing = html.indexOf(`data-role="spell-inline-editor" data-spell-id="${escapeAttribute(id)}"`, markerIndex);
-  if (existing >= 0 && existing < ddEnd) return html;
-  return html.slice(0, ddEnd) + renderEditor(spell) + html.slice(ddEnd);
+function appendSpellInlineEditor(html, spell) {
+  return appendInlineEditorToDefinitionListItem(html, {
+    entityId: spell.id,
+    markerAttribute: "data-spell-id",
+    editorRole: "spell-inline-editor",
+    renderEditor: () => renderEditor(spell),
+  });
 }
 
 function renderEditor(spell) {
@@ -112,7 +114,8 @@ function renderEditor(spell) {
     `<label>Manut <input type="text" data-role="spell-edit-maintenance-cost-${id}" value="${escapeAttribute(spell.maintenanceCost ?? "")}" autocomplete="off"></label>`,
     `<label>TO <input type="text" data-role="spell-edit-casting-time-${id}" value="${escapeAttribute(spell.castingTime ?? "")}" autocomplete="off"></label>`,
     `<label>Duração <input type="text" data-role="spell-edit-duration-${id}" value="${escapeAttribute(spell.duration ?? "")}" autocomplete="off"></label>`,
-    `<label class="singular-mobile-sheet__spell-inline-editor-notes">Notas <textarea data-role="spell-edit-notes-${id}" autocomplete="off">\n${escapeTextContent(spell.notes ?? "")}</textarea></label>`,
+    `<label class="singular-mobile-sheet__spell-inline-editor-notes">Notas <textarea data-role="spell-edit-notes-${id}" autocomplete="off">
+${escapeTextContent(spell.notes ?? "")}</textarea></label>`,
     `<button type="button" data-action="spell-update" data-spell-id="${id}">Salvar magia</button>`,
     "</div>",
   ].join("");
