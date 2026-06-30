@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 
 import {
   injectMobileEquipmentEditControls,
+  shouldBlockMobileEquipmentEdit,
 } from "./CharacterMobileEquipmentEditApp.js";
 
 const html = [
@@ -69,4 +70,31 @@ test("does not duplicate equipment editors when reinjected", () => {
 
   const matches = reinjected.match(/data-role="equipment-inline-editor"/g) ?? [];
   assert.equal(matches.length, 2);
+});
+
+test("blocks equipment structural edits while UI is busy", () => {
+  const status = shouldBlockMobileEquipmentEdit({
+    mode: "creation",
+    ui: { getState: () => ({ busy: true }) },
+  });
+
+  assert.equal(status, "busy");
+});
+
+test("blocks equipment structural edits outside creation mode", () => {
+  const status = shouldBlockMobileEquipmentEdit({
+    mode: "table",
+    ui: { getState: () => ({ busy: false }) },
+  });
+
+  assert.equal(status, "blocked-by-mode");
+});
+
+test("allows equipment structural edits when creation mode is idle", () => {
+  const status = shouldBlockMobileEquipmentEdit({
+    mode: "creation",
+    ui: { getState: () => ({ busy: false }) },
+  });
+
+  assert.equal(status, null);
 });
