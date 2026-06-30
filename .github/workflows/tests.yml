@@ -37,7 +37,7 @@ jobs:
           set +e
           npm test > singular-test.log 2>&1
           status=$?
-          tail -n 220 singular-test.log > singular-test-tail.txt
+          tail -n 80 singular-test.log > singular-test-tail.txt
           cat singular-test-tail.txt
           exit $status
 
