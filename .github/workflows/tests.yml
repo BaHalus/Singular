@@ -38,7 +38,7 @@ jobs:
           npm test > singular-test.log 2>&1
           status=$?
           {
-            grep -n -B 20 -A 45 -E "not ok|failureType|AssertionError|ERR_|expected|actual" singular-test.log || true
+            grep -n -B 8 -A 30 -E "^not ok|^[[:space:]]+failureType:|^[[:space:]]+error:|^[[:space:]]+code:|^[[:space:]]+expected:|^[[:space:]]+actual:" singular-test.log || true
             echo "--- SUMMARY ---"
             tail -n 20 singular-test.log
           } > singular-test-tail.txt
