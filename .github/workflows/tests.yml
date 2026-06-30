@@ -33,8 +33,5 @@ jobs:
           node --version
           npm --version
 
-      - name: Run exact equipment edit app test
-        run: node --test src/ui/mobile/CharacterMobileEquipmentEditApp.test.js
-
-      - name: Run other equipment edit tests
-        run: files=$(find src/ui/mobile -name '*Equipment*Edit*.test.js' ! -name 'CharacterMobileEquipmentEditApp.test.js' -print); [ -z "$files" ] || node --test $files
+      - name: Run full test suite
+        run: npm test
