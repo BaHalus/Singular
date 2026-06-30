@@ -205,7 +205,7 @@ function escapeAttribute(value) {
 }
 
 function renderTextareaText(value) {
-  return `\n${escapeText(value)}`;
+  return escapeText(value);
 }
 
 function escapeText(value) {
