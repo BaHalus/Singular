@@ -20,13 +20,12 @@ jobs:
     timeout-minutes: 10
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
+      - name: Checkout quiet
+        run: |
+          git init -q .
+          git remote add origin "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY"
+          git fetch -q --depth=1 origin "$GITHUB_SHA"
+          git checkout -q --detach FETCH_HEAD
 
       - name: Show runtime versions
         run: |
@@ -43,8 +42,9 @@ jobs:
         run: |
           if [ -f singular-test.log ]; then
             tail -n 200 singular-test.log > singular-test-tail.txt
+            cat singular-test-tail.txt
           else
-            echo "singular-test.log was not created" > singular-test-tail.txt
+            echo "singular-test.log was not created" | tee singular-test-tail.txt
           fi
 
       - name: Upload test tail
