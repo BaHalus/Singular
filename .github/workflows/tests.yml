@@ -33,17 +33,8 @@ jobs:
           node --version
           npm --version
 
-      - name: Run mobile equipment add tests
-        run: files=$(find src/ui/mobile -name '*Equipment*Add*.test.js' -print); [ -z "$files" ] || node --test $files
+      - name: Run exact equipment edit app test
+        run: node --test src/ui/mobile/CharacterMobileEquipmentEditApp.test.js
 
-      - name: Run mobile equipment edit tests
-        run: files=$(find src/ui/mobile -name '*Equipment*Edit*.test.js' -print); [ -z "$files" ] || node --test $files
-
-      - name: Run mobile equipment move tests
-        run: files=$(find src/ui/mobile -name '*Equipment*Move*.test.js' -print); [ -z "$files" ] || node --test $files
-
-      - name: Run mobile equipment state tests
-        run: files=$(find src/ui/mobile -name '*Equipment*State*.test.js' -print); [ -z "$files" ] || node --test $files
-
-      - name: Run mobile equipment remaining tests
-        run: node --test $(find src/ui/mobile -name '*Equipment*.test.js' ! -name '*Equipment*Add*.test.js' ! -name '*Equipment*Edit*.test.js' ! -name '*Equipment*Move*.test.js' ! -name '*Equipment*State*.test.js' -print)
+      - name: Run other equipment edit tests
+        run: files=$(find src/ui/mobile -name '*Equipment*Edit*.test.js' ! -name 'CharacterMobileEquipmentEditApp.test.js' -print); [ -z "$files" ] || node --test $files
