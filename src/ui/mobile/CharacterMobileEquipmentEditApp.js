@@ -19,12 +19,9 @@ export async function bootstrapCharacterMobileEquipmentEditApp(options = {}) {
     const action = target?.dataset?.action;
     if (action !== "equipment-update") return null;
     event.preventDefault?.();
-    if (app.mode !== "creation") {
-      root.setAttribute?.("data-last-command-status", "blocked-by-mode");
-      return null;
-    }
-    if (app.ui.getState().busy) {
-      root.setAttribute?.("data-last-command-status", "busy");
+    const blockedStatus = shouldBlockMobileEquipmentEdit(app);
+    if (blockedStatus !== null) {
+      root.setAttribute?.("data-last-command-status", blockedStatus);
       return null;
     }
     const itemId = target.dataset.equipmentId;
@@ -51,6 +48,12 @@ export async function bootstrapCharacterMobileEquipmentEditApp(options = {}) {
     render,
     equipmentEdit: Object.freeze({ destroy() { root.removeEventListener?.("click", handleClick); } }),
   });
+}
+
+export function shouldBlockMobileEquipmentEdit(app) {
+  if (app.mode !== "creation") return "blocked-by-mode";
+  if (app.ui.getState().busy) return "busy";
+  return null;
 }
 
 export function injectMobileEquipmentEditControls(html, character, mode) {
