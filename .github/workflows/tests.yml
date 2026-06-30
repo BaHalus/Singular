@@ -33,17 +33,26 @@ jobs:
           node --version
           npm --version
 
-      - name: Run domain tests
-        run: node --test $(find src/domain -name '*.test.js' -print)
+      - name: Run mobile attack tests
+        run: files=$(find src/ui/mobile -name '*Attack*.test.js' -print); [ -z "$files" ] || node --test $files
 
-      - name: Run application tests
-        run: node --test $(find src/application -name '*.test.js' -print)
+      - name: Run mobile equipment tests
+        run: files=$(find src/ui/mobile -name '*Equipment*.test.js' -print); [ -z "$files" ] || node --test $files
 
-      - name: Run infrastructure tests
-        run: node --test $(find src/infrastructure -name '*.test.js' -print)
+      - name: Run mobile spell tests
+        run: files=$(find src/ui/mobile -name '*Spell*.test.js' -print); [ -z "$files" ] || node --test $files
 
-      - name: Run mobile UI tests
-        run: node --test $(find src/ui/mobile -name '*.test.js' -print)
+      - name: Run mobile power tests
+        run: files=$(find src/ui/mobile -name '*Power*.test.js' -print); [ -z "$files" ] || node --test $files
 
-      - name: Run remaining full test suite
-        run: npm test
+      - name: Run mobile trait tests
+        run: files=$(find src/ui/mobile -name '*Trait*.test.js' -print); [ -z "$files" ] || node --test $files
+
+      - name: Run mobile skill tests
+        run: files=$(find src/ui/mobile -name '*Skill*.test.js' -print); [ -z "$files" ] || node --test $files
+
+      - name: Run mobile secondary tests
+        run: files=$(find src/ui/mobile -name '*Secondary*.test.js' -print); [ -z "$files" ] || node --test $files
+
+      - name: Run mobile remaining tests
+        run: node --test $(find src/ui/mobile -name '*.test.js' ! -name '*Attack*.test.js' ! -name '*Equipment*.test.js' ! -name '*Spell*.test.js' ! -name '*Power*.test.js' ! -name '*Trait*.test.js' ! -name '*Skill*.test.js' ! -name '*Secondary*.test.js' -print)
