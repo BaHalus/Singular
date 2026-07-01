@@ -8,6 +8,40 @@ const LANGUAGE_LEVELS = Object.freeze(["none", "broken", "accented", "native"]);
 export async function bootstrapCharacterMobileLanguageCultureEditApp(options = {}) {
   requirePlainObject(options, "Character mobile language culture edit bootstrap options");
   const app = await bootstrapCharacterMobileSkillTechniqueEditApp(options);
+  const mounted = mountCharacterMobileLanguageCultureEditApp(app, options);
+  const previousDestroy = app.skillTechniqueEdit?.destroy;
+
+  return Object.freeze({
+    get character() {
+      return mounted.character;
+    },
+    get session() {
+      return mounted.session;
+    },
+    get html() {
+      return mounted.html;
+    },
+    get mode() {
+      return mounted.mode;
+    },
+    interactions: mounted.interactions,
+    modeSync: mounted.modeSync,
+    ui: mounted.ui,
+    persistence: mounted.persistence,
+    commands: mounted.commands,
+    repositories: mounted.repositories,
+    runtime: mounted.runtime,
+    render: mounted.render,
+    languageCultureEdit: Object.freeze({
+      destroy() {
+        mounted.languageCultureEdit.destroy();
+        previousDestroy?.();
+      },
+    }),
+  });
+}
+
+export function mountCharacterMobileLanguageCultureEditApp(app, options = {}) {
   const root = options.root ?? resolveMobileRoot(options.document);
 
   const render = () => {
@@ -80,7 +114,6 @@ export async function bootstrapCharacterMobileLanguageCultureEditApp(options = {
       destroy() {
         observer?.disconnect?.();
         root.removeEventListener?.("click", handleClick);
-        app.skillTechniqueEdit?.destroy?.();
       },
     }),
   });
