@@ -205,19 +205,9 @@ export async function mountAlphaMobilePersistenceUi(options = {}) {
 
   const ui = createAlphaMobilePersistenceUi(options);
   const readMode = createMountedModeReader(root, options);
-  const render = () => {
-    const mode = readMode();
-    root.innerHTML = ui.render({ mode });
-    const activeSession = options.persistence.getActiveSession();
-    if (typeof root.setAttribute === "function") {
-      root.setAttribute("data-singular-mounted", "true");
-      root.setAttribute("data-session-id", activeSession.id);
-      root.setAttribute("data-character-id", activeSession.character.identity.id);
-      root.setAttribute("data-mode", mode);
-    }
-  };
+  const requestRender = createMountedRenderRequest(root, options, ui, readMode);
 
-  root.addEventListener("click", async event => {
+  const handlePersistenceClick = async event => {
     const actionTarget = findActionTarget(event?.target);
     if (actionTarget === null) return;
     const action = readData(actionTarget, "action");
@@ -239,13 +229,21 @@ export async function mountAlphaMobilePersistenceUi(options = {}) {
     } else {
       return;
     }
-    render();
-  });
+    requestRender();
+  };
 
-  render();
+  root.addEventListener("click", handlePersistenceClick);
+
+  requestRender();
   await ui.initialize();
-  render();
-  return ui;
+  requestRender();
+
+  return Object.freeze({
+    ...ui,
+    destroy() {
+      root.removeEventListener?.("click", handlePersistenceClick);
+    },
+  });
 }
 
 function createMountedModeReader(root, options) {
@@ -254,6 +252,25 @@ function createMountedModeReader(root, options) {
     return () => normalizeMobileMode(options.getMode());
   }
   return () => normalizeMobileMode(root.getAttribute?.("data-mode") ?? options.mode ?? "creation");
+}
+
+function createMountedRenderRequest(root, options, ui, readMode) {
+  if (options.render !== undefined) {
+    requireFunction(options.render, "Alpha mobile canonical render");
+    return options.render;
+  }
+
+  return () => {
+    const mode = readMode();
+    root.innerHTML = ui.render({ mode });
+    const activeSession = options.persistence.getActiveSession();
+    if (typeof root.setAttribute === "function") {
+      root.setAttribute("data-singular-mounted", "true");
+      root.setAttribute("data-session-id", activeSession.id);
+      root.setAttribute("data-character-id", activeSession.character.identity.id);
+      root.setAttribute("data-mode", mode);
+    }
+  };
 }
 
 function normalizeMobileMode(value) {
