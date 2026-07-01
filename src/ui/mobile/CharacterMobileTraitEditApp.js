@@ -12,14 +12,6 @@ const TRAIT_ROLES = Object.freeze([
   ["quirk", "Peculiaridade negativa"],
   ["feature", "Característica"],
 ]);
-const PERSISTENCE_RENDER_ACTIONS = Object.freeze([
-  "persistence-save",
-  "persistence-refresh",
-  "persistence-open",
-  "persistence-remove",
-  "persistence-export",
-  "persistence-import",
-]);
 
 export async function bootstrapCharacterMobileTraitEditApp(options = {}) {
   requirePlainObject(options, "Character mobile trait edit bootstrap options");
@@ -96,13 +88,6 @@ export function mountCharacterMobileTraitEditApp(app, options = {}) {
   const handleClick = async event => {
     const actionTarget = findDataTarget(event?.target, "action");
     const action = actionTarget === null ? null : readDataset(actionTarget, "action");
-
-    if (isPersistenceRenderAction(action)) {
-      const result = action === "persistence-save" ? await app.ui.save() : null;
-      render();
-      root.setAttribute?.("data-last-persistence-status", result?.status ?? "rendered");
-      return result;
-    }
 
     if (action !== "trait-update") return null;
     event.preventDefault?.();
@@ -399,10 +384,6 @@ function escapeText(value) {
 function formatValue(value) {
   if (value === undefined || value === null || value === "") return "—";
   return String(value);
-}
-
-function isPersistenceRenderAction(action) {
-  return PERSISTENCE_RENDER_ACTIONS.includes(action);
 }
 
 function requirePlainObject(value, label) {
