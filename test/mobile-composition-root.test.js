@@ -34,3 +34,96 @@ test("mobile composition root exposes a single executable bootstrap and explicit
   assert.equal(typeof bootstrapCharacterMobileCompositionRoot, "function");
   assert.equal(typeof mountCharacterMobileCompositionRoot, "function");
 });
+
+test("mobile composition root destroys feature modules in reverse order before app handles", () => {
+  const calls = [];
+  const app = Object.freeze({
+    character: { name: "Test" },
+    session: { id: "session" },
+    html: { root: {} },
+    mode: "creation",
+    interactions: Object.freeze({ destroy: () => calls.push("interactions") }),
+    modeSync: Object.freeze({ destroy: () => calls.push("modeSync") }),
+    ui: Object.freeze({}),
+    persistence: Object.freeze({}),
+    commands: Object.freeze({}),
+    repositories: Object.freeze({}),
+    runtime: Object.freeze({}),
+    render: () => calls.push("render"),
+  });
+
+  const modules = [
+    Object.freeze({
+      name: "first",
+      destroyKey: "firstHandle",
+      mount: mounted => Object.freeze({
+        ...mounted,
+        firstHandle: Object.freeze({ destroy: () => calls.push("first") }),
+      }),
+    }),
+    Object.freeze({
+      name: "second",
+      destroyKey: "secondHandle",
+      mount: mounted => Object.freeze({
+        ...mounted,
+        secondHandle: Object.freeze({ destroy: () => calls.push("second") }),
+      }),
+    }),
+  ];
+
+  const composition = mountCharacterMobileCompositionRoot(app, {}, modules);
+
+  composition.compositionRoot.destroy();
+  composition.compositionRoot.destroy();
+
+  assert.deepEqual(calls, ["second", "first", "interactions", "modeSync"]);
+});
+
+test("mobile composition root preserves live app surface and fails on invalid module handles", () => {
+  let currentCharacter = { name: "Original" };
+  const app = Object.freeze({
+    get character() {
+      return currentCharacter;
+    },
+    session: { id: "session" },
+    html: { root: {} },
+    mode: "creation",
+    interactions: Object.freeze({ destroy() {} }),
+    modeSync: Object.freeze({ destroy() {} }),
+    ui: Object.freeze({}),
+    persistence: Object.freeze({}),
+    commands: Object.freeze({}),
+    repositories: Object.freeze({}),
+    runtime: Object.freeze({}),
+    render() {},
+  });
+
+  const composition = mountCharacterMobileCompositionRoot(app, {}, [
+    Object.freeze({
+      name: "valid",
+      destroyKey: "validHandle",
+      mount: mounted => Object.freeze({
+        ...mounted,
+        validHandle: Object.freeze({ destroy() {} }),
+      }),
+    }),
+  ]);
+
+  assert.equal(composition.character.name, "Original");
+  currentCharacter = { name: "Updated" };
+  assert.equal(composition.character.name, "Updated");
+
+  assert.throws(
+    () => mountCharacterMobileCompositionRoot(app, {}, [
+      Object.freeze({
+        name: "invalid",
+        destroyKey: "invalidHandle",
+        mount: mounted => Object.freeze({
+          ...mounted,
+          invalidHandle: Object.freeze({}),
+        }),
+      }),
+    ]),
+    /Mobile composition module invalid did not expose invalidHandle\.destroy/,
+  );
+});
