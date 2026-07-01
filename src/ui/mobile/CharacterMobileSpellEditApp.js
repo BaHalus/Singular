@@ -91,8 +91,17 @@ function injectCurrentSpellControls(root, app) {
     app.modeSync.sync();
     return;
   }
+
+  let allEditorsMounted = true;
   for (const spell of app.character.spells ?? []) {
-    appendSpellInlineEditorNode(root, spell);
+    allEditorsMounted = appendSpellInlineEditorNode(root, spell) && allEditorsMounted;
+  }
+  if (!allEditorsMounted) {
+    root.innerHTML = injectMobileSpellEditControls(
+      root.innerHTML,
+      app.character,
+      app.mode,
+    );
   }
   app.modeSync.sync();
 }
