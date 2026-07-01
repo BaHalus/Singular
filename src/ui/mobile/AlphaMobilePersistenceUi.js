@@ -257,7 +257,7 @@ function createMountedModeReader(root, options) {
 function createMountedRenderRequest(root, options, ui, readMode) {
   if (options.render !== undefined) {
     requireFunction(options.render, "Alpha mobile canonical render");
-    return options.render;
+    return () => options.render({ ui, mode: readMode(), root });
   }
 
   return () => {
