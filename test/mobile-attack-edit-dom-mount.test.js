@@ -23,6 +23,28 @@ test("attack edit mounts through explicit DOM nodes without observers or string 
   mounted.attackEdit.destroy();
 });
 
+test("attack edit remounts editors after core attack rerenders", async () => {
+  const root = createAttackRoot({ exposeAttackItem: true });
+  const app = createAttackApp(root, { mode: "creation" });
+
+  root.addEventListener("click", event => {
+    if (event?.target?.dataset?.action !== "attack-add") return;
+    root.attackItem.appendedHtml = [];
+    app.render();
+  });
+
+  const mounted = mountCharacterMobileAttackEditApp(app, { root });
+  assert.equal(root.attackItem.appendedHtml.length, 1);
+
+  await root.dispatch("click", { target: { dataset: { action: "attack-add" } } });
+
+  assert.equal(app.renderCount, 1);
+  assert.equal(root.attackItem.appendedHtml.length, 1);
+  assert.match(root.attackItem.appendedHtml[0], /data-action="attack-update"/);
+
+  mounted.attackEdit.destroy();
+});
+
 test("attack edit update preserves creation editing and table mode blocking", async () => {
   const root = createAttackRoot({ exposeAttackItem: true });
   const app = createAttackApp(root, { mode: "creation" });
