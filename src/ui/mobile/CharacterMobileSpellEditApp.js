@@ -3,6 +3,7 @@ import {
 } from "./CharacterMobileEquipmentEditApp.js";
 import {
   appendInlineEditorToDefinitionListItem,
+  appendInlineEditorToDefinitionListItemNode,
   escapeAttribute,
   escapeSelectorValue,
   escapeTextContent,
@@ -86,8 +87,23 @@ export function injectMobileSpellEditControls(html, character, mode) {
 }
 
 function injectCurrentSpellControls(root, app) {
-  root.innerHTML = injectMobileSpellEditControls(root.innerHTML, app.character, app.mode);
+  if (app.mode !== "creation") {
+    app.modeSync.sync();
+    return;
+  }
+  for (const spell of app.character.spells ?? []) {
+    appendSpellInlineEditorNode(root, spell);
+  }
   app.modeSync.sync();
+}
+
+function appendSpellInlineEditorNode(root, spell) {
+  return appendInlineEditorToDefinitionListItemNode(root, {
+    entityId: spell.id,
+    markerAttribute: "data-spell-id",
+    editorRole: "spell-inline-editor",
+    renderEditor: () => renderEditor(spell),
+  });
 }
 
 function appendSpellInlineEditor(html, spell) {
