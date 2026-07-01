@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
+import { createCharacter } from "../src/domain/character/Character.js";
 import { mountCharacterMobileSecondaryNotesApp } from "../src/ui/mobile/CharacterMobileSecondaryNotesApp.js";
 
 test("secondary notes mount detaches only its own listener and observer", () => {
@@ -33,13 +34,14 @@ test("secondary notes mount detaches only its own listener and observer", () => 
     };
   };
 
-  const character = Object.freeze({
-    identity: Object.freeze({ id: "character-1" }),
-    languages: [],
-    familiarities: [],
-    secondaryCharacteristics: Object.freeze({}),
-    pools: Object.freeze({}),
-    notes: Object.freeze({ general: "", structured: [] }),
+  const character = createCharacter({
+    identity: Object.freeze({
+      id: "character-1",
+      name: "Personagem de teste",
+      concept: "Regressão H3-B",
+      playerId: null,
+      campaignId: null,
+    }),
   });
   const session = Object.freeze({ id: "session-1", character });
   const app = {
