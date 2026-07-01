@@ -2,6 +2,9 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import {
+  createCharacter,
+} from "../src/domain/character/Character.js";
+import {
   mountAlphaMobilePersistenceUi,
 } from "../src/ui/mobile/AlphaMobilePersistenceUi.js";
 
@@ -121,7 +124,9 @@ function createPersistenceCoordinator() {
   const activeSession = Object.freeze({
     id: "session-1",
     revision: "1",
-    character: Object.freeze({ identity: Object.freeze({ id: "character-1", name: "Test" }) }),
+    character: createCharacter({
+      identity: Object.freeze({ id: "character-1", name: "Test" }),
+    }),
   });
   let listingCount = 0;
 
