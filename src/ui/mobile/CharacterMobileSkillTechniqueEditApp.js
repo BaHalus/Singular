@@ -10,6 +10,40 @@ const TECHNIQUE_DIFFICULTIES = Object.freeze(["A", "H"]);
 export async function bootstrapCharacterMobileSkillTechniqueEditApp(options = {}) {
   requirePlainObject(options, "Character mobile skill technique edit bootstrap options");
   const app = await bootstrapCharacterMobileTraitEditApp(options);
+  const mounted = mountCharacterMobileSkillTechniqueEditApp(app, options);
+  const previousDestroy = app.traitEdit?.destroy;
+
+  return Object.freeze({
+    get character() {
+      return mounted.character;
+    },
+    get session() {
+      return mounted.session;
+    },
+    get html() {
+      return mounted.html;
+    },
+    get mode() {
+      return mounted.mode;
+    },
+    interactions: mounted.interactions,
+    modeSync: mounted.modeSync,
+    ui: mounted.ui,
+    persistence: mounted.persistence,
+    commands: mounted.commands,
+    repositories: mounted.repositories,
+    runtime: mounted.runtime,
+    render: mounted.render,
+    skillTechniqueEdit: Object.freeze({
+      destroy() {
+        mounted.skillTechniqueEdit.destroy();
+        previousDestroy?.();
+      },
+    }),
+  });
+}
+
+export function mountCharacterMobileSkillTechniqueEditApp(app, options = {}) {
   const root = options.root ?? resolveMobileRoot(options.document);
 
   const render = () => {
@@ -82,7 +116,6 @@ export async function bootstrapCharacterMobileSkillTechniqueEditApp(options = {}
       destroy() {
         observer?.disconnect?.();
         root.removeEventListener?.("click", handleClick);
-        app.traitEdit?.destroy?.();
       },
     }),
   });

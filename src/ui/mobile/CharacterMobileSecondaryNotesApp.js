@@ -11,6 +11,40 @@ const POOL_MAXIMUM_KEYS = Object.freeze(["HP", "FP"]);
 export async function bootstrapCharacterMobileSecondaryNotesApp(options = {}) {
   requirePlainObject(options, "Character mobile secondary/notes bootstrap options");
   const app = await bootstrapCharacterMobileLanguageCultureApp(options);
+  const mounted = mountCharacterMobileSecondaryNotesApp(app, options);
+  const previousDestroy = app.languageCulture?.destroy;
+
+  return Object.freeze({
+    get character() {
+      return mounted.character;
+    },
+    get session() {
+      return mounted.session;
+    },
+    get html() {
+      return mounted.html;
+    },
+    get mode() {
+      return mounted.mode;
+    },
+    interactions: mounted.interactions,
+    modeSync: mounted.modeSync,
+    ui: mounted.ui,
+    persistence: mounted.persistence,
+    commands: mounted.commands,
+    repositories: mounted.repositories,
+    runtime: mounted.runtime,
+    render: mounted.render,
+    secondaryNotes: Object.freeze({
+      destroy() {
+        mounted.secondaryNotes.destroy();
+        previousDestroy?.();
+      },
+    }),
+  });
+}
+
+export function mountCharacterMobileSecondaryNotesApp(app, options = {}) {
   const root = options.root ?? resolveMobileRoot(options.document);
 
   const render = () => {
