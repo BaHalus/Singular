@@ -6,6 +6,10 @@ const LANGUAGE_LEVELS = Object.freeze(["none", "broken", "accented", "native"]);
 export async function bootstrapCharacterMobileLanguageCultureApp(options = {}) {
   requirePlainObject(options, "Character mobile language/culture bootstrap options");
   const app = await bootstrapCharacterMobileApp(options);
+  return mountCharacterMobileLanguageCultureApp(app, options);
+}
+
+export function mountCharacterMobileLanguageCultureApp(app, options = {}) {
   const root = options.root ?? resolveMobileRoot(options.document);
 
   const render = () => {
