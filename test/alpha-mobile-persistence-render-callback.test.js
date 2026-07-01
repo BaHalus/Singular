@@ -25,7 +25,7 @@ test("mounted persistence external render receives ui and mode during mount and 
     { mode: "table", feedback: "Nenhuma sessão anterior válida foi restaurada.", savedSessions: 1 },
   ]);
 
-  await root.dispatch("click", { dataset: { action: "persistence-save" } });
+  await root.dispatch("click", { target: { dataset: { action: "persistence-save" } } });
 
   assert.deepEqual(renders.at(-1), {
     mode: "table",
