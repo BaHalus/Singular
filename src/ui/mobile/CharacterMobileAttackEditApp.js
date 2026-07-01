@@ -2,7 +2,6 @@ import {
   bootstrapCharacterMobileLanguageCultureEditApp,
 } from "./CharacterMobileLanguageCultureEditApp.js";
 import {
-  appendInlineEditorToDefinitionListItem,
   appendInlineEditorToDefinitionListItemNode,
   escapeAttribute,
   escapeSelectorValue,
@@ -56,12 +55,6 @@ export function mountCharacterMobileAttackEditApp(app, options = {}) {
 
   injectCurrentAttackControls(root, app);
 
-  const MutationObserverRef = options.MutationObserver ?? globalThis.MutationObserver;
-  const observer = typeof MutationObserverRef === "function"
-    ? new MutationObserverRef(() => injectCurrentAttackControls(root, app))
-    : null;
-  observer?.observe?.(root, { childList: true, subtree: true });
-
   const handleClick = event => {
     const actionTarget = findDataTarget(event?.target, "action");
     const action = actionTarget === null ? null : readDataset(actionTarget, "action");
@@ -104,20 +97,10 @@ export function mountCharacterMobileAttackEditApp(app, options = {}) {
     render,
     attackEdit: Object.freeze({
       destroy() {
-        observer?.disconnect?.();
         root.removeEventListener?.("click", handleClick);
       },
     }),
   });
-}
-
-export function injectMobileAttackEditControls(html, character, mode) {
-  if (mode !== "creation") return html;
-  let nextHtml = html;
-  for (const attack of character.attacks ?? []) {
-    nextHtml = appendInlineEditorToAttack(nextHtml, attack);
-  }
-  return nextHtml;
 }
 
 function injectCurrentAttackControls(root, app) {
@@ -126,31 +109,14 @@ function injectCurrentAttackControls(root, app) {
     return;
   }
 
-  let allEditorsMounted = true;
   for (const attack of app.persistence.getActiveSession().character.attacks ?? []) {
-    allEditorsMounted = appendAttackInlineEditorNode(root, attack) && allEditorsMounted;
-  }
-  if (!allEditorsMounted) {
-    root.innerHTML = injectMobileAttackEditControls(
-      root.innerHTML,
-      app.persistence.getActiveSession().character,
-      app.mode,
-    );
+    appendAttackInlineEditorNode(root, attack);
   }
   app.modeSync.sync();
 }
 
 function appendAttackInlineEditorNode(root, attack) {
   return appendInlineEditorToDefinitionListItemNode(root, {
-    entityId: attack.id,
-    markerAttribute: "data-attack-id",
-    editorRole: "attack-inline-editor",
-    renderEditor: () => renderAttackInlineEditor(attack),
-  });
-}
-
-function appendInlineEditorToAttack(html, attack) {
-  return appendInlineEditorToDefinitionListItem(html, {
     entityId: attack.id,
     markerAttribute: "data-attack-id",
     editorRole: "attack-inline-editor",
