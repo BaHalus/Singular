@@ -10,51 +10,15 @@ import { mountCharacterMobileSpellEditApp } from "./CharacterMobileSpellEditApp.
 import { mountCharacterMobilePowerEditApp } from "./CharacterMobilePowerEditApp.js";
 
 export const CHARACTER_MOBILE_COMPOSITION_MODULES = Object.freeze([
-  Object.freeze({
-    name: "language-culture",
-    destroyKey: "languageCulture",
-    mount: mountCharacterMobileLanguageCultureApp,
-  }),
-  Object.freeze({
-    name: "secondary-notes",
-    destroyKey: "secondaryNotes",
-    mount: mountCharacterMobileSecondaryNotesApp,
-  }),
-  Object.freeze({
-    name: "trait-edit",
-    destroyKey: "traitEdit",
-    mount: mountCharacterMobileTraitEditApp,
-  }),
-  Object.freeze({
-    name: "skill-technique-edit",
-    destroyKey: "skillTechniqueEdit",
-    mount: mountCharacterMobileSkillTechniqueEditApp,
-  }),
-  Object.freeze({
-    name: "language-culture-edit",
-    destroyKey: "languageCultureEdit",
-    mount: mountCharacterMobileLanguageCultureEditApp,
-  }),
-  Object.freeze({
-    name: "attack-edit",
-    destroyKey: "attackEdit",
-    mount: mountCharacterMobileAttackEditApp,
-  }),
-  Object.freeze({
-    name: "equipment-edit",
-    destroyKey: "equipmentEdit",
-    mount: mountCharacterMobileEquipmentEditApp,
-  }),
-  Object.freeze({
-    name: "spell-edit",
-    destroyKey: "spellEdit",
-    mount: mountCharacterMobileSpellEditApp,
-  }),
-  Object.freeze({
-    name: "power-edit",
-    destroyKey: "powerEdit",
-    mount: mountCharacterMobilePowerEditApp,
-  }),
+  Object.freeze({ name: "language-culture", destroyKey: "languageCulture", mount: mountCharacterMobileLanguageCultureApp }),
+  Object.freeze({ name: "secondary-notes", destroyKey: "secondaryNotes", mount: mountCharacterMobileSecondaryNotesApp }),
+  Object.freeze({ name: "trait-edit", destroyKey: "traitEdit", mount: mountCharacterMobileTraitEditApp }),
+  Object.freeze({ name: "skill-technique-edit", destroyKey: "skillTechniqueEdit", mount: mountCharacterMobileSkillTechniqueEditApp }),
+  Object.freeze({ name: "language-culture-edit", destroyKey: "languageCultureEdit", mount: mountCharacterMobileLanguageCultureEditApp }),
+  Object.freeze({ name: "attack-edit", destroyKey: "attackEdit", mount: mountCharacterMobileAttackEditApp }),
+  Object.freeze({ name: "equipment-edit", destroyKey: "equipmentEdit", mount: mountCharacterMobileEquipmentEditApp }),
+  Object.freeze({ name: "spell-edit", destroyKey: "spellEdit", mount: mountCharacterMobileSpellEditApp }),
+  Object.freeze({ name: "power-edit", destroyKey: "powerEdit", mount: mountCharacterMobilePowerEditApp }),
 ]);
 
 export async function bootstrapCharacterMobileCompositionRoot(options = {}) {
@@ -62,11 +26,7 @@ export async function bootstrapCharacterMobileCompositionRoot(options = {}) {
   return mountCharacterMobileCompositionRoot(app, options);
 }
 
-export function mountCharacterMobileCompositionRoot(
-  app,
-  options = {},
-  modules = CHARACTER_MOBILE_COMPOSITION_MODULES,
-) {
+export function mountCharacterMobileCompositionRoot(app, options = {}, modules = CHARACTER_MOBILE_COMPOSITION_MODULES) {
   const mountedModules = [];
   let mounted = app;
 
@@ -76,55 +36,34 @@ export function mountCharacterMobileCompositionRoot(
     if (typeof handle?.destroy !== "function") {
       throw new Error(`Mobile composition module ${module.name} did not expose ${module.destroyKey}.destroy`);
     }
-    mountedModules.push(Object.freeze({
-      name: module.name,
-      destroyKey: module.destroyKey,
-      handle,
-    }));
+    mountedModules.push(Object.freeze({ name: module.name, destroyKey: module.destroyKey, handle }));
   }
 
-  const featureHandles = Object.fromEntries(
-    mountedModules.map(module => [module.destroyKey, module.handle]),
-  );
+  const featureHandles = Object.fromEntries(mountedModules.map(module => [module.destroyKey, module.handle]));
   let destroyed = false;
   const destroyComposition = () => {
     if (destroyed) return;
     destroyed = true;
-    for (const module of [...mountedModules].reverse()) {
-      module.handle.destroy();
-    }
+    for (const module of [...mountedModules].reverse()) module.handle.destroy();
     app.interactions?.destroy?.();
     app.modeSync?.destroy?.();
   };
 
   return Object.freeze({
-    get character() {
-      return app.character;
-    },
-    get session() {
-      return app.session;
-    },
-    get html() {
-      return app.html;
-    },
-    get mode() {
-      return app.mode;
-    },
-    interactions: app.interactions,
-    modeSync: app.modeSync,
-    ui: app.ui,
-    persistence: app.persistence,
-    commands: app.commands,
-    repositories: app.repositories,
-    runtime: app.runtime,
-    render: app.render,
+    get character() { return mounted.character; },
+    get session() { return mounted.session; },
+    get html() { return mounted.html; },
+    get mode() { return mounted.mode; },
+    interactions: mounted.interactions,
+    modeSync: mounted.modeSync,
+    ui: mounted.ui,
+    persistence: mounted.persistence,
+    commands: mounted.commands,
+    repositories: mounted.repositories,
+    runtime: mounted.runtime,
+    render: mounted.render,
     ...featureHandles,
-    powerEdit: Object.freeze({
-      ...featureHandles.powerEdit,
-      destroy: destroyComposition,
-    }),
-    compositionRoot: Object.freeze({
-      destroy: destroyComposition,
-    }),
+    powerEdit: Object.freeze({ ...featureHandles.powerEdit, destroy: destroyComposition }),
+    compositionRoot: Object.freeze({ destroy: destroyComposition }),
   });
 }
