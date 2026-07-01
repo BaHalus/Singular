@@ -21,7 +21,18 @@ export async function bootstrapCharacterMobileSpellEditApp(options = {}) {
   const previousDestroy = app.equipmentEdit?.destroy;
 
   return Object.freeze({
-    ...mounted,
+    get character() { return mounted.character; },
+    get session() { return mounted.session; },
+    get html() { return mounted.html; },
+    get mode() { return mounted.mode; },
+    interactions: mounted.interactions,
+    modeSync: mounted.modeSync,
+    ui: mounted.ui,
+    persistence: mounted.persistence,
+    commands: mounted.commands,
+    repositories: mounted.repositories,
+    runtime: mounted.runtime,
+    render: mounted.render,
     spellEdit: Object.freeze({
       destroy() {
         mounted.spellEdit.destroy();
