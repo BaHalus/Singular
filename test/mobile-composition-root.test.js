@@ -127,3 +127,40 @@ test("mobile composition root preserves live app surface and fails on invalid mo
     /Mobile composition module invalid did not expose invalidHandle\.destroy/,
   );
 });
+
+test("mobile composition root exposes the final composed render handle", () => {
+  let rendered = false;
+  const app = Object.freeze({
+    character: { name: "Base" },
+    session: { id: "session" },
+    html: "base-html",
+    mode: "creation",
+    interactions: Object.freeze({ destroy() {} }),
+    modeSync: Object.freeze({ destroy() {} }),
+    ui: Object.freeze({}),
+    persistence: Object.freeze({}),
+    commands: Object.freeze({}),
+    repositories: Object.freeze({}),
+    runtime: Object.freeze({}),
+  });
+
+  const composition = mountCharacterMobileCompositionRoot(app, {}, [
+    Object.freeze({
+      name: "render-provider",
+      destroyKey: "renderProvider",
+      mount: mounted => Object.freeze({
+        ...mounted,
+        html: "composed-html",
+        render() {
+          rendered = true;
+        },
+        renderProvider: Object.freeze({ destroy() {} }),
+      }),
+    }),
+  ]);
+
+  assert.equal(composition.html, "composed-html");
+  assert.equal(typeof composition.render, "function");
+  composition.render();
+  assert.equal(rendered, true);
+});
