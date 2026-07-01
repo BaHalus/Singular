@@ -69,6 +69,30 @@ export function appendInlineEditorToDefinitionListItem(html, {
   return `${html.slice(0, ddEnd)}${renderEditor()}${html.slice(ddEnd)}`;
 }
 
+export function appendInlineEditorToDefinitionListItemNode(root, {
+  entityId,
+  markerAttribute,
+  editorRole,
+  renderEditor,
+}) {
+  const selectorId = escapeSelectorValue(entityId);
+  const item = root.querySelector?.(`[${markerAttribute}="${selectorId}"]`) ?? null;
+  if (item === null) return false;
+
+  const existing = item.querySelector?.(
+    `[data-role="${escapeSelectorValue(editorRole)}"][${markerAttribute}="${selectorId}"]`,
+  ) ?? null;
+  if (existing !== null) return false;
+
+  const documentRef = item.ownerDocument ?? root.ownerDocument ?? globalThis.document;
+  const template = documentRef?.createElement?.("template") ?? null;
+  if (template === null) return false;
+
+  template.innerHTML = renderEditor();
+  item.append?.(...template.content.childNodes);
+  return true;
+}
+
 export function resolveMobileRoot(documentOption, errorMessage) {
   const documentRef = documentOption ?? globalThis.document;
   const root = documentRef?.querySelector?.("[data-singular-mobile-root]") ?? null;
