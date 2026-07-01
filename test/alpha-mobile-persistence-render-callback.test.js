@@ -85,15 +85,57 @@ test("mounted persistence external render preserves composed controls after acti
     },
   });
 
-  assert.match(root.innerHTML, /data-action="trait-add"/);
-  assert.match(root.innerHTML, /data-action="skill-add"/);
+  assertComposedControls(root);
 
   await root.dispatch("click", { target: { dataset: { action: "persistence-save" } } });
 
   assert.match(root.innerHTML, /Sessão salva: session-1/);
+  assertComposedControls(root);
+});
+
+test("mounted persistence external render preserves composed controls across mutating actions", async () => {
+  const root = createRoot({ "data-mode": "creation" });
+  const persistence = createPersistenceCoordinator();
+  const composedControls = [
+    '<button type="button" data-action="trait-add">Adicionar traço</button>',
+    '<button type="button" data-action="skill-add">Adicionar perícia</button>',
+    '<button type="button" data-action="attack-add">Adicionar ataque</button>',
+  ].join("");
+
+  await mountAlphaMobilePersistenceUi({
+    root,
+    persistence,
+    render({ ui, mode }) {
+      root.innerHTML = `${ui.render({ mode })}${composedControls}`;
+    },
+  });
+
+  const actionCases = [
+    {
+      event: { target: { dataset: { action: "persistence-open", sessionId: "saved-1" } } },
+      feedback: /Sessão aberta: saved-1/,
+    },
+    {
+      event: { target: { dataset: { action: "persistence-remove", sessionId: "saved-1" } } },
+      feedback: /Salvamento excluído: saved-1/,
+    },
+    {
+      event: { target: { dataset: { action: "persistence-import" } } },
+      feedback: /Personagem importado em nova sessão: imported-session/,
+    },
+  ];
+
+  for (const actionCase of actionCases) {
+    await root.dispatch("click", actionCase.event);
+    assert.match(root.innerHTML, actionCase.feedback);
+    assertComposedControls(root);
+  }
+});
+
+function assertComposedControls(root) {
   assert.match(root.innerHTML, /data-action="trait-add"/);
   assert.match(root.innerHTML, /data-action="skill-add"/);
-});
+}
 
 function createRoot(attributes = {}) {
   const listeners = new Map();
@@ -111,6 +153,10 @@ function createRoot(attributes = {}) {
     },
     setAttribute(name, value) {
       attributes[name] = String(value);
+    },
+    querySelector(selector) {
+      if (selector !== '[data-role="persistence-import-json"]') return null;
+      return { value: '{"schema":"singular-alpha-test"}' };
     },
     async dispatch(type, event) {
       for (const listener of listeners.get(type) ?? []) {
