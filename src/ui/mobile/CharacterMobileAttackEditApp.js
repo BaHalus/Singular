@@ -69,7 +69,7 @@ export function mountCharacterMobileAttackEditApp(app, options = {}) {
     const action = actionTarget === null ? null : readDataset(actionTarget, "action");
 
     if (ATTACK_CORE_RERENDER_ACTIONS.includes(action)) {
-      injectCurrentAttackControls(root, app);
+      deferAttackControlInjection(root, app);
       return null;
     }
 
@@ -137,6 +137,14 @@ function injectCurrentAttackControls(root, app) {
     appendAttackInlineEditorNode(root, attack);
   }
   app.modeSync.sync();
+}
+
+function deferAttackControlInjection(root, app) {
+  if (typeof globalThis.setTimeout !== "function") {
+    injectCurrentAttackControls(root, app);
+    return;
+  }
+  globalThis.setTimeout(() => injectCurrentAttackControls(root, app), 0);
 }
 
 function appendAttackInlineEditorNode(root, attack) {
