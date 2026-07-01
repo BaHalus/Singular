@@ -93,31 +93,31 @@ export function mountCharacterMobileCompositionRoot(
     for (const module of [...mountedModules].reverse()) {
       module.handle.destroy();
     }
-    mounted.interactions?.destroy?.();
-    mounted.modeSync?.destroy?.();
+    app.interactions?.destroy?.();
+    app.modeSync?.destroy?.();
   };
 
   return Object.freeze({
     get character() {
-      return mounted.character;
+      return app.character;
     },
     get session() {
-      return mounted.session;
+      return app.session;
     },
     get html() {
-      return mounted.html;
+      return app.html;
     },
     get mode() {
-      return mounted.mode;
+      return app.mode;
     },
-    interactions: mounted.interactions,
-    modeSync: mounted.modeSync,
-    ui: mounted.ui,
-    persistence: mounted.persistence,
-    commands: mounted.commands,
-    repositories: mounted.repositories,
-    runtime: mounted.runtime,
-    render: mounted.render,
+    interactions: app.interactions,
+    modeSync: app.modeSync,
+    ui: app.ui,
+    persistence: app.persistence,
+    commands: app.commands,
+    repositories: app.repositories,
+    runtime: app.runtime,
+    render: app.render,
     ...featureHandles,
     powerEdit: Object.freeze({
       ...featureHandles.powerEdit,
