@@ -34,13 +34,12 @@ export function createAlphaMobilePersistenceUi(options = {}) {
 
     render(options = {}) {
       requirePlainObject(options, "Alpha mobile render options");
+      const mode = normalizeMobileMode(options.mode ?? "creation");
       const activeSession = persistence.getActiveSession();
       const renderModel = createCharacterMobileSheetRenderModelForCharacter(
         activeSession.character,
       );
-      const sheet = renderCharacterMobileSheetHtml(renderModel, {
-        mode: options.mode ?? "creation",
-      });
+      const sheet = renderCharacterMobileSheetHtml(renderModel, { mode });
       return renderApplicationHtml({
         sheet,
         activeSession,
@@ -205,8 +204,9 @@ export async function mountAlphaMobilePersistenceUi(options = {}) {
   }
 
   const ui = createAlphaMobilePersistenceUi(options);
-  const mode = options.mode ?? "creation";
+  const readMode = createMountedModeReader(root, options);
   const render = () => {
+    const mode = readMode();
     root.innerHTML = ui.render({ mode });
     const activeSession = options.persistence.getActiveSession();
     if (typeof root.setAttribute === "function") {
@@ -246,6 +246,18 @@ export async function mountAlphaMobilePersistenceUi(options = {}) {
   await ui.initialize();
   render();
   return ui;
+}
+
+function createMountedModeReader(root, options) {
+  if (options.getMode !== undefined) {
+    requireFunction(options.getMode, "Alpha mobile getMode");
+    return () => normalizeMobileMode(options.getMode());
+  }
+  return () => normalizeMobileMode(root.getAttribute?.("data-mode") ?? options.mode ?? "creation");
+}
+
+function normalizeMobileMode(value) {
+  return value === "table" ? "table" : "creation";
 }
 
 function renderApplicationHtml(input) {
