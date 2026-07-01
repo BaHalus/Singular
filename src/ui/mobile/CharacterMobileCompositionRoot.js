@@ -117,7 +117,7 @@ export function mountCharacterMobileCompositionRoot(
     commands: app.commands,
     repositories: app.repositories,
     runtime: app.runtime,
-    render: app.render,
+    render: mounted.render,
     ...featureHandles,
     powerEdit: Object.freeze({
       ...featureHandles.powerEdit,
