@@ -86,6 +86,16 @@ export function mountCharacterMobileCompositionRoot(
   const featureHandles = Object.fromEntries(
     mountedModules.map(module => [module.destroyKey, module.handle]),
   );
+  let destroyed = false;
+  const destroyComposition = () => {
+    if (destroyed) return;
+    destroyed = true;
+    for (const module of [...mountedModules].reverse()) {
+      module.handle.destroy();
+    }
+    mounted.interactions?.destroy?.();
+    mounted.modeSync?.destroy?.();
+  };
 
   return Object.freeze({
     get character() {
@@ -109,14 +119,12 @@ export function mountCharacterMobileCompositionRoot(
     runtime: mounted.runtime,
     render: mounted.render,
     ...featureHandles,
+    powerEdit: Object.freeze({
+      ...featureHandles.powerEdit,
+      destroy: destroyComposition,
+    }),
     compositionRoot: Object.freeze({
-      destroy() {
-        for (const module of [...mountedModules].reverse()) {
-          module.handle.destroy();
-        }
-        mounted.interactions?.destroy?.();
-        mounted.modeSync?.destroy?.();
-      },
+      destroy: destroyComposition,
     }),
   });
 }
