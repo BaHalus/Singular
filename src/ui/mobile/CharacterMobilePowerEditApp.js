@@ -3,6 +3,7 @@ import {
 } from "./CharacterMobileSpellEditApp.js";
 import {
   appendInlineEditorToDefinitionListItem,
+  appendInlineEditorToDefinitionListItemNode,
   escapeAttribute,
   escapeSelectorValue,
   escapeTextContent,
@@ -108,8 +109,32 @@ export function readPowerPatchFromValues(values = {}) {
 }
 
 function injectCurrentPowerControls(root, app) {
-  root.innerHTML = injectMobilePowerEditControls(root.innerHTML, app.character, app.mode);
+  if (app.mode !== "creation") {
+    app.modeSync.sync();
+    return;
+  }
+
+  let allEditorsMounted = true;
+  for (const power of app.character.powers ?? []) {
+    allEditorsMounted = appendPowerInlineEditorNode(root, power) && allEditorsMounted;
+  }
+  if (!allEditorsMounted) {
+    root.innerHTML = injectMobilePowerEditControls(
+      root.innerHTML,
+      app.character,
+      app.mode,
+    );
+  }
   app.modeSync.sync();
+}
+
+function appendPowerInlineEditorNode(root, power) {
+  return appendInlineEditorToDefinitionListItemNode(root, {
+    entityId: power.id,
+    markerAttribute: "data-power-id",
+    editorRole: "power-inline-editor",
+    renderEditor: () => renderEditor(power),
+  });
 }
 
 function appendPowerInlineEditor(html, power) {

@@ -3,6 +3,7 @@ import {
 } from "./CharacterMobileLanguageCultureEditApp.js";
 import {
   appendInlineEditorToDefinitionListItem,
+  appendInlineEditorToDefinitionListItemNode,
   escapeAttribute,
   escapeSelectorValue,
   findDataTarget,
@@ -95,12 +96,32 @@ export function injectMobileAttackEditControls(html, character, mode) {
 }
 
 function injectCurrentAttackControls(root, app) {
-  root.innerHTML = injectMobileAttackEditControls(
-    root.innerHTML,
-    app.persistence.getActiveSession().character,
-    app.mode,
-  );
+  if (app.mode !== "creation") {
+    app.modeSync.sync();
+    return;
+  }
+
+  let allEditorsMounted = true;
+  for (const attack of app.persistence.getActiveSession().character.attacks ?? []) {
+    allEditorsMounted = appendAttackInlineEditorNode(root, attack) && allEditorsMounted;
+  }
+  if (!allEditorsMounted) {
+    root.innerHTML = injectMobileAttackEditControls(
+      root.innerHTML,
+      app.persistence.getActiveSession().character,
+      app.mode,
+    );
+  }
   app.modeSync.sync();
+}
+
+function appendAttackInlineEditorNode(root, attack) {
+  return appendInlineEditorToDefinitionListItemNode(root, {
+    entityId: attack.id,
+    markerAttribute: "data-attack-id",
+    editorRole: "attack-inline-editor",
+    renderEditor: () => renderAttackInlineEditor(attack),
+  });
 }
 
 function appendInlineEditorToAttack(html, attack) {
