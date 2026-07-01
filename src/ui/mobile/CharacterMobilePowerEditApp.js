@@ -18,6 +18,32 @@ import {
 
 export async function bootstrapCharacterMobilePowerEditApp(options = {}) {
   const app = await bootstrapCharacterMobileSpellEditApp(options);
+  const mounted = mountCharacterMobilePowerEditApp(app, options);
+  const previousDestroy = app.spellEdit?.destroy;
+
+  return Object.freeze({
+    get character() { return mounted.character; },
+    get session() { return mounted.session; },
+    get html() { return mounted.html; },
+    get mode() { return mounted.mode; },
+    interactions: mounted.interactions,
+    modeSync: mounted.modeSync,
+    ui: mounted.ui,
+    persistence: mounted.persistence,
+    commands: mounted.commands,
+    repositories: mounted.repositories,
+    runtime: mounted.runtime,
+    render: mounted.render,
+    powerEdit: Object.freeze({
+      destroy() {
+        mounted.powerEdit.destroy();
+        previousDestroy?.();
+      },
+    }),
+  });
+}
+
+export function mountCharacterMobilePowerEditApp(app, options = {}) {
   const root = options.root ?? resolveMobileRoot(
     options.document,
     "Character mobile power edit bootstrap root was not found",
@@ -79,7 +105,6 @@ export async function bootstrapCharacterMobilePowerEditApp(options = {}) {
     powerEdit: Object.freeze({
       destroy() {
         root.removeEventListener?.("click", handleClick);
-        app.spellEdit?.destroy?.();
       },
     }),
   });

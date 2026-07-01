@@ -4,6 +4,32 @@ import {
 
 export async function bootstrapCharacterMobileEquipmentEditApp(options = {}) {
   const app = await bootstrapCharacterMobileAttackEditApp(options);
+  const mounted = mountCharacterMobileEquipmentEditApp(app, options);
+  const previousDestroy = app.attackEdit?.destroy;
+
+  return Object.freeze({
+    get character() { return mounted.character; },
+    get session() { return mounted.session; },
+    get html() { return mounted.html; },
+    get mode() { return mounted.mode; },
+    interactions: mounted.interactions,
+    modeSync: mounted.modeSync,
+    ui: mounted.ui,
+    persistence: mounted.persistence,
+    commands: mounted.commands,
+    repositories: mounted.repositories,
+    runtime: mounted.runtime,
+    render: mounted.render,
+    equipmentEdit: Object.freeze({
+      destroy() {
+        mounted.equipmentEdit.destroy();
+        previousDestroy?.();
+      },
+    }),
+  });
+}
+
+export function mountCharacterMobileEquipmentEditApp(app, options = {}) {
   const root = options.root ?? options.document?.querySelector?.("[data-singular-mobile-root]") ?? globalThis.document?.querySelector?.("[data-singular-mobile-root]");
   if (!root) throw new Error("Character mobile equipment edit bootstrap root was not found");
 

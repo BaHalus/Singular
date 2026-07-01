@@ -18,6 +18,32 @@ import {
 export async function bootstrapCharacterMobileAttackEditApp(options = {}) {
   requirePlainObject(options, "Character mobile attack edit bootstrap options");
   const app = await bootstrapCharacterMobileLanguageCultureEditApp(options);
+  const mounted = mountCharacterMobileAttackEditApp(app, options);
+  const previousDestroy = app.languageCultureEdit?.destroy;
+
+  return Object.freeze({
+    get character() { return mounted.character; },
+    get session() { return mounted.session; },
+    get html() { return mounted.html; },
+    get mode() { return mounted.mode; },
+    interactions: mounted.interactions,
+    modeSync: mounted.modeSync,
+    ui: mounted.ui,
+    persistence: mounted.persistence,
+    commands: mounted.commands,
+    repositories: mounted.repositories,
+    runtime: mounted.runtime,
+    render: mounted.render,
+    attackEdit: Object.freeze({
+      destroy() {
+        mounted.attackEdit.destroy();
+        previousDestroy?.();
+      },
+    }),
+  });
+}
+
+export function mountCharacterMobileAttackEditApp(app, options = {}) {
   const root = options.root ?? resolveMobileRoot(
     options.document,
     "Character mobile attack edit bootstrap root was not found",
@@ -80,7 +106,6 @@ export async function bootstrapCharacterMobileAttackEditApp(options = {}) {
       destroy() {
         observer?.disconnect?.();
         root.removeEventListener?.("click", handleClick);
-        app.languageCultureEdit?.destroy?.();
       },
     }),
   });
