@@ -11,9 +11,10 @@ const compositionRootSource = readFileSync(
   "utf8",
 );
 
-test("language/culture mobile bootstrap is wired by the composition root", () => {
+test("language/culture mobile mount is wired by the composition root", () => {
   assert.ok(compositionRootSource.includes("CharacterMobileLanguageCultureApp.js"));
-  assert.ok(compositionRootSource.includes("bootstrapCharacterMobileLanguageCultureApp"));
+  assert.ok(compositionRootSource.includes("mountCharacterMobileLanguageCultureApp"));
+  assert.ok(!compositionRootSource.includes("bootstrapCharacterMobileLanguageCultureApp"));
 });
 
 test("language/culture mobile bootstrap exposes creation controls and blocks table mode", () => {

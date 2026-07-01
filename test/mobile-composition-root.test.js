@@ -4,13 +4,13 @@ import assert from "node:assert/strict";
 import {
   CHARACTER_MOBILE_COMPOSITION_MODULES,
   bootstrapCharacterMobileCompositionRoot,
+  mountCharacterMobileCompositionRoot,
 } from "../src/ui/mobile/CharacterMobileCompositionRoot.js";
 
-test("mobile composition root declares the canonical module order", () => {
+test("mobile composition root declares the canonical independent module order", () => {
   assert.deepEqual(
     CHARACTER_MOBILE_COMPOSITION_MODULES.map(({ name }) => name),
     [
-      "base",
       "language-culture",
       "secondary-notes",
       "trait-edit",
@@ -24,10 +24,13 @@ test("mobile composition root declares the canonical module order", () => {
   );
 
   for (const module of CHARACTER_MOBILE_COMPOSITION_MODULES) {
-    assert.equal(typeof module.bootstrap, "function", `${module.name} deve expor bootstrap`);
+    assert.equal(typeof module.mount, "function", `${module.name} deve expor mount independente`);
+    assert.equal(typeof module.destroyKey, "string", `${module.name} deve declarar destroyKey`);
+    assert.equal("bootstrap" in module, false, `${module.name} não deve expor bootstrap no caminho canônico`);
   }
 });
 
-test("mobile composition root exposes a single executable bootstrap", () => {
+test("mobile composition root exposes a single executable bootstrap and explicit mount root", () => {
   assert.equal(typeof bootstrapCharacterMobileCompositionRoot, "function");
+  assert.equal(typeof mountCharacterMobileCompositionRoot, "function");
 });
