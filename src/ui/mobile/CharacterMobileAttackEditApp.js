@@ -100,8 +100,17 @@ function injectCurrentAttackControls(root, app) {
     app.modeSync.sync();
     return;
   }
+
+  let allEditorsMounted = true;
   for (const attack of app.persistence.getActiveSession().character.attacks ?? []) {
-    appendAttackInlineEditorNode(root, attack);
+    allEditorsMounted = appendAttackInlineEditorNode(root, attack) && allEditorsMounted;
+  }
+  if (!allEditorsMounted) {
+    root.innerHTML = injectMobileAttackEditControls(
+      root.innerHTML,
+      app.persistence.getActiveSession().character,
+      app.mode,
+    );
   }
   app.modeSync.sync();
 }
