@@ -128,10 +128,13 @@ test("mobile composition root preserves live app surface and fails on invalid mo
   );
 });
 
-test("mobile composition root exposes the final composed render handle", () => {
+test("mobile composition root exposes composed render without snapshotting live base getters", () => {
   let rendered = false;
+  let currentCharacter = { name: "Base" };
   const app = Object.freeze({
-    character: { name: "Base" },
+    get character() {
+      return currentCharacter;
+    },
     session: { id: "session" },
     html: "base-html",
     mode: "creation",
@@ -159,8 +162,12 @@ test("mobile composition root exposes the final composed render handle", () => {
     }),
   ]);
 
-  assert.equal(composition.html, "composed-html");
+  assert.equal(composition.html, "base-html");
+  assert.equal(composition.character.name, "Base");
   assert.equal(typeof composition.render, "function");
   composition.render();
   assert.equal(rendered, true);
+
+  currentCharacter = { name: "Updated" };
+  assert.equal(composition.character.name, "Updated");
 });
