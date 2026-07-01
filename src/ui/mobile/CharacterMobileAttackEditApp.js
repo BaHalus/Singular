@@ -15,6 +15,14 @@ import {
   resolveMobileRoot,
 } from "./MobileInlineEditHelpers.js";
 
+const ATTACK_CORE_RERENDER_ACTIONS = Object.freeze([
+  "attack-add",
+  "attack-remove",
+  "attack-reorder",
+  "mode-creation",
+  "mode-table",
+]);
+
 export async function bootstrapCharacterMobileAttackEditApp(options = {}) {
   requirePlainObject(options, "Character mobile attack edit bootstrap options");
   const app = await bootstrapCharacterMobileLanguageCultureEditApp(options);
@@ -59,6 +67,12 @@ export function mountCharacterMobileAttackEditApp(app, options = {}) {
   const handleClick = event => {
     const actionTarget = findDataTarget(event?.target, "action");
     const action = actionTarget === null ? null : readDataset(actionTarget, "action");
+
+    if (ATTACK_CORE_RERENDER_ACTIONS.includes(action)) {
+      injectCurrentAttackControls(root, app);
+      return null;
+    }
+
     if (action !== "attack-update") return null;
     event.preventDefault?.();
 
