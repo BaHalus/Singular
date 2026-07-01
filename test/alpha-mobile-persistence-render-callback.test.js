@@ -66,6 +66,32 @@ test("mounted persistence destroy removes its listener before remount", async ()
   assert.equal(renderCount, mountedRenderCount + 1);
 });
 
+test("mounted persistence external render preserves composed controls after actions", async () => {
+  const root = createRoot({ "data-mode": "creation" });
+  const persistence = createPersistenceCoordinator();
+  const composedControls = [
+    '<button type="button" data-action="trait-add">Adicionar traço</button>',
+    '<button type="button" data-action="skill-add">Adicionar perícia</button>',
+  ].join("");
+
+  await mountAlphaMobilePersistenceUi({
+    root,
+    persistence,
+    render({ ui, mode }) {
+      root.innerHTML = `${ui.render({ mode })}${composedControls}`;
+    },
+  });
+
+  assert.match(root.innerHTML, /data-action="trait-add"/);
+  assert.match(root.innerHTML, /data-action="skill-add"/);
+
+  await root.dispatch("click", { target: { dataset: { action: "persistence-save" } } });
+
+  assert.match(root.innerHTML, /Sessão salva: session-1/);
+  assert.match(root.innerHTML, /data-action="trait-add"/);
+  assert.match(root.innerHTML, /data-action="skill-add"/);
+});
+
 function createRoot(attributes = {}) {
   const listeners = new Map();
   return {
