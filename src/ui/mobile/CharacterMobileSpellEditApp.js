@@ -17,6 +17,21 @@ import {
 
 export async function bootstrapCharacterMobileSpellEditApp(options = {}) {
   const app = await bootstrapCharacterMobileEquipmentEditApp(options);
+  const mounted = mountCharacterMobileSpellEditApp(app, options);
+  const previousDestroy = app.equipmentEdit?.destroy;
+
+  return Object.freeze({
+    ...mounted,
+    spellEdit: Object.freeze({
+      destroy() {
+        mounted.spellEdit.destroy();
+        previousDestroy?.();
+      },
+    }),
+  });
+}
+
+export function mountCharacterMobileSpellEditApp(app, options = {}) {
   const root = options.root ?? resolveMobileRoot(
     options.document,
     "Character mobile spell edit bootstrap root was not found",
@@ -71,7 +86,6 @@ export async function bootstrapCharacterMobileSpellEditApp(options = {}) {
     spellEdit: Object.freeze({
       destroy() {
         root.removeEventListener?.("click", handleClick);
-        app.equipmentEdit?.destroy?.();
       },
     }),
   });
