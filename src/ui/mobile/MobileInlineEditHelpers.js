@@ -82,14 +82,14 @@ export function appendInlineEditorToDefinitionListItemNode(root, {
   const existing = item.querySelector?.(
     `[data-role="${escapeSelectorValue(editorRole)}"][${markerAttribute}="${selectorId}"]`,
   ) ?? null;
-  if (existing !== null) return false;
+  if (existing !== null) return true;
 
   const documentRef = item.ownerDocument ?? root.ownerDocument ?? globalThis.document;
   const template = documentRef?.createElement?.("template") ?? null;
-  if (template === null) return false;
+  if (template === null || typeof item.append !== "function") return false;
 
   template.innerHTML = renderEditor();
-  item.append?.(...template.content.childNodes);
+  item.append(...template.content.childNodes);
   return true;
 }
 
