@@ -103,6 +103,10 @@ export function mountCharacterMobileAttackEditApp(app, options = {}) {
   });
 }
 
+export function injectMobileAttackEditControls(html) {
+  return html;
+}
+
 function injectCurrentAttackControls(root, app) {
   if (app.mode !== "creation") {
     app.modeSync.sync();
