@@ -28,13 +28,13 @@ test("mobile.html keeps stylesheet references unique", () => {
   assert.deepEqual(duplicateStylesheets, []);
 });
 
-test("mobile.html starts from a single composition root bootstrap", () => {
+test("mobile.html starts from the composition root bootstrap only", () => {
   const bootstrapCalls = collectAll(/await\s+(bootstrap\w+)\s*\(/g);
   const duplicateBootstrapCalls = bootstrapCalls.filter(
     (name, index) => bootstrapCalls.indexOf(name) !== index,
   );
 
   assert.deepEqual(duplicateBootstrapCalls, []);
-  assert.deepEqual(bootstrapCalls, ["bootstrapCharacterMobileApp"]);
-  assert.match(mobileHtml, /bootstrapCharacterMobileCompositionRoot/);
+  assert.deepEqual(bootstrapCalls, ["bootstrapCharacterMobileCompositionRoot"]);
+  assert.doesNotMatch(mobileHtml, /const\s+bootstrapCharacterMobileApp\s*=\s*bootstrapCharacterMobileCompositionRoot/);
 });
