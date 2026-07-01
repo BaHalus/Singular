@@ -113,8 +113,17 @@ function injectCurrentPowerControls(root, app) {
     app.modeSync.sync();
     return;
   }
+
+  let allEditorsMounted = true;
   for (const power of app.character.powers ?? []) {
-    appendPowerInlineEditorNode(root, power);
+    allEditorsMounted = appendPowerInlineEditorNode(root, power) && allEditorsMounted;
+  }
+  if (!allEditorsMounted) {
+    root.innerHTML = injectMobilePowerEditControls(
+      root.innerHTML,
+      app.character,
+      app.mode,
+    );
   }
   app.modeSync.sync();
 }
