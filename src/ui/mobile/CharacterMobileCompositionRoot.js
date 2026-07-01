@@ -102,7 +102,7 @@ export function mountCharacterMobileCompositionRoot(
     render: mounted.render,
     compositionRoot: Object.freeze({
       destroy() {
-        for (const module of mountedModules.toReversed()) {
+        for (const module of [...mountedModules].reverse()) {
           module.destroy();
         }
         mounted.interactions?.destroy?.();
