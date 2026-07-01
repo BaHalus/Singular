@@ -6,7 +6,7 @@ import {
 } from "../src/ui/mobile/AlphaMobilePersistenceUi.js";
 
 test("mounted persistence external render receives ui and mode during mount and actions", async () => {
-  const root = createRoot({ mode: "table" });
+  const root = createRoot({ "data-mode": "table" });
   const persistence = createPersistenceCoordinator();
   const renders = [];
 
