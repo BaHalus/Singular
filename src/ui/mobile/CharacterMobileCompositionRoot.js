@@ -72,12 +72,20 @@ export function mountCharacterMobileCompositionRoot(
 
   for (const module of modules) {
     mounted = module.mount(mounted, options);
-    const destroy = mounted[module.destroyKey]?.destroy;
-    if (typeof destroy !== "function") {
+    const handle = mounted[module.destroyKey];
+    if (typeof handle?.destroy !== "function") {
       throw new Error(`Mobile composition module ${module.name} did not expose ${module.destroyKey}.destroy`);
     }
-    mountedModules.push(Object.freeze({ name: module.name, destroy }));
+    mountedModules.push(Object.freeze({
+      name: module.name,
+      destroyKey: module.destroyKey,
+      handle,
+    }));
   }
+
+  const featureHandles = Object.fromEntries(
+    mountedModules.map(module => [module.destroyKey, module.handle]),
+  );
 
   return Object.freeze({
     get character() {
@@ -100,10 +108,11 @@ export function mountCharacterMobileCompositionRoot(
     repositories: mounted.repositories,
     runtime: mounted.runtime,
     render: mounted.render,
+    ...featureHandles,
     compositionRoot: Object.freeze({
       destroy() {
         for (const module of [...mountedModules].reverse()) {
-          module.destroy();
+          module.handle.destroy();
         }
         mounted.interactions?.destroy?.();
         mounted.modeSync?.destroy?.();
