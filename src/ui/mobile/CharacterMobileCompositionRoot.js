@@ -1,5 +1,9 @@
-export const CHARACTER_MOBILE_COMPOSITION_MODULES = Object.freeze([]);
+import { bootstrapCharacterMobilePowerEditApp } from "./CharacterMobilePowerEditApp.js";
 
-export async function bootstrapCharacterMobileCompositionRoot() {
-  throw new Error("Composition root H3 implementation is incomplete");
+export const CHARACTER_MOBILE_COMPOSITION_MODULES = Object.freeze([
+  Object.freeze({ name: "power-edit", bootstrap: bootstrapCharacterMobilePowerEditApp }),
+]);
+
+export async function bootstrapCharacterMobileCompositionRoot(options = {}) {
+  return bootstrapCharacterMobilePowerEditApp(options);
 }
