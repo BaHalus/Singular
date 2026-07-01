@@ -35,15 +35,47 @@ test("mounted persistence external render receives ui and mode during mount and 
   assert.equal(root.innerHTML, "table:Sessão salva: session-1:2");
 });
 
+test("mounted persistence destroy removes its listener before remount", async () => {
+  const root = createRoot({ "data-mode": "creation" });
+  const persistence = createPersistenceCoordinator();
+  let renderCount = 0;
+
+  const first = await mountAlphaMobilePersistenceUi({
+    root,
+    persistence,
+    render() {
+      renderCount += 1;
+    },
+  });
+  first.destroy();
+
+  const second = await mountAlphaMobilePersistenceUi({
+    root,
+    persistence,
+    render() {
+      renderCount += 1;
+    },
+  });
+
+  const mountedRenderCount = renderCount;
+  await root.dispatch("click", { target: { dataset: { action: "persistence-save" } } });
+  assert.equal(renderCount, mountedRenderCount + 1);
+
+  second.destroy();
+  await root.dispatch("click", { target: { dataset: { action: "persistence-save" } } });
+  assert.equal(renderCount, mountedRenderCount + 1);
+});
+
 function createRoot(attributes = {}) {
   const listeners = new Map();
   return {
     innerHTML: "",
     addEventListener(type, listener) {
-      listeners.set(type, listener);
+      if (!listeners.has(type)) listeners.set(type, new Set());
+      listeners.get(type).add(listener);
     },
     removeEventListener(type, listener) {
-      if (listeners.get(type) === listener) listeners.delete(type);
+      listeners.get(type)?.delete(listener);
     },
     getAttribute(name) {
       return attributes[name] ?? null;
@@ -52,7 +84,9 @@ function createRoot(attributes = {}) {
       attributes[name] = String(value);
     },
     async dispatch(type, event) {
-      await listeners.get(type)?.(event);
+      for (const listener of listeners.get(type) ?? []) {
+        await listener(event);
+      }
     },
   };
 }
