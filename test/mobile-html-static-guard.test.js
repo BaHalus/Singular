@@ -36,5 +36,7 @@ test("mobile.html starts from a single composition root bootstrap", () => {
 
   assert.deepEqual(duplicateBootstrapCalls, []);
   assert.deepEqual(bootstrapCalls, ["bootstrapCharacterMobileApp"]);
-  assert.match(mobileHtml, /bootstrapCharacterMobileCompositionRoot/);
+  assert.match(mobileHtml, /import\s+\{\s*bootstrapCharacterMobileCompositionRoot\s*\}/);
+  assert.match(mobileHtml, /const\s+bootstrapCharacterMobileApp\s*=\s*bootstrapCharacterMobileCompositionRoot/);
+  assert.doesNotMatch(mobileHtml, /await\s+bootstrapCharacterMobile(?:Attack|Equipment|LanguageCulture|LanguageCultureEdit|Power|SecondaryNotes|SkillTechnique|Spell|TraitEdit)App\s*\(/);
 });
