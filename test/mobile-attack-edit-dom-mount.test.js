@@ -61,13 +61,13 @@ test("attack edit remounts editors after upstream feature rerenders", async () =
   });
 
   root.addEventListener("click", event => {
-    if (event?.target?.dataset?.action !== "trait-add") return;
+    if (event?.target?.dataset?.action !== "trait-update") return;
     app.render();
   });
 
   assert.equal(root.attackItem.appendedHtml.length, 1);
 
-  await root.dispatch("click", { target: { dataset: { action: "trait-add" } } });
+  await root.dispatch("click", { target: { dataset: { action: "trait-update" } } });
   assert.equal(app.renderCount, 1);
   assert.equal(root.attackItem.appendedHtml.length, 0);
 
@@ -94,7 +94,7 @@ test("attack edit default scheduling remounts after later core listeners replace
   await root.dispatch("click", { target: { dataset: { action: "attack-add" } } });
   assert.equal(app.renderCount, 1);
 
-  await drainMicrotasks();
+  await drainMacrotask();
 
   assert.equal(root.attackItem.appendedHtml.length, 1);
   assert.match(root.attackItem.appendedHtml[0], /data-action="attack-update"/);
@@ -308,9 +308,8 @@ function createDeferredCallbacks() {
   };
 }
 
-async function drainMicrotasks() {
-  await Promise.resolve();
-  await Promise.resolve();
+function drainMacrotask() {
+  return new Promise(resolve => setTimeout(resolve, 0));
 }
 
 function renderBaseAttackSheet() {
