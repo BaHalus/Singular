@@ -51,6 +51,30 @@ test("attack edit remounts editors after core attack rerenders", async () => {
   mounted.attackEdit.destroy();
 });
 
+test("attack edit default scheduling remounts after later core listeners replace html", async () => {
+  const root = createAttackRoot({ exposeAttackItem: true });
+  const app = createAttackApp(root, { mode: "creation" });
+  const mounted = mountCharacterMobileAttackEditApp(app, { root });
+
+  root.addEventListener("click", event => {
+    if (event?.target?.dataset?.action !== "attack-add") return;
+    app.render();
+  });
+
+  assert.equal(root.attackItem.appendedHtml.length, 1);
+
+  await root.dispatch("click", { target: { dataset: { action: "attack-add" } } });
+  assert.equal(app.renderCount, 1);
+  assert.equal(root.attackItem.appendedHtml.length, 0);
+
+  await drainMicrotasks();
+
+  assert.equal(root.attackItem.appendedHtml.length, 1);
+  assert.match(root.attackItem.appendedHtml[0], /data-action="attack-update"/);
+
+  mounted.attackEdit.destroy();
+});
+
 test("attack edit update preserves creation editing and table mode blocking", async () => {
   const root = createAttackRoot({ exposeAttackItem: true });
   const app = createAttackApp(root, { mode: "creation" });
@@ -255,6 +279,11 @@ function createDeferredCallbacks() {
       }
     },
   };
+}
+
+async function drainMicrotasks() {
+  await Promise.resolve();
+  await Promise.resolve();
 }
 
 function renderBaseAttackSheet() {
