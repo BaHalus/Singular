@@ -20,18 +20,10 @@ jobs:
     timeout-minutes: 10
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-
-      - name: Show runtime versions
+      - name: Diagnostic compact checkout and test
         run: |
+          git clone --quiet --depth 1 --branch "${GITHUB_HEAD_REF:-${GITHUB_REF_NAME}}" "https://github.com/${GITHUB_REPOSITORY}.git" repo
+          cd repo
           node --version
           npm --version
-
-      - name: Run full test suite
-        run: npm test
+          npm test
