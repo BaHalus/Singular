@@ -235,10 +235,13 @@ function runPostRenderLifecycle(postRenderLifecycle, root, app) {
 }
 
 function readPostRenderContext(root, app) {
-  const session = app.persistence.getActiveSession();
+  const session = typeof app.persistence?.getActiveSession === "function"
+    ? app.persistence.getActiveSession()
+    : app.session;
+  const character = session?.character ?? app.character;
   return {
     root,
-    character: session.character,
+    character,
     session,
     mode: app.mode,
   };
