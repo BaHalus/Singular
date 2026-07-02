@@ -103,7 +103,7 @@ export function mountCharacterMobileCompositionRoot(
   };
 
   const render = () => {
-    const result = mounted.render();
+    const result = mounted.render({ skipPostRenderLifecycle: true });
     runPostRenderLifecycle();
     return result;
   };
