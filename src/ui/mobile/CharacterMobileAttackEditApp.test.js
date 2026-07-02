@@ -274,6 +274,36 @@ test("edits existing mobile attacks through canonical update commands", async ()
   assert.equal(saved.character.attacks[0].notes, "Manter distância.\nLinha 2");
 });
 
+test("mounts attack editors with session fallback when persistence has no active session reader", () => {
+  const root = rootFixture();
+  const activeSession = Object.freeze({
+    id: "session-mobile-attack-session-fallback",
+    character: character(),
+  });
+  const app = Object.freeze({
+    get character() { return activeSession.character; },
+    session: activeSession,
+    get html() { return root.innerHTML; },
+    mode: "creation",
+    interactions: Object.freeze({ destroy() {} }),
+    modeSync: Object.freeze({ sync() {} }),
+    ui: Object.freeze({ getState: () => Object.freeze({ busy: false }) }),
+    persistence: Object.freeze({}),
+    commands: Object.freeze({}),
+    repositories: Object.freeze({}),
+    runtime: Object.freeze({}),
+    postRenderLifecycle: postRenderLifecycleFixture(),
+    render() {
+      root.innerHTML = html;
+    },
+  });
+
+  root.innerHTML = html;
+  mountCharacterMobileAttackEditApp(app, { root });
+
+  assert.equal(countAttackEditors(root), 1);
+});
+
 test("remounts attack editors after delegated renders without duplicating controls", () => {
   const root = rootFixture();
   const activeSession = Object.freeze({
