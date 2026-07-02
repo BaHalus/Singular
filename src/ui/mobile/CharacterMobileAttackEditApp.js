@@ -142,8 +142,10 @@ function injectCurrentAttackControls(root, app) {
 }
 
 function deferAttackControlInjection(root, app, pendingInjectionTimers) {
-  injectCurrentAttackControls(root, app);
-  if (typeof globalThis.setTimeout !== "function") return;
+  if (typeof globalThis.setTimeout !== "function") {
+    injectCurrentAttackControls(root, app);
+    return;
+  }
   const timer = globalThis.setTimeout(() => {
     pendingInjectionTimers.delete(timer);
     injectCurrentAttackControls(root, app);
