@@ -68,8 +68,9 @@ export function mountCharacterMobileCompositionRoot(
   options = {},
   modules = CHARACTER_MOBILE_COMPOSITION_MODULES,
 ) {
+  const postRenderLifecycle = app.postRenderLifecycle ?? createCharacterMobilePostRenderLifecycle();
   const mountedModules = [];
-  let mounted = app;
+  let mounted = exposePostRenderLifecycle(app, postRenderLifecycle);
 
   for (const module of modules) {
     mounted = module.mount(mounted, options);
@@ -87,7 +88,6 @@ export function mountCharacterMobileCompositionRoot(
   const featureHandles = Object.fromEntries(
     mountedModules.map(module => [module.destroyKey, module.handle]),
   );
-  const postRenderLifecycle = app.postRenderLifecycle ?? createCharacterMobilePostRenderLifecycle();
   let destroyed = false;
 
   const runPostRenderLifecycle = () => {
@@ -150,6 +150,17 @@ export function mountCharacterMobileCompositionRoot(
       destroy: destroyComposition,
     }),
   });
+}
+
+function exposePostRenderLifecycle(app, postRenderLifecycle) {
+  const descriptors = Object.getOwnPropertyDescriptors(app);
+  descriptors.postRenderLifecycle = {
+    value: postRenderLifecycle,
+    enumerable: true,
+    configurable: false,
+    writable: false,
+  };
+  return Object.freeze(Object.defineProperties({}, descriptors));
 }
 
 function resolveOptionalMobileRoot(app, options) {
