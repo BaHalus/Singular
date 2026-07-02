@@ -71,11 +71,27 @@ export function mountCharacterMobileCompositionRoot(
   const postRenderLifecycle = app.postRenderLifecycle ?? createCharacterMobilePostRenderLifecycle();
   const mountedModules = [];
   let mounted = exposePostRenderLifecycle(app, postRenderLifecycle);
+  let destroyed = false;
+  let renderingComposedSurface = false;
+
+  const runComposedSurfaceRender = () => {
+    if (destroyed || renderingComposedSurface) return;
+    renderingComposedSurface = true;
+    try {
+      mounted.render({ skipPostRenderLifecycle: true });
+    } finally {
+      renderingComposedSurface = false;
+    }
+  };
+  const unregisterComposedSurface = typeof postRenderLifecycle.register === "function"
+    ? postRenderLifecycle.register(runComposedSurfaceRender)
+    : null;
 
   for (const module of modules) {
     mounted = module.mount(mounted, options);
     const handle = mounted[module.destroyKey];
     if (typeof handle?.destroy !== "function") {
+      unregisterComposedSurface?.();
       throw new Error(`Mobile composition module ${module.name} did not expose ${module.destroyKey}.destroy`);
     }
     mountedModules.push(Object.freeze({
@@ -88,7 +104,6 @@ export function mountCharacterMobileCompositionRoot(
   const featureHandles = Object.fromEntries(
     mountedModules.map(module => [module.destroyKey, module.handle]),
   );
-  let destroyed = false;
 
   const readLifecycleContext = root => ({
     root,
@@ -105,6 +120,9 @@ export function mountCharacterMobileCompositionRoot(
   };
 
   const render = () => {
+    if (unregisterComposedSurface !== null && typeof app.render === "function") {
+      return app.render();
+    }
     const result = mounted.render({ skipPostRenderLifecycle: true });
     runPostRenderLifecycle();
     return result;
@@ -113,6 +131,7 @@ export function mountCharacterMobileCompositionRoot(
   const destroyComposition = () => {
     if (destroyed) return;
     destroyed = true;
+    unregisterComposedSurface?.();
     for (const module of [...mountedModules].reverse()) {
       module.handle.destroy();
     }
