@@ -94,9 +94,16 @@ function rootFixture() {
       attackEditors.push(...nodes.map(String));
     },
   };
+  let innerHTML = "";
 
   return {
-    innerHTML: "",
+    get innerHTML() {
+      return innerHTML;
+    },
+    set innerHTML(value) {
+      innerHTML = String(value);
+      attackEditors.length = 0;
+    },
     ownerDocument: documentRef,
     setAttribute(name, value) {
       attributes.set(name, value);
