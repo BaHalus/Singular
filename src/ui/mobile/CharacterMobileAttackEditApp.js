@@ -157,15 +157,8 @@ function scheduleAttackControlInjection(callback, options) {
     return options.deferAttackControlInjection(callback);
   }
 
-  let cancelled = false;
-  queueMicrotask(() => {
-    queueMicrotask(() => {
-      if (!cancelled) callback();
-    });
-  });
-  return () => {
-    cancelled = true;
-  };
+  callback();
+  return null;
 }
 
 function clearPendingAttackControlInjections(pendingInjectionCancels) {
