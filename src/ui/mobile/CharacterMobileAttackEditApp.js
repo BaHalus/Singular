@@ -49,6 +49,13 @@ const MOBILE_CORE_RERENDER_ACTIONS = Object.freeze([
   "power-remove",
 ]);
 
+const MOBILE_RERENDER_ACTION_SUFFIXES = Object.freeze([
+  "-add",
+  "-remove",
+  "-reorder",
+  "-update",
+]);
+
 export async function bootstrapCharacterMobileAttackEditApp(options = {}) {
   requirePlainObject(options, "Character mobile attack edit bootstrap options");
   const app = await bootstrapCharacterMobileLanguageCultureEditApp(options);
@@ -169,11 +176,16 @@ function injectCurrentAttackControls(root, app) {
 
 function shouldRemountAttackControlsAfterClick(target, action) {
   return (
-    (action !== null && action !== "attack-update") ||
-    MOBILE_CORE_RERENDER_ACTIONS.includes(action) ||
+    isMobileSheetRerenderAction(action) ||
     findDatasetPairTarget(target, "attributeKey", "attributeAdjust") !== null ||
     findDatasetPairTarget(target, "poolKey", "poolAdjust") !== null
   );
+}
+
+function isMobileSheetRerenderAction(action) {
+  if (action === null || action === "attack-update") return false;
+  if (MOBILE_CORE_RERENDER_ACTIONS.includes(action)) return true;
+  return MOBILE_RERENDER_ACTION_SUFFIXES.some(suffix => action.endsWith(suffix));
 }
 
 function findDatasetPairTarget(target, firstKey, secondKey) {
