@@ -89,9 +89,11 @@ test("attack edit does not rewrite root html when the explicit attack mount poin
   const root = createAttackRoot({ exposeAttackItem: false });
   const app = createAttackApp(root, { mode: "creation" });
 
-  mountCharacterMobileAttackEditApp(app, { root });
+  const mounted = mountCharacterMobileAttackEditApp(app, { root });
 
   assert.equal(root.innerHTML, renderBaseAttackSheet());
+
+  mounted.attackEdit.destroy();
 });
 
 function createAttackApp(root, { mode }) {
@@ -237,5 +239,7 @@ function renderBaseAttackSheet() {
 }
 
 function waitForDeferredRender() {
-  return new Promise(resolve => setTimeout(resolve, 0));
+  return new Promise(resolve => {
+    setTimeout(() => setTimeout(resolve, 0), 0);
+  });
 }
