@@ -15,12 +15,38 @@ import {
   resolveMobileRoot,
 } from "./MobileInlineEditHelpers.js";
 
-const ATTACK_CORE_RERENDER_ACTIONS = Object.freeze([
+const MOBILE_CORE_RERENDER_ACTIONS = Object.freeze([
+  "mode-creation",
+  "mode-table",
+  "character-summary-save",
   "attack-add",
   "attack-remove",
   "attack-reorder",
-  "mode-creation",
-  "mode-table",
+  "equipment-add",
+  "equipment-remove",
+  "equipment-reorder",
+  "equipment-state-set",
+  "spell-add",
+  "spell-remove",
+  "spell-reorder",
+  "trait-add",
+  "trait-remove",
+  "trait-reorder",
+  "skill-add",
+  "skill-remove",
+  "skill-reorder",
+  "technique-add",
+  "technique-remove",
+  "technique-reorder",
+  "language-add",
+  "language-remove",
+  "language-reorder",
+  "familiarity-add",
+  "familiarity-remove",
+  "familiarity-reorder",
+  "power-add",
+  "power-rename",
+  "power-remove",
 ]);
 
 export async function bootstrapCharacterMobileAttackEditApp(options = {}) {
@@ -69,7 +95,7 @@ export function mountCharacterMobileAttackEditApp(app, options = {}) {
     const actionTarget = findDataTarget(event?.target, "action");
     const action = actionTarget === null ? null : readDataset(actionTarget, "action");
 
-    if (ATTACK_CORE_RERENDER_ACTIONS.includes(action)) {
+    if (shouldRemountAttackControlsAfterClick(event?.target, action)) {
       requestAttackControlInjection(root, app, pendingInjectionCancels, options);
       return null;
     }
@@ -139,6 +165,23 @@ function injectCurrentAttackControls(root, app) {
     appendAttackInlineEditorNode(root, attack);
   }
   app.modeSync.sync();
+}
+
+function shouldRemountAttackControlsAfterClick(target, action) {
+  return MOBILE_CORE_RERENDER_ACTIONS.includes(action) ||
+    findDatasetPairTarget(target, "attributeKey", "attributeAdjust") !== null ||
+    findDatasetPairTarget(target, "poolKey", "poolAdjust") !== null;
+}
+
+function findDatasetPairTarget(target, firstKey, secondKey) {
+  let current = target ?? null;
+  while (current !== null) {
+    if (readDataset(current, firstKey) !== null && readDataset(current, secondKey) !== null) {
+      return current;
+    }
+    current = current.parentElement ?? null;
+  }
+  return null;
 }
 
 function requestAttackControlInjection(root, app, pendingInjectionCancels, options) {
