@@ -26,7 +26,11 @@ test("attack edit mounts through explicit DOM nodes without observers or string 
 test("attack edit remounts editors after core attack rerenders", async () => {
   const root = createAttackRoot({ exposeAttackItem: true });
   const app = createAttackApp(root, { mode: "creation" });
-  const mounted = mountCharacterMobileAttackEditApp(app, { root });
+  const deferred = createDeferredCallbacks();
+  const mounted = mountCharacterMobileAttackEditApp(app, {
+    root,
+    deferAttackControlInjection: deferred.defer,
+  });
 
   root.addEventListener("click", event => {
     if (event?.target?.dataset?.action !== "attack-add") return;
@@ -37,9 +41,11 @@ test("attack edit remounts editors after core attack rerenders", async () => {
   assert.equal(root.attackItem.appendedHtml.length, 1);
 
   await root.dispatch("click", { target: { dataset: { action: "attack-add" } } });
-  await waitForDeferredRender();
-
   assert.equal(app.renderCount, 1);
+  assert.equal(root.attackItem.appendedHtml.length, 0);
+
+  deferred.flush();
+
   assert.equal(root.attackItem.appendedHtml.length, 1);
   assert.match(root.attackItem.appendedHtml[0], /data-action="attack-update"/);
 
@@ -229,6 +235,22 @@ function createDocument() {
   };
 }
 
+function createDeferredCallbacks() {
+  const callbacks = new Set();
+  return {
+    defer(callback) {
+      callbacks.add(callback);
+      return () => callbacks.delete(callback);
+    },
+    flush() {
+      for (const callback of Array.from(callbacks)) {
+        callbacks.delete(callback);
+        callback();
+      }
+    },
+  };
+}
+
 function renderBaseAttackSheet() {
   return [
     '<section class="singular-mobile-sheet__card" data-card="attacks">',
@@ -236,10 +258,4 @@ function renderBaseAttackSheet() {
     '<dl><div data-attack-id="attack-1"><dt>Corpo a corpo</dt><dd>Espada</dd></div></dl>',
     "</section>",
   ].join("");
-}
-
-function waitForDeferredRender() {
-  return new Promise(resolve => {
-    setTimeout(() => setTimeout(resolve, 0), 0);
-  });
 }
