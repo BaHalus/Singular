@@ -70,7 +70,7 @@ export function mountCharacterMobileAttackEditApp(app, options = {}) {
     const action = actionTarget === null ? null : readDataset(actionTarget, "action");
 
     if (ATTACK_CORE_RERENDER_ACTIONS.includes(action)) {
-      deferAttackControlInjection(root, app, pendingInjectionCancels, options);
+      requestAttackControlInjection(root, app, pendingInjectionCancels, options);
       return null;
     }
 
@@ -141,36 +141,24 @@ function injectCurrentAttackControls(root, app) {
   app.modeSync.sync();
 }
 
-function deferAttackControlInjection(root, app, pendingInjectionCancels, options) {
+function requestAttackControlInjection(root, app, pendingInjectionCancels, options) {
   let cancel = null;
   const run = () => {
     if (cancel !== null) pendingInjectionCancels.delete(cancel);
     injectCurrentAttackControls(root, app);
   };
 
-  cancel = scheduleDeferredAttackControlInjection(run, options);
+  cancel = scheduleAttackControlInjection(run, options);
   if (typeof cancel === "function") pendingInjectionCancels.add(cancel);
 }
 
-function scheduleDeferredAttackControlInjection(callback, options) {
+function scheduleAttackControlInjection(callback, options) {
   if (typeof options.deferAttackControlInjection === "function") {
     return options.deferAttackControlInjection(callback);
   }
 
-  if (typeof globalThis.queueMicrotask !== "function") {
-    callback();
-    return null;
-  }
-
-  let cancelled = false;
-  globalThis.queueMicrotask(() => {
-    globalThis.queueMicrotask(() => {
-      if (!cancelled) callback();
-    });
-  });
-  return () => {
-    cancelled = true;
-  };
+  callback();
+  return null;
 }
 
 function clearPendingAttackControlInjections(pendingInjectionCancels) {
