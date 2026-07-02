@@ -51,6 +51,34 @@ test("attack edit remounts editors after core attack rerenders", async () => {
   mounted.attackEdit.destroy();
 });
 
+test("attack edit remounts editors after upstream feature rerenders", async () => {
+  const root = createAttackRoot({ exposeAttackItem: true });
+  const app = createAttackApp(root, { mode: "creation" });
+  const deferred = createDeferredCallbacks();
+  const mounted = mountCharacterMobileAttackEditApp(app, {
+    root,
+    deferAttackControlInjection: deferred.defer,
+  });
+
+  root.addEventListener("click", event => {
+    if (event?.target?.dataset?.action !== "trait-add") return;
+    app.render();
+  });
+
+  assert.equal(root.attackItem.appendedHtml.length, 1);
+
+  await root.dispatch("click", { target: { dataset: { action: "trait-add" } } });
+  assert.equal(app.renderCount, 1);
+  assert.equal(root.attackItem.appendedHtml.length, 0);
+
+  deferred.flush();
+
+  assert.equal(root.attackItem.appendedHtml.length, 1);
+  assert.match(root.attackItem.appendedHtml[0], /data-action="attack-update"/);
+
+  mounted.attackEdit.destroy();
+});
+
 test("attack edit default scheduling remounts after later core listeners replace html", async () => {
   const root = createAttackRoot({ exposeAttackItem: true });
   const app = createAttackApp(root, { mode: "creation" });
