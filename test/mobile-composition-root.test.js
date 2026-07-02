@@ -44,7 +44,10 @@ test("mobile composition root destroys feature modules in reverse order before a
     mode: "creation",
     interactions: Object.freeze({ destroy: () => calls.push("interactions") }),
     modeSync: Object.freeze({ destroy: () => calls.push("modeSync") }),
-    postRenderLifecycle: Object.freeze({ destroy: () => calls.push("postRenderLifecycle") }),
+    postRenderLifecycle: Object.freeze({
+      run: () => calls.push("postRenderLifecycle.run"),
+      destroy: () => calls.push("postRenderLifecycle"),
+    }),
     ui: Object.freeze({}),
     persistence: Object.freeze({}),
     commands: Object.freeze({}),
@@ -132,7 +135,19 @@ test("mobile composition root preserves live app surface and fails on invalid mo
 test("mobile composition root exposes composed render without snapshotting live base getters", () => {
   let rendered = false;
   let currentCharacter = { name: "Base" };
-  const postRenderLifecycle = Object.freeze({ destroy() {} });
+  const lifecycleCalls = [];
+  const postRenderLifecycle = Object.freeze({
+    run(context) {
+      lifecycleCalls.push({
+        root: context.root,
+        character: context.character,
+        session: context.session,
+        mode: context.mode,
+      });
+    },
+    destroy() {},
+  });
+  const root = {};
   const app = Object.freeze({
     get character() {
       return currentCharacter;
@@ -150,7 +165,7 @@ test("mobile composition root exposes composed render without snapshotting live 
     runtime: Object.freeze({}),
   });
 
-  const composition = mountCharacterMobileCompositionRoot(app, {}, [
+  const composition = mountCharacterMobileCompositionRoot(app, { root }, [
     Object.freeze({
       name: "render-provider",
       destroyKey: "renderProvider",
@@ -171,6 +186,12 @@ test("mobile composition root exposes composed render without snapshotting live 
   assert.equal(typeof composition.render, "function");
   composition.render();
   assert.equal(rendered, true);
+  assert.deepEqual(lifecycleCalls, [{
+    root,
+    character: currentCharacter,
+    session: app.session,
+    mode: "creation",
+  }]);
 
   currentCharacter = { name: "Updated" };
   assert.equal(composition.character.name, "Updated");
