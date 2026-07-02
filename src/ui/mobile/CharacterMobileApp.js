@@ -16,6 +16,7 @@ import {
 import {
   createCharacterMobileModeSync,
 } from "./CharacterMobileModeSync.js";
+import { createCharacterMobilePostRenderLifecycle } from "./CharacterMobilePostRenderLifecycle.js";
 
 const MOBILE_ROOT_SELECTOR = "[data-singular-mobile-root]";
 const MOBILE_MODES = Object.freeze(["creation", "table"]);
@@ -43,6 +44,7 @@ export async function bootstrapCharacterMobileApp(options = {}) {
   requireInteractiveMountRoot(root);
 
   let mode = normalizeMode(options.mode ?? "creation");
+  const postRenderLifecycle = options.postRenderLifecycle ?? createCharacterMobilePostRenderLifecycle();
   const application = createAlphaMobilePersistenceBootstrap({
     initialSession: createInitialSession(options),
     storage: options.storage,
@@ -50,25 +52,38 @@ export async function bootstrapCharacterMobileApp(options = {}) {
     runtime: options.runtime,
     createImportedSession: options.createImportedSession,
   });
-  const ui = await mountAlphaMobilePersistenceUi({
-    root,
-    persistence: application.persistence,
-    downloadText: options.downloadText,
-    mode,
-  });
-
-  const render = () => {
+  const render = (renderOptions = {}) => {
+    const renderMode = normalizeMode(renderOptions.mode ?? mode);
     const activeSession = application.persistence.getActiveSession();
+    const renderer = renderOptions.ui ?? ui;
     root.innerHTML = injectMobileCreationControls(
-      ui.render({ mode }),
+      renderer.render({ mode: renderMode }),
       activeSession.character,
-      mode,
+      renderMode,
     );
     setRootAttribute(root, "data-singular-mounted", "true");
     setRootAttribute(root, "data-session-id", activeSession.id);
     setRootAttribute(root, "data-character-id", activeSession.character.identity.id);
-    setRootAttribute(root, "data-mode", mode);
+    setRootAttribute(root, "data-mode", renderMode);
+    if (!renderOptions.skipPostRenderLifecycle) {
+      postRenderLifecycle.run({
+        root,
+        character: activeSession.character,
+        session: activeSession,
+        mode: renderMode,
+      });
+    }
   };
+  const ui = await mountAlphaMobilePersistenceUi({
+    root,
+    persistence: application.persistence,
+    downloadText: options.downloadText,
+    getMode: () => mode,
+    render({ ui: mountedUi, mode: renderMode }) {
+      render({ ui: mountedUi, mode: renderMode });
+    },
+  });
+
   const modeSync = createCharacterMobileModeSync({
     root,
     getMode: () => mode,
@@ -227,6 +242,8 @@ export async function bootstrapCharacterMobileApp(options = {}) {
     commands: application.commands,
     repositories: application.repositories,
     runtime: application.runtime,
+    postRenderLifecycle,
+    render,
   });
 }
 
