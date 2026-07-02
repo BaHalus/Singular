@@ -7,6 +7,6 @@
     "node": "22.x"
   },
   "scripts": {
-    "test": "node --test > /tmp/singular-test.log 2>&1; status=$?; tail -n 240 /tmp/singular-test.log; exit $status"
+    "test": "node --test"
   }
 }
