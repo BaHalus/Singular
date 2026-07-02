@@ -1,5 +1,5 @@
 export function createCharacterMobilePostRenderLifecycle() {
-  const enhancers = [];
+  const entries = [];
   let active = true;
 
   return Object.freeze({
@@ -9,15 +9,16 @@ export function createCharacterMobilePostRenderLifecycle() {
         throw new Error("Mobile post-render lifecycle is not active");
       }
 
-      enhancers.push(enhancer);
+      const entry = Object.freeze({ enhancer });
+      entries.push(entry);
       let registered = true;
 
       return function unregister() {
         if (!registered) return false;
         registered = false;
-        const index = enhancers.indexOf(enhancer);
+        const index = entries.indexOf(entry);
         if (index < 0) return false;
-        enhancers.splice(index, 1);
+        entries.splice(index, 1);
         return true;
       };
     },
@@ -35,10 +36,10 @@ export function createCharacterMobilePostRenderLifecycle() {
       const errors = [];
       let executed = 0;
 
-      for (const enhancer of [...enhancers]) {
-        if (!enhancers.includes(enhancer)) continue;
+      for (const entry of [...entries]) {
+        if (!entries.includes(entry)) continue;
         try {
-          enhancer(currentContext);
+          entry.enhancer(currentContext);
           executed += 1;
         } catch (error) {
           errors.push(error);
@@ -53,13 +54,13 @@ export function createCharacterMobilePostRenderLifecycle() {
     },
 
     get size() {
-      return enhancers.length;
+      return entries.length;
     },
 
     destroy() {
       if (!active) return;
       active = false;
-      enhancers.length = 0;
+      entries.length = 0;
     },
   });
 }
