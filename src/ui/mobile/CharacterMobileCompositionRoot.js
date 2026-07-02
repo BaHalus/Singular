@@ -127,7 +127,7 @@ export function mountCharacterMobileCompositionRoot(
       return mounted.session;
     },
     get html() {
-      return mounted.html;
+      return app.html;
     },
     get mode() {
       return mounted.mode;
