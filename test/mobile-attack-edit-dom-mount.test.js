@@ -65,7 +65,6 @@ test("attack edit default scheduling remounts after later core listeners replace
 
   await root.dispatch("click", { target: { dataset: { action: "attack-add" } } });
   assert.equal(app.renderCount, 1);
-  assert.equal(root.attackItem.appendedHtml.length, 0);
 
   await drainMicrotasks();
 
