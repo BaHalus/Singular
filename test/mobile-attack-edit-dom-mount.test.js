@@ -34,7 +34,6 @@ test("attack edit remounts editors after core attack rerenders", async () => {
 
   root.addEventListener("click", event => {
     if (event?.target?.dataset?.action !== "attack-add") return;
-    root.attackItem.appendedHtml = [];
     app.render();
   });
 
@@ -174,9 +173,16 @@ function createAttackRoot({ exposeAttackItem }) {
     ['[data-role="attack-edit-range-attack-1"]', ""],
     ['[data-role="attack-edit-notes-attack-1"]', "Ataque editado"],
   ]);
+  let innerHTML = renderBaseAttackSheet();
 
   return {
-    innerHTML: renderBaseAttackSheet(),
+    get innerHTML() {
+      return innerHTML;
+    },
+    set innerHTML(value) {
+      innerHTML = String(value);
+      attackItem.appendedHtml = [];
+    },
     attributes,
     attackItem,
     syncCount: 0,
