@@ -92,13 +92,13 @@ export function mountCharacterMobileCompositionRoot(
 
   const runPostRenderLifecycle = () => {
     if (destroyed) return;
-    const root = resolveOptionalMobileRoot(app, options);
+    const root = resolveOptionalMobileRoot(mounted, app, options);
     if (root === null) return;
     postRenderLifecycle.run({
       root,
-      character: app.character,
-      session: app.session,
-      mode: app.mode,
+      character: mounted.character,
+      session: mounted.session,
+      mode: mounted.mode,
     });
   };
 
@@ -121,24 +121,24 @@ export function mountCharacterMobileCompositionRoot(
 
   return Object.freeze({
     get character() {
-      return app.character;
+      return mounted.character;
     },
     get session() {
-      return app.session;
+      return mounted.session;
     },
     get html() {
-      return app.html;
+      return mounted.html;
     },
     get mode() {
-      return app.mode;
+      return mounted.mode;
     },
     interactions: app.interactions,
     modeSync: app.modeSync,
-    ui: app.ui,
-    persistence: app.persistence,
-    commands: app.commands,
-    repositories: app.repositories,
-    runtime: app.runtime,
+    ui: mounted.ui,
+    persistence: mounted.persistence,
+    commands: mounted.commands,
+    repositories: mounted.repositories,
+    runtime: mounted.runtime,
     postRenderLifecycle,
     render,
     ...featureHandles,
@@ -163,8 +163,9 @@ function exposePostRenderLifecycle(app, postRenderLifecycle) {
   return Object.freeze(Object.defineProperties({}, descriptors));
 }
 
-function resolveOptionalMobileRoot(app, options) {
+function resolveOptionalMobileRoot(mounted, app, options) {
   if (options.root !== undefined) return options.root;
+  if (mounted.root !== undefined) return mounted.root;
   if (app.root !== undefined) return app.root;
   const documentRef = options.document ?? globalThis.document;
   if (documentRef === undefined || documentRef === null) return null;
