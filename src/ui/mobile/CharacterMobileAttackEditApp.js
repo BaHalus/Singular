@@ -140,11 +140,11 @@ function injectCurrentAttackControls(root, app) {
 }
 
 function deferAttackControlInjection(root, app) {
-  if (typeof globalThis.setTimeout !== "function") {
-    injectCurrentAttackControls(root, app);
+  if (typeof globalThis.queueMicrotask === "function") {
+    globalThis.queueMicrotask(() => injectCurrentAttackControls(root, app));
     return;
   }
-  globalThis.setTimeout(() => injectCurrentAttackControls(root, app), 0);
+  injectCurrentAttackControls(root, app);
 }
 
 function appendAttackInlineEditorNode(root, attack) {
