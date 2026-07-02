@@ -56,7 +56,7 @@ export function mountCharacterMobileAttackEditApp(app, options = {}) {
     options.document,
     "Character mobile attack edit bootstrap root was not found",
   );
-  const pendingInjectionTimers = new Set();
+  const pendingInjectionCancels = new Set();
 
   const render = () => {
     app.render();
@@ -70,7 +70,7 @@ export function mountCharacterMobileAttackEditApp(app, options = {}) {
     const action = actionTarget === null ? null : readDataset(actionTarget, "action");
 
     if (ATTACK_CORE_RERENDER_ACTIONS.includes(action)) {
-      deferAttackControlInjection(root, app, pendingInjectionTimers);
+      deferAttackControlInjection(root, app, pendingInjectionCancels, options);
       return null;
     }
 
@@ -114,7 +114,7 @@ export function mountCharacterMobileAttackEditApp(app, options = {}) {
     attackEdit: Object.freeze({
       destroy() {
         root.removeEventListener?.("click", handleClick);
-        clearPendingAttackControlInjections(pendingInjectionTimers);
+        clearPendingAttackControlInjections(pendingInjectionCancels);
       },
     }),
   });
@@ -141,27 +141,36 @@ function injectCurrentAttackControls(root, app) {
   app.modeSync.sync();
 }
 
-function deferAttackControlInjection(root, app, pendingInjectionTimers) {
-  if (typeof globalThis.setTimeout !== "function") {
+function deferAttackControlInjection(root, app, pendingInjectionCancels, options) {
+  let cancel = null;
+  const run = () => {
+    if (cancel !== null) pendingInjectionCancels.delete(cancel);
     injectCurrentAttackControls(root, app);
-    return;
-  }
-  const timer = globalThis.setTimeout(() => {
-    pendingInjectionTimers.delete(timer);
-    injectCurrentAttackControls(root, app);
-  }, 0);
-  pendingInjectionTimers.add(timer);
+  };
+
+  cancel = scheduleDeferredAttackControlInjection(run, options);
+  if (typeof cancel === "function") pendingInjectionCancels.add(cancel);
 }
 
-function clearPendingAttackControlInjections(pendingInjectionTimers) {
-  if (typeof globalThis.clearTimeout !== "function") {
-    pendingInjectionTimers.clear();
-    return;
+function scheduleDeferredAttackControlInjection(callback, options) {
+  if (typeof options.deferAttackControlInjection === "function") {
+    return options.deferAttackControlInjection(callback);
   }
-  for (const timer of pendingInjectionTimers) {
-    globalThis.clearTimeout(timer);
+
+  if (typeof globalThis.setTimeout !== "function") {
+    callback();
+    return null;
   }
-  pendingInjectionTimers.clear();
+
+  const timer = globalThis.setTimeout(callback, 0);
+  return () => globalThis.clearTimeout?.(timer);
+}
+
+function clearPendingAttackControlInjections(pendingInjectionCancels) {
+  for (const cancel of pendingInjectionCancels) {
+    cancel();
+  }
+  pendingInjectionCancels.clear();
 }
 
 function appendAttackInlineEditorNode(root, attack) {
