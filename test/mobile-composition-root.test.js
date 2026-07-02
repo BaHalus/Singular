@@ -35,6 +35,29 @@ test("mobile composition root exposes a single executable bootstrap and explicit
   assert.equal(typeof mountCharacterMobileCompositionRoot, "function");
 });
 
+test("mobile composition root exposes post-render lifecycle to modules during mount", () => {
+  const lifecycle = Object.freeze({ run() {}, destroy() {} });
+  const app = createCompositionApp({ postRenderLifecycle: lifecycle });
+  let mountedLifecycle = null;
+
+  const composition = mountCharacterMobileCompositionRoot(app, {}, [
+    Object.freeze({
+      name: "feature",
+      destroyKey: "featureHandle",
+      mount: mounted => {
+        mountedLifecycle = mounted.postRenderLifecycle;
+        return Object.freeze({
+          ...mounted,
+          featureHandle: Object.freeze({ destroy() {} }),
+        });
+      },
+    }),
+  ]);
+
+  assert.equal(mountedLifecycle, lifecycle);
+  assert.equal(composition.postRenderLifecycle, lifecycle);
+});
+
 test("mobile composition root destroys feature modules in reverse order before app handles", () => {
   const calls = [];
   const app = Object.freeze({
@@ -44,6 +67,10 @@ test("mobile composition root destroys feature modules in reverse order before a
     mode: "creation",
     interactions: Object.freeze({ destroy: () => calls.push("interactions") }),
     modeSync: Object.freeze({ destroy: () => calls.push("modeSync") }),
+    postRenderLifecycle: Object.freeze({
+      run: () => calls.push("postRenderLifecycle.run"),
+      destroy: () => calls.push("postRenderLifecycle"),
+    }),
     ui: Object.freeze({}),
     persistence: Object.freeze({}),
     commands: Object.freeze({}),
@@ -76,7 +103,7 @@ test("mobile composition root destroys feature modules in reverse order before a
   composition.compositionRoot.destroy();
   composition.compositionRoot.destroy();
 
-  assert.deepEqual(calls, ["second", "first", "interactions", "modeSync"]);
+  assert.deepEqual(calls, ["second", "first", "interactions", "modeSync", "postRenderLifecycle"]);
 });
 
 test("mobile composition root preserves live app surface and fails on invalid module handles", () => {
@@ -131,6 +158,19 @@ test("mobile composition root preserves live app surface and fails on invalid mo
 test("mobile composition root exposes composed render without snapshotting live base getters", () => {
   let rendered = false;
   let currentCharacter = { name: "Base" };
+  const lifecycleCalls = [];
+  const postRenderLifecycle = Object.freeze({
+    run(context) {
+      lifecycleCalls.push({
+        root: context.root,
+        character: context.character,
+        session: context.session,
+        mode: context.mode,
+      });
+    },
+    destroy() {},
+  });
+  const root = {};
   const app = Object.freeze({
     get character() {
       return currentCharacter;
@@ -140,6 +180,7 @@ test("mobile composition root exposes composed render without snapshotting live 
     mode: "creation",
     interactions: Object.freeze({ destroy() {} }),
     modeSync: Object.freeze({ destroy() {} }),
+    postRenderLifecycle,
     ui: Object.freeze({}),
     persistence: Object.freeze({}),
     commands: Object.freeze({}),
@@ -147,7 +188,7 @@ test("mobile composition root exposes composed render without snapshotting live 
     runtime: Object.freeze({}),
   });
 
-  const composition = mountCharacterMobileCompositionRoot(app, {}, [
+  const composition = mountCharacterMobileCompositionRoot(app, { root }, [
     Object.freeze({
       name: "render-provider",
       destroyKey: "renderProvider",
@@ -164,10 +205,75 @@ test("mobile composition root exposes composed render without snapshotting live 
 
   assert.equal(composition.html, "base-html");
   assert.equal(composition.character.name, "Base");
+  assert.equal(composition.postRenderLifecycle, postRenderLifecycle);
   assert.equal(typeof composition.render, "function");
   composition.render();
   assert.equal(rendered, true);
+  assert.deepEqual(lifecycleCalls, [{
+    root,
+    character: currentCharacter,
+    session: app.session,
+    mode: "creation",
+  }]);
 
   currentCharacter = { name: "Updated" };
   assert.equal(composition.character.name, "Updated");
 });
+
+test("mobile composition root does not install post-persistence listener or scheduler", () => {
+  const calls = [];
+  const root = Object.freeze({
+    addEventListener: () => calls.push("addEventListener"),
+    removeEventListener: () => calls.push("removeEventListener"),
+  });
+  const app = Object.freeze({
+    character: { name: "Test" },
+    session: { id: "session" },
+    html: "base-html",
+    mode: "creation",
+    interactions: Object.freeze({ destroy() {} }),
+    modeSync: Object.freeze({ destroy() {} }),
+    ui: Object.freeze({}),
+    persistence: Object.freeze({}),
+    commands: Object.freeze({}),
+    repositories: Object.freeze({}),
+    runtime: Object.freeze({}),
+    render() {},
+  });
+
+  const composition = mountCharacterMobileCompositionRoot(app, {
+    root,
+    schedulePostPersistenceRender: () => calls.push("schedule"),
+  }, [
+    Object.freeze({
+      name: "feature",
+      destroyKey: "featureHandle",
+      mount: mounted => Object.freeze({
+        ...mounted,
+        featureHandle: Object.freeze({ destroy() {} }),
+      }),
+    }),
+  ]);
+
+  composition.compositionRoot.destroy();
+
+  assert.deepEqual(calls, []);
+});
+
+function createCompositionApp(overrides = {}) {
+  return Object.freeze({
+    character: { name: "Test" },
+    session: { id: "session" },
+    html: "base-html",
+    mode: "creation",
+    interactions: Object.freeze({ destroy() {} }),
+    modeSync: Object.freeze({ destroy() {} }),
+    ui: Object.freeze({}),
+    persistence: Object.freeze({}),
+    commands: Object.freeze({}),
+    repositories: Object.freeze({}),
+    runtime: Object.freeze({}),
+    render() {},
+    ...overrides,
+  });
+}

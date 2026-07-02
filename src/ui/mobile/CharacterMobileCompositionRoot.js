@@ -1,4 +1,4 @@
-import { bootstrapCharacterMobileApp } from "./CharacterMobileApp.js";
+import { bootstrapCharacterMobileApp, getCharacterMobileRootSelector } from "./CharacterMobileApp.js";
 import { mountCharacterMobileLanguageCultureApp } from "./CharacterMobileLanguageCultureApp.js";
 import { mountCharacterMobileSecondaryNotesApp } from "./CharacterMobileSecondaryNotesApp.js";
 import { mountCharacterMobileTraitEditApp } from "./CharacterMobileTraitEditApp.js";
@@ -8,16 +8,7 @@ import { mountCharacterMobileAttackEditApp } from "./CharacterMobileAttackEditAp
 import { mountCharacterMobileEquipmentEditApp } from "./CharacterMobileEquipmentEditApp.js";
 import { mountCharacterMobileSpellEditApp } from "./CharacterMobileSpellEditApp.js";
 import { mountCharacterMobilePowerEditApp } from "./CharacterMobilePowerEditApp.js";
-
-const MOBILE_ROOT_SELECTOR = "[data-singular-mobile-root]";
-const PERSISTENCE_RENDER_ACTIONS = Object.freeze([
-  "persistence-save",
-  "persistence-refresh",
-  "persistence-open",
-  "persistence-remove",
-  "persistence-export",
-  "persistence-import",
-]);
+import { createCharacterMobilePostRenderLifecycle } from "./CharacterMobilePostRenderLifecycle.js";
 
 export const CHARACTER_MOBILE_COMPOSITION_MODULES = Object.freeze([
   Object.freeze({
@@ -77,13 +68,30 @@ export function mountCharacterMobileCompositionRoot(
   options = {},
   modules = CHARACTER_MOBILE_COMPOSITION_MODULES,
 ) {
+  const postRenderLifecycle = app.postRenderLifecycle ?? createCharacterMobilePostRenderLifecycle();
   const mountedModules = [];
-  let mounted = app;
+  let mounted = exposePostRenderLifecycle(app, postRenderLifecycle);
+  let destroyed = false;
+  let renderingComposedSurface = false;
+
+  const runComposedSurfaceRender = () => {
+    if (destroyed || renderingComposedSurface) return;
+    renderingComposedSurface = true;
+    try {
+      mounted.render({ skipPostRenderLifecycle: true });
+    } finally {
+      renderingComposedSurface = false;
+    }
+  };
+  const unregisterComposedSurface = typeof postRenderLifecycle.register === "function"
+    ? postRenderLifecycle.register(runComposedSurfaceRender)
+    : null;
 
   for (const module of modules) {
     mounted = module.mount(mounted, options);
     const handle = mounted[module.destroyKey];
     if (typeof handle?.destroy !== "function") {
+      unregisterComposedSurface?.();
       throw new Error(`Mobile composition module ${module.name} did not expose ${module.destroyKey}.destroy`);
     }
     mountedModules.push(Object.freeze({
@@ -96,26 +104,40 @@ export function mountCharacterMobileCompositionRoot(
   const featureHandles = Object.fromEntries(
     mountedModules.map(module => [module.destroyKey, module.handle]),
   );
-  let destroyed = false;
-  const root = resolveOptionalMobileRoot(options);
-  const schedulePostPersistenceRender = createPostPersistenceRenderScheduler(options);
-  const handlePersistenceCompositionRender = event => {
-    if (!isPersistenceRenderAction(readEventAction(event))) return;
-    schedulePostPersistenceRender(() => {
-      if (!destroyed) mounted.render();
-    });
+
+  const readLifecycleContext = root => ({
+    root,
+    character: app.character,
+    session: app.session,
+    mode: app.mode,
+  });
+
+  const runPostRenderLifecycle = () => {
+    if (destroyed) return;
+    const root = resolveOptionalMobileRoot(mounted, app, options);
+    if (root === null) return;
+    postRenderLifecycle.run(readLifecycleContext(root));
   };
-  root?.addEventListener?.("click", handlePersistenceCompositionRender);
+
+  const render = () => {
+    if (unregisterComposedSurface !== null && typeof app.render === "function") {
+      return app.render();
+    }
+    const result = mounted.render({ skipPostRenderLifecycle: true });
+    runPostRenderLifecycle();
+    return result;
+  };
 
   const destroyComposition = () => {
     if (destroyed) return;
     destroyed = true;
-    root?.removeEventListener?.("click", handlePersistenceCompositionRender);
+    unregisterComposedSurface?.();
     for (const module of [...mountedModules].reverse()) {
       module.handle.destroy();
     }
     app.interactions?.destroy?.();
     app.modeSync?.destroy?.();
+    postRenderLifecycle.destroy();
   };
 
   return Object.freeze({
@@ -133,12 +155,13 @@ export function mountCharacterMobileCompositionRoot(
     },
     interactions: app.interactions,
     modeSync: app.modeSync,
-    ui: app.ui,
-    persistence: app.persistence,
-    commands: app.commands,
-    repositories: app.repositories,
-    runtime: app.runtime,
-    render: mounted.render,
+    ui: mounted.ui,
+    persistence: mounted.persistence,
+    commands: mounted.commands,
+    repositories: mounted.repositories,
+    runtime: mounted.runtime,
+    postRenderLifecycle,
+    render,
     ...featureHandles,
     powerEdit: Object.freeze({
       ...featureHandles.powerEdit,
@@ -150,43 +173,22 @@ export function mountCharacterMobileCompositionRoot(
   });
 }
 
-function resolveOptionalMobileRoot(options) {
+function exposePostRenderLifecycle(app, postRenderLifecycle) {
+  const descriptors = Object.getOwnPropertyDescriptors(app);
+  descriptors.postRenderLifecycle = {
+    value: postRenderLifecycle,
+    enumerable: true,
+    configurable: false,
+    writable: false,
+  };
+  return Object.freeze(Object.defineProperties({}, descriptors));
+}
+
+function resolveOptionalMobileRoot(mounted, app, options) {
   if (options.root !== undefined) return options.root;
+  if (mounted.root !== undefined) return mounted.root;
+  if (app.root !== undefined) return app.root;
   const documentRef = options.document ?? globalThis.document;
   if (documentRef === undefined || documentRef === null) return null;
-  return documentRef.querySelector?.(MOBILE_ROOT_SELECTOR) ?? null;
-}
-
-function createPostPersistenceRenderScheduler(options) {
-  if (options.schedulePostPersistenceRender !== undefined) {
-    if (typeof options.schedulePostPersistenceRender !== "function") {
-      throw new Error("Mobile composition post-persistence render scheduler must be a function");
-    }
-    return options.schedulePostPersistenceRender;
-  }
-  return task => globalThis.setTimeout(task, 0);
-}
-
-function readEventAction(event) {
-  const actionTarget = findDataTarget(event?.target, "action");
-  return actionTarget === null ? null : readDataset(actionTarget, "action");
-}
-
-function isPersistenceRenderAction(action) {
-  return PERSISTENCE_RENDER_ACTIONS.includes(action);
-}
-
-function findDataTarget(target, key) {
-  let current = target ?? null;
-  while (current !== null) {
-    if (readDataset(current, key) !== null) return current;
-    current = current.parentElement ?? null;
-  }
-  return null;
-}
-
-function readDataset(target, key) {
-  if (!target || typeof target !== "object") return null;
-  const value = target.dataset?.[key];
-  return typeof value === "string" && value !== "" ? value : null;
+  return documentRef.querySelector?.(getCharacterMobileRootSelector()) ?? null;
 }
