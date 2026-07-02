@@ -140,11 +140,10 @@ function injectCurrentAttackControls(root, app) {
 }
 
 function deferAttackControlInjection(root, app) {
+  injectCurrentAttackControls(root, app);
   if (typeof globalThis.setTimeout === "function") {
     globalThis.setTimeout(() => injectCurrentAttackControls(root, app), 0);
-    return;
   }
-  injectCurrentAttackControls(root, app);
 }
 
 function appendAttackInlineEditorNode(root, attack) {
