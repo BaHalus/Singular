@@ -215,20 +215,17 @@ function scheduleAttackControlInjection(callback, options) {
     return options.deferAttackControlInjection(callback);
   }
 
-  const queueMicrotaskRef = options.queueMicrotask ?? globalThis.queueMicrotask;
-  if (typeof queueMicrotaskRef !== "function") {
+  const setTimeoutRef = options.setTimeout ?? globalThis.setTimeout;
+  if (typeof setTimeoutRef !== "function") {
     callback();
     return null;
   }
 
-  let cancelled = false;
-  queueMicrotaskRef(() => {
-    queueMicrotaskRef(() => {
-      if (!cancelled) callback();
-    });
-  });
+  const clearTimeoutRef = options.clearTimeout ?? globalThis.clearTimeout;
+  const timeout = setTimeoutRef(callback, 0);
+  timeout?.unref?.();
   return () => {
-    cancelled = true;
+    if (typeof clearTimeoutRef === "function") clearTimeoutRef(timeout);
   };
 }
 
