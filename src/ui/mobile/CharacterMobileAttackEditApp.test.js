@@ -5,6 +5,7 @@ import { createCharacter } from "../../domain/character/Character.js";
 import {
   bootstrapCharacterMobileAttackEditApp,
   injectMobileAttackEditControls,
+  mountCharacterMobileAttackEditApp,
 } from "./CharacterMobileAttackEditApp.js";
 
 const html = '<section data-card="attacks"><h2>Ataques</h2><dl><div data-attack-id="attack:sword"><dt>Ataque</dt><dd>Espada longa</dd></div></dl></section>';
@@ -160,6 +161,33 @@ function click(action, dataset = {}) {
   };
 }
 
+function countAttackEditors(root) {
+  return (root.innerHTML.match(/data-role="attack-inline-editor"/g) ?? []).length;
+}
+
+function postRenderLifecycleFixture() {
+  const enhancers = [];
+  return {
+    register(enhancer) {
+      enhancers.push(enhancer);
+      let active = true;
+      return () => {
+        if (!active) return false;
+        active = false;
+        const index = enhancers.indexOf(enhancer);
+        if (index >= 0) enhancers.splice(index, 1);
+        return index >= 0;
+      };
+    },
+    run(context) {
+      for (const enhancer of [...enhancers]) {
+        if (enhancers.includes(enhancer)) enhancer(context);
+      }
+      return Object.freeze({ executed: enhancers.length });
+    },
+  };
+}
+
 test("injects mobile attack inline editor in creation mode", () => {
   const creation = injectMobileAttackEditControls(html, character(), "creation");
 
@@ -244,6 +272,51 @@ test("edits existing mobile attacks through canonical update commands", async ()
   assert.equal(saved.character.attacks[0].reach, null);
   assert.equal(saved.character.attacks[0].range, "100/200");
   assert.equal(saved.character.attacks[0].notes, "Manter distância.\nLinha 2");
+});
+
+test("remounts attack editors after delegated renders without duplicating controls", () => {
+  const root = rootFixture();
+  const activeSession = Object.freeze({
+    id: "session-mobile-attack-remount",
+    character: character(),
+  });
+  const postRenderLifecycle = postRenderLifecycleFixture();
+  const renderCalls = [];
+  const syncCalls = [];
+  const app = Object.freeze({
+    get character() { return activeSession.character; },
+    session: activeSession,
+    get html() { return root.innerHTML; },
+    mode: "creation",
+    interactions: Object.freeze({ destroy() {} }),
+    modeSync: Object.freeze({ sync: () => syncCalls.push("sync") }),
+    ui: Object.freeze({ getState: () => Object.freeze({ busy: false }) }),
+    persistence: Object.freeze({ getActiveSession: () => activeSession }),
+    commands: Object.freeze({}),
+    repositories: Object.freeze({}),
+    runtime: Object.freeze({}),
+    postRenderLifecycle,
+    render(renderOptions = {}) {
+      renderCalls.push(renderOptions);
+      root.innerHTML = html;
+    },
+  });
+
+  root.innerHTML = html;
+  const mounted = mountCharacterMobileAttackEditApp(app, { root });
+
+  assert.equal(countAttackEditors(root), 1);
+  mounted.render();
+  assert.equal(countAttackEditors(root), 1);
+  mounted.render();
+  assert.equal(countAttackEditors(root), 1);
+  assert.deepEqual(renderCalls, [{}, {}]);
+  assert.equal(syncCalls.length, 3);
+
+  mounted.attackEdit.destroy();
+  root.innerHTML = html;
+  mounted.render();
+  assert.equal(countAttackEditors(root), 0);
 });
 
 test("keeps attack structural edit controls out of table mode", () => {
