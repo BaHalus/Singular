@@ -106,7 +106,7 @@ export function mountCharacterMobileAttackEditApp(app, options = {}) {
     }
   };
 
-  runPostRenderLifecycle(postRenderLifecycle, root, app);
+  mountAttackEditors(readPostRenderContext(root, app));
 
   const handleClick = event => {
     const actionTarget = findDataTarget(event?.target, "action");
@@ -231,13 +231,17 @@ function readAttackPatch(root, attackId) {
 }
 
 function runPostRenderLifecycle(postRenderLifecycle, root, app) {
+  postRenderLifecycle.run(readPostRenderContext(root, app));
+}
+
+function readPostRenderContext(root, app) {
   const session = app.persistence.getActiveSession();
-  postRenderLifecycle.run({
+  return {
     root,
     character: session.character,
     session,
     mode: app.mode,
-  });
+  };
 }
 
 function preservePostRenderLifecycle(app, postRenderLifecycle) {
