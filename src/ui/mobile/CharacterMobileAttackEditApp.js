@@ -1,5 +1,20 @@
 import {
-  bootstrapCharacterMobileLanguageCultureEditApp,
+  bootstrapCharacterMobileApp,
+} from "./CharacterMobileApp.js";
+import {
+  mountCharacterMobileLanguageCultureApp,
+} from "./CharacterMobileLanguageCultureApp.js";
+import {
+  mountCharacterMobileSecondaryNotesApp,
+} from "./CharacterMobileSecondaryNotesApp.js";
+import {
+  mountCharacterMobileTraitEditApp,
+} from "./CharacterMobileTraitEditApp.js";
+import {
+  mountCharacterMobileSkillTechniqueEditApp,
+} from "./CharacterMobileSkillTechniqueEditApp.js";
+import {
+  mountCharacterMobileLanguageCultureEditApp,
 } from "./CharacterMobileLanguageCultureEditApp.js";
 import {
   appendInlineEditorToDefinitionListItem,
@@ -17,9 +32,29 @@ import {
 
 export async function bootstrapCharacterMobileAttackEditApp(options = {}) {
   requirePlainObject(options, "Character mobile attack edit bootstrap options");
-  const app = await bootstrapCharacterMobileLanguageCultureEditApp(options);
-  const mounted = mountCharacterMobileAttackEditApp(app, options);
-  const previousDestroy = app.languageCultureEdit?.destroy;
+  const baseApp = await bootstrapCharacterMobileApp(options);
+  const postRenderLifecycle = requirePostRenderLifecycle(baseApp.postRenderLifecycle);
+  const languageCulture = mountCharacterMobileLanguageCultureApp(baseApp, options);
+  const secondaryNotes = mountCharacterMobileSecondaryNotesApp(
+    preservePostRenderLifecycle(languageCulture, postRenderLifecycle),
+    options,
+  );
+  const traitEdit = mountCharacterMobileTraitEditApp(
+    preservePostRenderLifecycle(secondaryNotes, postRenderLifecycle),
+    options,
+  );
+  const skillTechniqueEdit = mountCharacterMobileSkillTechniqueEditApp(
+    preservePostRenderLifecycle(traitEdit, postRenderLifecycle),
+    options,
+  );
+  const languageCultureEdit = mountCharacterMobileLanguageCultureEditApp(
+    preservePostRenderLifecycle(skillTechniqueEdit, postRenderLifecycle),
+    options,
+  );
+  const mounted = mountCharacterMobileAttackEditApp(
+    preservePostRenderLifecycle(languageCultureEdit, postRenderLifecycle),
+    options,
+  );
 
   return Object.freeze({
     get character() { return mounted.character; },
@@ -38,7 +73,11 @@ export async function bootstrapCharacterMobileAttackEditApp(options = {}) {
     attackEdit: Object.freeze({
       destroy() {
         mounted.attackEdit.destroy();
-        previousDestroy?.();
+        languageCultureEdit.languageCultureEdit.destroy();
+        skillTechniqueEdit.skillTechniqueEdit.destroy();
+        traitEdit.traitEdit.destroy();
+        secondaryNotes.secondaryNotes.destroy();
+        languageCulture.languageCulture.destroy();
       },
     }),
   });
@@ -60,7 +99,10 @@ export function mountCharacterMobileAttackEditApp(app, options = {}) {
   };
   const unregisterPostRender = postRenderLifecycle.register(mountAttackEditors);
 
-  const render = renderOptions => app.render(renderOptions);
+  const render = renderOptions => {
+    app.render(renderOptions);
+    runPostRenderLifecycle(postRenderLifecycle, root, app);
+  };
 
   injectCurrentAttackControls(root, {
     character: app.character,
@@ -188,6 +230,34 @@ function readAttackPatch(root, attackId) {
     range: normalizeOptionalText(readInputValue(root, `[data-role="attack-edit-range-${suffix}"]`)),
     notes: readInputValue(root, `[data-role="attack-edit-notes-${suffix}"]`),
   };
+}
+
+function runPostRenderLifecycle(postRenderLifecycle, root, app) {
+  const session = app.persistence.getActiveSession();
+  postRenderLifecycle.run({
+    root,
+    character: session.character,
+    session,
+    mode: app.mode,
+  });
+}
+
+function preservePostRenderLifecycle(app, postRenderLifecycle) {
+  return Object.freeze({
+    get character() { return app.character; },
+    get session() { return app.session; },
+    get html() { return app.html; },
+    get mode() { return app.mode; },
+    interactions: app.interactions,
+    modeSync: app.modeSync,
+    ui: app.ui,
+    persistence: app.persistence,
+    commands: app.commands,
+    repositories: app.repositories,
+    runtime: app.runtime,
+    postRenderLifecycle,
+    render: app.render,
+  });
 }
 
 function requirePostRenderLifecycle(postRenderLifecycle) {
