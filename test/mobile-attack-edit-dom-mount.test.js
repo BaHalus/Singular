@@ -26,6 +26,7 @@ test("attack edit mounts through explicit DOM nodes without observers or string 
 test("attack edit remounts editors after core attack rerenders", async () => {
   const root = createAttackRoot({ exposeAttackItem: true });
   const app = createAttackApp(root, { mode: "creation" });
+  const mounted = mountCharacterMobileAttackEditApp(app, { root });
 
   root.addEventListener("click", event => {
     if (event?.target?.dataset?.action !== "attack-add") return;
@@ -33,10 +34,10 @@ test("attack edit remounts editors after core attack rerenders", async () => {
     app.render();
   });
 
-  const mounted = mountCharacterMobileAttackEditApp(app, { root });
   assert.equal(root.attackItem.appendedHtml.length, 1);
 
   await root.dispatch("click", { target: { dataset: { action: "attack-add" } } });
+  await waitForDeferredRender();
 
   assert.equal(app.renderCount, 1);
   assert.equal(root.attackItem.appendedHtml.length, 1);
@@ -233,4 +234,8 @@ function renderBaseAttackSheet() {
     '<dl><div data-attack-id="attack-1"><dt>Corpo a corpo</dt><dd>Espada</dd></div></dl>',
     "</section>",
   ].join("");
+}
+
+function waitForDeferredRender() {
+  return new Promise(resolve => setTimeout(resolve, 0));
 }
