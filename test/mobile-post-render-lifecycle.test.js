@@ -36,6 +36,20 @@ test("mobile post-render lifecycle unregisters enhancers idempotently", () => {
   assert.deepEqual(calls, ["kept"]);
 });
 
+test("mobile post-render lifecycle unregisters duplicate callbacks by registration identity", () => {
+  const lifecycle = createCharacterMobilePostRenderLifecycle();
+  const calls = [];
+  const duplicate = () => calls.push("duplicate");
+
+  lifecycle.register(duplicate);
+  lifecycle.register(() => calls.push("middle"));
+  const unregisterDuplicate = lifecycle.register(duplicate);
+
+  assert.equal(unregisterDuplicate(), true);
+  assert.deepEqual(lifecycle.run(createContext()), { executed: 2 });
+  assert.deepEqual(calls, ["duplicate", "middle"]);
+});
+
 test("mobile post-render lifecycle continues after enhancer failure and aggregates errors", () => {
   const lifecycle = createCharacterMobilePostRenderLifecycle();
   const calls = [];
