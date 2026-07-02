@@ -104,11 +104,7 @@ export function mountCharacterMobileAttackEditApp(app, options = {}) {
     runPostRenderLifecycle(postRenderLifecycle, root, app);
   };
 
-  injectCurrentAttackControls(root, {
-    character: app.character,
-    mode: app.mode,
-    modeSync: app.modeSync,
-  });
+  runPostRenderLifecycle(postRenderLifecycle, root, app);
 
   const handleClick = event => {
     const actionTarget = findDataTarget(event?.target, "action");
@@ -255,6 +251,15 @@ function preservePostRenderLifecycle(app, postRenderLifecycle) {
     commands: app.commands,
     repositories: app.repositories,
     runtime: app.runtime,
+    languageCulture: app.languageCulture,
+    secondaryNotes: app.secondaryNotes,
+    traitEdit: app.traitEdit,
+    skillTechniqueEdit: app.skillTechniqueEdit,
+    languageCultureEdit: app.languageCultureEdit,
+    attackEdit: app.attackEdit,
+    equipmentEdit: app.equipmentEdit,
+    spellEdit: app.spellEdit,
+    powerEdit: app.powerEdit,
     postRenderLifecycle,
     render: app.render,
   });
@@ -266,6 +271,9 @@ function requirePostRenderLifecycle(postRenderLifecycle) {
   }
   if (typeof postRenderLifecycle.register !== "function") {
     throw new Error("Character mobile attack edit post-render lifecycle must register enhancers");
+  }
+  if (typeof postRenderLifecycle.run !== "function") {
+    throw new Error("Character mobile attack edit post-render lifecycle must run enhancers");
   }
   return postRenderLifecycle;
 }
