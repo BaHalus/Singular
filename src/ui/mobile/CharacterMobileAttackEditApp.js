@@ -33,6 +33,7 @@ export async function bootstrapCharacterMobileAttackEditApp(options = {}) {
     commands: mounted.commands,
     repositories: mounted.repositories,
     runtime: mounted.runtime,
+    postRenderLifecycle: mounted.postRenderLifecycle,
     render: mounted.render,
     attackEdit: Object.freeze({
       destroy() {
@@ -49,18 +50,16 @@ export function mountCharacterMobileAttackEditApp(app, options = {}) {
     "Character mobile attack edit bootstrap root was not found",
   );
 
+  const enhanceAttacks = context => {
+    injectCurrentAttackControls(context.root, app);
+  };
+  const unregisterPostRender = app.postRenderLifecycle?.register?.(enhanceAttacks) ?? null;
+
   const render = () => {
     app.render();
-    injectCurrentAttackControls(root, app);
   };
 
-  injectCurrentAttackControls(root, app);
-
-  const MutationObserverRef = options.MutationObserver ?? globalThis.MutationObserver;
-  const observer = typeof MutationObserverRef === "function"
-    ? new MutationObserverRef(() => injectCurrentAttackControls(root, app))
-    : null;
-  observer?.observe?.(root, { childList: true, subtree: true });
+  enhanceAttacks({ root });
 
   const handleClick = event => {
     const actionTarget = findDataTarget(event?.target, "action");
@@ -101,10 +100,11 @@ export function mountCharacterMobileAttackEditApp(app, options = {}) {
     commands: app.commands,
     repositories: app.repositories,
     runtime: app.runtime,
+    postRenderLifecycle: app.postRenderLifecycle,
     render,
     attackEdit: Object.freeze({
       destroy() {
-        observer?.disconnect?.();
+        unregisterPostRender?.();
         root.removeEventListener?.("click", handleClick);
       },
     }),
@@ -126,16 +126,8 @@ function injectCurrentAttackControls(root, app) {
     return;
   }
 
-  let allEditorsMounted = true;
   for (const attack of app.persistence.getActiveSession().character.attacks ?? []) {
-    allEditorsMounted = appendAttackInlineEditorNode(root, attack) && allEditorsMounted;
-  }
-  if (!allEditorsMounted) {
-    root.innerHTML = injectMobileAttackEditControls(
-      root.innerHTML,
-      app.persistence.getActiveSession().character,
-      app.mode,
-    );
+    appendAttackInlineEditorNode(root, attack);
   }
   app.modeSync.sync();
 }
