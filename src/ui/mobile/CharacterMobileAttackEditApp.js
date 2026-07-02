@@ -157,14 +157,8 @@ function scheduleAttackControlInjection(callback, options) {
     return options.deferAttackControlInjection(callback);
   }
 
-  if (typeof globalThis.setTimeout !== "function") {
-    callback();
-    return null;
-  }
-
-  const timer = globalThis.setTimeout(callback, 0);
-  timer?.unref?.();
-  return () => globalThis.clearTimeout?.(timer);
+  callback();
+  return null;
 }
 
 function clearPendingAttackControlInjections(pendingInjectionCancels) {
