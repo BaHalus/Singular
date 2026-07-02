@@ -80,8 +80,24 @@ function rootFixture() {
   const attributes = new Map();
   const listeners = new Map();
   const inputValues = new Map();
+  const attackEditors = [];
+  const documentRef = createTemplateDocument();
+  const attackItem = {
+    ownerDocument: documentRef,
+    querySelector(selector) {
+      if (selector === '[data-role="attack-inline-editor"][data-attack-id="attack:sword"]') {
+        return attackEditors.length > 0 ? {} : null;
+      }
+      return null;
+    },
+    append(...nodes) {
+      attackEditors.push(...nodes.map(String));
+    },
+  };
+
   return {
     innerHTML: "",
+    ownerDocument: documentRef,
     setAttribute(name, value) {
       attributes.set(name, value);
     },
@@ -98,10 +114,14 @@ function rootFixture() {
       listeners.set(type, entries.filter(entry => entry !== listener));
     },
     querySelector(selector) {
+      if (selector === '[data-attack-id="attack:sword"]') return attackItem;
       return { value: inputValues.get(selector) ?? "" };
     },
     querySelectorAll() {
       return [];
+    },
+    attackEditorHtml() {
+      return attackEditors.join("");
     },
     setInput(selector, value) {
       inputValues.set(selector, value);
@@ -110,6 +130,20 @@ function rootFixture() {
       for (const listener of listeners.get(type) ?? []) {
         await listener(event);
       }
+    },
+  };
+}
+
+function createTemplateDocument() {
+  return {
+    createElement(tagName) {
+      assert.equal(tagName, "template");
+      return {
+        content: { childNodes: [] },
+        set innerHTML(value) {
+          this.content.childNodes = [value];
+        },
+      };
     },
   };
 }
@@ -172,7 +206,7 @@ test("edits existing mobile attacks through canonical update commands", async ()
     mode: "creation",
   });
 
-  assert.match(root.innerHTML, /data-action="attack-update"/);
+  assert.match(root.attackEditorHtml(), /data-action="attack-update"/);
 
   root.setInput('[data-role="attack-edit-name-attack:sword"]', "Arco defensivo");
   root.setInput('[data-role="attack-edit-category-attack:sword"]', "ranged");

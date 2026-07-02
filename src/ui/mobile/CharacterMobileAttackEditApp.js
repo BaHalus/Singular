@@ -15,6 +15,14 @@ import {
   resolveMobileRoot,
 } from "./MobileInlineEditHelpers.js";
 
+const ATTACK_CORE_RERENDER_ACTIONS = Object.freeze([
+  "attack-add",
+  "attack-remove",
+  "attack-reorder",
+  "mode-creation",
+  "mode-table",
+]);
+
 export async function bootstrapCharacterMobileAttackEditApp(options = {}) {
   requirePlainObject(options, "Character mobile attack edit bootstrap options");
   const app = await bootstrapCharacterMobileLanguageCultureEditApp(options);
@@ -56,15 +64,15 @@ export function mountCharacterMobileAttackEditApp(app, options = {}) {
 
   injectCurrentAttackControls(root, app);
 
-  const MutationObserverRef = options.MutationObserver ?? globalThis.MutationObserver;
-  const observer = typeof MutationObserverRef === "function"
-    ? new MutationObserverRef(() => injectCurrentAttackControls(root, app))
-    : null;
-  observer?.observe?.(root, { childList: true, subtree: true });
-
   const handleClick = event => {
     const actionTarget = findDataTarget(event?.target, "action");
     const action = actionTarget === null ? null : readDataset(actionTarget, "action");
+
+    if (ATTACK_CORE_RERENDER_ACTIONS.includes(action)) {
+      deferAttackControlInjection(root, app);
+      return null;
+    }
+
     if (action !== "attack-update") return null;
     event.preventDefault?.();
 
@@ -104,7 +112,6 @@ export function mountCharacterMobileAttackEditApp(app, options = {}) {
     render,
     attackEdit: Object.freeze({
       destroy() {
-        observer?.disconnect?.();
         root.removeEventListener?.("click", handleClick);
       },
     }),
@@ -126,18 +133,18 @@ function injectCurrentAttackControls(root, app) {
     return;
   }
 
-  let allEditorsMounted = true;
   for (const attack of app.persistence.getActiveSession().character.attacks ?? []) {
-    allEditorsMounted = appendAttackInlineEditorNode(root, attack) && allEditorsMounted;
-  }
-  if (!allEditorsMounted) {
-    root.innerHTML = injectMobileAttackEditControls(
-      root.innerHTML,
-      app.persistence.getActiveSession().character,
-      app.mode,
-    );
+    appendAttackInlineEditorNode(root, attack);
   }
   app.modeSync.sync();
+}
+
+function deferAttackControlInjection(root, app) {
+  if (typeof globalThis.setTimeout === "function") {
+    globalThis.setTimeout(() => injectCurrentAttackControls(root, app), 0);
+    return;
+  }
+  injectCurrentAttackControls(root, app);
 }
 
 function appendAttackInlineEditorNode(root, attack) {
