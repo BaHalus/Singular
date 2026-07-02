@@ -1,4 +1,4 @@
-import { bootstrapCharacterMobileApp } from "./CharacterMobileApp.js";
+import { bootstrapCharacterMobileApp, getCharacterMobileRootSelector } from "./CharacterMobileApp.js";
 import { mountCharacterMobileLanguageCultureApp } from "./CharacterMobileLanguageCultureApp.js";
 import { mountCharacterMobileSecondaryNotesApp } from "./CharacterMobileSecondaryNotesApp.js";
 import { mountCharacterMobileTraitEditApp } from "./CharacterMobileTraitEditApp.js";
@@ -8,6 +8,7 @@ import { mountCharacterMobileAttackEditApp } from "./CharacterMobileAttackEditAp
 import { mountCharacterMobileEquipmentEditApp } from "./CharacterMobileEquipmentEditApp.js";
 import { mountCharacterMobileSpellEditApp } from "./CharacterMobileSpellEditApp.js";
 import { mountCharacterMobilePowerEditApp } from "./CharacterMobilePowerEditApp.js";
+import { createCharacterMobilePostRenderLifecycle } from "./CharacterMobilePostRenderLifecycle.js";
 
 export const CHARACTER_MOBILE_COMPOSITION_MODULES = Object.freeze([
   Object.freeze({
@@ -86,7 +87,26 @@ export function mountCharacterMobileCompositionRoot(
   const featureHandles = Object.fromEntries(
     mountedModules.map(module => [module.destroyKey, module.handle]),
   );
+  const postRenderLifecycle = app.postRenderLifecycle ?? createCharacterMobilePostRenderLifecycle();
   let destroyed = false;
+
+  const runPostRenderLifecycle = () => {
+    if (destroyed) return;
+    const root = resolveOptionalMobileRoot(app, options);
+    if (root === null) return;
+    postRenderLifecycle.run({
+      root,
+      character: app.character,
+      session: app.session,
+      mode: app.mode,
+    });
+  };
+
+  const render = () => {
+    const result = mounted.render();
+    runPostRenderLifecycle();
+    return result;
+  };
 
   const destroyComposition = () => {
     if (destroyed) return;
@@ -96,7 +116,7 @@ export function mountCharacterMobileCompositionRoot(
     }
     app.interactions?.destroy?.();
     app.modeSync?.destroy?.();
-    app.postRenderLifecycle?.destroy?.();
+    postRenderLifecycle.destroy();
   };
 
   return Object.freeze({
@@ -119,8 +139,8 @@ export function mountCharacterMobileCompositionRoot(
     commands: app.commands,
     repositories: app.repositories,
     runtime: app.runtime,
-    postRenderLifecycle: app.postRenderLifecycle,
-    render: mounted.render,
+    postRenderLifecycle,
+    render,
     ...featureHandles,
     powerEdit: Object.freeze({
       ...featureHandles.powerEdit,
@@ -130,4 +150,12 @@ export function mountCharacterMobileCompositionRoot(
       destroy: destroyComposition,
     }),
   });
+}
+
+function resolveOptionalMobileRoot(app, options) {
+  if (options.root !== undefined) return options.root;
+  if (app.root !== undefined) return app.root;
+  const documentRef = options.document ?? globalThis.document;
+  if (documentRef === undefined || documentRef === null) return null;
+  return documentRef.querySelector?.(getCharacterMobileRootSelector()) ?? null;
 }
