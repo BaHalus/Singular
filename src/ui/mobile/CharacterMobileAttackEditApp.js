@@ -99,9 +99,11 @@ export function mountCharacterMobileAttackEditApp(app, options = {}) {
   };
   const unregisterPostRender = postRenderLifecycle.register(mountAttackEditors);
 
-  const render = renderOptions => {
+  const render = (renderOptions = {}) => {
     app.render(renderOptions);
-    runPostRenderLifecycle(postRenderLifecycle, root, app);
+    if (!renderOptions.skipPostRenderLifecycle) {
+      runPostRenderLifecycle(postRenderLifecycle, root, app);
+    }
   };
 
   runPostRenderLifecycle(postRenderLifecycle, root, app);
