@@ -33,6 +33,7 @@ export async function bootstrapCharacterMobileAttackEditApp(options = {}) {
     commands: mounted.commands,
     repositories: mounted.repositories,
     runtime: mounted.runtime,
+    postRenderLifecycle: mounted.postRenderLifecycle,
     render: mounted.render,
     attackEdit: Object.freeze({
       destroy() {
@@ -48,19 +49,24 @@ export function mountCharacterMobileAttackEditApp(app, options = {}) {
     options.document,
     "Character mobile attack edit bootstrap root was not found",
   );
+  const postRenderLifecycle = requirePostRenderLifecycle(app.postRenderLifecycle);
 
-  const render = () => {
-    app.render();
-    injectCurrentAttackControls(root, app);
+  const mountAttackEditors = context => {
+    injectCurrentAttackControls(context.root, {
+      character: context.character,
+      mode: context.mode,
+      modeSync: app.modeSync,
+    });
   };
+  const unregisterPostRender = postRenderLifecycle.register(mountAttackEditors);
 
-  injectCurrentAttackControls(root, app);
+  const render = renderOptions => app.render(renderOptions);
 
-  const MutationObserverRef = options.MutationObserver ?? globalThis.MutationObserver;
-  const observer = typeof MutationObserverRef === "function"
-    ? new MutationObserverRef(() => injectCurrentAttackControls(root, app))
-    : null;
-  observer?.observe?.(root, { childList: true, subtree: true });
+  injectCurrentAttackControls(root, {
+    character: app.character,
+    mode: app.mode,
+    modeSync: app.modeSync,
+  });
 
   const handleClick = event => {
     const actionTarget = findDataTarget(event?.target, "action");
@@ -101,10 +107,11 @@ export function mountCharacterMobileAttackEditApp(app, options = {}) {
     commands: app.commands,
     repositories: app.repositories,
     runtime: app.runtime,
+    postRenderLifecycle,
     render,
     attackEdit: Object.freeze({
       destroy() {
-        observer?.disconnect?.();
+        unregisterPostRender();
         root.removeEventListener?.("click", handleClick);
       },
     }),
@@ -120,24 +127,16 @@ export function injectMobileAttackEditControls(html, character, mode) {
   return nextHtml;
 }
 
-function injectCurrentAttackControls(root, app) {
-  if (app.mode !== "creation") {
-    app.modeSync.sync();
+function injectCurrentAttackControls(root, { character, mode, modeSync }) {
+  if (mode !== "creation") {
+    modeSync.sync();
     return;
   }
 
-  let allEditorsMounted = true;
-  for (const attack of app.persistence.getActiveSession().character.attacks ?? []) {
-    allEditorsMounted = appendAttackInlineEditorNode(root, attack) && allEditorsMounted;
+  for (const attack of character.attacks ?? []) {
+    appendAttackInlineEditorNode(root, attack);
   }
-  if (!allEditorsMounted) {
-    root.innerHTML = injectMobileAttackEditControls(
-      root.innerHTML,
-      app.persistence.getActiveSession().character,
-      app.mode,
-    );
-  }
-  app.modeSync.sync();
+  modeSync.sync();
 }
 
 function appendAttackInlineEditorNode(root, attack) {
@@ -189,4 +188,14 @@ function readAttackPatch(root, attackId) {
     range: normalizeOptionalText(readInputValue(root, `[data-role="attack-edit-range-${suffix}"]`)),
     notes: readInputValue(root, `[data-role="attack-edit-notes-${suffix}"]`),
   };
+}
+
+function requirePostRenderLifecycle(postRenderLifecycle) {
+  if (postRenderLifecycle === null || typeof postRenderLifecycle !== "object") {
+    throw new Error("Character mobile attack edit requires a post-render lifecycle");
+  }
+  if (typeof postRenderLifecycle.register !== "function") {
+    throw new Error("Character mobile attack edit post-render lifecycle must register enhancers");
+  }
+  return postRenderLifecycle;
 }
