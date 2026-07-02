@@ -4,7 +4,6 @@ import assert from "node:assert/strict";
 import { createCharacter } from "../../domain/character/Character.js";
 import {
   bootstrapCharacterMobileAttackEditApp,
-  injectMobileAttackEditControls,
   mountCharacterMobileAttackEditApp,
 } from "./CharacterMobileAttackEditApp.js";
 
@@ -166,61 +165,100 @@ function countAttackEditors(root) {
 }
 
 function postRenderLifecycleFixture() {
-  const enhancers = [];
+  const entries = [];
   return {
     register(enhancer) {
-      enhancers.push(enhancer);
-      let active = true;
+      const entry = { enhancer, active: true };
+      entries.push(entry);
       return () => {
-        if (!active) return false;
-        active = false;
-        const index = enhancers.indexOf(enhancer);
-        if (index >= 0) enhancers.splice(index, 1);
+        if (!entry.active) return false;
+        entry.active = false;
+        const index = entries.indexOf(entry);
+        if (index >= 0) entries.splice(index, 1);
         return index >= 0;
       };
     },
     run(context) {
-      for (const enhancer of [...enhancers]) {
-        if (enhancers.includes(enhancer)) enhancer(context);
+      let executed = 0;
+      for (const entry of [...entries]) {
+        if (!entry.active || !entries.includes(entry)) continue;
+        entry.enhancer(context);
+        executed += 1;
       }
-      return Object.freeze({ executed: enhancers.length });
+      return Object.freeze({ executed });
     },
   };
 }
 
-test("injects mobile attack inline editor in creation mode", () => {
-  const creation = injectMobileAttackEditControls(html, character(), "creation");
+function createMountedAttackApp({ mode = "creation", session = null, render = null } = {}) {
+  const root = rootFixture();
+  const activeSession = session ?? Object.freeze({
+    id: "session-mobile-attack-remount",
+    character: character(),
+  });
+  const postRenderLifecycle = postRenderLifecycleFixture();
+  const syncCalls = [];
+  const renderCalls = [];
+  const app = Object.freeze({
+    get character() { return activeSession.character; },
+    session: activeSession,
+    get html() { return root.innerHTML; },
+    mode,
+    interactions: Object.freeze({ destroy() {} }),
+    modeSync: Object.freeze({ sync: () => syncCalls.push("sync") }),
+    ui: Object.freeze({ getState: () => Object.freeze({ busy: false }) }),
+    persistence: Object.freeze({ getActiveSession: () => activeSession }),
+    commands: Object.freeze({}),
+    repositories: Object.freeze({}),
+    runtime: Object.freeze({}),
+    postRenderLifecycle,
+    render(renderOptions = {}) {
+      renderCalls.push(renderOptions);
+      if (render !== null) {
+        render(root, renderOptions);
+      } else {
+        root.innerHTML = html;
+      }
+    },
+  });
+  root.innerHTML = html;
+  const mounted = mountCharacterMobileAttackEditApp(app, { root });
+  return { root, mounted, syncCalls, renderCalls };
+}
 
-  assert.match(creation, /data-role="attack-inline-editor"/);
-  assert.match(creation, /data-action="attack-update"/);
-  assert.match(creation, /data-role="attack-edit-name-attack:sword"/);
-  assert.match(creation, /data-role="attack-edit-damage-value-attack:sword"/);
-  assert.match(creation, /usar com escudo/);
+test("mounts mobile attack inline editor through the post-render lifecycle in creation mode", () => {
+  const { root } = createMountedAttackApp();
+
+  assert.match(root.innerHTML, /data-role="attack-inline-editor"/);
+  assert.match(root.innerHTML, /data-action="attack-update"/);
+  assert.match(root.innerHTML, /data-role="attack-edit-name-attack:sword"/);
+  assert.match(root.innerHTML, /data-role="attack-edit-damage-value-attack:sword"/);
+  assert.match(root.innerHTML, /usar com escudo/);
 });
 
-test("renders attack notes as textareas for multiline input", () => {
+test("renders attack notes as textareas for multiline DOM input", () => {
   const source = character();
   source.attacks[0].notes = `Linha 1
 Linha 2 com & < > "aspas"`;
+  const session = Object.freeze({ id: "session-mobile-attack-notes", character: source });
+  const { root } = createMountedAttackApp({ session });
 
-  const creation = injectMobileAttackEditControls(html, source, "creation");
-
-  assert.ok(creation.includes(
+  assert.ok(root.innerHTML.includes(
     `<textarea data-role="attack-edit-notes-attack:sword" autocomplete="off">
 Linha 1
 Linha 2 com &amp; &lt; &gt; "aspas"</textarea>`,
   ));
-  assert.doesNotMatch(creation, /data-role="attack-edit-notes-attack:sword" value=/);
+  assert.doesNotMatch(root.innerHTML, /data-role="attack-edit-notes-attack:sword" value=/);
 });
 
 test("preserves leading blank lines in attack note textareas", () => {
   const source = character();
   source.attacks[0].notes = `
 Linha inicial de ataque`;
+  const session = Object.freeze({ id: "session-mobile-attack-leading-notes", character: source });
+  const { root } = createMountedAttackApp({ session });
 
-  const creation = injectMobileAttackEditControls(html, source, "creation");
-
-  assert.ok(creation.includes(
+  assert.ok(root.innerHTML.includes(
     `<textarea data-role="attack-edit-notes-attack:sword" autocomplete="off">
 
 Linha inicial de ataque</textarea>`,
@@ -305,35 +343,7 @@ test("mounts attack editors with session fallback when persistence has no active
 });
 
 test("remounts attack editors after delegated renders without duplicating controls", () => {
-  const root = rootFixture();
-  const activeSession = Object.freeze({
-    id: "session-mobile-attack-remount",
-    character: character(),
-  });
-  const postRenderLifecycle = postRenderLifecycleFixture();
-  const renderCalls = [];
-  const syncCalls = [];
-  const app = Object.freeze({
-    get character() { return activeSession.character; },
-    session: activeSession,
-    get html() { return root.innerHTML; },
-    mode: "creation",
-    interactions: Object.freeze({ destroy() {} }),
-    modeSync: Object.freeze({ sync: () => syncCalls.push("sync") }),
-    ui: Object.freeze({ getState: () => Object.freeze({ busy: false }) }),
-    persistence: Object.freeze({ getActiveSession: () => activeSession }),
-    commands: Object.freeze({}),
-    repositories: Object.freeze({}),
-    runtime: Object.freeze({}),
-    postRenderLifecycle,
-    render(renderOptions = {}) {
-      renderCalls.push(renderOptions);
-      root.innerHTML = html;
-    },
-  });
-
-  root.innerHTML = html;
-  const mounted = mountCharacterMobileAttackEditApp(app, { root });
+  const { root, mounted, renderCalls, syncCalls } = createMountedAttackApp();
 
   assert.equal(countAttackEditors(root), 1);
   mounted.render();
@@ -349,10 +359,37 @@ test("remounts attack editors after delegated renders without duplicating contro
   assert.equal(countAttackEditors(root), 0);
 });
 
-test("keeps attack structural edit controls out of table mode", () => {
-  const table = injectMobileAttackEditControls(html, character(), "table");
+test("remounts attack editors after S4 and persistence rerender sources", () => {
+  const rerenderSources = [
+    "attack-update",
+    "trait-edit",
+    "skill-technique-edit",
+    "language-culture-edit",
+    "equipment-edit",
+    "persistence-save",
+    "mode-creation",
+    "mode-table",
+  ];
 
-  assert.doesNotMatch(table, /data-role="attack-inline-editor"/);
-  assert.doesNotMatch(table, /data-action="attack-update"/);
-  assert.match(table, /Espada longa/);
+  for (const source of rerenderSources) {
+    const { root, mounted } = createMountedAttackApp();
+    root.innerHTML = html;
+    mounted.render({ source });
+    assert.equal(countAttackEditors(root), 1, source);
+    mounted.render({ source });
+    assert.equal(countAttackEditors(root), 1, `${source} duplicate guard`);
+    mounted.attackEdit.destroy();
+  }
+});
+
+test("keeps attack structural edit controls out of table mode", () => {
+  const { root, mounted } = createMountedAttackApp({ mode: "table" });
+
+  assert.doesNotMatch(root.innerHTML, /data-role="attack-inline-editor"/);
+  assert.doesNotMatch(root.innerHTML, /data-action="attack-update"/);
+  assert.match(root.innerHTML, /Espada longa/);
+
+  root.innerHTML = html;
+  mounted.render({ source: "mode-table" });
+  assert.equal(countAttackEditors(root), 0);
 });
