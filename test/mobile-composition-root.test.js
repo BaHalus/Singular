@@ -35,6 +35,29 @@ test("mobile composition root exposes a single executable bootstrap and explicit
   assert.equal(typeof mountCharacterMobileCompositionRoot, "function");
 });
 
+test("mobile composition root exposes post-render lifecycle to modules during mount", () => {
+  const lifecycle = Object.freeze({ run() {}, destroy() {} });
+  const app = createCompositionApp({ postRenderLifecycle: lifecycle });
+  let mountedLifecycle = null;
+
+  const composition = mountCharacterMobileCompositionRoot(app, {}, [
+    Object.freeze({
+      name: "feature",
+      destroyKey: "featureHandle",
+      mount: mounted => {
+        mountedLifecycle = mounted.postRenderLifecycle;
+        return Object.freeze({
+          ...mounted,
+          featureHandle: Object.freeze({ destroy() {} }),
+        });
+      },
+    }),
+  ]);
+
+  assert.equal(mountedLifecycle, lifecycle);
+  assert.equal(composition.postRenderLifecycle, lifecycle);
+});
+
 test("mobile composition root destroys feature modules in reverse order before app handles", () => {
   const calls = [];
   const app = Object.freeze({
@@ -236,3 +259,21 @@ test("mobile composition root does not install post-persistence listener or sche
 
   assert.deepEqual(calls, []);
 });
+
+function createCompositionApp(overrides = {}) {
+  return Object.freeze({
+    character: { name: "Test" },
+    session: { id: "session" },
+    html: "base-html",
+    mode: "creation",
+    interactions: Object.freeze({ destroy() {} }),
+    modeSync: Object.freeze({ destroy() {} }),
+    ui: Object.freeze({}),
+    persistence: Object.freeze({}),
+    commands: Object.freeze({}),
+    repositories: Object.freeze({}),
+    runtime: Object.freeze({}),
+    render() {},
+    ...overrides,
+  });
+}
