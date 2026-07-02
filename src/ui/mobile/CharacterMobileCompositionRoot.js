@@ -9,16 +9,6 @@ import { mountCharacterMobileEquipmentEditApp } from "./CharacterMobileEquipment
 import { mountCharacterMobileSpellEditApp } from "./CharacterMobileSpellEditApp.js";
 import { mountCharacterMobilePowerEditApp } from "./CharacterMobilePowerEditApp.js";
 
-const MOBILE_ROOT_SELECTOR = "[data-singular-mobile-root]";
-const PERSISTENCE_RENDER_ACTIONS = Object.freeze([
-  "persistence-save",
-  "persistence-refresh",
-  "persistence-open",
-  "persistence-remove",
-  "persistence-export",
-  "persistence-import",
-]);
-
 export const CHARACTER_MOBILE_COMPOSITION_MODULES = Object.freeze([
   Object.freeze({
     name: "language-culture",
@@ -97,25 +87,16 @@ export function mountCharacterMobileCompositionRoot(
     mountedModules.map(module => [module.destroyKey, module.handle]),
   );
   let destroyed = false;
-  const root = resolveOptionalMobileRoot(options);
-  const schedulePostPersistenceRender = createPostPersistenceRenderScheduler(options);
-  const handlePersistenceCompositionRender = event => {
-    if (!isPersistenceRenderAction(readEventAction(event))) return;
-    schedulePostPersistenceRender(() => {
-      if (!destroyed) mounted.render();
-    });
-  };
-  root?.addEventListener?.("click", handlePersistenceCompositionRender);
 
   const destroyComposition = () => {
     if (destroyed) return;
     destroyed = true;
-    root?.removeEventListener?.("click", handlePersistenceCompositionRender);
     for (const module of [...mountedModules].reverse()) {
       module.handle.destroy();
     }
     app.interactions?.destroy?.();
     app.modeSync?.destroy?.();
+    app.postRenderLifecycle?.destroy?.();
   };
 
   return Object.freeze({
@@ -138,6 +119,7 @@ export function mountCharacterMobileCompositionRoot(
     commands: app.commands,
     repositories: app.repositories,
     runtime: app.runtime,
+    postRenderLifecycle: app.postRenderLifecycle,
     render: mounted.render,
     ...featureHandles,
     powerEdit: Object.freeze({
@@ -148,45 +130,4 @@ export function mountCharacterMobileCompositionRoot(
       destroy: destroyComposition,
     }),
   });
-}
-
-function resolveOptionalMobileRoot(options) {
-  if (options.root !== undefined) return options.root;
-  const documentRef = options.document ?? globalThis.document;
-  if (documentRef === undefined || documentRef === null) return null;
-  return documentRef.querySelector?.(MOBILE_ROOT_SELECTOR) ?? null;
-}
-
-function createPostPersistenceRenderScheduler(options) {
-  if (options.schedulePostPersistenceRender !== undefined) {
-    if (typeof options.schedulePostPersistenceRender !== "function") {
-      throw new Error("Mobile composition post-persistence render scheduler must be a function");
-    }
-    return options.schedulePostPersistenceRender;
-  }
-  return task => globalThis.setTimeout(task, 0);
-}
-
-function readEventAction(event) {
-  const actionTarget = findDataTarget(event?.target, "action");
-  return actionTarget === null ? null : readDataset(actionTarget, "action");
-}
-
-function isPersistenceRenderAction(action) {
-  return PERSISTENCE_RENDER_ACTIONS.includes(action);
-}
-
-function findDataTarget(target, key) {
-  let current = target ?? null;
-  while (current !== null) {
-    if (readDataset(current, key) !== null) return current;
-    current = current.parentElement ?? null;
-  }
-  return null;
-}
-
-function readDataset(target, key) {
-  if (!target || typeof target !== "object") return null;
-  const value = target.dataset?.[key];
-  return typeof value === "string" && value !== "" ? value : null;
 }
