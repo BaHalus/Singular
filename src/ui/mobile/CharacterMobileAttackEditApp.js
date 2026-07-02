@@ -164,7 +164,9 @@ function scheduleDeferredAttackControlInjection(callback, options) {
 
   let cancelled = false;
   globalThis.queueMicrotask(() => {
-    if (!cancelled) callback();
+    globalThis.queueMicrotask(() => {
+      if (!cancelled) callback();
+    });
   });
   return () => {
     cancelled = true;
