@@ -90,16 +90,18 @@ export function mountCharacterMobileCompositionRoot(
   );
   let destroyed = false;
 
+  const readLifecycleContext = root => ({
+    root,
+    character: app.character,
+    session: app.session,
+    mode: app.mode,
+  });
+
   const runPostRenderLifecycle = () => {
     if (destroyed) return;
     const root = resolveOptionalMobileRoot(mounted, app, options);
     if (root === null) return;
-    postRenderLifecycle.run({
-      root,
-      character: mounted.character,
-      session: mounted.session,
-      mode: mounted.mode,
-    });
+    postRenderLifecycle.run(readLifecycleContext(root));
   };
 
   const render = () => {
@@ -121,16 +123,16 @@ export function mountCharacterMobileCompositionRoot(
 
   return Object.freeze({
     get character() {
-      return mounted.character;
+      return app.character;
     },
     get session() {
-      return mounted.session;
+      return app.session;
     },
     get html() {
       return app.html;
     },
     get mode() {
-      return mounted.mode;
+      return app.mode;
     },
     interactions: app.interactions,
     modeSync: app.modeSync,
