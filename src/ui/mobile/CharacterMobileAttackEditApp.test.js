@@ -80,8 +80,9 @@ function rootFixture() {
   const attributes = new Map();
   const listeners = new Map();
   const inputValues = new Map();
-  return {
+  const root = {
     innerHTML: "",
+    ownerDocument: createDocumentFixture(),
     setAttribute(name, value) {
       attributes.set(name, value);
     },
@@ -98,6 +99,10 @@ function rootFixture() {
       listeners.set(type, entries.filter(entry => entry !== listener));
     },
     querySelector(selector) {
+      const attackId = readAttackIdSelector(selector);
+      if (attackId !== null && root.innerHTML.includes(`data-attack-id="${attackId}"`)) {
+        return createAttackItemFixture(root, attackId);
+      }
       return { value: inputValues.get(selector) ?? "" };
     },
     querySelectorAll() {
@@ -112,6 +117,40 @@ function rootFixture() {
       }
     },
   };
+  return root;
+}
+
+function createDocumentFixture() {
+  return {
+    createElement(tagName) {
+      if (tagName !== "template") return null;
+      return {
+        content: { childNodes: [] },
+        set innerHTML(value) {
+          this.content.childNodes = [String(value)];
+        },
+      };
+    },
+  };
+}
+
+function createAttackItemFixture(root, attackId) {
+  return {
+    ownerDocument: root.ownerDocument,
+    querySelector(selector) {
+      return selector.includes('data-role="attack-inline-editor"') && root.innerHTML.includes(`data-role="attack-inline-editor" data-attack-id="${attackId}"`)
+        ? {}
+        : null;
+    },
+    append(...nodes) {
+      root.innerHTML = `${root.innerHTML}${nodes.join("")}`;
+    },
+  };
+}
+
+function readAttackIdSelector(selector) {
+  const match = /^\[data-attack-id="(.+)"\]$/.exec(selector);
+  return match === null ? null : match[1];
 }
 
 function click(action, dataset = {}) {
