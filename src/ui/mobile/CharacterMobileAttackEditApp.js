@@ -140,9 +140,6 @@ function injectCurrentAttackControls(root, app) {
 }
 
 function deferAttackControlInjection(root, app) {
-  if (typeof globalThis.queueMicrotask === "function") {
-    globalThis.queueMicrotask(() => injectCurrentAttackControls(root, app));
-  }
   if (typeof globalThis.setTimeout === "function") {
     globalThis.setTimeout(() => injectCurrentAttackControls(root, app), 0);
     return;
