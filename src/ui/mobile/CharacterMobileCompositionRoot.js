@@ -88,7 +88,7 @@ export function mountCharacterMobileCompositionRoot(
     : null;
 
   for (const module of modules) {
-    mounted = module.mount(mounted, options);
+    mounted = exposePostRenderLifecycle(module.mount(mounted, options), postRenderLifecycle);
     const handle = mounted[module.destroyKey];
     if (typeof handle?.destroy !== "function") {
       unregisterComposedSurface?.();
