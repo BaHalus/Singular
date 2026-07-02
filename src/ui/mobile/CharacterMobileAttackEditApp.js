@@ -168,9 +168,12 @@ function injectCurrentAttackControls(root, app) {
 }
 
 function shouldRemountAttackControlsAfterClick(target, action) {
-  return MOBILE_CORE_RERENDER_ACTIONS.includes(action) ||
+  return (
+    (action !== null && action !== "attack-update") ||
+    MOBILE_CORE_RERENDER_ACTIONS.includes(action) ||
     findDatasetPairTarget(target, "attributeKey", "attributeAdjust") !== null ||
-    findDatasetPairTarget(target, "poolKey", "poolAdjust") !== null;
+    findDatasetPairTarget(target, "poolKey", "poolAdjust") !== null
+  );
 }
 
 function findDatasetPairTarget(target, firstKey, secondKey) {
