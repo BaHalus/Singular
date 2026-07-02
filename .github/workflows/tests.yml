@@ -21,7 +21,7 @@ jobs:
 
     steps:
       - name: Checkout
-        run: git checkout -- .
+        uses: actions/checkout@v4.2.2
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
