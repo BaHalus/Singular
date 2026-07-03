@@ -137,7 +137,7 @@ export function mountCharacterMobileCompositionRoot(
     }
     app.interactions?.destroy?.();
     app.modeSync?.destroy?.();
-    postRenderLifecycle.destroy();
+    postRenderLifecycle.destroy?.();
   };
 
   return Object.freeze({
