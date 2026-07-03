@@ -98,9 +98,9 @@ function rootFixture() {
       listeners.set(type, entries.filter(entry => entry !== listener));
     },
     querySelector(selector) {
-      const canonicalId = readCanonicalIdSelector(selector);
-      if (canonicalId !== null && root.innerHTML.includes(`data-canonical-id="${canonicalId}"`)) {
-        return createDefinitionListItemFixture(root, canonicalId);
+      const target = readDefinitionListTargetSelector(selector);
+      if (target !== null && root.innerHTML.includes(renderDefinitionListMarker(target))) {
+        return createDefinitionListItemFixture(root, target);
       }
       return { value: inputValues.get(selector) ?? "" };
     },
@@ -136,14 +136,14 @@ function createDocumentFixture() {
   };
 }
 
-function createDefinitionListItemFixture(root, canonicalId) {
+function createDefinitionListItemFixture(root, target) {
   return {
     ownerDocument: root.ownerDocument,
     querySelector(selector) {
       const hasLanguageEditor = selector.includes('data-role="language-inline-editor"')
-        && root.innerHTML.includes(`data-role="language-inline-editor" data-canonical-id="${canonicalId}"`);
+        && root.innerHTML.includes(`data-role="language-inline-editor" data-canonical-id="${target.canonicalId}"`);
       const hasFamiliarityEditor = selector.includes('data-role="familiarity-inline-editor"')
-        && root.innerHTML.includes(`data-role="familiarity-inline-editor" data-canonical-id="${canonicalId}"`);
+        && root.innerHTML.includes(`data-role="familiarity-inline-editor" data-canonical-id="${target.canonicalId}"`);
       return hasLanguageEditor || hasFamiliarityEditor ? {} : null;
     },
     append(...nodes) {
@@ -152,9 +152,17 @@ function createDefinitionListItemFixture(root, canonicalId) {
   };
 }
 
-function readCanonicalIdSelector(selector) {
-  const match = /^\[data-canonical-id="(.+)"\]$/.exec(selector);
-  return match === null ? null : match[1];
+function readDefinitionListTargetSelector(selector) {
+  const scoped = /^\[data-entry-kind="(.+)"\]\[data-canonical-id="(.+)"\]$/.exec(selector);
+  if (scoped !== null) return { entryKind: scoped[1], canonicalId: scoped[2] };
+  const unscoped = /^\[data-canonical-id="(.+)"\]$/.exec(selector);
+  return unscoped === null ? null : { entryKind: null, canonicalId: unscoped[1] };
+}
+
+function renderDefinitionListMarker({ entryKind, canonicalId }) {
+  return entryKind === null
+    ? `data-canonical-id="${canonicalId}"`
+    : `data-entry-kind="${entryKind}" data-canonical-id="${canonicalId}"`;
 }
 
 function click(action, dataset = {}) {
