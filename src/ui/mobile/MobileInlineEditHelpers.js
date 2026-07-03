@@ -57,8 +57,7 @@ export function appendInlineEditorToDefinitionListItem(html, {
   entryKind,
 }) {
   const id = escapeAttribute(entityId);
-  const marker = renderDefinitionListItemMarker({ markerAttribute, id, entryKind });
-  const markerIndex = html.indexOf(marker);
+  const markerIndex = findDefinitionListItemMarkerIndex(html, { markerAttribute, id, entryKind });
   if (markerIndex < 0) return html;
 
   const ddEnd = html.indexOf("</dd>", markerIndex);
@@ -97,11 +96,26 @@ export function appendInlineEditorToDefinitionListItemNode(root, {
   return true;
 }
 
-function renderDefinitionListItemMarker({ markerAttribute, id, entryKind }) {
+function findDefinitionListItemMarkerIndex(html, { markerAttribute, id, entryKind }) {
   const canonicalMarker = `${markerAttribute}="${id}"`;
-  return entryKind === undefined
-    ? canonicalMarker
-    : `data-entry-kind="${escapeAttribute(entryKind)}" ${canonicalMarker}`;
+  let markerIndex = html.indexOf(canonicalMarker);
+  while (markerIndex >= 0) {
+    if (entryKind === undefined || definitionListItemHasEntryKind(html, markerIndex, entryKind)) {
+      return markerIndex;
+    }
+    markerIndex = html.indexOf(canonicalMarker, markerIndex + canonicalMarker.length);
+  }
+  return -1;
+}
+
+function definitionListItemHasEntryKind(html, markerIndex, entryKind) {
+  const itemStart = html.lastIndexOf("<dd", markerIndex);
+  const itemEnd = html.indexOf("</dd>", markerIndex);
+  if (itemStart < 0 || itemEnd < 0) return false;
+  const itemOpeningEnd = html.indexOf(">", itemStart);
+  if (itemOpeningEnd < 0 || itemOpeningEnd > itemEnd) return false;
+  const itemOpening = html.slice(itemStart, itemOpeningEnd + 1);
+  return itemOpening.includes(`data-entry-kind="${escapeAttribute(entryKind)}"`);
 }
 
 function renderDefinitionListItemSelector({ markerAttribute, selectorId, entryKind }) {
