@@ -93,7 +93,9 @@ export function appendInlineEditorToDefinitionListItemNode(root, {
   if (template === null || typeof mountTarget.append !== "function") return false;
 
   template.innerHTML = renderEditor();
-  mountTarget.append(...template.content.childNodes);
+  const nodes = Array.from(template.content?.childNodes ?? []);
+  if (nodes.length === 0) return false;
+  mountTarget.append(...nodes);
   return true;
 }
 
