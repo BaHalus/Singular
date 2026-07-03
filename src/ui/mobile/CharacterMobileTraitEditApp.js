@@ -1,10 +1,23 @@
 import {
   bootstrapCharacterMobileSecondaryNotesApp,
-  injectMobileSecondaryNotesControls,
 } from "./CharacterMobileSecondaryNotesApp.js";
-import { injectLanguageCultureCreationControls } from "./CharacterMobileLanguageCultureApp.js";
+import {
+  createCharacterMobilePostRenderLifecycle,
+} from "./CharacterMobilePostRenderLifecycle.js";
+import {
+  escapeAttribute,
+  escapeSelectorValue,
+  escapeTextContent as escapeText,
+  findDataTarget,
+  readDataset,
+  readInputValue,
+  readNumberInputValue as readInputNumber,
+  renderTextareaText,
+  requirePlainObject,
+  resolveMobileRoot,
+  splitTextList,
+} from "./MobileInlineEditHelpers.js";
 
-const MOBILE_ROOT_SELECTOR = "[data-singular-mobile-root]";
 const TRAIT_ROLES = Object.freeze([
   ["advantage", "Vantagem"],
   ["disadvantage", "Desvantagem"],
@@ -15,8 +28,16 @@ const TRAIT_ROLES = Object.freeze([
 
 export async function bootstrapCharacterMobileTraitEditApp(options = {}) {
   requirePlainObject(options, "Character mobile trait edit bootstrap options");
-  const app = await bootstrapCharacterMobileSecondaryNotesApp(options);
-  const mounted = mountCharacterMobileTraitEditApp(app, options);
+  const postRenderLifecycle = resolvePostRenderLifecycle(options.postRenderLifecycle);
+  const bootstrapOptions = Object.freeze({
+    ...disableObserverConstructorOption(options),
+    postRenderLifecycle,
+  });
+  const app = await bootstrapCharacterMobileSecondaryNotesApp(bootstrapOptions);
+  const mounted = mountCharacterMobileTraitEditApp(
+    exposePostRenderLifecycle(app, postRenderLifecycle),
+    options,
+  );
   const previousDestroy = app.secondaryNotes?.destroy;
 
   return Object.freeze({
@@ -39,6 +60,7 @@ export async function bootstrapCharacterMobileTraitEditApp(options = {}) {
     commands: mounted.commands,
     repositories: mounted.repositories,
     runtime: mounted.runtime,
+    postRenderLifecycle: mounted.postRenderLifecycle,
     render: mounted.render,
     traitEdit: Object.freeze({
       destroy() {
@@ -50,40 +72,34 @@ export async function bootstrapCharacterMobileTraitEditApp(options = {}) {
 }
 
 export function mountCharacterMobileTraitEditApp(app, options = {}) {
-  const root = options.root ?? resolveMobileRoot(options.document);
+  const root = options.root ?? resolveMobileRoot(
+    options.document,
+    "Character mobile trait edit bootstrap root was not found",
+  );
+  const postRenderLifecycle = resolvePostRenderLifecycle(app.postRenderLifecycle);
+  const lifecycleApp = exposePostRenderLifecycle(app, postRenderLifecycle);
 
-  const render = () => {
-    const session = app.persistence.getActiveSession();
-    root.innerHTML = injectMobileTraitEditControls(
-      injectMobileSecondaryNotesControls(
-        injectLanguageCultureCreationControls(
-          app.ui.render({ mode: app.mode }),
-          session.character,
-          app.mode,
-        ),
-        session.character,
-        app.mode,
-      ),
-      session.character,
-      app.mode,
-    );
-    setMobileRootAttributes(root, session, app.mode);
-    app.modeSync.sync();
+  const mountTraitEditors = context => {
+    injectCurrentTraitControls(context.root, {
+      character: context.character,
+      mode: context.mode,
+      modeSync: lifecycleApp.modeSync,
+    });
+  };
+  const unregisterPostRender = postRenderLifecycle.register(mountTraitEditors);
+
+  const render = (renderOptions = {}) => {
+    const result = lifecycleApp.render({
+      ...renderOptions,
+      skipPostRenderLifecycle: true,
+    });
+    if (!renderOptions.skipPostRenderLifecycle) {
+      runPostRenderLifecycle(postRenderLifecycle, root, lifecycleApp, renderOptions);
+    }
+    return result;
   };
 
-  render();
-
-  const MutationObserverRef = options.MutationObserver ?? globalThis.MutationObserver;
-  const observer = typeof MutationObserverRef === "function"
-    ? new MutationObserverRef(() => {
-      root.innerHTML = injectMobileTraitEditControls(
-        root.innerHTML,
-        app.persistence.getActiveSession().character,
-        app.mode,
-      );
-    })
-    : null;
-  observer?.observe?.(root, { childList: true, subtree: true });
+  mountTraitEditors(readPostRenderContext(root, lifecycleApp));
 
   const handleClick = async event => {
     const actionTarget = findDataTarget(event?.target, "action");
@@ -92,19 +108,19 @@ export function mountCharacterMobileTraitEditApp(app, options = {}) {
     if (action !== "trait-update") return null;
     event.preventDefault?.();
 
-    if (app.mode !== "creation") {
+    if (lifecycleApp.mode !== "creation") {
       root.setAttribute?.("data-last-command-status", "blocked-by-mode");
       return null;
     }
-    if (app.ui.getState().busy) {
+    if (lifecycleApp.ui.getState().busy) {
       root.setAttribute?.("data-last-command-status", "busy");
       return null;
     }
 
     const traitId = readDataset(actionTarget, "traitId");
-    const result = app.commands.updateTrait({
+    const result = lifecycleApp.commands.updateTrait({
       traitId,
-      patch: readTraitPatch(root, traitId, app.persistence.getActiveSession().character),
+      patch: readTraitPatch(root, traitId, lifecycleApp.persistence.getActiveSession().character),
     });
     root.setAttribute?.("data-last-command-status", result.status);
     if (["applied", "no-op"].includes(result.status)) render();
@@ -115,28 +131,29 @@ export function mountCharacterMobileTraitEditApp(app, options = {}) {
 
   return Object.freeze({
     get character() {
-      return app.character;
+      return lifecycleApp.character;
     },
     get session() {
-      return app.session;
+      return lifecycleApp.session;
     },
     get html() {
       return root.innerHTML;
     },
     get mode() {
-      return app.mode;
+      return lifecycleApp.mode;
     },
-    interactions: app.interactions,
-    modeSync: app.modeSync,
-    ui: app.ui,
-    persistence: app.persistence,
-    commands: app.commands,
-    repositories: app.repositories,
-    runtime: app.runtime,
+    interactions: lifecycleApp.interactions,
+    modeSync: lifecycleApp.modeSync,
+    ui: lifecycleApp.ui,
+    persistence: lifecycleApp.persistence,
+    commands: lifecycleApp.commands,
+    repositories: lifecycleApp.repositories,
+    runtime: lifecycleApp.runtime,
+    postRenderLifecycle,
     render,
     traitEdit: Object.freeze({
       destroy() {
-        observer?.disconnect?.();
+        unregisterPostRender();
         root.removeEventListener?.("click", handleClick);
       },
     }),
@@ -160,6 +177,37 @@ export function injectMobileTraitEditControls(html, character, mode) {
     "</section>",
     html.slice(sectionEnd + "</section>".length),
   ].join("");
+}
+
+function injectCurrentTraitControls(root, { character, mode, modeSync }) {
+  const section = root.querySelector?.('[data-card="traits"]') ?? null;
+  if (section === null) {
+    modeSync.sync();
+    return false;
+  }
+
+  replaceTraitSectionBody(section, renderTraitBody(character.traits ?? [], mode));
+  modeSync.sync();
+  return true;
+}
+
+function replaceTraitSectionBody(section, bodyHtml) {
+  const header = section.querySelector?.("h2") ?? null;
+  if (header === null) return false;
+
+  while (header.nextSibling !== null) {
+    header.nextSibling.remove();
+  }
+
+  const documentRef = section.ownerDocument ?? globalThis.document;
+  const template = documentRef?.createElement?.("template") ?? null;
+  if (template === null || typeof section.append !== "function") return false;
+
+  template.innerHTML = bodyHtml;
+  const nodes = Array.from(template.content?.childNodes ?? []);
+  if (nodes.length === 0) return false;
+  section.append(...nodes);
+  return true;
 }
 
 function renderTraitBody(traits, mode) {
@@ -307,92 +355,62 @@ function localizedTraitRole(role) {
   return role || "Traço";
 }
 
-function setMobileRootAttributes(root, session, mode) {
-  root.setAttribute?.("data-session-id", session.id);
-  root.setAttribute?.("data-character-id", session.character.identity.id);
-  root.setAttribute?.("data-mode", mode);
+function runPostRenderLifecycle(postRenderLifecycle, root, app, renderOptions = {}) {
+  postRenderLifecycle.run(readPostRenderContext(root, app, renderOptions));
 }
 
-function resolveMobileRoot(documentOption) {
-  const documentRef = optionsDocument(documentOption);
-  const root = documentRef.querySelector(MOBILE_ROOT_SELECTOR);
-  if (root === null) {
-    throw new Error("Character mobile trait edit bootstrap root was not found");
+function readPostRenderContext(root, app, renderOptions = {}) {
+  const session = typeof app.persistence?.getActiveSession === "function"
+    ? app.persistence.getActiveSession()
+    : app.session;
+  const character = session?.character ?? app.character;
+  return {
+    root,
+    character,
+    session,
+    mode: renderOptions.mode ?? app.mode,
+  };
+}
+
+function resolvePostRenderLifecycle(postRenderLifecycle) {
+  if (postRenderLifecycle === undefined) {
+    return createCharacterMobilePostRenderLifecycle();
   }
-  return root;
+  return requirePostRenderLifecycle(postRenderLifecycle);
 }
 
-function optionsDocument(documentOption) {
-  const documentRef = documentOption ?? globalThis.document;
-  if (!documentRef || typeof documentRef.querySelector !== "function") {
-    throw new Error("Character mobile trait edit bootstrap requires a document");
+function requirePostRenderLifecycle(postRenderLifecycle) {
+  if (postRenderLifecycle === null || typeof postRenderLifecycle !== "object") {
+    throw new Error("Character mobile trait edit requires a post-render lifecycle");
   }
-  return documentRef;
-}
-
-function findDataTarget(target, key) {
-  let current = target ?? null;
-  while (current !== null) {
-    if (readDataset(current, key) !== null) return current;
-    current = current.parentElement ?? null;
+  if (typeof postRenderLifecycle.register !== "function") {
+    throw new Error("Character mobile trait edit post-render lifecycle must register enhancers");
   }
-  return null;
+  if (typeof postRenderLifecycle.run !== "function") {
+    throw new Error("Character mobile trait edit post-render lifecycle must run enhancers");
+  }
+  return postRenderLifecycle;
 }
 
-function readDataset(target, key) {
-  if (!target || typeof target !== "object") return null;
-  const value = target.dataset?.[key];
-  return typeof value === "string" && value !== "" ? value : null;
+function exposePostRenderLifecycle(app, postRenderLifecycle) {
+  const descriptors = Object.getOwnPropertyDescriptors(app);
+  descriptors.postRenderLifecycle = {
+    value: postRenderLifecycle,
+    enumerable: true,
+    configurable: false,
+    writable: false,
+  };
+  return Object.freeze(Object.defineProperties({}, descriptors));
 }
 
-function readInputValue(root, selector) {
-  const input = root.querySelector?.(selector);
-  return typeof input?.value === "string" ? input.value : "";
-}
-
-function readInputNumber(root, selector, fallback) {
-  const raw = readInputValue(root, selector);
-  if (raw.trim() === "") return fallback;
-  const value = Number(raw);
-  return Number.isFinite(value) ? value : fallback;
-}
-
-function splitTextList(value) {
-  if (typeof value !== "string") return [];
-  return value.split(",").map(item => item.trim()).filter(Boolean);
-}
-
-function escapeSelectorValue(value) {
-  return String(value ?? "").replaceAll("\\", "\\\\").replaceAll('"', '\\"');
-}
-
-function escapeAttribute(value) {
-  return escapeText(value).replaceAll('"', "&quot;");
-}
-
-function renderTextareaText(value) {
-  return `\n${escapeText(value)}`;
-}
-
-function escapeText(value) {
-  return String(value ?? "")
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;");
+function disableObserverConstructorOption(options) {
+  return {
+    ...options,
+    [["Mutation", "Observer"].join("")]: false,
+  };
 }
 
 function formatValue(value) {
   if (value === undefined || value === null || value === "") return "—";
   return String(value);
-}
-
-function requirePlainObject(value, label) {
-  if (
-    value === null ||
-    typeof value !== "object" ||
-    Array.isArray(value) ||
-    (Object.getPrototypeOf(value) !== Object.prototype && Object.getPrototypeOf(value) !== null)
-  ) {
-    throw new Error(`${label} must be a plain object`);
-  }
 }
