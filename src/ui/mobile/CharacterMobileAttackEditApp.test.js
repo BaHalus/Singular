@@ -350,7 +350,10 @@ test("remounts attack editors after delegated renders without duplicating contro
   assert.equal(countAttackEditors(root), 1);
   mounted.render();
   assert.equal(countAttackEditors(root), 1);
-  assert.deepEqual(renderCalls, [{}, {}]);
+  assert.deepEqual(renderCalls, [
+    { skipPostRenderLifecycle: true },
+    { skipPostRenderLifecycle: true },
+  ]);
   assert.equal(syncCalls.length, 3);
 
   mounted.attackEdit.destroy();
