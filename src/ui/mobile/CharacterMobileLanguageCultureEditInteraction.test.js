@@ -99,7 +99,7 @@ function rootFixture() {
     },
     querySelector(selector) {
       const target = readDefinitionListTargetSelector(selector);
-      if (target !== null && root.innerHTML.includes(renderDefinitionListMarker(target))) {
+      if (target !== null && htmlHasDefinitionListMarker(root.innerHTML, target)) {
         return createDefinitionListItemFixture(root, target);
       }
       return { value: inputValues.get(selector) ?? "" };
@@ -140,11 +140,9 @@ function createDefinitionListItemFixture(root, target) {
   return {
     ownerDocument: root.ownerDocument,
     querySelector(selector) {
-      const hasLanguageEditor = selector.includes('data-role="language-inline-editor"')
-        && root.innerHTML.includes(`data-role="language-inline-editor" data-canonical-id="${target.canonicalId}"`);
-      const hasFamiliarityEditor = selector.includes('data-role="familiarity-inline-editor"')
-        && root.innerHTML.includes(`data-role="familiarity-inline-editor" data-canonical-id="${target.canonicalId}"`);
-      return hasLanguageEditor || hasFamiliarityEditor ? {} : null;
+      const editor = readInlineEditorTargetSelector(selector);
+      if (editor === null) return null;
+      return htmlHasInlineEditorMarker(root.innerHTML, editor) ? {} : null;
     },
     append(...nodes) {
       root.innerHTML = `${root.innerHTML}${nodes.join("")}`;
@@ -159,10 +157,37 @@ function readDefinitionListTargetSelector(selector) {
   return unscoped === null ? null : { entryKind: null, canonicalId: unscoped[1] };
 }
 
-function renderDefinitionListMarker({ entryKind, canonicalId }) {
-  return entryKind === null
-    ? `data-canonical-id="${canonicalId}"`
-    : `data-entry-kind="${entryKind}" data-canonical-id="${canonicalId}"`;
+function readInlineEditorTargetSelector(selector) {
+  const scoped = /^\[data-role="(.+)"\]\[data-canonical-id="(.+)"\]\[data-entry-kind="(.+)"\]$/.exec(selector);
+  if (scoped !== null) {
+    return { role: scoped[1], canonicalId: scoped[2], entryKind: scoped[3] };
+  }
+  const unscoped = /^\[data-role="(.+)"\]\[data-canonical-id="(.+)"\]$/.exec(selector);
+  return unscoped === null
+    ? null
+    : { role: unscoped[1], canonicalId: unscoped[2], entryKind: null };
+}
+
+function htmlHasDefinitionListMarker(html, { entryKind, canonicalId }) {
+  if (!html.includes(`data-canonical-id="${canonicalId}"`)) return false;
+  return entryKind === null || html.includes(`data-entry-kind="${entryKind}"`);
+}
+
+function htmlHasInlineEditorMarker(html, { role, entryKind, canonicalId }) {
+  const roleMarker = `data-role="${role}"`;
+  const canonicalMarker = `data-canonical-id="${canonicalId}"`;
+  let index = html.indexOf(roleMarker);
+  while (index >= 0) {
+    const openingEnd = html.indexOf(">", index);
+    if (openingEnd < 0) return false;
+    const openingStart = html.lastIndexOf("<", index);
+    const opening = html.slice(openingStart, openingEnd + 1);
+    const matchesCanonical = opening.includes(canonicalMarker);
+    const matchesEntryKind = entryKind === null || opening.includes(`data-entry-kind="${entryKind}"`);
+    if (matchesCanonical && matchesEntryKind) return true;
+    index = html.indexOf(roleMarker, openingEnd + 1);
+  }
+  return false;
 }
 
 function click(action, dataset = {}) {
