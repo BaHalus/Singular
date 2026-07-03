@@ -64,6 +64,80 @@ test("composition root restores composed trait controls through canonical post-r
   mounted.compositionRoot.destroy();
 });
 
+test("composition root shares one post-render lifecycle across mounted modules", () => {
+  const root = createRoot();
+  const character = createCharacter({ identity: { id: "character-1", name: "Test" } });
+  const session = createApplicationSession({ id: "session-1", character });
+  const postRenderLifecycle = createCharacterMobilePostRenderLifecycle();
+  const mountedLifecycles = [];
+  const destroyedModules = [];
+  let enhancerRuns = 0;
+  let baseRenderCount = 0;
+
+  const app = Object.freeze({
+    get character() { return character; },
+    get session() { return session; },
+    get html() { return root.innerHTML; },
+    get mode() { return "creation"; },
+    interactions: Object.freeze({ destroy() { destroyedModules.push("interactions"); } }),
+    modeSync: Object.freeze({ sync() {}, destroy() { destroyedModules.push("modeSync"); } }),
+    ui: Object.freeze({
+      render() { return renderBaseSheet(); },
+      getState() { return Object.freeze({ busy: false }); },
+    }),
+    persistence: Object.freeze({ getActiveSession() { return session; } }),
+    commands: Object.freeze({}),
+    repositories: Object.freeze({}),
+    runtime: Object.freeze({}),
+    postRenderLifecycle,
+    render(options = {}) {
+      baseRenderCount += 1;
+      root.innerHTML = renderBaseSheet();
+      if (!options.skipPostRenderLifecycle) {
+        postRenderLifecycle.run({ root, character: session.character, session, mode: "creation" });
+      }
+      return root.innerHTML;
+    },
+  });
+
+  const modules = ["alpha", "beta"].map(name => Object.freeze({
+    name,
+    destroyKey: `${name}Edit`,
+    mount(mountedApp) {
+      mountedLifecycles.push(mountedApp.postRenderLifecycle);
+      const unregister = mountedApp.postRenderLifecycle.register(() => {
+        enhancerRuns += 1;
+      });
+      return Object.freeze({
+        ...mountedApp,
+        [`${name}Edit`]: Object.freeze({
+          destroy() {
+            unregister();
+            destroyedModules.push(name);
+          },
+        }),
+      });
+    },
+  }));
+
+  const mounted = mountCharacterMobileCompositionRoot(app, { root }, modules);
+
+  assert.deepEqual(mountedLifecycles, [postRenderLifecycle, postRenderLifecycle]);
+
+  mounted.render();
+  mounted.render();
+
+  assert.equal(baseRenderCount, 2);
+  assert.equal(enhancerRuns, 4);
+  assert.equal(mounted.postRenderLifecycle, postRenderLifecycle);
+
+  mounted.compositionRoot.destroy();
+  postRenderLifecycle.run({ root, character, session, mode: "creation" });
+
+  assert.deepEqual(destroyedModules, ["beta", "alpha", "interactions", "modeSync"]);
+  assert.equal(enhancerRuns, 4);
+});
+
 function renderBaseSheet() {
   return [
     '<section class="singular-mobile-sheet__card" data-card="traits">',
