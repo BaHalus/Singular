@@ -19,6 +19,7 @@ export async function bootstrapCharacterMobileEquipmentEditApp(options = {}) {
     commands: mounted.commands,
     repositories: mounted.repositories,
     runtime: mounted.runtime,
+    postRenderLifecycle: mounted.postRenderLifecycle,
     render: mounted.render,
     equipmentEdit: Object.freeze({
       destroy() {
@@ -33,8 +34,8 @@ export function mountCharacterMobileEquipmentEditApp(app, options = {}) {
   const root = options.root ?? options.document?.querySelector?.("[data-singular-mobile-root]") ?? globalThis.document?.querySelector?.("[data-singular-mobile-root]");
   if (!root) throw new Error("Character mobile equipment edit bootstrap root was not found");
 
-  const render = () => {
-    app.render();
+  const render = (renderOptions = {}) => {
+    app.render(renderOptions);
     injectCurrentEquipmentControls(root, app);
   };
 
@@ -71,6 +72,7 @@ export function mountCharacterMobileEquipmentEditApp(app, options = {}) {
     commands: app.commands,
     repositories: app.repositories,
     runtime: app.runtime,
+    postRenderLifecycle: app.postRenderLifecycle,
     render,
     equipmentEdit: Object.freeze({ destroy() { root.removeEventListener?.("click", handleClick); } }),
   });
