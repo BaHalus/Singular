@@ -1,6 +1,8 @@
 import {
   bootstrapCharacterMobileSecondaryNotesApp,
+  injectMobileSecondaryNotesControls,
 } from "./CharacterMobileSecondaryNotesApp.js";
+import { injectLanguageCultureCreationControls } from "./CharacterMobileLanguageCultureApp.js";
 import {
   createCharacterMobilePostRenderLifecycle,
 } from "./CharacterMobilePostRenderLifecycle.js";
@@ -41,18 +43,10 @@ export async function bootstrapCharacterMobileTraitEditApp(options = {}) {
   const previousDestroy = app.secondaryNotes?.destroy;
 
   return Object.freeze({
-    get character() {
-      return mounted.character;
-    },
-    get session() {
-      return mounted.session;
-    },
-    get html() {
-      return mounted.html;
-    },
-    get mode() {
-      return mounted.mode;
-    },
+    get character() { return mounted.character; },
+    get session() { return mounted.session; },
+    get html() { return mounted.html; },
+    get mode() { return mounted.mode; },
     interactions: mounted.interactions,
     modeSync: mounted.modeSync,
     ui: mounted.ui,
@@ -78,6 +72,7 @@ export function mountCharacterMobileTraitEditApp(app, options = {}) {
   );
   const postRenderLifecycle = resolvePostRenderLifecycle(app.postRenderLifecycle);
   const lifecycleApp = exposePostRenderLifecycle(app, postRenderLifecycle);
+  const useDomMount = canMountTraitControlsWithDom(root);
 
   const mountTraitEditors = context => {
     injectCurrentTraitControls(context.root, {
@@ -88,18 +83,24 @@ export function mountCharacterMobileTraitEditApp(app, options = {}) {
   };
   const unregisterPostRender = postRenderLifecycle.register(mountTraitEditors);
 
-  const render = (renderOptions = {}) => {
-    const result = lifecycleApp.render({
-      ...renderOptions,
-      skipPostRenderLifecycle: true,
-    });
-    if (!renderOptions.skipPostRenderLifecycle) {
-      runPostRenderLifecycle(postRenderLifecycle, root, lifecycleApp, renderOptions);
+  const render = useDomMount
+    ? (renderOptions = {}) => {
+      const result = lifecycleApp.render({
+        ...renderOptions,
+        skipPostRenderLifecycle: true,
+      });
+      if (!renderOptions.skipPostRenderLifecycle) {
+        runPostRenderLifecycle(postRenderLifecycle, root, lifecycleApp, renderOptions);
+      }
+      return result;
     }
-    return result;
-  };
+    : (renderOptions = {}) => renderLegacyTraitControls(root, lifecycleApp, renderOptions);
 
-  mountTraitEditors(readPostRenderContext(root, lifecycleApp));
+  if (useDomMount) {
+    mountTraitEditors(readPostRenderContext(root, lifecycleApp));
+  } else {
+    render();
+  }
 
   const handleClick = async event => {
     const actionTarget = findDataTarget(event?.target, "action");
@@ -130,18 +131,10 @@ export function mountCharacterMobileTraitEditApp(app, options = {}) {
   root.addEventListener("click", handleClick);
 
   return Object.freeze({
-    get character() {
-      return lifecycleApp.character;
-    },
-    get session() {
-      return lifecycleApp.session;
-    },
-    get html() {
-      return root.innerHTML;
-    },
-    get mode() {
-      return lifecycleApp.mode;
-    },
+    get character() { return lifecycleApp.character; },
+    get session() { return lifecycleApp.session; },
+    get html() { return root.innerHTML; },
+    get mode() { return lifecycleApp.mode; },
     interactions: lifecycleApp.interactions,
     modeSync: lifecycleApp.modeSync,
     ui: lifecycleApp.ui,
@@ -181,14 +174,11 @@ export function injectMobileTraitEditControls(html, character, mode) {
 
 function injectCurrentTraitControls(root, { character, mode, modeSync }) {
   const section = root.querySelector?.('[data-card="traits"]') ?? null;
-  if (section === null) {
-    modeSync.sync();
-    return false;
-  }
-
-  replaceTraitSectionBody(section, renderTraitBody(character.traits ?? [], mode));
+  const mounted = section !== null
+    ? replaceTraitSectionBody(section, renderTraitBody(character.traits ?? [], mode))
+    : false;
   modeSync.sync();
-  return true;
+  return mounted;
 }
 
 function replaceTraitSectionBody(section, bodyHtml) {
@@ -208,6 +198,41 @@ function replaceTraitSectionBody(section, bodyHtml) {
   if (nodes.length === 0) return false;
   section.append(...nodes);
   return true;
+}
+
+function canMountTraitControlsWithDom(root) {
+  const section = root.querySelector?.('[data-card="traits"]') ?? null;
+  return section !== null &&
+    typeof section.querySelector === "function" &&
+    typeof section.append === "function" &&
+    (section.ownerDocument?.createElement ?? globalThis.document?.createElement) !== undefined;
+}
+
+function renderLegacyTraitControls(root, app, renderOptions = {}) {
+  const mode = renderOptions.mode ?? app.mode;
+  const session = app.persistence.getActiveSession();
+  root.innerHTML = injectMobileTraitEditControls(
+    injectMobileSecondaryNotesControls(
+      injectLanguageCultureCreationControls(
+        app.ui.render({ mode }),
+        session.character,
+        mode,
+      ),
+      session.character,
+      mode,
+    ),
+    session.character,
+    mode,
+  );
+  setMobileRootAttributes(root, session, mode);
+  app.modeSync.sync();
+  return root.innerHTML;
+}
+
+function setMobileRootAttributes(root, session, mode) {
+  root.setAttribute?.("data-session-id", session.id);
+  root.setAttribute?.("data-character-id", session.character.identity.id);
+  root.setAttribute?.("data-mode", mode);
 }
 
 function renderTraitBody(traits, mode) {
