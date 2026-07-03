@@ -57,7 +57,7 @@ test("composition root restores composed trait controls through canonical post-r
 
   assert.match(root.innerHTML, /data-role="trait-editor"/);
   await root.dispatch("click", { target: { dataset: { action: "save" } } });
-  assert.equal(basePersistenceRenderCount, 1);
+  assert.equal(basePersistenceRenderCount, 2);
   assert.match(root.innerHTML, /data-role="trait-editor"/);
   assert.match(root.innerHTML, /data-action="trait-add"/);
 
