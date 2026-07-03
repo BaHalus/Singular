@@ -61,8 +61,9 @@ function rootFixture() {
   const attributes = new Map();
   const listeners = new Map();
   const inputValues = new Map();
-  return {
+  const root = {
     innerHTML: "",
+    ownerDocument: createDocumentFixture(),
     setAttribute(name, value) { attributes.set(name, value); },
     getAttribute(name) { return attributes.get(name) ?? null; },
     addEventListener(type, listener) {
@@ -74,13 +75,54 @@ function rootFixture() {
       const entries = listeners.get(type) ?? [];
       listeners.set(type, entries.filter(entry => entry !== listener));
     },
-    querySelector(selector) { return { value: inputValues.get(selector) ?? "" }; },
+    querySelector(selector) {
+      const attackId = readAttackIdSelector(selector);
+      if (attackId !== null && root.innerHTML.includes(`data-attack-id="${attackId}"`)) {
+        return createAttackItemFixture(root, attackId);
+      }
+      return { value: inputValues.get(selector) ?? "" };
+    },
     querySelectorAll() { return []; },
     setInput(selector, value) { inputValues.set(selector, value); },
     async dispatch(type, event) {
       for (const listener of listeners.get(type) ?? []) await listener(event);
     },
   };
+  return root;
+}
+
+function createDocumentFixture() {
+  return {
+    createElement(tagName) {
+      if (tagName !== "template") return null;
+      return {
+        content: { childNodes: [] },
+        set innerHTML(value) {
+          this.content.childNodes = [String(value)];
+        },
+      };
+    },
+  };
+}
+
+function createAttackItemFixture(root, attackId) {
+  return {
+    ownerDocument: root.ownerDocument,
+    querySelector(selector) {
+      return selector.includes('data-role="attack-inline-editor"')
+        && root.innerHTML.includes(`data-role="attack-inline-editor" data-attack-id="${attackId}"`)
+        ? {}
+        : null;
+    },
+    append(...nodes) {
+      root.innerHTML = `${root.innerHTML}${nodes.join("")}`;
+    },
+  };
+}
+
+function readAttackIdSelector(selector) {
+  const match = /^\[data-attack-id="(.+)"\]$/.exec(selector);
+  return match === null ? null : match[1];
 }
 
 function click(action, dataset = {}) {
@@ -123,6 +165,7 @@ test("edits an existing mobile attack through the canonical update command", asy
   assert.equal(mounted.character.attacks[0].damage.value, "2d");
   assert.equal(mounted.character.attacks[0].reach, "1,2");
   assert.match(root.innerHTML, /Espada Longa em Arco/);
+  assert.match(root.innerHTML, /data-action="attack-update"/);
 
   await root.dispatch("click", click("persistence-save"));
   const saved = await mounted.repositories.session.load("session-mobile-attack-edit");
