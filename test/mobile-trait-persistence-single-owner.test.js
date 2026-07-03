@@ -102,8 +102,14 @@ function createRoot() {
 }
 
 function createSection() {
-  const header = { nextSibling: createSibling() };
-  const section = {
+  const header = {};
+  header.nextSibling = {
+    remove() {
+      header.nextSibling = null;
+    },
+  };
+
+  return {
     ownerDocument: createDocument(),
     querySelector(selector) {
       return selector === "h2" ? header : null;
@@ -111,13 +117,6 @@ function createSection() {
     append(...nodes) {
       this.appendedNodes = nodes;
     },
-  };
-  return section;
-}
-
-function createSibling() {
-  return {
-    remove() {},
   };
 }
 
