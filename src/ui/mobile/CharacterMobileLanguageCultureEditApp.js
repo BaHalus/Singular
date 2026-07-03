@@ -168,6 +168,7 @@ function injectCurrentLanguageCultureControls(root, { character, mode, modeSync 
 function appendLanguageInlineEditorNode(root, language) {
   return appendInlineEditorToDefinitionListItemNode(root, {
     entityId: language.id,
+    entryKind: "language",
     markerAttribute: "data-canonical-id",
     editorRole: "language-inline-editor",
     renderEditor: () => renderLanguageInlineEditor(language),
@@ -177,6 +178,7 @@ function appendLanguageInlineEditorNode(root, language) {
 function appendFamiliarityInlineEditorNode(root, familiarity) {
   return appendInlineEditorToDefinitionListItemNode(root, {
     entityId: familiarity.id,
+    entryKind: "familiarity",
     markerAttribute: "data-canonical-id",
     editorRole: "familiarity-inline-editor",
     renderEditor: () => renderFamiliarityInlineEditor(familiarity),
@@ -186,6 +188,7 @@ function appendFamiliarityInlineEditorNode(root, familiarity) {
 function appendInlineEditorToLanguage(html, language) {
   return appendInlineEditorToDefinitionListItem(html, {
     entityId: language.id,
+    entryKind: "language",
     markerAttribute: "data-canonical-id",
     editorRole: "language-inline-editor",
     renderEditor: () => renderLanguageInlineEditor(language),
@@ -195,6 +198,7 @@ function appendInlineEditorToLanguage(html, language) {
 function appendInlineEditorToFamiliarity(html, familiarity) {
   return appendInlineEditorToDefinitionListItem(html, {
     entityId: familiarity.id,
+    entryKind: "familiarity",
     markerAttribute: "data-canonical-id",
     editorRole: "familiarity-inline-editor",
     renderEditor: () => renderFamiliarityInlineEditor(familiarity),
