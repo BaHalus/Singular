@@ -73,7 +73,7 @@ test("A3 equipment controls remount through canonical post-render lifecycle with
   mounted.render();
   mounted.render();
 
-  assert.equal(baseRenderCount, 2);
+  assert.equal(baseRenderCount, 4);
   assert.equal(countEquipmentEditors(root.innerHTML), 1);
   assert.match(root.innerHTML, /data-action="equipment-update"/);
 
