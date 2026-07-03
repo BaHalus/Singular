@@ -5,7 +5,6 @@ import {
   createCharacterMobilePostRenderLifecycle,
 } from "./CharacterMobilePostRenderLifecycle.js";
 import {
-  appendInlineEditorToDefinitionListItem,
   appendInlineEditorToDefinitionListItemNode,
   escapeAttribute,
   escapeSelectorValue,
@@ -126,15 +125,6 @@ export function mountCharacterMobileAttackEditApp(app, options = {}) {
   });
 }
 
-export function injectMobileAttackEditControls(html, character, mode) {
-  if (mode !== "creation") return html;
-  let nextHtml = html;
-  for (const attack of character.attacks ?? []) {
-    nextHtml = appendInlineEditorToAttack(nextHtml, attack);
-  }
-  return nextHtml;
-}
-
 function injectCurrentAttackControls(root, { character, mode, modeSync }) {
   if (mode !== "creation") {
     modeSync.sync();
@@ -149,15 +139,6 @@ function injectCurrentAttackControls(root, { character, mode, modeSync }) {
 
 function appendAttackInlineEditorNode(root, attack) {
   return appendInlineEditorToDefinitionListItemNode(root, {
-    entityId: attack.id,
-    markerAttribute: "data-attack-id",
-    editorRole: "attack-inline-editor",
-    renderEditor: () => renderAttackInlineEditor(attack),
-  });
-}
-
-function appendInlineEditorToAttack(html, attack) {
-  return appendInlineEditorToDefinitionListItem(html, {
     entityId: attack.id,
     markerAttribute: "data-attack-id",
     editorRole: "attack-inline-editor",
