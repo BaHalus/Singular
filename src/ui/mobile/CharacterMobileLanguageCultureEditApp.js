@@ -210,7 +210,7 @@ function renderLanguageInlineEditor(language) {
   const id = escapeAttribute(language.id);
   const tags = Array.isArray(language.tags) ? language.tags.join(", ") : "";
   return [
-    `<div class="singular-mobile-sheet__language-culture-inline-editor" data-role="language-inline-editor" data-canonical-id="${id}">`,
+    `<div class="singular-mobile-sheet__language-culture-inline-editor" data-role="language-inline-editor" data-canonical-id="${id}" data-entry-kind="language">`,
     `<label>Nome <input type="text" data-role="language-edit-name-${id}" value="${escapeAttribute(language.name ?? "")}" autocomplete="off"></label>`,
     `<label>Fala ${renderLevelSelect(`language-edit-spoken-level-${id}`, language.spokenLevel)}</label>`,
     `<label>Escrita ${renderLevelSelect(`language-edit-written-level-${id}`, language.writtenLevel)}</label>`,
@@ -226,7 +226,7 @@ function renderFamiliarityInlineEditor(familiarity) {
   const id = escapeAttribute(familiarity.id);
   const tags = Array.isArray(familiarity.tags) ? familiarity.tags.join(", ") : "";
   return [
-    `<div class="singular-mobile-sheet__language-culture-inline-editor" data-role="familiarity-inline-editor" data-canonical-id="${id}">`,
+    `<div class="singular-mobile-sheet__language-culture-inline-editor" data-role="familiarity-inline-editor" data-canonical-id="${id}" data-entry-kind="familiarity">`,
     `<label>Nome <input type="text" data-role="familiarity-edit-name-${id}" value="${escapeAttribute(familiarity.name ?? "")}" autocomplete="off"></label>`,
     `<label>Nativa <select data-role="familiarity-edit-native-${id}"><option value="false"${familiarity.isNative ? "" : " selected"}>Não</option><option value="true"${familiarity.isNative ? " selected" : ""}>Sim</option></select></label>`,
     `<label>Tags <input type="text" data-role="familiarity-edit-tags-${id}" value="${escapeAttribute(tags)}" autocomplete="off"></label>`,
