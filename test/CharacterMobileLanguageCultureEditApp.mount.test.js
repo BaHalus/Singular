@@ -3,8 +3,9 @@ import assert from "node:assert/strict";
 
 import { mountCharacterMobileLanguageCultureEditApp } from "../src/ui/mobile/CharacterMobileLanguageCultureEditApp.js";
 
-test("language culture edit mount detaches only its own listener and observer", () => {
+test("language culture edit mount detaches only its own listener without observer", () => {
   const listeners = new Map();
+  let observerConstructCalls = 0;
   let disconnectCalls = 0;
   let observeCalls = 0;
   let previousDestroyCalls = 0;
@@ -29,6 +30,7 @@ test("language culture edit mount detaches only its own listener and observer", 
   };
 
   const MutationObserver = function MutationObserver() {
+    observerConstructCalls += 1;
     return {
       observe() { observeCalls += 1; },
       disconnect() { disconnectCalls += 1; },
@@ -77,7 +79,8 @@ test("language culture edit mount detaches only its own listener and observer", 
   const mounted = mountCharacterMobileLanguageCultureEditApp(app, { root, MutationObserver });
 
   assert.equal(listeners.has("click"), true);
-  assert.equal(observeCalls, 1);
+  assert.equal(observerConstructCalls, 0);
+  assert.equal(observeCalls, 0);
   assert.equal(modeSyncCalls, 1);
   assert.equal(renderCalls, 0);
   assert.equal(mounted.character, app.character);
@@ -88,6 +91,6 @@ test("language culture edit mount detaches only its own listener and observer", 
   mounted.languageCultureEdit.destroy();
 
   assert.equal(listeners.has("click"), false);
-  assert.equal(disconnectCalls, 1);
+  assert.equal(disconnectCalls, 0);
   assert.equal(previousDestroyCalls, 0);
 });
