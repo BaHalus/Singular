@@ -76,8 +76,9 @@ function rootFixture() {
   const attributes = new Map();
   const listeners = new Map();
   const inputValues = new Map();
-  return {
+  const root = {
     innerHTML: "",
+    ownerDocument: createDocumentFixture(),
     setAttribute(name, value) {
       attributes.set(name, value);
     },
@@ -94,6 +95,10 @@ function rootFixture() {
       listeners.set(type, entries.filter(entry => entry !== listener));
     },
     querySelector(selector) {
+      const canonicalId = readCanonicalIdSelector(selector);
+      if (canonicalId !== null && root.innerHTML.includes(`data-canonical-id="${canonicalId}"`)) {
+        return createDefinitionListItemFixture(root, canonicalId);
+      }
       return { value: inputValues.get(selector) ?? "" };
     },
     querySelectorAll() {
@@ -108,6 +113,42 @@ function rootFixture() {
       }
     },
   };
+  return root;
+}
+
+function createDocumentFixture() {
+  return {
+    createElement(tagName) {
+      if (tagName !== "template") return null;
+      return {
+        content: { childNodes: [] },
+        set innerHTML(value) {
+          this.content.childNodes = [String(value)];
+        },
+      };
+    },
+  };
+}
+
+function createDefinitionListItemFixture(root, canonicalId) {
+  return {
+    ownerDocument: root.ownerDocument,
+    querySelector(selector) {
+      const hasLanguageEditor = selector.includes('data-role="language-inline-editor"')
+        && root.innerHTML.includes(`data-role="language-inline-editor" data-canonical-id="${canonicalId}"`);
+      const hasFamiliarityEditor = selector.includes('data-role="familiarity-inline-editor"')
+        && root.innerHTML.includes(`data-role="familiarity-inline-editor" data-canonical-id="${canonicalId}"`);
+      return hasLanguageEditor || hasFamiliarityEditor ? {} : null;
+    },
+    append(...nodes) {
+      root.innerHTML = `${root.innerHTML}${nodes.join("")}`;
+    },
+  };
+}
+
+function readCanonicalIdSelector(selector) {
+  const match = /^\[data-canonical-id="(.+)"\]$/.exec(selector);
+  return match === null ? null : match[1];
 }
 
 function click(action, dataset = {}) {
@@ -119,6 +160,7 @@ function click(action, dataset = {}) {
 
 test("edits existing mobile languages and cultural familiarities through canonical update commands", async () => {
   const root = rootFixture();
+  let observerConstructCalls = 0;
   const mounted = await bootstrapCharacterMobileLanguageCultureEditApp({
     root,
     character: character(),
@@ -127,12 +169,25 @@ test("edits existing mobile languages and cultural familiarities through canonic
     namespace: "test.mobile.language-culture-edit",
     runtime: runtime(),
     mode: "creation",
+    MutationObserver() {
+      observerConstructCalls += 1;
+      return { observe() {}, disconnect() {} };
+    },
   });
 
+  assert.equal(observerConstructCalls, 0);
   assert.match(root.innerHTML, /data-action="language-update"/);
   assert.match(root.innerHTML, /data-action="familiarity-update"/);
   assert.match(root.innerHTML, /Latim/);
   assert.match(root.innerHTML, /Império Antigo/);
+
+  const htmlAfterFirstMount = root.innerHTML;
+  mounted.render();
+  assert.equal(root.innerHTML.match(/data-action="language-update"/g).length, 1);
+  assert.equal(root.innerHTML.match(/data-action="familiarity-update"/g).length, 1);
+  assert.notEqual(root.innerHTML, "");
+  assert.equal(observerConstructCalls, 0);
+  assert.match(htmlAfterFirstMount, /data-role="language-inline-editor"/);
 
   root.setInput('[data-role="language-edit-name-language:latin"]', "Latim Imperial");
   root.setInput('[data-role="language-edit-spoken-level-language:latin"]', "native");
@@ -151,6 +206,7 @@ test("edits existing mobile languages and cultural familiarities through canonic
   assert.equal(mounted.character.languages[0].notes, "Uso diplomático.\nLinha 2");
   assert.deepEqual(mounted.character.languages[0].tags, ["erudito", "corte"]);
   assert.match(root.innerHTML, /Latim Imperial/);
+  assert.equal(root.innerHTML.match(/data-action="language-update"/g).length, 1);
 
   root.setInput('[data-role="familiarity-edit-name-familiarity:imperial"]', "Corte Imperial");
   root.setInput('[data-role="familiarity-edit-native-familiarity:imperial"]', "true");
@@ -166,6 +222,7 @@ test("edits existing mobile languages and cultural familiarities through canonic
   assert.equal(mounted.character.familiarities[0].notes, "Etiqueta cortesã.\nLinha 2");
   assert.deepEqual(mounted.character.familiarities[0].tags, ["história", "etiqueta"]);
   assert.match(root.innerHTML, /Corte Imperial/);
+  assert.equal(root.innerHTML.match(/data-action="familiarity-update"/g).length, 1);
 
   await root.dispatch("click", click("persistence-save"));
   const saved = await mounted.repositories.session.load("session-mobile-language-culture-edit");
