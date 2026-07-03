@@ -20,7 +20,11 @@ import {
 export async function bootstrapCharacterMobileAttackEditApp(options = {}) {
   requirePlainObject(options, "Character mobile attack edit bootstrap options");
   const app = await bootstrapCharacterMobileLanguageCultureEditApp(options);
-  const mounted = mountCharacterMobileAttackEditApp(app, options);
+  const postRenderLifecycle = resolvePostRenderLifecycle(app.postRenderLifecycle);
+  const mounted = mountCharacterMobileAttackEditApp(
+    exposePostRenderLifecycle(app, postRenderLifecycle),
+    options,
+  );
   const previousDestroy = app.languageCultureEdit?.destroy;
 
   return Object.freeze({
@@ -52,28 +56,29 @@ export function mountCharacterMobileAttackEditApp(app, options = {}) {
     "Character mobile attack edit bootstrap root was not found",
   );
   const postRenderLifecycle = resolvePostRenderLifecycle(app.postRenderLifecycle);
+  const lifecycleApp = exposePostRenderLifecycle(app, postRenderLifecycle);
 
   const mountAttackEditors = context => {
     injectCurrentAttackControls(context.root, {
       character: context.character,
       mode: context.mode,
-      modeSync: app.modeSync,
+      modeSync: lifecycleApp.modeSync,
     });
   };
   const unregisterPostRender = postRenderLifecycle.register(mountAttackEditors);
 
   const render = (renderOptions = {}) => {
-    const result = app.render({
+    const result = lifecycleApp.render({
       ...renderOptions,
       skipPostRenderLifecycle: true,
     });
     if (!renderOptions.skipPostRenderLifecycle) {
-      runPostRenderLifecycle(postRenderLifecycle, root, app, renderOptions);
+      runPostRenderLifecycle(postRenderLifecycle, root, lifecycleApp, renderOptions);
     }
     return result;
   };
 
-  mountAttackEditors(readPostRenderContext(root, app));
+  mountAttackEditors(readPostRenderContext(root, lifecycleApp));
 
   const handleClick = event => {
     const actionTarget = findDataTarget(event?.target, "action");
@@ -81,17 +86,17 @@ export function mountCharacterMobileAttackEditApp(app, options = {}) {
     if (action !== "attack-update") return null;
     event.preventDefault?.();
 
-    if (app.mode !== "creation") {
+    if (lifecycleApp.mode !== "creation") {
       root.setAttribute?.("data-last-command-status", "blocked-by-mode");
       return null;
     }
-    if (app.ui.getState().busy) {
+    if (lifecycleApp.ui.getState().busy) {
       root.setAttribute?.("data-last-command-status", "busy");
       return null;
     }
 
     const attackId = readDataset(actionTarget, "attackId");
-    const result = app.commands.updateAttack({
+    const result = lifecycleApp.commands.updateAttack({
       attackId,
       patch: readAttackPatch(root, attackId),
     });
@@ -103,17 +108,17 @@ export function mountCharacterMobileAttackEditApp(app, options = {}) {
   root.addEventListener("click", handleClick);
 
   return Object.freeze({
-    get character() { return app.character; },
-    get session() { return app.session; },
+    get character() { return lifecycleApp.character; },
+    get session() { return lifecycleApp.session; },
     get html() { return root.innerHTML; },
-    get mode() { return app.mode; },
-    interactions: app.interactions,
-    modeSync: app.modeSync,
-    ui: app.ui,
-    persistence: app.persistence,
-    commands: app.commands,
-    repositories: app.repositories,
-    runtime: app.runtime,
+    get mode() { return lifecycleApp.mode; },
+    interactions: lifecycleApp.interactions,
+    modeSync: lifecycleApp.modeSync,
+    ui: lifecycleApp.ui,
+    persistence: lifecycleApp.persistence,
+    commands: lifecycleApp.commands,
+    repositories: lifecycleApp.repositories,
+    runtime: lifecycleApp.runtime,
     postRenderLifecycle,
     render,
     attackEdit: Object.freeze({
@@ -214,4 +219,15 @@ function requirePostRenderLifecycle(postRenderLifecycle) {
     throw new Error("Character mobile attack edit post-render lifecycle must run enhancers");
   }
   return postRenderLifecycle;
+}
+
+function exposePostRenderLifecycle(app, postRenderLifecycle) {
+  const descriptors = Object.getOwnPropertyDescriptors(app);
+  descriptors.postRenderLifecycle = {
+    value: postRenderLifecycle,
+    enumerable: true,
+    configurable: false,
+    writable: false,
+  };
+  return Object.freeze(Object.defineProperties({}, descriptors));
 }
