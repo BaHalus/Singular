@@ -83,7 +83,7 @@ export function appendInlineEditorToDefinitionListItemNode(root, {
   if (item === null) return false;
 
   const existing = item.querySelector?.(
-    `[data-role="${escapeSelectorValue(editorRole)}"][${markerAttribute}="${selectorId}"]`,
+    renderInlineEditorSelector({ markerAttribute, selectorId, editorRole, entryKind }),
   ) ?? null;
   if (existing !== null) return true;
 
@@ -125,6 +125,13 @@ function renderDefinitionListItemSelector({ markerAttribute, selectorId, entryKi
   return entryKind === undefined
     ? canonicalSelector
     : `[data-entry-kind="${escapeSelectorValue(entryKind)}"]${canonicalSelector}`;
+}
+
+function renderInlineEditorSelector({ markerAttribute, selectorId, editorRole, entryKind }) {
+  const editorSelector = `[data-role="${escapeSelectorValue(editorRole)}"][${markerAttribute}="${selectorId}"]`;
+  return entryKind === undefined
+    ? editorSelector
+    : `${editorSelector}[data-entry-kind="${escapeSelectorValue(entryKind)}"]`;
 }
 
 export function resolveMobileRoot(documentOption, errorMessage) {
