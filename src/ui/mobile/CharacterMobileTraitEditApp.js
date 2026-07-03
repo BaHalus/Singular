@@ -1,6 +1,8 @@
 import {
   bootstrapCharacterMobileSecondaryNotesApp,
+  injectMobileSecondaryNotesControls,
 } from "./CharacterMobileSecondaryNotesApp.js";
+import { injectLanguageCultureCreationControls } from "./CharacterMobileLanguageCultureApp.js";
 import {
   createCharacterMobilePostRenderLifecycle,
 } from "./CharacterMobilePostRenderLifecycle.js";
@@ -89,14 +91,23 @@ export function mountCharacterMobileTraitEditApp(app, options = {}) {
   const unregisterPostRender = postRenderLifecycle.register(mountTraitEditors);
 
   const render = (renderOptions = {}) => {
-    const result = lifecycleApp.render({
-      ...renderOptions,
-      skipPostRenderLifecycle: true,
-    });
+    const session = lifecycleApp.persistence.getActiveSession();
+    const renderMode = renderOptions.mode ?? lifecycleApp.mode;
+    root.innerHTML = injectMobileSecondaryNotesControls(
+      injectLanguageCultureCreationControls(
+        lifecycleApp.ui.render({ mode: renderMode }),
+        session.character,
+        renderMode,
+      ),
+      session.character,
+      renderMode,
+    );
+    setMobileRootAttributes(root, session, renderMode);
     if (!renderOptions.skipPostRenderLifecycle) {
-      runPostRenderLifecycle(postRenderLifecycle, root, lifecycleApp, renderOptions);
+      runPostRenderLifecycle(postRenderLifecycle, root, lifecycleApp, { ...renderOptions, mode: renderMode });
+    } else {
+      lifecycleApp.modeSync.sync();
     }
-    return result;
   };
 
   mountTraitEditors(readPostRenderContext(root, lifecycleApp));
@@ -353,6 +364,12 @@ function localizedTraitRole(role) {
   if (role === "quirk") return "Peculiaridade negativa";
   if (role === "feature") return "Característica";
   return role || "Traço";
+}
+
+function setMobileRootAttributes(root, session, mode) {
+  root.setAttribute?.("data-session-id", session.id);
+  root.setAttribute?.("data-character-id", session.character.identity.id);
+  root.setAttribute?.("data-mode", mode);
 }
 
 function runPostRenderLifecycle(postRenderLifecycle, root, app, renderOptions = {}) {
