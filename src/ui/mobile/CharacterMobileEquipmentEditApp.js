@@ -1,10 +1,36 @@
 import {
   bootstrapCharacterMobileAttackEditApp,
 } from "./CharacterMobileAttackEditApp.js";
+import {
+  createCharacterMobilePostRenderLifecycle,
+} from "./CharacterMobilePostRenderLifecycle.js";
+import {
+  appendInlineEditorToDefinitionListItem,
+  appendInlineEditorToDefinitionListItemNode,
+  escapeAttribute,
+  escapeSelectorValue,
+  escapeTextContent as escapeText,
+  findDataTarget,
+  readDataset,
+  readInputValue,
+  readNumberInputValue as readNumber,
+  renderTextareaText,
+  requirePlainObject,
+  resolveMobileRoot,
+} from "./MobileInlineEditHelpers.js";
 
 export async function bootstrapCharacterMobileEquipmentEditApp(options = {}) {
-  const app = await bootstrapCharacterMobileAttackEditApp(options);
-  const mounted = mountCharacterMobileEquipmentEditApp(app, options);
+  requirePlainObject(options, "Character mobile equipment edit bootstrap options");
+  const postRenderLifecycle = resolvePostRenderLifecycle(options.postRenderLifecycle);
+  const bootstrapOptions = Object.freeze({
+    ...disableObserverConstructorOption(options),
+    postRenderLifecycle,
+  });
+  const app = await bootstrapCharacterMobileAttackEditApp(bootstrapOptions);
+  const mounted = mountCharacterMobileEquipmentEditApp(
+    exposePostRenderLifecycle(app, postRenderLifecycle),
+    options,
+  );
   const previousDestroy = app.attackEdit?.destroy;
 
   return Object.freeze({
@@ -31,28 +57,54 @@ export async function bootstrapCharacterMobileEquipmentEditApp(options = {}) {
 }
 
 export function mountCharacterMobileEquipmentEditApp(app, options = {}) {
-  const root = options.root ?? options.document?.querySelector?.("[data-singular-mobile-root]") ?? globalThis.document?.querySelector?.("[data-singular-mobile-root]");
-  if (!root) throw new Error("Character mobile equipment edit bootstrap root was not found");
+  const root = options.root ?? resolveMobileRoot(
+    options.document,
+    "Character mobile equipment edit bootstrap root was not found",
+  );
+  const postRenderLifecycle = resolvePostRenderLifecycle(app.postRenderLifecycle);
+  const lifecycleApp = exposePostRenderLifecycle(app, postRenderLifecycle);
+  const useDomMount = canMountEquipmentControlsWithDom(root, lifecycleApp.character);
 
-  const render = (renderOptions = {}) => {
-    app.render(renderOptions);
-    injectCurrentEquipmentControls(root, app);
+  const mountEquipmentEditors = context => {
+    injectCurrentEquipmentControls(context.root, {
+      character: context.character,
+      mode: context.mode,
+      modeSync: lifecycleApp.modeSync,
+    });
   };
+  const unregisterPostRender = postRenderLifecycle.register(mountEquipmentEditors);
 
-  injectCurrentEquipmentControls(root, app);
+  const render = useDomMount
+    ? (renderOptions = {}) => {
+      const result = lifecycleApp.render({
+        ...renderOptions,
+        skipPostRenderLifecycle: true,
+      });
+      if (!renderOptions.skipPostRenderLifecycle) {
+        runPostRenderLifecycle(postRenderLifecycle, root, lifecycleApp, renderOptions);
+      }
+      return result;
+    }
+    : (renderOptions = {}) => renderLegacyEquipmentControls(root, lifecycleApp, renderOptions);
+
+  if (useDomMount) {
+    mountEquipmentEditors(readPostRenderContext(root, lifecycleApp));
+  } else {
+    render();
+  }
 
   const handleClick = event => {
     const target = findDataTarget(event?.target, "action");
-    const action = target?.dataset?.action;
+    const action = target === null ? null : readDataset(target, "action");
     if (action !== "equipment-update") return null;
     event.preventDefault?.();
-    const blockedStatus = shouldBlockMobileEquipmentEdit(app);
+    const blockedStatus = shouldBlockMobileEquipmentEdit(lifecycleApp);
     if (blockedStatus !== null) {
       root.setAttribute?.("data-last-command-status", blockedStatus);
       return null;
     }
-    const itemId = target.dataset.equipmentId;
-    const result = applyEquipmentPatch(app, itemId, readEquipmentPatch(root, itemId));
+    const itemId = readDataset(target, "equipmentId");
+    const result = applyEquipmentPatch(lifecycleApp, itemId, readEquipmentPatch(root, itemId));
     root.setAttribute?.("data-last-command-status", result.status);
     if (["applied", "no-op"].includes(result.status)) render();
     return result;
@@ -61,20 +113,25 @@ export function mountCharacterMobileEquipmentEditApp(app, options = {}) {
   root.addEventListener("click", handleClick);
 
   return Object.freeze({
-    get character() { return app.character; },
-    get session() { return app.session; },
+    get character() { return lifecycleApp.character; },
+    get session() { return lifecycleApp.session; },
     get html() { return root.innerHTML; },
-    get mode() { return app.mode; },
-    interactions: app.interactions,
-    modeSync: app.modeSync,
-    ui: app.ui,
-    persistence: app.persistence,
-    commands: app.commands,
-    repositories: app.repositories,
-    runtime: app.runtime,
-    postRenderLifecycle: app.postRenderLifecycle,
+    get mode() { return lifecycleApp.mode; },
+    interactions: lifecycleApp.interactions,
+    modeSync: lifecycleApp.modeSync,
+    ui: lifecycleApp.ui,
+    persistence: lifecycleApp.persistence,
+    commands: lifecycleApp.commands,
+    repositories: lifecycleApp.repositories,
+    runtime: lifecycleApp.runtime,
+    postRenderLifecycle,
     render,
-    equipmentEdit: Object.freeze({ destroy() { root.removeEventListener?.("click", handleClick); } }),
+    equipmentEdit: Object.freeze({
+      destroy() {
+        unregisterPostRender();
+        root.removeEventListener?.("click", handleClick);
+      },
+    }),
   });
 }
 
@@ -115,20 +172,42 @@ export function applyEquipmentPatch(app, itemId, patch) {
   return applyLegacyEquipmentPatch(app.commands, payload);
 }
 
-function injectCurrentEquipmentControls(root, app) {
-  root.innerHTML = injectMobileEquipmentEditControls(root.innerHTML, app.character, app.mode);
-  app.modeSync.sync();
+function injectCurrentEquipmentControls(root, { character, mode, modeSync }) {
+  const mounted = mode === "creation"
+    ? flattenEquipment(character.equipment ?? [])
+      .map(item => appendEditorNode(root, item))
+      .every(Boolean)
+    : true;
+  modeSync.sync();
+  return mounted;
 }
 
 function appendEditor(html, item) {
-  const id = String(item.id);
-  const markerIndex = html.indexOf(`data-equipment-id="${escapeAttribute(id)}"`);
-  if (markerIndex < 0) return html;
-  const ddEnd = html.indexOf("</dd>", markerIndex);
-  if (ddEnd < 0) return html;
-  const existing = html.indexOf(`data-role="equipment-inline-editor" data-equipment-id="${escapeAttribute(id)}"`, markerIndex);
-  if (existing >= 0 && existing < ddEnd) return html;
-  return html.slice(0, ddEnd) + renderEditor(item) + html.slice(ddEnd);
+  return appendInlineEditorToDefinitionListItem(html, {
+    entityId: item.id,
+    markerAttribute: "data-equipment-id",
+    editorRole: "equipment-inline-editor",
+    renderEditor: () => renderEditor(item),
+  });
+}
+
+function appendEditorNode(root, item) {
+  return appendInlineEditorToDefinitionListItemNode(root, {
+    entityId: item.id,
+    markerAttribute: "data-equipment-id",
+    editorRole: "equipment-inline-editor",
+    renderEditor: () => renderEditor(item),
+  });
+}
+
+function canMountEquipmentControlsWithDom(root, character) {
+  const firstItem = flattenEquipment(character.equipment ?? [])[0] ?? null;
+  if (firstItem === null) return true;
+  const selectorId = escapeSelectorValue(firstItem.id);
+  const item = root.querySelector?.(`[data-equipment-id="${selectorId}"]`) ?? null;
+  return item !== null &&
+    typeof item.querySelector === "function" &&
+    (item.ownerDocument?.createElement ?? root.ownerDocument?.createElement ?? globalThis.document?.createElement) !== undefined;
 }
 
 function renderEditor(item) {
@@ -149,19 +228,19 @@ function renderEditor(item) {
 
 function stateOptions(active) {
   return [["equipped", "Equipado"], ["carried", "Carregado"], ["stored", "Guardado"], ["dropped", "Largado"], ["ignored", "Ignorado"]]
-    .map(([value, label]) => `<option value="${value}"${value === active ? " selected" : ""}>${label}</option>`)
+    .map(([value, label]) => `<option value="${value}"${value === active ? " selected" : ""}>${escapeText(label)}</option>`)
     .join("");
 }
 
 function readEquipmentPatch(root, itemId) {
-  const suffix = String(itemId).replaceAll("\\", "\\\\").replaceAll('"', '\\"');
+  const suffix = escapeSelectorValue(itemId);
   return {
-    name: readValue(root, `[data-role="equipment-edit-name-${suffix}"]`),
+    name: readInputValue(root, `[data-role="equipment-edit-name-${suffix}"]`),
     quantity: readNumber(root, `[data-role="equipment-edit-quantity-${suffix}"]`, 1),
     weightKg: readNumber(root, `[data-role="equipment-edit-weight-${suffix}"]`, 0),
     cost: readNumber(root, `[data-role="equipment-edit-cost-${suffix}"]`, 0),
-    state: readValue(root, `[data-role="equipment-edit-state-${suffix}"]`) || "carried",
-    notes: readValue(root, `[data-role="equipment-edit-notes-${suffix}"]`),
+    state: readInputValue(root, `[data-role="equipment-edit-state-${suffix}"]`) || "carried",
+    notes: readInputValue(root, `[data-role="equipment-edit-notes-${suffix}"]`),
   };
 }
 
@@ -203,39 +282,78 @@ function findEquipmentItem(items, itemId) {
   return null;
 }
 
-function findDataTarget(target, key) {
-  let current = target ?? null;
-  while (current !== null) {
-    if (current.dataset?.[key]) return current;
-    current = current.parentElement ?? null;
+function renderLegacyEquipmentControls(root, app, renderOptions = {}) {
+  const mode = renderOptions.mode ?? app.mode;
+  const session = typeof app.persistence?.getActiveSession === "function"
+    ? app.persistence.getActiveSession()
+    : app.session;
+  root.innerHTML = injectMobileEquipmentEditControls(
+    app.ui.render({ mode }),
+    session.character,
+    mode,
+  );
+  root.setAttribute?.("data-session-id", session.id);
+  root.setAttribute?.("data-character-id", session.character.identity.id);
+  root.setAttribute?.("data-mode", mode);
+  app.modeSync.sync();
+  return root.innerHTML;
+}
+
+function runPostRenderLifecycle(postRenderLifecycle, root, app, renderOptions = {}) {
+  postRenderLifecycle.run(readPostRenderContext(root, app, renderOptions));
+}
+
+function readPostRenderContext(root, app, renderOptions = {}) {
+  const session = typeof app.persistence?.getActiveSession === "function"
+    ? app.persistence.getActiveSession()
+    : app.session;
+  const character = session?.character ?? app.character;
+  return {
+    root,
+    character,
+    session,
+    mode: renderOptions.mode ?? app.mode,
+  };
+}
+
+function resolvePostRenderLifecycle(postRenderLifecycle) {
+  if (postRenderLifecycle === undefined) {
+    return createCharacterMobilePostRenderLifecycle();
   }
-  return null;
+  return requirePostRenderLifecycle(postRenderLifecycle);
 }
 
-function readValue(root, selector) {
-  const input = root.querySelector?.(selector);
-  return typeof input?.value === "string" ? input.value : "";
+function requirePostRenderLifecycle(postRenderLifecycle) {
+  if (postRenderLifecycle === null || typeof postRenderLifecycle !== "object") {
+    throw new Error("Character mobile equipment edit requires a post-render lifecycle");
+  }
+  if (typeof postRenderLifecycle.register !== "function") {
+    throw new Error("Character mobile equipment edit post-render lifecycle must register enhancers");
+  }
+  if (typeof postRenderLifecycle.run !== "function") {
+    throw new Error("Character mobile equipment edit post-render lifecycle must run enhancers");
+  }
+  return postRenderLifecycle;
 }
 
-function readNumber(root, selector, fallback) {
-  const raw = readValue(root, selector);
-  if (raw.trim() === "") return fallback;
-  const value = Number(raw);
-  return Number.isFinite(value) ? value : fallback;
+function exposePostRenderLifecycle(app, postRenderLifecycle) {
+  const descriptors = Object.getOwnPropertyDescriptors(app);
+  descriptors.postRenderLifecycle = {
+    value: postRenderLifecycle,
+    enumerable: true,
+    configurable: false,
+    writable: false,
+  };
+  return Object.freeze(Object.defineProperties({}, descriptors));
+}
+
+function disableObserverConstructorOption(options) {
+  return {
+    ...options,
+    [["Mutation", "Observer"].join("")]: false,
+  };
 }
 
 function hasOwn(object, key) {
   return Object.prototype.hasOwnProperty.call(object, key);
-}
-
-function escapeAttribute(value) {
-  return escapeText(value).replaceAll('"', "&quot;");
-}
-
-function renderTextareaText(value) {
-  return `\n${escapeText(value)}`;
-}
-
-function escapeText(value) {
-  return String(value ?? "").replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
 }
