@@ -7,7 +7,7 @@ test("attack edit mount cleanup stays local", () => {
   const listeners = new Map();
   let previousDestroyCalls = 0;
   let modeSyncCalls = 0;
-  let disconnectCalls = 0;
+  let observerConstructCalls = 0;
 
   const root = {
     innerHTML: "",
@@ -18,16 +18,17 @@ test("attack edit mount cleanup stays local", () => {
   };
 
   const MutationObserver = function MutationObserver() {
+    observerConstructCalls += 1;
     return {
       observe() {},
-      disconnect() { disconnectCalls += 1; },
+      disconnect() {},
     };
   };
 
   const character = Object.freeze({ attacks: [] });
   const app = {
     character,
-    session: Object.freeze({ id: "session-1" }),
+    session: Object.freeze({ id: "session-1", character }),
     mode: "creation",
     interactions: Object.freeze({}),
     modeSync: Object.freeze({ sync() { modeSyncCalls += 1; } }),
@@ -45,10 +46,11 @@ test("attack edit mount cleanup stays local", () => {
   assert.equal(listeners.has("click"), true);
   assert.equal(modeSyncCalls, 1);
   assert.equal(mounted.character, app.character);
+  assert.equal(observerConstructCalls, 0);
 
   mounted.attackEdit.destroy();
 
   assert.equal(listeners.has("click"), false);
-  assert.equal(disconnectCalls, 1);
+  assert.equal(observerConstructCalls, 0);
   assert.equal(previousDestroyCalls, 0);
 });
