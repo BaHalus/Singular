@@ -24,7 +24,7 @@ export async function bootstrapCharacterMobileLanguageCultureEditApp(options = {
   requirePlainObject(options, "Character mobile language culture edit bootstrap options");
   const postRenderLifecycle = resolvePostRenderLifecycle(options.postRenderLifecycle);
   const bootstrapOptions = Object.freeze({
-    ...omitObserverConstructorOption(options),
+    ...disableObserverConstructorOption(options),
     postRenderLifecycle,
   });
   const app = await bootstrapCharacterMobileSkillTechniqueEditApp(bootstrapOptions);
@@ -332,7 +332,9 @@ function exposePostRenderLifecycle(app, postRenderLifecycle) {
   return Object.freeze(Object.defineProperties({}, descriptors));
 }
 
-function omitObserverConstructorOption(options) {
-  const entries = Object.entries(options).filter(([key]) => key !== ["Mutation", "Observer"].join(""));
-  return Object.fromEntries(entries);
+function disableObserverConstructorOption(options) {
+  return {
+    ...options,
+    MutationObserver: false,
+  };
 }
