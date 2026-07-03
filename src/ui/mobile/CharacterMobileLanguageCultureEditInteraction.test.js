@@ -169,8 +169,22 @@ function readInlineEditorTargetSelector(selector) {
 }
 
 function htmlHasDefinitionListMarker(html, { entryKind, canonicalId }) {
-  if (!html.includes(`data-canonical-id="${canonicalId}"`)) return false;
-  return entryKind === null || html.includes(`data-entry-kind="${entryKind}"`);
+  return findDefinitionListOpening(html, { entryKind, canonicalId }) !== null;
+}
+
+function findDefinitionListOpening(html, { entryKind, canonicalId }) {
+  const canonicalMarker = `data-canonical-id="${canonicalId}"`;
+  let index = html.indexOf(canonicalMarker);
+  while (index >= 0) {
+    const openingEnd = html.indexOf(">", index);
+    const openingStart = html.lastIndexOf("<", index);
+    if (openingStart < 0 || openingEnd < 0) return null;
+    const opening = html.slice(openingStart, openingEnd + 1);
+    const matchesEntryKind = entryKind === null || opening.includes(`data-entry-kind="${entryKind}"`);
+    if (matchesEntryKind) return opening;
+    index = html.indexOf(canonicalMarker, openingEnd + 1);
+  }
+  return null;
 }
 
 function htmlHasInlineEditorMarker(html, { role, entryKind, canonicalId }) {
