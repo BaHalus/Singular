@@ -12,22 +12,7 @@ test("language culture edit mount detaches only its own listener without observe
   let modeSyncCalls = 0;
   let renderCalls = 0;
 
-  const root = {
-    innerHTML: [
-      "<main data-singular-mobile-root>",
-      "<dl>",
-      '<div><dt>Idioma</dt><dd data-entry-kind="language" data-canonical-id="language-1">Comum</dd></div>',
-      '<div><dt>Cultura</dt><dd data-entry-kind="familiarity" data-canonical-id="culture-1">Yrth</dd></div>',
-      "</dl>",
-      "</main>",
-    ].join(""),
-    querySelector() { return null; },
-    addEventListener(type, listener) { listeners.set(type, listener); },
-    removeEventListener(type, listener) {
-      if (listeners.get(type) === listener) listeners.delete(type);
-    },
-    setAttribute() {},
-  };
+  const root = createLanguageCultureRoot();
 
   const MutationObserver = function MutationObserver() {
     observerConstructCalls += 1;
@@ -94,3 +79,84 @@ test("language culture edit mount detaches only its own listener without observe
   assert.equal(disconnectCalls, 0);
   assert.equal(previousDestroyCalls, 0);
 });
+
+function createLanguageCultureRoot() {
+  const root = {
+    innerHTML: [
+      "<main data-singular-mobile-root>",
+      "<dl>",
+      '<div><dt>Idioma</dt><dd data-entry-kind="language" data-canonical-id="language-1">Comum</dd></div>',
+      '<div><dt>Cultura</dt><dd data-entry-kind="familiarity" data-canonical-id="culture-1">Yrth</dd></div>',
+      "</dl>",
+      "</main>",
+    ].join(""),
+    ownerDocument: null,
+    querySelector(selector) { return findDefinitionListItem(root, selector); },
+    addEventListener(type, listener) { listeners.set(type, listener); },
+    removeEventListener(type, listener) {
+      if (listeners.get(type) === listener) listeners.delete(type);
+    },
+    setAttribute() {},
+  };
+
+  root.ownerDocument = {
+    createElement(tagName) {
+      assert.equal(tagName, "template");
+      return createTemplateElement();
+    },
+  };
+
+  const listeners = new Map();
+  root.addEventListener = (type, listener) => { listeners.set(type, listener); };
+  root.removeEventListener = (type, listener) => {
+    if (listeners.get(type) === listener) listeners.delete(type);
+  };
+  root.hasListener = type => listeners.has(type);
+
+  return root;
+}
+
+function findDefinitionListItem(root, selector) {
+  const match = /^\[data-entry-kind="([^"]+)"\]\[data-canonical-id="([^"]+)"\]$/.exec(selector);
+  if (match === null) return null;
+  const [, entryKind, canonicalId] = match;
+  const itemMarker = `data-entry-kind="${entryKind}" data-canonical-id="${canonicalId}"`;
+  const markerIndex = root.innerHTML.indexOf(itemMarker);
+  if (markerIndex < 0) return null;
+
+  return {
+    ownerDocument: root.ownerDocument,
+    querySelector(childSelector) {
+      if (childSelector === "dd") {
+        return createMountTarget(root, markerIndex);
+      }
+      return hasInlineEditor(root, childSelector, entryKind, canonicalId) ? {} : null;
+    },
+  };
+}
+
+function hasInlineEditor(root, selector, entryKind, canonicalId) {
+  const roleMatch = /\[data-role="([^"]+)"\]/.exec(selector);
+  if (roleMatch === null) return false;
+  return root.innerHTML.includes(`data-role="${roleMatch[1]}"`)
+    && root.innerHTML.includes(`data-canonical-id="${canonicalId}"`)
+    && root.innerHTML.includes(`data-entry-kind="${entryKind}"`);
+}
+
+function createMountTarget(root, markerIndex) {
+  return {
+    append(...nodes) {
+      const ddEnd = root.innerHTML.indexOf("</dd>", markerIndex);
+      assert.notEqual(ddEnd, -1);
+      const renderedNodes = nodes.map(node => String(node)).join("");
+      root.innerHTML = `${root.innerHTML.slice(0, ddEnd)}${renderedNodes}${root.innerHTML.slice(ddEnd)}`;
+    },
+  };
+}
+
+function createTemplateElement() {
+  return {
+    content: { childNodes: [] },
+    set innerHTML(value) { this.content.childNodes = [value]; },
+  };
+}
