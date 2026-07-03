@@ -309,7 +309,7 @@ test("language culture mount uses post-render lifecycle without constructing obs
     render() {},
   }, {
     root,
-    MutationObserver() {
+    MutationObserver: function MutationObserver() {
       throw new Error("Language culture mount must not construct MutationObserver");
     },
   });
