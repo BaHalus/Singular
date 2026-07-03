@@ -12,7 +12,7 @@ test("language culture edit mount detaches only its own listener without observe
   let modeSyncCalls = 0;
   let renderCalls = 0;
 
-  const root = createLanguageCultureRoot();
+  const root = createLanguageCultureRoot(listeners);
 
   const MutationObserver = function MutationObserver() {
     observerConstructCalls += 1;
@@ -80,7 +80,7 @@ test("language culture edit mount detaches only its own listener without observe
   assert.equal(previousDestroyCalls, 0);
 });
 
-function createLanguageCultureRoot() {
+function createLanguageCultureRoot(listeners) {
   const root = {
     innerHTML: [
       "<main data-singular-mobile-root>",
@@ -105,13 +105,6 @@ function createLanguageCultureRoot() {
       return createTemplateElement();
     },
   };
-
-  const listeners = new Map();
-  root.addEventListener = (type, listener) => { listeners.set(type, listener); };
-  root.removeEventListener = (type, listener) => {
-    if (listeners.get(type) === listener) listeners.delete(type);
-  };
-  root.hasListener = type => listeners.has(type);
 
   return root;
 }
