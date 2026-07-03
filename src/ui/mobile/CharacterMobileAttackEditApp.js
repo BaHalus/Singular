@@ -105,7 +105,7 @@ export function mountCharacterMobileAttackEditApp(app, options = {}) {
       skipPostRenderLifecycle: true,
     });
     if (!renderOptions.skipPostRenderLifecycle) {
-      runPostRenderLifecycle(postRenderLifecycle, root, app);
+      runPostRenderLifecycle(postRenderLifecycle, root, app, renderOptions);
     }
     return result;
   };
@@ -234,11 +234,11 @@ function readAttackPatch(root, attackId) {
   };
 }
 
-function runPostRenderLifecycle(postRenderLifecycle, root, app) {
-  postRenderLifecycle.run(readPostRenderContext(root, app));
+function runPostRenderLifecycle(postRenderLifecycle, root, app, renderOptions = {}) {
+  postRenderLifecycle.run(readPostRenderContext(root, app, renderOptions));
 }
 
-function readPostRenderContext(root, app) {
+function readPostRenderContext(root, app, renderOptions = {}) {
   const session = typeof app.persistence?.getActiveSession === "function"
     ? app.persistence.getActiveSession()
     : app.session;
@@ -247,7 +247,7 @@ function readPostRenderContext(root, app) {
     root,
     character,
     session,
-    mode: app.mode,
+    mode: renderOptions.mode ?? app.mode,
   };
 }
 
