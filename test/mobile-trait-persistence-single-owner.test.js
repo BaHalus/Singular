@@ -37,7 +37,8 @@ test("trait edit mount does not own persistence actions", async () => {
     ui: Object.freeze({
       render() {
         renderCalls += 1;
-        return '<section data-card="traits"><h2>Traços</h2><p>Base</p></section>';
+        root.innerHTML = '<section data-card="traits"><h2>Traços</h2><p>Base</p></section>';
+        return root.innerHTML;
       },
       getState() {
         return { busy: false };
@@ -61,19 +62,21 @@ test("trait edit mount does not own persistence actions", async () => {
     runtime: Object.freeze({}),
   }, { root, MutationObserver: null });
 
-  assert.equal(renderCalls, 1);
-  await root.dispatch("click", { target: { dataset: { action: "persistence-save" } } });
+  assert.equal(renderCalls, 0);
+  await root.dispatch("click", { target: { dataset: { action: "save" } } });
 
   assert.equal(saveCalls, 0);
-  assert.equal(renderCalls, 1);
+  assert.equal(renderCalls, 0);
   assert.equal(root.getAttribute("data-last-persistence-status"), null);
 });
 
 function createRoot() {
   const listeners = new Map();
   const attributes = new Map();
+  const section = createSection();
+
   return {
-    innerHTML: "",
+    innerHTML: '<section data-card="traits"><h2>Traços</h2><p>Base</p></section>',
     addEventListener(type, listener) {
       if (!listeners.has(type)) listeners.set(type, new Set());
       listeners.get(type).add(listener);
@@ -87,13 +90,46 @@ function createRoot() {
     getAttribute(name) {
       return attributes.get(name) ?? null;
     },
-    querySelector() {
-      return null;
+    querySelector(selector) {
+      return selector === '[data-card="traits"]' ? section : null;
     },
     async dispatch(type, event) {
       for (const listener of listeners.get(type) ?? []) {
         await listener(event);
       }
+    },
+  };
+}
+
+function createSection() {
+  const header = {};
+  header.nextSibling = {
+    remove() {
+      header.nextSibling = null;
+    },
+  };
+
+  return {
+    ownerDocument: createDocument(),
+    querySelector(selector) {
+      return selector === "h2" ? header : null;
+    },
+    append(...nodes) {
+      this.appendedNodes = nodes;
+    },
+  };
+}
+
+function createDocument() {
+  return {
+    createElement(tagName) {
+      if (tagName !== "template") return null;
+      return {
+        content: { childNodes: [{}] },
+        set innerHTML(value) {
+          this.rendered = value;
+        },
+      };
     },
   };
 }

@@ -44,7 +44,7 @@ test("composition root restores composed trait controls through canonical post-r
   });
 
   root.addEventListener("click", event => {
-    if (event?.target?.dataset?.action === "persistence-save") app.render();
+    if (event?.target?.dataset?.action === "save") app.render();
   });
 
   const mounted = mountCharacterMobileCompositionRoot(app, { root, MutationObserver: null }, [
@@ -56,8 +56,8 @@ test("composition root restores composed trait controls through canonical post-r
   ]);
 
   assert.match(root.innerHTML, /data-role="trait-editor"/);
-  await root.dispatch("click", { target: { dataset: { action: "persistence-save" } } });
-  assert.equal(basePersistenceRenderCount, 1);
+  await root.dispatch("click", { target: { dataset: { action: "save" } } });
+  assert.equal(basePersistenceRenderCount, 2);
   assert.match(root.innerHTML, /data-role="trait-editor"/);
   assert.match(root.innerHTML, /data-action="trait-add"/);
 
@@ -76,8 +76,9 @@ function renderBaseSheet() {
 function createRoot() {
   const listeners = new Map();
   const attributes = new Map();
-  return {
-    innerHTML: "",
+  const root = {
+    innerHTML: renderBaseSheet(),
+    ownerDocument: null,
     addEventListener(type, listener) {
       if (!listeners.has(type)) listeners.set(type, new Set());
       listeners.get(type).add(listener);
@@ -85,9 +86,56 @@ function createRoot() {
     removeEventListener(type, listener) { listeners.get(type)?.delete(listener); },
     setAttribute(name, value) { attributes.set(name, String(value)); },
     getAttribute(name) { return attributes.get(name) ?? null; },
-    querySelector() { return null; },
+    querySelector(selector) {
+      if (selector !== '[data-card="traits"]') return null;
+      return createTraitSection(root);
+    },
     async dispatch(type, event) {
       for (const listener of listeners.get(type) ?? []) await listener(event);
     },
+  };
+  root.ownerDocument = {
+    createElement(tagName) {
+      assert.equal(tagName, "template");
+      return createTemplateElement();
+    },
+  };
+  return root;
+}
+
+function createTraitSection(root) {
+  return {
+    ownerDocument: root.ownerDocument,
+    querySelector(selector) {
+      if (selector !== "h2") return null;
+      return createHeaderNode(root);
+    },
+    append(...nodes) {
+      const sectionEnd = root.innerHTML.indexOf("</section>");
+      assert.notEqual(sectionEnd, -1);
+      root.innerHTML = `${root.innerHTML.slice(0, sectionEnd)}${nodes.map(String).join("")}${root.innerHTML.slice(sectionEnd)}`;
+    },
+  };
+}
+
+function createHeaderNode(root) {
+  return {
+    get nextSibling() {
+      const headerEnd = root.innerHTML.indexOf("</h2>") + "</h2>".length;
+      const sectionEnd = root.innerHTML.indexOf("</section>");
+      if (headerEnd < "</h2>".length || headerEnd >= sectionEnd) return null;
+      return {
+        remove() {
+          root.innerHTML = `${root.innerHTML.slice(0, headerEnd)}${root.innerHTML.slice(sectionEnd)}`;
+        },
+      };
+    },
+  };
+}
+
+function createTemplateElement() {
+  return {
+    content: { childNodes: [] },
+    set innerHTML(value) { this.content.childNodes = [value]; },
   };
 }
