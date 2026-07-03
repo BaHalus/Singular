@@ -266,6 +266,12 @@ test("blocks existing mobile language and culture edits in table mode", async ()
 
 test("language culture mount uses post-render lifecycle without constructing observers", () => {
   const root = rootFixture();
+  root.innerHTML = [
+    '<dl>',
+    '<dd data-entry-kind="language" data-canonical-id="language:latin">Latim</dd>',
+    '<dd data-entry-kind="familiarity" data-canonical-id="familiarity:imperial">Império Antigo</dd>',
+    '</dl>',
+  ].join("");
   let modeSyncCalls = 0;
   let registeredEnhancer = null;
   let unregisterCalls = 0;
