@@ -2,7 +2,10 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { createCharacter } from "../../domain/character/Character.js";
-import { bootstrapCharacterMobileLanguageCultureEditApp } from "./CharacterMobileLanguageCultureEditApp.js";
+import {
+  bootstrapCharacterMobileLanguageCultureEditApp,
+  mountCharacterMobileLanguageCultureEditApp,
+} from "./CharacterMobileLanguageCultureEditApp.js";
 
 function character() {
   return createCharacter({
@@ -112,6 +115,9 @@ function rootFixture() {
         await listener(event);
       }
     },
+    hasListener(type) {
+      return (listeners.get(type) ?? []).length > 0;
+    },
   };
   return root;
 }
@@ -160,7 +166,6 @@ function click(action, dataset = {}) {
 
 test("edits existing mobile languages and cultural familiarities through canonical update commands", async () => {
   const root = rootFixture();
-  let observerConstructCalls = 0;
   const mounted = await bootstrapCharacterMobileLanguageCultureEditApp({
     root,
     character: character(),
@@ -169,13 +174,8 @@ test("edits existing mobile languages and cultural familiarities through canonic
     namespace: "test.mobile.language-culture-edit",
     runtime: runtime(),
     mode: "creation",
-    MutationObserver() {
-      observerConstructCalls += 1;
-      return { observe() {}, disconnect() {} };
-    },
   });
 
-  assert.equal(observerConstructCalls, 0);
   assert.match(root.innerHTML, /data-action="language-update"/);
   assert.match(root.innerHTML, /data-action="familiarity-update"/);
   assert.match(root.innerHTML, /Latim/);
@@ -186,7 +186,6 @@ test("edits existing mobile languages and cultural familiarities through canonic
   assert.equal(root.innerHTML.match(/data-action="language-update"/g).length, 1);
   assert.equal(root.innerHTML.match(/data-action="familiarity-update"/g).length, 1);
   assert.notEqual(root.innerHTML, "");
-  assert.equal(observerConstructCalls, 0);
   assert.match(htmlAfterFirstMount, /data-role="language-inline-editor"/);
 
   root.setInput('[data-role="language-edit-name-language:latin"]', "Latim Imperial");
@@ -263,4 +262,56 @@ test("blocks existing mobile language and culture edits in table mode", async ()
   assert.equal(mounted.session.revision, 0);
   assert.equal(mounted.character.languages[0].name, "Latim");
   assert.equal(mounted.character.familiarities[0].name, "Império Antigo");
+});
+
+test("language culture mount uses post-render lifecycle without constructing observers", () => {
+  const root = rootFixture();
+  let modeSyncCalls = 0;
+  let registeredEnhancer = null;
+  let unregisterCalls = 0;
+  const mounted = mountCharacterMobileLanguageCultureEditApp({
+    character: character(),
+    session: Object.freeze({ id: "session-language-culture-mount", character: character() }),
+    mode: "creation",
+    interactions: Object.freeze({}),
+    modeSync: Object.freeze({ sync() { modeSyncCalls += 1; } }),
+    ui: Object.freeze({ getState: () => Object.freeze({ busy: false }) }),
+    persistence: Object.freeze({ getActiveSession: () => Object.freeze({ character: character() }) }),
+    commands: Object.freeze({
+      updateLanguage: () => Object.freeze({ status: "no-op" }),
+      updateFamiliarity: () => Object.freeze({ status: "no-op" }),
+    }),
+    repositories: Object.freeze({}),
+    runtime: Object.freeze({}),
+    postRenderLifecycle: Object.freeze({
+      register(enhancer) {
+        registeredEnhancer = enhancer;
+        return () => { unregisterCalls += 1; };
+      },
+      run(context) {
+        registeredEnhancer?.(context);
+      },
+    }),
+    render() {},
+  }, {
+    root,
+    MutationObserver() {
+      throw new Error("Language culture mount must not construct MutationObserver");
+    },
+  });
+
+  assert.equal(root.hasListener("click"), true);
+  assert.equal(typeof registeredEnhancer, "function");
+  assert.equal(modeSyncCalls, 1);
+  assert.equal(root.innerHTML.match(/data-action="language-update"/g).length, 1);
+
+  mounted.render();
+
+  assert.equal(root.innerHTML.match(/data-action="language-update"/g).length, 1);
+  assert.equal(modeSyncCalls, 2);
+
+  mounted.languageCultureEdit.destroy();
+
+  assert.equal(root.hasListener("click"), false);
+  assert.equal(unregisterCalls, 1);
 });
