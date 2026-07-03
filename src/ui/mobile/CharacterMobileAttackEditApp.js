@@ -100,10 +100,11 @@ export function mountCharacterMobileAttackEditApp(app, options = {}) {
   const unregisterPostRender = postRenderLifecycle.register(mountAttackEditors);
 
   const render = (renderOptions = {}) => {
-    app.render(renderOptions);
+    const result = app.render(renderOptions);
     if (!renderOptions.skipPostRenderLifecycle) {
       runPostRenderLifecycle(postRenderLifecycle, root, app);
     }
+    return result;
   };
 
   mountAttackEditors(readPostRenderContext(root, app));
@@ -248,30 +249,14 @@ function readPostRenderContext(root, app) {
 }
 
 function preservePostRenderLifecycle(app, postRenderLifecycle) {
-  return Object.freeze({
-    get character() { return app.character; },
-    get session() { return app.session; },
-    get html() { return app.html; },
-    get mode() { return app.mode; },
-    interactions: app.interactions,
-    modeSync: app.modeSync,
-    ui: app.ui,
-    persistence: app.persistence,
-    commands: app.commands,
-    repositories: app.repositories,
-    runtime: app.runtime,
-    languageCulture: app.languageCulture,
-    secondaryNotes: app.secondaryNotes,
-    traitEdit: app.traitEdit,
-    skillTechniqueEdit: app.skillTechniqueEdit,
-    languageCultureEdit: app.languageCultureEdit,
-    attackEdit: app.attackEdit,
-    equipmentEdit: app.equipmentEdit,
-    spellEdit: app.spellEdit,
-    powerEdit: app.powerEdit,
-    postRenderLifecycle,
-    render: app.render,
-  });
+  const descriptors = Object.getOwnPropertyDescriptors(app);
+  descriptors.postRenderLifecycle = {
+    value: postRenderLifecycle,
+    enumerable: true,
+    configurable: false,
+    writable: false,
+  };
+  return Object.freeze(Object.defineProperties({}, descriptors));
 }
 
 function requirePostRenderLifecycle(postRenderLifecycle) {
