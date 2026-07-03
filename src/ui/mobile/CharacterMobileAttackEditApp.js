@@ -2,6 +2,9 @@ import {
   bootstrapCharacterMobileLanguageCultureEditApp,
 } from "./CharacterMobileLanguageCultureEditApp.js";
 import {
+  createCharacterMobilePostRenderLifecycle,
+} from "./CharacterMobilePostRenderLifecycle.js";
+import {
   appendInlineEditorToDefinitionListItem,
   appendInlineEditorToDefinitionListItemNode,
   escapeAttribute,
@@ -18,7 +21,11 @@ import {
 export async function bootstrapCharacterMobileAttackEditApp(options = {}) {
   requirePlainObject(options, "Character mobile attack edit bootstrap options");
   const app = await bootstrapCharacterMobileLanguageCultureEditApp(options);
-  const mounted = mountCharacterMobileAttackEditApp(app, options);
+  const postRenderLifecycle = resolvePostRenderLifecycle(app.postRenderLifecycle);
+  const mounted = mountCharacterMobileAttackEditApp(
+    exposePostRenderLifecycle(app, postRenderLifecycle),
+    options,
+  );
   const previousDestroy = app.languageCultureEdit?.destroy;
 
   return Object.freeze({
@@ -33,6 +40,7 @@ export async function bootstrapCharacterMobileAttackEditApp(options = {}) {
     commands: mounted.commands,
     repositories: mounted.repositories,
     runtime: mounted.runtime,
+    postRenderLifecycle: mounted.postRenderLifecycle,
     render: mounted.render,
     attackEdit: Object.freeze({
       destroy() {
@@ -48,19 +56,30 @@ export function mountCharacterMobileAttackEditApp(app, options = {}) {
     options.document,
     "Character mobile attack edit bootstrap root was not found",
   );
+  const postRenderLifecycle = resolvePostRenderLifecycle(app.postRenderLifecycle);
+  const lifecycleApp = exposePostRenderLifecycle(app, postRenderLifecycle);
 
-  const render = () => {
-    app.render();
-    injectCurrentAttackControls(root, app);
+  const mountAttackEditors = context => {
+    injectCurrentAttackControls(context.root, {
+      character: context.character,
+      mode: context.mode,
+      modeSync: lifecycleApp.modeSync,
+    });
+  };
+  const unregisterPostRender = postRenderLifecycle.register(mountAttackEditors);
+
+  const render = (renderOptions = {}) => {
+    const result = lifecycleApp.render({
+      ...renderOptions,
+      skipPostRenderLifecycle: true,
+    });
+    if (!renderOptions.skipPostRenderLifecycle) {
+      runPostRenderLifecycle(postRenderLifecycle, root, lifecycleApp, renderOptions);
+    }
+    return result;
   };
 
-  injectCurrentAttackControls(root, app);
-
-  const MutationObserverRef = options.MutationObserver ?? globalThis.MutationObserver;
-  const observer = typeof MutationObserverRef === "function"
-    ? new MutationObserverRef(() => injectCurrentAttackControls(root, app))
-    : null;
-  observer?.observe?.(root, { childList: true, subtree: true });
+  mountAttackEditors(readPostRenderContext(root, lifecycleApp));
 
   const handleClick = event => {
     const actionTarget = findDataTarget(event?.target, "action");
@@ -68,17 +87,17 @@ export function mountCharacterMobileAttackEditApp(app, options = {}) {
     if (action !== "attack-update") return null;
     event.preventDefault?.();
 
-    if (app.mode !== "creation") {
+    if (lifecycleApp.mode !== "creation") {
       root.setAttribute?.("data-last-command-status", "blocked-by-mode");
       return null;
     }
-    if (app.ui.getState().busy) {
+    if (lifecycleApp.ui.getState().busy) {
       root.setAttribute?.("data-last-command-status", "busy");
       return null;
     }
 
     const attackId = readDataset(actionTarget, "attackId");
-    const result = app.commands.updateAttack({
+    const result = lifecycleApp.commands.updateAttack({
       attackId,
       patch: readAttackPatch(root, attackId),
     });
@@ -90,21 +109,22 @@ export function mountCharacterMobileAttackEditApp(app, options = {}) {
   root.addEventListener("click", handleClick);
 
   return Object.freeze({
-    get character() { return app.character; },
-    get session() { return app.session; },
+    get character() { return lifecycleApp.character; },
+    get session() { return lifecycleApp.session; },
     get html() { return root.innerHTML; },
-    get mode() { return app.mode; },
-    interactions: app.interactions,
-    modeSync: app.modeSync,
-    ui: app.ui,
-    persistence: app.persistence,
-    commands: app.commands,
-    repositories: app.repositories,
-    runtime: app.runtime,
+    get mode() { return lifecycleApp.mode; },
+    interactions: lifecycleApp.interactions,
+    modeSync: lifecycleApp.modeSync,
+    ui: lifecycleApp.ui,
+    persistence: lifecycleApp.persistence,
+    commands: lifecycleApp.commands,
+    repositories: lifecycleApp.repositories,
+    runtime: lifecycleApp.runtime,
+    postRenderLifecycle,
     render,
     attackEdit: Object.freeze({
       destroy() {
-        observer?.disconnect?.();
+        unregisterPostRender();
         root.removeEventListener?.("click", handleClick);
       },
     }),
@@ -120,24 +140,16 @@ export function injectMobileAttackEditControls(html, character, mode) {
   return nextHtml;
 }
 
-function injectCurrentAttackControls(root, app) {
-  if (app.mode !== "creation") {
-    app.modeSync.sync();
+function injectCurrentAttackControls(root, { character, mode, modeSync }) {
+  if (mode !== "creation") {
+    modeSync.sync();
     return;
   }
 
-  let allEditorsMounted = true;
-  for (const attack of app.persistence.getActiveSession().character.attacks ?? []) {
-    allEditorsMounted = appendAttackInlineEditorNode(root, attack) && allEditorsMounted;
+  for (const attack of character.attacks ?? []) {
+    appendAttackInlineEditorNode(root, attack);
   }
-  if (!allEditorsMounted) {
-    root.innerHTML = injectMobileAttackEditControls(
-      root.innerHTML,
-      app.persistence.getActiveSession().character,
-      app.mode,
-    );
-  }
-  app.modeSync.sync();
+  modeSync.sync();
 }
 
 function appendAttackInlineEditorNode(root, attack) {
@@ -189,4 +201,52 @@ function readAttackPatch(root, attackId) {
     range: normalizeOptionalText(readInputValue(root, `[data-role="attack-edit-range-${suffix}"]`)),
     notes: readInputValue(root, `[data-role="attack-edit-notes-${suffix}"]`),
   };
+}
+
+function runPostRenderLifecycle(postRenderLifecycle, root, app, renderOptions = {}) {
+  postRenderLifecycle.run(readPostRenderContext(root, app, renderOptions));
+}
+
+function readPostRenderContext(root, app, renderOptions = {}) {
+  const session = typeof app.persistence?.getActiveSession === "function"
+    ? app.persistence.getActiveSession()
+    : app.session;
+  const character = session?.character ?? app.character;
+  return {
+    root,
+    character,
+    session,
+    mode: renderOptions.mode ?? app.mode,
+  };
+}
+
+function resolvePostRenderLifecycle(postRenderLifecycle) {
+  if (postRenderLifecycle === undefined) {
+    return createCharacterMobilePostRenderLifecycle();
+  }
+  return requirePostRenderLifecycle(postRenderLifecycle);
+}
+
+function requirePostRenderLifecycle(postRenderLifecycle) {
+  if (postRenderLifecycle === null || typeof postRenderLifecycle !== "object") {
+    throw new Error("Character mobile attack edit requires a post-render lifecycle");
+  }
+  if (typeof postRenderLifecycle.register !== "function") {
+    throw new Error("Character mobile attack edit post-render lifecycle must register enhancers");
+  }
+  if (typeof postRenderLifecycle.run !== "function") {
+    throw new Error("Character mobile attack edit post-render lifecycle must run enhancers");
+  }
+  return postRenderLifecycle;
+}
+
+function exposePostRenderLifecycle(app, postRenderLifecycle) {
+  const descriptors = Object.getOwnPropertyDescriptors(app);
+  descriptors.postRenderLifecycle = {
+    value: postRenderLifecycle,
+    enumerable: true,
+    configurable: false,
+    writable: false,
+  };
+  return Object.freeze(Object.defineProperties({}, descriptors));
 }

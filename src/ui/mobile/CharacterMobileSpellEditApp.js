@@ -32,6 +32,7 @@ export async function bootstrapCharacterMobileSpellEditApp(options = {}) {
     commands: mounted.commands,
     repositories: mounted.repositories,
     runtime: mounted.runtime,
+    postRenderLifecycle: mounted.postRenderLifecycle,
     render: mounted.render,
     spellEdit: Object.freeze({
       destroy() {
@@ -48,8 +49,8 @@ export function mountCharacterMobileSpellEditApp(app, options = {}) {
     "Character mobile spell edit bootstrap root was not found",
   );
 
-  const render = () => {
-    app.render();
+  const render = (renderOptions = {}) => {
+    app.render(renderOptions);
     injectCurrentSpellControls(root, app);
   };
 
@@ -93,6 +94,7 @@ export function mountCharacterMobileSpellEditApp(app, options = {}) {
     commands: app.commands,
     repositories: app.repositories,
     runtime: app.runtime,
+    postRenderLifecycle: app.postRenderLifecycle,
     render,
     spellEdit: Object.freeze({
       destroy() {

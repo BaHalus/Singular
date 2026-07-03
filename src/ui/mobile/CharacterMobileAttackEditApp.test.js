@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import { createCharacter } from "../../domain/character/Character.js";
 import {
   bootstrapCharacterMobileAttackEditApp,
-  injectMobileAttackEditControls,
+  mountCharacterMobileAttackEditApp,
 } from "./CharacterMobileAttackEditApp.js";
 
 const html = '<section data-card="attacks"><h2>Ataques</h2><dl><div data-attack-id="attack:sword"><dt>Ataque</dt><dd>Espada longa</dd></div></dl></section>';
@@ -80,8 +80,9 @@ function rootFixture() {
   const attributes = new Map();
   const listeners = new Map();
   const inputValues = new Map();
-  return {
+  const root = {
     innerHTML: "",
+    ownerDocument: createDocumentFixture(),
     setAttribute(name, value) {
       attributes.set(name, value);
     },
@@ -98,6 +99,10 @@ function rootFixture() {
       listeners.set(type, entries.filter(entry => entry !== listener));
     },
     querySelector(selector) {
+      const attackId = readAttackIdSelector(selector);
+      if (attackId !== null && root.innerHTML.includes(`data-attack-id="${attackId}"`)) {
+        return createAttackItemFixture(root, attackId);
+      }
       return { value: inputValues.get(selector) ?? "" };
     },
     querySelectorAll() {
@@ -112,6 +117,40 @@ function rootFixture() {
       }
     },
   };
+  return root;
+}
+
+function createDocumentFixture() {
+  return {
+    createElement(tagName) {
+      if (tagName !== "template") return null;
+      return {
+        content: { childNodes: [] },
+        set innerHTML(value) {
+          this.content.childNodes = [String(value)];
+        },
+      };
+    },
+  };
+}
+
+function createAttackItemFixture(root, attackId) {
+  return {
+    ownerDocument: root.ownerDocument,
+    querySelector(selector) {
+      return selector.includes('data-role="attack-inline-editor"') && root.innerHTML.includes(`data-role="attack-inline-editor" data-attack-id="${attackId}"`)
+        ? {}
+        : null;
+    },
+    append(...nodes) {
+      root.innerHTML = `${root.innerHTML}${nodes.join("")}`;
+    },
+  };
+}
+
+function readAttackIdSelector(selector) {
+  const match = /^\[data-attack-id="(.+)"\]$/.exec(selector);
+  return match === null ? null : match[1];
 }
 
 function click(action, dataset = {}) {
@@ -121,39 +160,108 @@ function click(action, dataset = {}) {
   };
 }
 
-test("injects mobile attack inline editor in creation mode", () => {
-  const creation = injectMobileAttackEditControls(html, character(), "creation");
+function countAttackEditors(root) {
+  return (root.innerHTML.match(/data-role="attack-inline-editor"/g) ?? []).length;
+}
 
-  assert.match(creation, /data-role="attack-inline-editor"/);
-  assert.match(creation, /data-action="attack-update"/);
-  assert.match(creation, /data-role="attack-edit-name-attack:sword"/);
-  assert.match(creation, /data-role="attack-edit-damage-value-attack:sword"/);
-  assert.match(creation, /usar com escudo/);
+function postRenderLifecycleFixture() {
+  const entries = [];
+  return {
+    register(enhancer) {
+      const entry = { enhancer, active: true };
+      entries.push(entry);
+      return () => {
+        if (!entry.active) return false;
+        entry.active = false;
+        const index = entries.indexOf(entry);
+        if (index >= 0) entries.splice(index, 1);
+        return index >= 0;
+      };
+    },
+    run(context) {
+      let executed = 0;
+      for (const entry of [...entries]) {
+        if (!entry.active || !entries.includes(entry)) continue;
+        entry.enhancer(context);
+        executed += 1;
+      }
+      return Object.freeze({ executed });
+    },
+    get size() {
+      return entries.length;
+    },
+  };
+}
+
+function createMountedAttackApp({ mode = "creation", session = null, render = null } = {}) {
+  const root = rootFixture();
+  const activeSession = session ?? Object.freeze({
+    id: "session-mobile-attack-remount",
+    character: character(),
+  });
+  const postRenderLifecycle = postRenderLifecycleFixture();
+  const syncCalls = [];
+  const renderCalls = [];
+  const app = Object.freeze({
+    get character() { return activeSession.character; },
+    session: activeSession,
+    get html() { return root.innerHTML; },
+    mode,
+    interactions: Object.freeze({ destroy() {} }),
+    modeSync: Object.freeze({ sync: () => syncCalls.push("sync") }),
+    ui: Object.freeze({ getState: () => Object.freeze({ busy: false }) }),
+    persistence: Object.freeze({ getActiveSession: () => activeSession }),
+    commands: Object.freeze({}),
+    repositories: Object.freeze({}),
+    runtime: Object.freeze({}),
+    postRenderLifecycle,
+    render(renderOptions = {}) {
+      renderCalls.push(renderOptions);
+      if (render !== null) {
+        render(root, renderOptions);
+      } else {
+        root.innerHTML = html;
+      }
+    },
+  });
+  root.innerHTML = html;
+  const mounted = mountCharacterMobileAttackEditApp(app, { root });
+  return { root, mounted, syncCalls, renderCalls, activeSession, postRenderLifecycle };
+}
+
+test("mounts mobile attack inline editor through the post-render lifecycle in creation mode", () => {
+  const { root } = createMountedAttackApp();
+
+  assert.match(root.innerHTML, /data-role="attack-inline-editor"/);
+  assert.match(root.innerHTML, /data-action="attack-update"/);
+  assert.match(root.innerHTML, /data-role="attack-edit-name-attack:sword"/);
+  assert.match(root.innerHTML, /data-role="attack-edit-damage-value-attack:sword"/);
+  assert.match(root.innerHTML, /usar com escudo/);
 });
 
-test("renders attack notes as textareas for multiline input", () => {
+test("renders attack notes as textareas for multiline DOM input", () => {
   const source = character();
   source.attacks[0].notes = `Linha 1
 Linha 2 com & < > "aspas"`;
+  const session = Object.freeze({ id: "session-mobile-attack-notes", character: source });
+  const { root } = createMountedAttackApp({ session });
 
-  const creation = injectMobileAttackEditControls(html, source, "creation");
-
-  assert.ok(creation.includes(
+  assert.ok(root.innerHTML.includes(
     `<textarea data-role="attack-edit-notes-attack:sword" autocomplete="off">
 Linha 1
 Linha 2 com &amp; &lt; &gt; "aspas"</textarea>`,
   ));
-  assert.doesNotMatch(creation, /data-role="attack-edit-notes-attack:sword" value=/);
+  assert.doesNotMatch(root.innerHTML, /data-role="attack-edit-notes-attack:sword" value=/);
 });
 
 test("preserves leading blank lines in attack note textareas", () => {
   const source = character();
   source.attacks[0].notes = `
 Linha inicial de ataque`;
+  const session = Object.freeze({ id: "session-mobile-attack-leading-notes", character: source });
+  const { root } = createMountedAttackApp({ session });
 
-  const creation = injectMobileAttackEditControls(html, source, "creation");
-
-  assert.ok(creation.includes(
+  assert.ok(root.innerHTML.includes(
     `<textarea data-role="attack-edit-notes-attack:sword" autocomplete="off">
 
 Linha inicial de ataque</textarea>`,
@@ -207,10 +315,94 @@ test("edits existing mobile attacks through canonical update commands", async ()
   assert.equal(saved.character.attacks[0].notes, "Manter distância.\nLinha 2");
 });
 
-test("keeps attack structural edit controls out of table mode", () => {
-  const table = injectMobileAttackEditControls(html, character(), "table");
+test("mounts attack editors with session fallback when persistence has no active session reader", () => {
+  const root = rootFixture();
+  const activeSession = Object.freeze({
+    id: "session-mobile-attack-session-fallback",
+    character: character(),
+  });
+  const app = Object.freeze({
+    get character() { return activeSession.character; },
+    session: activeSession,
+    get html() { return root.innerHTML; },
+    mode: "creation",
+    interactions: Object.freeze({ destroy() {} }),
+    modeSync: Object.freeze({ sync() {} }),
+    ui: Object.freeze({ getState: () => Object.freeze({ busy: false }) }),
+    persistence: Object.freeze({}),
+    commands: Object.freeze({}),
+    repositories: Object.freeze({}),
+    runtime: Object.freeze({}),
+    postRenderLifecycle: postRenderLifecycleFixture(),
+    render() {
+      root.innerHTML = html;
+    },
+  });
 
-  assert.doesNotMatch(table, /data-role="attack-inline-editor"/);
-  assert.doesNotMatch(table, /data-action="attack-update"/);
-  assert.match(table, /Espada longa/);
+  root.innerHTML = html;
+  mountCharacterMobileAttackEditApp(app, { root });
+
+  assert.equal(countAttackEditors(root), 1);
+});
+
+test("remounts attack editors after delegated renders without duplicating controls", () => {
+  const { root, mounted, renderCalls, syncCalls } = createMountedAttackApp();
+
+  assert.equal(countAttackEditors(root), 1);
+  mounted.render();
+  assert.equal(countAttackEditors(root), 1);
+  mounted.render();
+  assert.equal(countAttackEditors(root), 1);
+  assert.deepEqual(renderCalls, [
+    { skipPostRenderLifecycle: true },
+    { skipPostRenderLifecycle: true },
+  ]);
+  assert.equal(syncCalls.length, 3);
+});
+
+const rerenderSources = Object.freeze([
+  ["attack", "attack-update"],
+  ["trait", "trait-update"],
+  ["skill/technique", "skill-technique-update"],
+  ["language/culture", "language-culture-update"],
+  ["equipment", "equipment-update"],
+  ["persistence", "persistence-save"],
+  ["mode", "mode-switch"],
+]);
+
+for (const [label, source] of rerenderSources) {
+  test(`remounts attack editors after ${label} rerenders through the canonical lifecycle`, () => {
+    const { root, mounted } = createMountedAttackApp();
+
+    root.innerHTML = html;
+    assert.equal(countAttackEditors(root), 0);
+    mounted.render({ source });
+
+    assert.equal(countAttackEditors(root), 1);
+  });
+}
+
+test("does not mount attack editors outside creation mode", () => {
+  const { root, syncCalls } = createMountedAttackApp({ mode: "table" });
+
+  assert.equal(countAttackEditors(root), 0);
+  assert.equal(syncCalls.length, 1);
+});
+
+test("unregisters the attack post-render enhancer during destroy", () => {
+  const { root, mounted, activeSession, postRenderLifecycle } = createMountedAttackApp();
+
+  assert.equal(postRenderLifecycle.size, 1);
+  mounted.attackEdit.destroy();
+  assert.equal(postRenderLifecycle.size, 0);
+
+  root.innerHTML = html;
+  postRenderLifecycle.run({
+    root,
+    character: activeSession.character,
+    session: activeSession,
+    mode: "creation",
+  });
+
+  assert.equal(countAttackEditors(root), 0);
 });

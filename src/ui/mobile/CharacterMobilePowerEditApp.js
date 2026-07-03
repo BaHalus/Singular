@@ -33,6 +33,7 @@ export async function bootstrapCharacterMobilePowerEditApp(options = {}) {
     commands: mounted.commands,
     repositories: mounted.repositories,
     runtime: mounted.runtime,
+    postRenderLifecycle: mounted.postRenderLifecycle,
     render: mounted.render,
     powerEdit: Object.freeze({
       destroy() {
@@ -49,8 +50,8 @@ export function mountCharacterMobilePowerEditApp(app, options = {}) {
     "Character mobile power edit bootstrap root was not found",
   );
 
-  const render = () => {
-    app.render();
+  const render = (renderOptions = {}) => {
+    app.render(renderOptions);
     injectCurrentPowerControls(root, app);
   };
 
@@ -101,6 +102,7 @@ export function mountCharacterMobilePowerEditApp(app, options = {}) {
     commands: app.commands,
     repositories: app.repositories,
     runtime: app.runtime,
+    postRenderLifecycle: app.postRenderLifecycle,
     render,
     powerEdit: Object.freeze({
       destroy() {
