@@ -109,11 +109,10 @@ function findDefinitionListItemMarkerIndex(html, { markerAttribute, id, entryKin
 }
 
 function definitionListItemHasEntryKind(html, markerIndex, entryKind) {
-  const itemStart = html.lastIndexOf("<dd", markerIndex);
+  const itemStart = html.lastIndexOf("<", markerIndex);
+  const itemOpeningEnd = html.indexOf(">", markerIndex);
   const itemEnd = html.indexOf("</dd>", markerIndex);
-  if (itemStart < 0 || itemEnd < 0) return false;
-  const itemOpeningEnd = html.indexOf(">", itemStart);
-  if (itemOpeningEnd < 0 || itemOpeningEnd > itemEnd) return false;
+  if (itemStart < 0 || itemOpeningEnd < 0 || itemEnd < 0 || itemOpeningEnd > itemEnd) return false;
   const itemOpening = html.slice(itemStart, itemOpeningEnd + 1);
   return itemOpening.includes(`data-entry-kind="${escapeAttribute(entryKind)}"`);
 }
