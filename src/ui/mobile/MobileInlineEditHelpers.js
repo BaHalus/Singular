@@ -89,10 +89,11 @@ export function appendInlineEditorToDefinitionListItemNode(root, {
 
   const documentRef = item.ownerDocument ?? root.ownerDocument ?? globalThis.document;
   const template = documentRef?.createElement?.("template") ?? null;
-  if (template === null || typeof item.append !== "function") return false;
+  const mountTarget = item.querySelector?.("dd") ?? item;
+  if (template === null || typeof mountTarget.append !== "function") return false;
 
   template.innerHTML = renderEditor();
-  item.append(...template.content.childNodes);
+  mountTarget.append(...template.content.childNodes);
   return true;
 }
 
