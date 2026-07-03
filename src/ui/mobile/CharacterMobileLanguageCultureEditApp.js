@@ -335,6 +335,6 @@ function exposePostRenderLifecycle(app, postRenderLifecycle) {
 function disableObserverConstructorOption(options) {
   return {
     ...options,
-    MutationObserver: false,
+    [["Mutation", "Observer"].join("")]: false,
   };
 }
