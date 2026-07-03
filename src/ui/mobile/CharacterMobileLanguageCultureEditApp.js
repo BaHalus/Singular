@@ -22,9 +22,12 @@ const LANGUAGE_LEVELS = Object.freeze(["none", "broken", "accented", "native"]);
 
 export async function bootstrapCharacterMobileLanguageCultureEditApp(options = {}) {
   requirePlainObject(options, "Character mobile language culture edit bootstrap options");
-  const bootstrapOptions = omitObserverConstructorOption(options);
+  const postRenderLifecycle = resolvePostRenderLifecycle(options.postRenderLifecycle);
+  const bootstrapOptions = Object.freeze({
+    ...omitObserverConstructorOption(options),
+    postRenderLifecycle,
+  });
   const app = await bootstrapCharacterMobileSkillTechniqueEditApp(bootstrapOptions);
-  const postRenderLifecycle = resolvePostRenderLifecycle(app.postRenderLifecycle);
   const mounted = mountCharacterMobileLanguageCultureEditApp(
     exposePostRenderLifecycle(app, postRenderLifecycle),
     options,
