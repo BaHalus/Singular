@@ -1,21 +1,9 @@
 import {
-  bootstrapCharacterMobileApp,
-} from "./CharacterMobileApp.js";
-import {
-  mountCharacterMobileLanguageCultureApp,
-} from "./CharacterMobileLanguageCultureApp.js";
-import {
-  mountCharacterMobileSecondaryNotesApp,
-} from "./CharacterMobileSecondaryNotesApp.js";
-import {
-  mountCharacterMobileTraitEditApp,
-} from "./CharacterMobileTraitEditApp.js";
-import {
-  mountCharacterMobileSkillTechniqueEditApp,
-} from "./CharacterMobileSkillTechniqueEditApp.js";
-import {
-  mountCharacterMobileLanguageCultureEditApp,
+  bootstrapCharacterMobileLanguageCultureEditApp,
 } from "./CharacterMobileLanguageCultureEditApp.js";
+import {
+  createCharacterMobilePostRenderLifecycle,
+} from "./CharacterMobilePostRenderLifecycle.js";
 import {
   appendInlineEditorToDefinitionListItem,
   appendInlineEditorToDefinitionListItemNode,
@@ -32,29 +20,9 @@ import {
 
 export async function bootstrapCharacterMobileAttackEditApp(options = {}) {
   requirePlainObject(options, "Character mobile attack edit bootstrap options");
-  const baseApp = await bootstrapCharacterMobileApp(options);
-  const postRenderLifecycle = requirePostRenderLifecycle(baseApp.postRenderLifecycle);
-  const languageCulture = mountCharacterMobileLanguageCultureApp(baseApp, options);
-  const secondaryNotes = mountCharacterMobileSecondaryNotesApp(
-    preservePostRenderLifecycle(languageCulture, postRenderLifecycle),
-    options,
-  );
-  const traitEdit = mountCharacterMobileTraitEditApp(
-    preservePostRenderLifecycle(secondaryNotes, postRenderLifecycle),
-    options,
-  );
-  const skillTechniqueEdit = mountCharacterMobileSkillTechniqueEditApp(
-    preservePostRenderLifecycle(traitEdit, postRenderLifecycle),
-    options,
-  );
-  const languageCultureEdit = mountCharacterMobileLanguageCultureEditApp(
-    preservePostRenderLifecycle(skillTechniqueEdit, postRenderLifecycle),
-    options,
-  );
-  const mounted = mountCharacterMobileAttackEditApp(
-    preservePostRenderLifecycle(languageCultureEdit, postRenderLifecycle),
-    options,
-  );
+  const app = await bootstrapCharacterMobileLanguageCultureEditApp(options);
+  const mounted = mountCharacterMobileAttackEditApp(app, options);
+  const previousDestroy = app.languageCultureEdit?.destroy;
 
   return Object.freeze({
     get character() { return mounted.character; },
@@ -73,11 +41,7 @@ export async function bootstrapCharacterMobileAttackEditApp(options = {}) {
     attackEdit: Object.freeze({
       destroy() {
         mounted.attackEdit.destroy();
-        languageCultureEdit.languageCultureEdit.destroy();
-        skillTechniqueEdit.skillTechniqueEdit.destroy();
-        traitEdit.traitEdit.destroy();
-        secondaryNotes.secondaryNotes.destroy();
-        languageCulture.languageCulture.destroy();
+        previousDestroy?.();
       },
     }),
   });
@@ -88,7 +52,7 @@ export function mountCharacterMobileAttackEditApp(app, options = {}) {
     options.document,
     "Character mobile attack edit bootstrap root was not found",
   );
-  const postRenderLifecycle = requirePostRenderLifecycle(app.postRenderLifecycle);
+  const postRenderLifecycle = resolvePostRenderLifecycle(app.postRenderLifecycle);
 
   const mountAttackEditors = context => {
     injectCurrentAttackControls(context.root, {
@@ -251,15 +215,11 @@ function readPostRenderContext(root, app, renderOptions = {}) {
   };
 }
 
-function preservePostRenderLifecycle(app, postRenderLifecycle) {
-  const descriptors = Object.getOwnPropertyDescriptors(app);
-  descriptors.postRenderLifecycle = {
-    value: postRenderLifecycle,
-    enumerable: true,
-    configurable: false,
-    writable: false,
-  };
-  return Object.freeze(Object.defineProperties({}, descriptors));
+function resolvePostRenderLifecycle(postRenderLifecycle) {
+  if (postRenderLifecycle === undefined) {
+    return createCharacterMobilePostRenderLifecycle();
+  }
+  return requirePostRenderLifecycle(postRenderLifecycle);
 }
 
 function requirePostRenderLifecycle(postRenderLifecycle) {
