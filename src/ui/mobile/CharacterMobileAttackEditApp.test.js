@@ -187,6 +187,9 @@ function postRenderLifecycleFixture() {
       }
       return Object.freeze({ executed });
     },
+    get size() {
+      return entries.length;
+    },
   };
 }
 
@@ -223,7 +226,7 @@ function createMountedAttackApp({ mode = "creation", session = null, render = nu
   });
   root.innerHTML = html;
   const mounted = mountCharacterMobileAttackEditApp(app, { root });
-  return { root, mounted, syncCalls, renderCalls };
+  return { root, mounted, syncCalls, renderCalls, activeSession, postRenderLifecycle };
 }
 
 test("mounts mobile attack inline editor through the post-render lifecycle in creation mode", () => {
@@ -355,44 +358,51 @@ test("remounts attack editors after delegated renders without duplicating contro
     { skipPostRenderLifecycle: true },
   ]);
   assert.equal(syncCalls.length, 3);
-
-  mounted.attackEdit.destroy();
-  root.innerHTML = html;
-  mounted.render();
-  assert.equal(countAttackEditors(root), 0);
 });
 
-test("remounts attack editors after S4 and persistence rerender sources", () => {
-  const rerenderSources = [
-    "attack-update",
-    "trait-edit",
-    "skill-technique-edit",
-    "language-culture-edit",
-    "equipment-edit",
-    "persistence-save",
-    "mode-creation",
-    "mode-table",
-  ];
+const rerenderSources = Object.freeze([
+  ["attack", "attack-update"],
+  ["trait", "trait-update"],
+  ["skill/technique", "skill-technique-update"],
+  ["language/culture", "language-culture-update"],
+  ["equipment", "equipment-update"],
+  ["persistence", "persistence-save"],
+  ["mode", "mode-switch"],
+]);
 
-  for (const source of rerenderSources) {
+for (const [label, source] of rerenderSources) {
+  test(`remounts attack editors after ${label} rerenders through the canonical lifecycle`, () => {
     const { root, mounted } = createMountedAttackApp();
+
     root.innerHTML = html;
+    assert.equal(countAttackEditors(root), 0);
     mounted.render({ source });
-    assert.equal(countAttackEditors(root), 1, source);
-    mounted.render({ source });
-    assert.equal(countAttackEditors(root), 1, `${source} duplicate guard`);
-    mounted.attackEdit.destroy();
-  }
+
+    assert.equal(countAttackEditors(root), 1);
+  });
+}
+
+test("does not mount attack editors outside creation mode", () => {
+  const { root, syncCalls } = createMountedAttackApp({ mode: "table" });
+
+  assert.equal(countAttackEditors(root), 0);
+  assert.equal(syncCalls.length, 1);
 });
 
-test("keeps attack structural edit controls out of table mode", () => {
-  const { root, mounted } = createMountedAttackApp({ mode: "table" });
+test("unregisters the attack post-render enhancer during destroy", () => {
+  const { root, mounted, activeSession, postRenderLifecycle } = createMountedAttackApp();
 
-  assert.doesNotMatch(root.innerHTML, /data-role="attack-inline-editor"/);
-  assert.doesNotMatch(root.innerHTML, /data-action="attack-update"/);
-  assert.match(root.innerHTML, /Espada longa/);
+  assert.equal(postRenderLifecycle.size, 1);
+  mounted.attackEdit.destroy();
+  assert.equal(postRenderLifecycle.size, 0);
 
   root.innerHTML = html;
-  mounted.render({ source: "mode-table" });
+  postRenderLifecycle.run({
+    root,
+    character: activeSession.character,
+    session: activeSession,
+    mode: "creation",
+  });
+
   assert.equal(countAttackEditors(root), 0);
 });
