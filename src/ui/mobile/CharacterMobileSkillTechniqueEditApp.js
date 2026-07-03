@@ -1,8 +1,25 @@
 import {
+  createCharacterMobilePostRenderLifecycle,
+} from "./CharacterMobilePostRenderLifecycle.js";
+import {
   bootstrapCharacterMobileTraitEditApp,
+  injectMobileTraitEditControls,
 } from "./CharacterMobileTraitEditApp.js";
+import {
+  escapeAttribute,
+  escapeSelectorValue,
+  escapeTextContent as escapeText,
+  findDataTarget,
+  normalizeOptionalText,
+  readDataset,
+  readInputValue,
+  readNumberInputValue as readInputNumber,
+  renderTextareaText,
+  requirePlainObject,
+  resolveMobileRoot,
+  splitTextList,
+} from "./MobileInlineEditHelpers.js";
 
-const MOBILE_ROOT_SELECTOR = "[data-singular-mobile-root]";
 const SKILL_ATTRIBUTES = Object.freeze(["ST", "DX", "IQ", "HT", "Will", "Per"]);
 const SKILL_DIFFICULTIES = Object.freeze(["E", "A", "H", "VH"]);
 const TECHNIQUE_DIFFICULTIES = Object.freeze(["A", "H"]);
@@ -14,18 +31,10 @@ export async function bootstrapCharacterMobileSkillTechniqueEditApp(options = {}
   const previousDestroy = app.traitEdit?.destroy;
 
   return Object.freeze({
-    get character() {
-      return mounted.character;
-    },
-    get session() {
-      return mounted.session;
-    },
-    get html() {
-      return mounted.html;
-    },
-    get mode() {
-      return mounted.mode;
-    },
+    get character() { return mounted.character; },
+    get session() { return mounted.session; },
+    get html() { return mounted.html; },
+    get mode() { return mounted.mode; },
     interactions: mounted.interactions,
     modeSync: mounted.modeSync,
     ui: mounted.ui,
@@ -33,6 +42,7 @@ export async function bootstrapCharacterMobileSkillTechniqueEditApp(options = {}
     commands: mounted.commands,
     repositories: mounted.repositories,
     runtime: mounted.runtime,
+    postRenderLifecycle: mounted.postRenderLifecycle,
     render: mounted.render,
     skillTechniqueEdit: Object.freeze({
       destroy() {
@@ -44,20 +54,41 @@ export async function bootstrapCharacterMobileSkillTechniqueEditApp(options = {}
 }
 
 export function mountCharacterMobileSkillTechniqueEditApp(app, options = {}) {
-  const root = options.root ?? resolveMobileRoot(options.document);
+  const root = options.root ?? resolveMobileRoot(
+    options.document,
+    "Character mobile skill technique edit bootstrap root was not found",
+  );
+  const postRenderLifecycle = resolvePostRenderLifecycle(app.postRenderLifecycle);
+  const lifecycleApp = exposePostRenderLifecycle(app, postRenderLifecycle);
+  const useDomMount = canMountSkillTechniqueControlsWithDom(root);
 
-  const render = () => {
-    app.render();
-    injectCurrentSkillTechniqueControls(root, app);
+  const mountSkillTechniqueEditors = context => {
+    injectCurrentSkillTechniqueControls(context.root, {
+      character: context.character,
+      mode: context.mode,
+      modeSync: lifecycleApp.modeSync,
+    });
   };
+  const unregisterPostRender = postRenderLifecycle.register(mountSkillTechniqueEditors);
 
-  injectCurrentSkillTechniqueControls(root, app);
+  const render = useDomMount
+    ? (renderOptions = {}) => {
+      const result = lifecycleApp.render({
+        ...renderOptions,
+        skipPostRenderLifecycle: true,
+      });
+      if (!renderOptions.skipPostRenderLifecycle) {
+        runPostRenderLifecycle(postRenderLifecycle, root, lifecycleApp, renderOptions);
+      }
+      return result;
+    }
+    : (renderOptions = {}) => renderLegacySkillTechniqueControls(root, lifecycleApp, renderOptions);
 
-  const MutationObserverRef = options.MutationObserver ?? globalThis.MutationObserver;
-  const observer = typeof MutationObserverRef === "function"
-    ? new MutationObserverRef(() => injectCurrentSkillTechniqueControls(root, app))
-    : null;
-  observer?.observe?.(root, { childList: true, subtree: true });
+  if (useDomMount) {
+    mountSkillTechniqueEditors(readPostRenderContext(root, lifecycleApp));
+  } else {
+    render();
+  }
 
   const handleClick = event => {
     const actionTarget = findDataTarget(event?.target, "action");
@@ -65,21 +96,21 @@ export function mountCharacterMobileSkillTechniqueEditApp(app, options = {}) {
     if (!["skill-update", "technique-update"].includes(action)) return null;
     event.preventDefault?.();
 
-    if (app.mode !== "creation") {
+    if (lifecycleApp.mode !== "creation") {
       root.setAttribute?.("data-last-command-status", "blocked-by-mode");
       return null;
     }
-    if (app.ui.getState().busy) {
+    if (lifecycleApp.ui.getState().busy) {
       root.setAttribute?.("data-last-command-status", "busy");
       return null;
     }
 
     const result = action === "skill-update"
-      ? app.commands.updateSkill({
+      ? lifecycleApp.commands.updateSkill({
         skillId: readDataset(actionTarget, "skillId"),
         patch: readSkillPatch(root, readDataset(actionTarget, "skillId")),
       })
-      : app.commands.updateTechnique({
+      : lifecycleApp.commands.updateTechnique({
         techniqueId: readDataset(actionTarget, "techniqueId"),
         patch: readTechniquePatch(root, readDataset(actionTarget, "techniqueId")),
       });
@@ -92,29 +123,22 @@ export function mountCharacterMobileSkillTechniqueEditApp(app, options = {}) {
   root.addEventListener("click", handleClick);
 
   return Object.freeze({
-    get character() {
-      return app.character;
-    },
-    get session() {
-      return app.session;
-    },
-    get html() {
-      return root.innerHTML;
-    },
-    get mode() {
-      return app.mode;
-    },
-    interactions: app.interactions,
-    modeSync: app.modeSync,
-    ui: app.ui,
-    persistence: app.persistence,
-    commands: app.commands,
-    repositories: app.repositories,
-    runtime: app.runtime,
+    get character() { return lifecycleApp.character; },
+    get session() { return lifecycleApp.session; },
+    get html() { return root.innerHTML; },
+    get mode() { return lifecycleApp.mode; },
+    interactions: lifecycleApp.interactions,
+    modeSync: lifecycleApp.modeSync,
+    ui: lifecycleApp.ui,
+    persistence: lifecycleApp.persistence,
+    commands: lifecycleApp.commands,
+    repositories: lifecycleApp.repositories,
+    runtime: lifecycleApp.runtime,
+    postRenderLifecycle,
     render,
     skillTechniqueEdit: Object.freeze({
       destroy() {
-        observer?.disconnect?.();
+        unregisterPostRender();
         root.removeEventListener?.("click", handleClick);
       },
     }),
@@ -140,13 +164,60 @@ export function injectMobileSkillTechniqueEditControls(html, character, mode) {
   ].join("");
 }
 
-function injectCurrentSkillTechniqueControls(root, app) {
+function injectCurrentSkillTechniqueControls(root, { character, mode, modeSync }) {
+  const section = root.querySelector?.('[data-card="skills-techniques"]') ?? null;
+  const mounted = section !== null
+    ? replaceSkillTechniqueSectionBody(section, renderSkillTechniqueBody(
+      character.skills ?? [],
+      character.techniques ?? [],
+      mode,
+    ))
+    : false;
+  modeSync.sync();
+  return mounted;
+}
+
+function replaceSkillTechniqueSectionBody(section, bodyHtml) {
+  const header = section.querySelector?.("h2") ?? null;
+  if (header === null) return false;
+
+  while (header.nextSibling !== null) {
+    header.nextSibling.remove();
+  }
+
+  const documentRef = section.ownerDocument ?? globalThis.document;
+  const template = documentRef?.createElement?.("template") ?? null;
+  if (template === null || typeof section.append !== "function") return false;
+
+  template.innerHTML = bodyHtml;
+  const nodes = Array.from(template.content?.childNodes ?? []);
+  if (nodes.length === 0) return false;
+  section.append(...nodes);
+  return true;
+}
+
+function canMountSkillTechniqueControlsWithDom(root) {
+  const section = root.querySelector?.('[data-card="skills-techniques"]') ?? null;
+  return section !== null &&
+    typeof section.querySelector === "function" &&
+    typeof section.append === "function" &&
+    (section.ownerDocument?.createElement ?? globalThis.document?.createElement) !== undefined;
+}
+
+function renderLegacySkillTechniqueControls(root, app, renderOptions = {}) {
+  const mode = renderOptions.mode ?? app.mode;
+  const session = app.persistence.getActiveSession();
   root.innerHTML = injectMobileSkillTechniqueEditControls(
-    root.innerHTML,
-    app.persistence.getActiveSession().character,
-    app.mode,
+    injectMobileTraitEditControls(
+      app.render({ mode, skipPostRenderLifecycle: true }),
+      session.character,
+      mode,
+    ),
+    session.character,
+    mode,
   );
   app.modeSync.sync();
+  return root.innerHTML;
 }
 
 function renderSkillTechniqueBody(skills, techniques, mode) {
@@ -375,72 +446,52 @@ function formatNamedSpecialization(name, specialization) {
   return `${name ?? ""} (${specialization})`;
 }
 
-function resolveMobileRoot(documentOption) {
-  const documentRef = documentOption ?? globalThis.document;
-  if (!documentRef || typeof documentRef.querySelector !== "function") {
-    throw new Error("Character mobile skill technique edit bootstrap requires a document");
+function runPostRenderLifecycle(postRenderLifecycle, root, app, renderOptions = {}) {
+  postRenderLifecycle.run(readPostRenderContext(root, app, renderOptions));
+}
+
+function readPostRenderContext(root, app, renderOptions = {}) {
+  const session = typeof app.persistence?.getActiveSession === "function"
+    ? app.persistence.getActiveSession()
+    : app.session;
+  const character = session?.character ?? app.character;
+  return {
+    root,
+    character,
+    session,
+    mode: renderOptions.mode ?? app.mode,
+  };
+}
+
+function resolvePostRenderLifecycle(postRenderLifecycle) {
+  if (postRenderLifecycle === undefined) {
+    return createCharacterMobilePostRenderLifecycle();
   }
-  const root = documentRef.querySelector(MOBILE_ROOT_SELECTOR);
-  if (root === null) {
-    throw new Error("Character mobile skill technique edit bootstrap root was not found");
+  return requirePostRenderLifecycle(postRenderLifecycle);
+}
+
+function requirePostRenderLifecycle(postRenderLifecycle) {
+  if (postRenderLifecycle === null || typeof postRenderLifecycle !== "object") {
+    throw new Error("Character mobile skill technique edit requires a post-render lifecycle");
   }
-  return root;
-}
-
-function findDataTarget(target, key) {
-  let current = target ?? null;
-  while (current !== null) {
-    if (readDataset(current, key) !== null) return current;
-    current = current.parentElement ?? null;
+  if (typeof postRenderLifecycle.register !== "function") {
+    throw new Error("Character mobile skill technique edit post-render lifecycle must register enhancers");
   }
-  return null;
+  if (typeof postRenderLifecycle.run !== "function") {
+    throw new Error("Character mobile skill technique edit post-render lifecycle must run enhancers");
+  }
+  return postRenderLifecycle;
 }
 
-function readDataset(target, key) {
-  if (!target || typeof target !== "object") return null;
-  const value = target.dataset?.[key];
-  return typeof value === "string" && value !== "" ? value : null;
-}
-
-function readInputValue(root, selector) {
-  const input = root.querySelector?.(selector);
-  return typeof input?.value === "string" ? input.value : "";
-}
-
-function readInputNumber(root, selector, fallback) {
-  const raw = readInputValue(root, selector);
-  if (raw.trim() === "") return fallback;
-  const value = Number(raw);
-  return Number.isFinite(value) ? value : fallback;
-}
-
-function normalizeOptionalText(value) {
-  if (value === undefined || value === null || value === "") return null;
-  return value;
-}
-
-function splitTextList(value) {
-  if (typeof value !== "string") return [];
-  return value.split(",").map(item => item.trim()).filter(Boolean);
-}
-
-function escapeSelectorValue(value) {
-  return String(value ?? "").replaceAll("\\", "\\\\").replaceAll('"', '\\"');
-}
-
-function escapeAttribute(value) {
-  return escapeText(value).replaceAll('"', "&quot;");
-}
-
-function renderTextareaText(value) {
-  return `\n${escapeText(value)}`;
-}
-
-function escapeText(value) {
-  return String(value ?? "")
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;");
+function exposePostRenderLifecycle(app, postRenderLifecycle) {
+  const descriptors = Object.getOwnPropertyDescriptors(app);
+  descriptors.postRenderLifecycle = {
+    value: postRenderLifecycle,
+    enumerable: true,
+    configurable: false,
+    writable: false,
+  };
+  return Object.freeze(Object.defineProperties({}, descriptors));
 }
 
 function formatValue(value) {
@@ -453,15 +504,4 @@ function formatSignedNumber(value) {
   const number = Number(value);
   if (!Number.isFinite(number)) return String(value);
   return number > 0 ? `+${number}` : String(number);
-}
-
-function requirePlainObject(value, label) {
-  if (
-    value === null ||
-    typeof value !== "object" ||
-    Array.isArray(value) ||
-    (Object.getPrototypeOf(value) !== Object.prototype && Object.getPrototypeOf(value) !== null)
-  ) {
-    throw new Error(`${label} must be a plain object`);
-  }
 }
