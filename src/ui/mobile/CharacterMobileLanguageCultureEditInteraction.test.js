@@ -102,7 +102,8 @@ function rootFixture() {
       if (target !== null && htmlHasDefinitionListMarker(root.innerHTML, target)) {
         return createDefinitionListItemFixture(root, target);
       }
-      return { value: inputValues.get(selector) ?? "" };
+      if (inputValues.has(selector)) return { value: inputValues.get(selector) };
+      return null;
     },
     querySelectorAll() {
       return [];
