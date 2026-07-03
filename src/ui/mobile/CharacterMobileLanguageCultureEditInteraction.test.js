@@ -2,7 +2,10 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { createCharacter } from "../../domain/character/Character.js";
-import { bootstrapCharacterMobileLanguageCultureEditApp } from "./CharacterMobileLanguageCultureEditApp.js";
+import {
+  bootstrapCharacterMobileLanguageCultureEditApp,
+  mountCharacterMobileLanguageCultureEditApp,
+} from "./CharacterMobileLanguageCultureEditApp.js";
 
 function character() {
   return createCharacter({
@@ -76,8 +79,9 @@ function rootFixture() {
   const attributes = new Map();
   const listeners = new Map();
   const inputValues = new Map();
-  return {
+  const root = {
     innerHTML: "",
+    ownerDocument: createDocumentFixture(),
     setAttribute(name, value) {
       attributes.set(name, value);
     },
@@ -94,7 +98,12 @@ function rootFixture() {
       listeners.set(type, entries.filter(entry => entry !== listener));
     },
     querySelector(selector) {
-      return { value: inputValues.get(selector) ?? "" };
+      const target = readDefinitionListTargetSelector(selector);
+      if (target !== null && htmlHasDefinitionListMarker(root.innerHTML, target)) {
+        return createDefinitionListItemFixture(root, target);
+      }
+      if (inputValues.has(selector)) return { value: inputValues.get(selector) };
+      return null;
     },
     querySelectorAll() {
       return [];
@@ -107,7 +116,93 @@ function rootFixture() {
         await listener(event);
       }
     },
+    hasListener(type) {
+      return (listeners.get(type) ?? []).length > 0;
+    },
   };
+  return root;
+}
+
+function createDocumentFixture() {
+  return {
+    createElement(tagName) {
+      if (tagName !== "template") return null;
+      return {
+        content: { childNodes: [] },
+        set innerHTML(value) {
+          this.content.childNodes = [String(value)];
+        },
+      };
+    },
+  };
+}
+
+function createDefinitionListItemFixture(root, target) {
+  return {
+    ownerDocument: root.ownerDocument,
+    querySelector(selector) {
+      const editor = readInlineEditorTargetSelector(selector);
+      if (editor === null) return null;
+      return htmlHasInlineEditorMarker(root.innerHTML, editor) ? {} : null;
+    },
+    append(...nodes) {
+      root.innerHTML = `${root.innerHTML}${nodes.join("")}`;
+    },
+  };
+}
+
+function readDefinitionListTargetSelector(selector) {
+  const scoped = /^\[data-entry-kind="(.+)"\]\[data-canonical-id="(.+)"\]$/.exec(selector);
+  if (scoped !== null) return { entryKind: scoped[1], canonicalId: scoped[2] };
+  const unscoped = /^\[data-canonical-id="(.+)"\]$/.exec(selector);
+  return unscoped === null ? null : { entryKind: null, canonicalId: unscoped[1] };
+}
+
+function readInlineEditorTargetSelector(selector) {
+  const scoped = /^\[data-role="(.+)"\]\[data-canonical-id="(.+)"\]\[data-entry-kind="(.+)"\]$/.exec(selector);
+  if (scoped !== null) {
+    return { role: scoped[1], canonicalId: scoped[2], entryKind: scoped[3] };
+  }
+  const unscoped = /^\[data-role="(.+)"\]\[data-canonical-id="(.+)"\]$/.exec(selector);
+  return unscoped === null
+    ? null
+    : { role: unscoped[1], canonicalId: unscoped[2], entryKind: null };
+}
+
+function htmlHasDefinitionListMarker(html, { entryKind, canonicalId }) {
+  return findDefinitionListOpening(html, { entryKind, canonicalId }) !== null;
+}
+
+function findDefinitionListOpening(html, { entryKind, canonicalId }) {
+  const canonicalMarker = `data-canonical-id="${canonicalId}"`;
+  let index = html.indexOf(canonicalMarker);
+  while (index >= 0) {
+    const openingEnd = html.indexOf(">", index);
+    const openingStart = html.lastIndexOf("<", index);
+    if (openingStart < 0 || openingEnd < 0) return null;
+    const opening = html.slice(openingStart, openingEnd + 1);
+    const matchesEntryKind = entryKind === null || opening.includes(`data-entry-kind="${entryKind}"`);
+    if (matchesEntryKind) return opening;
+    index = html.indexOf(canonicalMarker, openingEnd + 1);
+  }
+  return null;
+}
+
+function htmlHasInlineEditorMarker(html, { role, entryKind, canonicalId }) {
+  const roleMarker = `data-role="${role}"`;
+  const canonicalMarker = `data-canonical-id="${canonicalId}"`;
+  let index = html.indexOf(roleMarker);
+  while (index >= 0) {
+    const openingEnd = html.indexOf(">", index);
+    if (openingEnd < 0) return false;
+    const openingStart = html.lastIndexOf("<", index);
+    const opening = html.slice(openingStart, openingEnd + 1);
+    const matchesCanonical = opening.includes(canonicalMarker);
+    const matchesEntryKind = entryKind === null || opening.includes(`data-entry-kind="${entryKind}"`);
+    if (matchesCanonical && matchesEntryKind) return true;
+    index = html.indexOf(roleMarker, openingEnd + 1);
+  }
+  return false;
 }
 
 function click(action, dataset = {}) {
@@ -134,6 +229,13 @@ test("edits existing mobile languages and cultural familiarities through canonic
   assert.match(root.innerHTML, /Latim/);
   assert.match(root.innerHTML, /Império Antigo/);
 
+  const htmlAfterFirstMount = root.innerHTML;
+  mounted.render();
+  assert.equal(root.innerHTML.match(/data-action="language-update"/g).length, 1);
+  assert.equal(root.innerHTML.match(/data-action="familiarity-update"/g).length, 1);
+  assert.notEqual(root.innerHTML, "");
+  assert.match(htmlAfterFirstMount, /data-role="language-inline-editor"/);
+
   root.setInput('[data-role="language-edit-name-language:latin"]', "Latim Imperial");
   root.setInput('[data-role="language-edit-spoken-level-language:latin"]', "native");
   root.setInput('[data-role="language-edit-written-level-language:latin"]', "native");
@@ -151,6 +253,7 @@ test("edits existing mobile languages and cultural familiarities through canonic
   assert.equal(mounted.character.languages[0].notes, "Uso diplomático.\nLinha 2");
   assert.deepEqual(mounted.character.languages[0].tags, ["erudito", "corte"]);
   assert.match(root.innerHTML, /Latim Imperial/);
+  assert.equal(root.innerHTML.match(/data-action="language-update"/g).length, 1);
 
   root.setInput('[data-role="familiarity-edit-name-familiarity:imperial"]', "Corte Imperial");
   root.setInput('[data-role="familiarity-edit-native-familiarity:imperial"]', "true");
@@ -166,6 +269,7 @@ test("edits existing mobile languages and cultural familiarities through canonic
   assert.equal(mounted.character.familiarities[0].notes, "Etiqueta cortesã.\nLinha 2");
   assert.deepEqual(mounted.character.familiarities[0].tags, ["história", "etiqueta"]);
   assert.match(root.innerHTML, /Corte Imperial/);
+  assert.equal(root.innerHTML.match(/data-action="familiarity-update"/g).length, 1);
 
   await root.dispatch("click", click("persistence-save"));
   const saved = await mounted.repositories.session.load("session-mobile-language-culture-edit");
@@ -206,4 +310,62 @@ test("blocks existing mobile language and culture edits in table mode", async ()
   assert.equal(mounted.session.revision, 0);
   assert.equal(mounted.character.languages[0].name, "Latim");
   assert.equal(mounted.character.familiarities[0].name, "Império Antigo");
+});
+
+test("language culture mount uses post-render lifecycle without constructing observers", () => {
+  const root = rootFixture();
+  root.innerHTML = [
+    '<dl>',
+    '<dd data-entry-kind="language" data-canonical-id="language:latin">Latim</dd>',
+    '<dd data-entry-kind="familiarity" data-canonical-id="familiarity:imperial">Império Antigo</dd>',
+    '</dl>',
+  ].join("");
+  let modeSyncCalls = 0;
+  let registeredEnhancer = null;
+  let unregisterCalls = 0;
+  const mounted = mountCharacterMobileLanguageCultureEditApp({
+    character: character(),
+    session: Object.freeze({ id: "session-language-culture-mount", character: character() }),
+    mode: "creation",
+    interactions: Object.freeze({}),
+    modeSync: Object.freeze({ sync() { modeSyncCalls += 1; } }),
+    ui: Object.freeze({ getState: () => Object.freeze({ busy: false }) }),
+    persistence: Object.freeze({ getActiveSession: () => Object.freeze({ character: character() }) }),
+    commands: Object.freeze({
+      updateLanguage: () => Object.freeze({ status: "no-op" }),
+      updateFamiliarity: () => Object.freeze({ status: "no-op" }),
+    }),
+    repositories: Object.freeze({}),
+    runtime: Object.freeze({}),
+    postRenderLifecycle: Object.freeze({
+      register(enhancer) {
+        registeredEnhancer = enhancer;
+        return () => { unregisterCalls += 1; };
+      },
+      run(context) {
+        registeredEnhancer?.(context);
+      },
+    }),
+    render() {},
+  }, {
+    root,
+    MutationObserver: function MutationObserver() {
+      throw new Error("Language culture mount must not construct MutationObserver");
+    },
+  });
+
+  assert.equal(root.hasListener("click"), true);
+  assert.equal(typeof registeredEnhancer, "function");
+  assert.equal(modeSyncCalls, 1);
+  assert.equal(root.innerHTML.match(/data-action="language-update"/g).length, 1);
+
+  mounted.render();
+
+  assert.equal(root.innerHTML.match(/data-action="language-update"/g).length, 1);
+  assert.equal(modeSyncCalls, 2);
+
+  mounted.languageCultureEdit.destroy();
+
+  assert.equal(root.hasListener("click"), false);
+  assert.equal(unregisterCalls, 1);
 });

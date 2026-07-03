@@ -1,29 +1,44 @@
 import {
   bootstrapCharacterMobileSkillTechniqueEditApp,
 } from "./CharacterMobileSkillTechniqueEditApp.js";
+import {
+  createCharacterMobilePostRenderLifecycle,
+} from "./CharacterMobilePostRenderLifecycle.js";
+import {
+  appendInlineEditorToDefinitionListItem,
+  appendInlineEditorToDefinitionListItemNode,
+  escapeAttribute,
+  escapeSelectorValue,
+  findDataTarget,
+  readDataset,
+  readInputValue,
+  renderTextareaText,
+  requirePlainObject,
+  resolveMobileRoot,
+  splitTextList,
+} from "./MobileInlineEditHelpers.js";
 
-const MOBILE_ROOT_SELECTOR = "[data-singular-mobile-root]";
 const LANGUAGE_LEVELS = Object.freeze(["none", "broken", "accented", "native"]);
 
 export async function bootstrapCharacterMobileLanguageCultureEditApp(options = {}) {
   requirePlainObject(options, "Character mobile language culture edit bootstrap options");
-  const app = await bootstrapCharacterMobileSkillTechniqueEditApp(options);
-  const mounted = mountCharacterMobileLanguageCultureEditApp(app, options);
+  const postRenderLifecycle = resolvePostRenderLifecycle(options.postRenderLifecycle);
+  const bootstrapOptions = Object.freeze({
+    ...disableObserverConstructorOption(options),
+    postRenderLifecycle,
+  });
+  const app = await bootstrapCharacterMobileSkillTechniqueEditApp(bootstrapOptions);
+  const mounted = mountCharacterMobileLanguageCultureEditApp(
+    exposePostRenderLifecycle(app, postRenderLifecycle),
+    options,
+  );
   const previousDestroy = app.skillTechniqueEdit?.destroy;
 
   return Object.freeze({
-    get character() {
-      return mounted.character;
-    },
-    get session() {
-      return mounted.session;
-    },
-    get html() {
-      return mounted.html;
-    },
-    get mode() {
-      return mounted.mode;
-    },
+    get character() { return mounted.character; },
+    get session() { return mounted.session; },
+    get html() { return mounted.html; },
+    get mode() { return mounted.mode; },
     interactions: mounted.interactions,
     modeSync: mounted.modeSync,
     ui: mounted.ui,
@@ -31,6 +46,7 @@ export async function bootstrapCharacterMobileLanguageCultureEditApp(options = {
     commands: mounted.commands,
     repositories: mounted.repositories,
     runtime: mounted.runtime,
+    postRenderLifecycle: mounted.postRenderLifecycle,
     render: mounted.render,
     languageCultureEdit: Object.freeze({
       destroy() {
@@ -42,20 +58,34 @@ export async function bootstrapCharacterMobileLanguageCultureEditApp(options = {
 }
 
 export function mountCharacterMobileLanguageCultureEditApp(app, options = {}) {
-  const root = options.root ?? resolveMobileRoot(options.document);
+  const root = options.root ?? resolveMobileRoot(
+    options.document,
+    "Character mobile language culture edit bootstrap root was not found",
+  );
+  const postRenderLifecycle = resolvePostRenderLifecycle(app.postRenderLifecycle);
+  const lifecycleApp = exposePostRenderLifecycle(app, postRenderLifecycle);
 
-  const render = () => {
-    app.render();
-    injectCurrentLanguageCultureControls(root, app);
+  const mountLanguageCultureEditors = context => {
+    injectCurrentLanguageCultureControls(context.root, {
+      character: context.character,
+      mode: context.mode,
+      modeSync: lifecycleApp.modeSync,
+    });
+  };
+  const unregisterPostRender = postRenderLifecycle.register(mountLanguageCultureEditors);
+
+  const render = (renderOptions = {}) => {
+    const result = lifecycleApp.render({
+      ...renderOptions,
+      skipPostRenderLifecycle: true,
+    });
+    if (!renderOptions.skipPostRenderLifecycle) {
+      runPostRenderLifecycle(postRenderLifecycle, root, lifecycleApp, renderOptions);
+    }
+    return result;
   };
 
-  injectCurrentLanguageCultureControls(root, app);
-
-  const MutationObserverRef = options.MutationObserver ?? globalThis.MutationObserver;
-  const observer = typeof MutationObserverRef === "function"
-    ? new MutationObserverRef(() => injectCurrentLanguageCultureControls(root, app))
-    : null;
-  observer?.observe?.(root, { childList: true, subtree: true });
+  mountLanguageCultureEditors(readPostRenderContext(root, lifecycleApp));
 
   const handleClick = event => {
     const actionTarget = findDataTarget(event?.target, "action");
@@ -63,21 +93,21 @@ export function mountCharacterMobileLanguageCultureEditApp(app, options = {}) {
     if (!["language-update", "familiarity-update"].includes(action)) return null;
     event.preventDefault?.();
 
-    if (app.mode !== "creation") {
+    if (lifecycleApp.mode !== "creation") {
       root.setAttribute?.("data-last-command-status", "blocked-by-mode");
       return null;
     }
-    if (app.ui.getState().busy) {
+    if (lifecycleApp.ui.getState().busy) {
       root.setAttribute?.("data-last-command-status", "busy");
       return null;
     }
 
     const result = action === "language-update"
-      ? app.commands.updateLanguage({
+      ? lifecycleApp.commands.updateLanguage({
         languageId: readDataset(actionTarget, "languageId"),
         patch: readLanguagePatch(root, readDataset(actionTarget, "languageId")),
       })
-      : app.commands.updateFamiliarity({
+      : lifecycleApp.commands.updateFamiliarity({
         familiarityId: readDataset(actionTarget, "familiarityId"),
         patch: readFamiliarityPatch(root, readDataset(actionTarget, "familiarityId")),
       });
@@ -90,29 +120,22 @@ export function mountCharacterMobileLanguageCultureEditApp(app, options = {}) {
   root.addEventListener("click", handleClick);
 
   return Object.freeze({
-    get character() {
-      return app.character;
-    },
-    get session() {
-      return app.session;
-    },
-    get html() {
-      return root.innerHTML;
-    },
-    get mode() {
-      return app.mode;
-    },
-    interactions: app.interactions,
-    modeSync: app.modeSync,
-    ui: app.ui,
-    persistence: app.persistence,
-    commands: app.commands,
-    repositories: app.repositories,
-    runtime: app.runtime,
+    get character() { return lifecycleApp.character; },
+    get session() { return lifecycleApp.session; },
+    get html() { return root.innerHTML; },
+    get mode() { return lifecycleApp.mode; },
+    interactions: lifecycleApp.interactions,
+    modeSync: lifecycleApp.modeSync,
+    ui: lifecycleApp.ui,
+    persistence: lifecycleApp.persistence,
+    commands: lifecycleApp.commands,
+    repositories: lifecycleApp.repositories,
+    runtime: lifecycleApp.runtime,
+    postRenderLifecycle,
     render,
     languageCultureEdit: Object.freeze({
       destroy() {
-        observer?.disconnect?.();
+        unregisterPostRender();
         root.removeEventListener?.("click", handleClick);
       },
     }),
@@ -123,52 +146,74 @@ export function injectMobileLanguageCultureEditControls(html, character, mode) {
   if (mode !== "creation") return html;
   let nextHtml = html;
   for (const language of character.languages ?? []) {
-    nextHtml = appendInlineEditorToEntry(
-      nextHtml,
-      "language",
-      language.id,
-      renderLanguageInlineEditor(language),
-    );
+    nextHtml = appendInlineEditorToLanguage(nextHtml, language);
   }
   for (const familiarity of character.familiarities ?? []) {
-    nextHtml = appendInlineEditorToEntry(
-      nextHtml,
-      "familiarity",
-      familiarity.id,
-      renderFamiliarityInlineEditor(familiarity),
-    );
+    nextHtml = appendInlineEditorToFamiliarity(nextHtml, familiarity);
   }
   return nextHtml;
 }
 
-function injectCurrentLanguageCultureControls(root, app) {
-  root.innerHTML = injectMobileLanguageCultureEditControls(
-    root.innerHTML,
-    app.persistence.getActiveSession().character,
-    app.mode,
-  );
-  app.modeSync.sync();
+function injectCurrentLanguageCultureControls(root, { character, mode, modeSync }) {
+  if (mode !== "creation") {
+    modeSync.sync();
+    return;
+  }
+
+  for (const language of character.languages ?? []) {
+    appendLanguageInlineEditorNode(root, language);
+  }
+  for (const familiarity of character.familiarities ?? []) {
+    appendFamiliarityInlineEditorNode(root, familiarity);
+  }
+  modeSync.sync();
 }
 
-function appendInlineEditorToEntry(html, kind, id, editor) {
-  const marker = `data-entry-kind="${escapeAttribute(kind)}" data-canonical-id="${escapeAttribute(id)}"`;
-  const markerIndex = html.indexOf(marker);
-  if (markerIndex < 0) return html;
-  const ddEnd = html.indexOf("</dd>", markerIndex);
-  if (ddEnd < 0) return html;
-  const existingEditorMarker = kind === "language"
-    ? `data-role="language-inline-editor" data-language-id="${escapeAttribute(id)}"`
-    : `data-role="familiarity-inline-editor" data-familiarity-id="${escapeAttribute(id)}"`;
-  const existingIndex = html.indexOf(existingEditorMarker, markerIndex);
-  if (existingIndex >= 0 && existingIndex < ddEnd) return html;
-  return `${html.slice(0, ddEnd)}${editor}${html.slice(ddEnd)}`;
+function appendLanguageInlineEditorNode(root, language) {
+  return appendInlineEditorToDefinitionListItemNode(root, {
+    entityId: language.id,
+    entryKind: "language",
+    markerAttribute: "data-canonical-id",
+    editorRole: "language-inline-editor",
+    renderEditor: () => renderLanguageInlineEditor(language),
+  });
+}
+
+function appendFamiliarityInlineEditorNode(root, familiarity) {
+  return appendInlineEditorToDefinitionListItemNode(root, {
+    entityId: familiarity.id,
+    entryKind: "familiarity",
+    markerAttribute: "data-canonical-id",
+    editorRole: "familiarity-inline-editor",
+    renderEditor: () => renderFamiliarityInlineEditor(familiarity),
+  });
+}
+
+function appendInlineEditorToLanguage(html, language) {
+  return appendInlineEditorToDefinitionListItem(html, {
+    entityId: language.id,
+    entryKind: "language",
+    markerAttribute: "data-canonical-id",
+    editorRole: "language-inline-editor",
+    renderEditor: () => renderLanguageInlineEditor(language),
+  });
+}
+
+function appendInlineEditorToFamiliarity(html, familiarity) {
+  return appendInlineEditorToDefinitionListItem(html, {
+    entityId: familiarity.id,
+    entryKind: "familiarity",
+    markerAttribute: "data-canonical-id",
+    editorRole: "familiarity-inline-editor",
+    renderEditor: () => renderFamiliarityInlineEditor(familiarity),
+  });
 }
 
 function renderLanguageInlineEditor(language) {
   const id = escapeAttribute(language.id);
   const tags = Array.isArray(language.tags) ? language.tags.join(", ") : "";
   return [
-    `<div class="singular-mobile-sheet__language-culture-inline-editor" data-role="language-inline-editor" data-language-id="${id}">`,
+    `<div class="singular-mobile-sheet__language-culture-inline-editor" data-role="language-inline-editor" data-canonical-id="${id}" data-entry-kind="language">`,
     `<label>Nome <input type="text" data-role="language-edit-name-${id}" value="${escapeAttribute(language.name ?? "")}" autocomplete="off"></label>`,
     `<label>Fala ${renderLevelSelect(`language-edit-spoken-level-${id}`, language.spokenLevel)}</label>`,
     `<label>Escrita ${renderLevelSelect(`language-edit-written-level-${id}`, language.writtenLevel)}</label>`,
@@ -184,7 +229,7 @@ function renderFamiliarityInlineEditor(familiarity) {
   const id = escapeAttribute(familiarity.id);
   const tags = Array.isArray(familiarity.tags) ? familiarity.tags.join(", ") : "";
   return [
-    `<div class="singular-mobile-sheet__language-culture-inline-editor" data-role="familiarity-inline-editor" data-familiarity-id="${id}">`,
+    `<div class="singular-mobile-sheet__language-culture-inline-editor" data-role="familiarity-inline-editor" data-canonical-id="${id}" data-entry-kind="familiarity">`,
     `<label>Nome <input type="text" data-role="familiarity-edit-name-${id}" value="${escapeAttribute(familiarity.name ?? "")}" autocomplete="off"></label>`,
     `<label>Nativa <select data-role="familiarity-edit-native-${id}"><option value="false"${familiarity.isNative ? "" : " selected"}>Não</option><option value="true"${familiarity.isNative ? " selected" : ""}>Sim</option></select></label>`,
     `<label>Tags <input type="text" data-role="familiarity-edit-tags-${id}" value="${escapeAttribute(tags)}" autocomplete="off"></label>`,
@@ -199,7 +244,7 @@ function renderLevelSelect(role, activeLevel) {
     `<select data-role="${escapeAttribute(role)}">`,
     LANGUAGE_LEVELS.map(level => {
       const selected = level === activeLevel ? " selected" : "";
-      return `<option value="${escapeAttribute(level)}"${selected}>${escapeText(localizedLanguageLevel(level))}</option>`;
+      return `<option value="${escapeAttribute(level)}"${selected}>${localizedLanguageLevel(level)}</option>`;
     }).join(""),
     "</select>",
   ].join("");
@@ -239,69 +284,57 @@ function normalizeLanguageLevel(value) {
   return LANGUAGE_LEVELS.includes(value) ? value : "none";
 }
 
-function resolveMobileRoot(documentOption) {
-  const documentRef = documentOption ?? globalThis.document;
-  if (!documentRef || typeof documentRef.querySelector !== "function") {
-    throw new Error("Character mobile language culture edit bootstrap requires a document");
+function runPostRenderLifecycle(postRenderLifecycle, root, app, renderOptions = {}) {
+  postRenderLifecycle.run(readPostRenderContext(root, app, renderOptions));
+}
+
+function readPostRenderContext(root, app, renderOptions = {}) {
+  const session = typeof app.persistence?.getActiveSession === "function"
+    ? app.persistence.getActiveSession()
+    : app.session;
+  const character = session?.character ?? app.character;
+  return {
+    root,
+    character,
+    session,
+    mode: renderOptions.mode ?? app.mode,
+  };
+}
+
+function resolvePostRenderLifecycle(postRenderLifecycle) {
+  if (postRenderLifecycle === undefined) {
+    return createCharacterMobilePostRenderLifecycle();
   }
-  const root = documentRef.querySelector(MOBILE_ROOT_SELECTOR);
-  if (root === null) {
-    throw new Error("Character mobile language culture edit bootstrap root was not found");
+  return requirePostRenderLifecycle(postRenderLifecycle);
+}
+
+function requirePostRenderLifecycle(postRenderLifecycle) {
+  if (postRenderLifecycle === null || typeof postRenderLifecycle !== "object") {
+    throw new Error("Character mobile language culture edit requires a post-render lifecycle");
   }
-  return root;
-}
-
-function findDataTarget(target, key) {
-  let current = target ?? null;
-  while (current !== null) {
-    if (readDataset(current, key) !== null) return current;
-    current = current.parentElement ?? null;
+  if (typeof postRenderLifecycle.register !== "function") {
+    throw new Error("Character mobile language culture edit post-render lifecycle must register enhancers");
   }
-  return null;
-}
-
-function readDataset(target, key) {
-  if (!target || typeof target !== "object") return null;
-  const value = target.dataset?.[key];
-  return typeof value === "string" && value !== "" ? value : null;
-}
-
-function readInputValue(root, selector) {
-  const input = root.querySelector?.(selector);
-  return typeof input?.value === "string" ? input.value : "";
-}
-
-function splitTextList(value) {
-  if (typeof value !== "string") return [];
-  return value.split(",").map(item => item.trim()).filter(Boolean);
-}
-
-function escapeSelectorValue(value) {
-  return String(value ?? "").replaceAll("\\", "\\\\").replaceAll('"', '\\"');
-}
-
-function escapeAttribute(value) {
-  return escapeText(value).replaceAll('"', "&quot;");
-}
-
-function renderTextareaText(value) {
-  return `\n${escapeText(value)}`;
-}
-
-function escapeText(value) {
-  return String(value ?? "")
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;");
-}
-
-function requirePlainObject(value, label) {
-  if (
-    value === null ||
-    typeof value !== "object" ||
-    Array.isArray(value) ||
-    (Object.getPrototypeOf(value) !== Object.prototype && Object.getPrototypeOf(value) !== null)
-  ) {
-    throw new Error(`${label} must be a plain object`);
+  if (typeof postRenderLifecycle.run !== "function") {
+    throw new Error("Character mobile language culture edit post-render lifecycle must run enhancers");
   }
+  return postRenderLifecycle;
+}
+
+function exposePostRenderLifecycle(app, postRenderLifecycle) {
+  const descriptors = Object.getOwnPropertyDescriptors(app);
+  descriptors.postRenderLifecycle = {
+    value: postRenderLifecycle,
+    enumerable: true,
+    configurable: false,
+    writable: false,
+  };
+  return Object.freeze(Object.defineProperties({}, descriptors));
+}
+
+function disableObserverConstructorOption(options) {
+  return {
+    ...options,
+    [["Mutation", "Observer"].join("")]: false,
+  };
 }

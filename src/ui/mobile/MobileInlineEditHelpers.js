@@ -54,17 +54,24 @@ export function appendInlineEditorToDefinitionListItem(html, {
   markerAttribute,
   editorRole,
   renderEditor,
+  entryKind,
 }) {
   const id = escapeAttribute(entityId);
-  const markerIndex = html.indexOf(`${markerAttribute}="${id}"`);
+  const markerIndex = findDefinitionListItemMarkerIndex(html, { markerAttribute, id, entryKind });
   if (markerIndex < 0) return html;
 
   const ddEnd = html.indexOf("</dd>", markerIndex);
   if (ddEnd < 0) return html;
 
-  const existingMarker = `data-role="${editorRole}" ${markerAttribute}="${id}"`;
-  const existingIndex = html.indexOf(existingMarker, markerIndex);
-  if (existingIndex >= 0 && existingIndex < ddEnd) return html;
+  const existingIndex = findInlineEditorMarkerIndex(html, {
+    markerAttribute,
+    id,
+    editorRole,
+    entryKind,
+    startIndex: markerIndex,
+    endIndex: ddEnd,
+  });
+  if (existingIndex >= 0) return html;
 
   return `${html.slice(0, ddEnd)}${renderEditor()}${html.slice(ddEnd)}`;
 }
@@ -74,23 +81,87 @@ export function appendInlineEditorToDefinitionListItemNode(root, {
   markerAttribute,
   editorRole,
   renderEditor,
+  entryKind,
 }) {
   const selectorId = escapeSelectorValue(entityId);
-  const item = root.querySelector?.(`[${markerAttribute}="${selectorId}"]`) ?? null;
+  const selector = renderDefinitionListItemSelector({ markerAttribute, selectorId, entryKind });
+  const item = root.querySelector?.(selector) ?? null;
   if (item === null) return false;
 
   const existing = item.querySelector?.(
-    `[data-role="${escapeSelectorValue(editorRole)}"][${markerAttribute}="${selectorId}"]`,
+    renderInlineEditorSelector({ markerAttribute, selectorId, editorRole, entryKind }),
   ) ?? null;
   if (existing !== null) return true;
 
   const documentRef = item.ownerDocument ?? root.ownerDocument ?? globalThis.document;
   const template = documentRef?.createElement?.("template") ?? null;
-  if (template === null || typeof item.append !== "function") return false;
+  const mountTarget = item.querySelector?.("dd") ?? item;
+  if (template === null || typeof mountTarget.append !== "function") return false;
 
   template.innerHTML = renderEditor();
-  item.append(...template.content.childNodes);
+  const nodes = Array.from(template.content?.childNodes ?? []);
+  if (nodes.length === 0) return false;
+  mountTarget.append(...nodes);
   return true;
+}
+
+function findDefinitionListItemMarkerIndex(html, { markerAttribute, id, entryKind }) {
+  const canonicalMarker = `${markerAttribute}="${id}"`;
+  let markerIndex = html.indexOf(canonicalMarker);
+  while (markerIndex >= 0) {
+    if (entryKind === undefined || definitionListItemHasEntryKind(html, markerIndex, entryKind)) {
+      return markerIndex;
+    }
+    markerIndex = html.indexOf(canonicalMarker, markerIndex + canonicalMarker.length);
+  }
+  return -1;
+}
+
+function definitionListItemHasEntryKind(html, markerIndex, entryKind) {
+  const itemStart = html.lastIndexOf("<", markerIndex);
+  const itemOpeningEnd = html.indexOf(">", markerIndex);
+  const itemEnd = html.indexOf("</dd>", markerIndex);
+  if (itemStart < 0 || itemOpeningEnd < 0 || itemEnd < 0 || itemOpeningEnd > itemEnd) return false;
+  const itemOpening = html.slice(itemStart, itemOpeningEnd + 1);
+  return itemOpening.includes(`data-entry-kind="${escapeAttribute(entryKind)}"`);
+}
+
+function findInlineEditorMarkerIndex(html, {
+  markerAttribute,
+  id,
+  editorRole,
+  entryKind,
+  startIndex,
+  endIndex,
+}) {
+  const editorMarker = `data-role="${escapeAttribute(editorRole)}"`;
+  const canonicalMarker = `${markerAttribute}="${id}"`;
+  let editorIndex = html.indexOf(editorMarker, startIndex);
+  while (editorIndex >= 0 && editorIndex < endIndex) {
+    const editorOpeningEnd = html.indexOf(">", editorIndex);
+    if (editorOpeningEnd < 0 || editorOpeningEnd > endIndex) return -1;
+    const editorOpening = html.slice(html.lastIndexOf("<", editorIndex), editorOpeningEnd + 1);
+    const matchesCanonical = editorOpening.includes(canonicalMarker);
+    const matchesEntryKind = entryKind === undefined
+      || editorOpening.includes(`data-entry-kind="${escapeAttribute(entryKind)}"`);
+    if (matchesCanonical && matchesEntryKind) return editorIndex;
+    editorIndex = html.indexOf(editorMarker, editorOpeningEnd + 1);
+  }
+  return -1;
+}
+
+function renderDefinitionListItemSelector({ markerAttribute, selectorId, entryKind }) {
+  const canonicalSelector = `[${markerAttribute}="${selectorId}"]`;
+  return entryKind === undefined
+    ? canonicalSelector
+    : `[data-entry-kind="${escapeSelectorValue(entryKind)}"]${canonicalSelector}`;
+}
+
+function renderInlineEditorSelector({ markerAttribute, selectorId, editorRole, entryKind }) {
+  const editorSelector = `[data-role="${escapeSelectorValue(editorRole)}"][${markerAttribute}="${selectorId}"]`;
+  return entryKind === undefined
+    ? editorSelector
+    : `${editorSelector}[data-entry-kind="${escapeSelectorValue(entryKind)}"]`;
 }
 
 export function resolveMobileRoot(documentOption, errorMessage) {
