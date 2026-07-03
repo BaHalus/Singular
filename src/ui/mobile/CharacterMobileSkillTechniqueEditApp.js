@@ -1,4 +1,7 @@
 import {
+  createCharacterMobilePostRenderLifecycle,
+} from "./CharacterMobilePostRenderLifecycle.js";
+import {
   bootstrapCharacterMobileTraitEditApp,
   injectMobileTraitEditControls,
 } from "./CharacterMobileTraitEditApp.js";
@@ -55,7 +58,7 @@ export function mountCharacterMobileSkillTechniqueEditApp(app, options = {}) {
     options.document,
     "Character mobile skill technique edit bootstrap root was not found",
   );
-  const postRenderLifecycle = requirePostRenderLifecycle(app.postRenderLifecycle);
+  const postRenderLifecycle = resolvePostRenderLifecycle(app.postRenderLifecycle);
   const lifecycleApp = exposePostRenderLifecycle(app, postRenderLifecycle);
   const useDomMount = canMountSkillTechniqueControlsWithDom(root);
 
@@ -458,6 +461,13 @@ function readPostRenderContext(root, app, renderOptions = {}) {
     session,
     mode: renderOptions.mode ?? app.mode,
   };
+}
+
+function resolvePostRenderLifecycle(postRenderLifecycle) {
+  if (postRenderLifecycle === undefined) {
+    return createCharacterMobilePostRenderLifecycle();
+  }
+  return requirePostRenderLifecycle(postRenderLifecycle);
 }
 
 function requirePostRenderLifecycle(postRenderLifecycle) {
