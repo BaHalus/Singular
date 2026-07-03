@@ -54,9 +54,11 @@ export function appendInlineEditorToDefinitionListItem(html, {
   markerAttribute,
   editorRole,
   renderEditor,
+  entryKind,
 }) {
   const id = escapeAttribute(entityId);
-  const markerIndex = html.indexOf(`${markerAttribute}="${id}"`);
+  const marker = renderDefinitionListItemMarker({ markerAttribute, id, entryKind });
+  const markerIndex = html.indexOf(marker);
   if (markerIndex < 0) return html;
 
   const ddEnd = html.indexOf("</dd>", markerIndex);
@@ -74,9 +76,11 @@ export function appendInlineEditorToDefinitionListItemNode(root, {
   markerAttribute,
   editorRole,
   renderEditor,
+  entryKind,
 }) {
   const selectorId = escapeSelectorValue(entityId);
-  const item = root.querySelector?.(`[${markerAttribute}="${selectorId}"]`) ?? null;
+  const selector = renderDefinitionListItemSelector({ markerAttribute, selectorId, entryKind });
+  const item = root.querySelector?.(selector) ?? null;
   if (item === null) return false;
 
   const existing = item.querySelector?.(
@@ -91,6 +95,20 @@ export function appendInlineEditorToDefinitionListItemNode(root, {
   template.innerHTML = renderEditor();
   item.append(...template.content.childNodes);
   return true;
+}
+
+function renderDefinitionListItemMarker({ markerAttribute, id, entryKind }) {
+  const canonicalMarker = `${markerAttribute}="${id}"`;
+  return entryKind === undefined
+    ? canonicalMarker
+    : `data-entry-kind="${escapeAttribute(entryKind)}" ${canonicalMarker}`;
+}
+
+function renderDefinitionListItemSelector({ markerAttribute, selectorId, entryKind }) {
+  const canonicalSelector = `[${markerAttribute}="${selectorId}"]`;
+  return entryKind === undefined
+    ? canonicalSelector
+    : `[data-entry-kind="${escapeSelectorValue(entryKind)}"]${canonicalSelector}`;
 }
 
 export function resolveMobileRoot(documentOption, errorMessage) {
