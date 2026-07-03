@@ -63,9 +63,15 @@ export function appendInlineEditorToDefinitionListItem(html, {
   const ddEnd = html.indexOf("</dd>", markerIndex);
   if (ddEnd < 0) return html;
 
-  const existingMarker = `data-role="${editorRole}" ${markerAttribute}="${id}"`;
-  const existingIndex = html.indexOf(existingMarker, markerIndex);
-  if (existingIndex >= 0 && existingIndex < ddEnd) return html;
+  const existingIndex = findInlineEditorMarkerIndex(html, {
+    markerAttribute,
+    id,
+    editorRole,
+    entryKind,
+    startIndex: markerIndex,
+    endIndex: ddEnd,
+  });
+  if (existingIndex >= 0) return html;
 
   return `${html.slice(0, ddEnd)}${renderEditor()}${html.slice(ddEnd)}`;
 }
@@ -118,6 +124,30 @@ function definitionListItemHasEntryKind(html, markerIndex, entryKind) {
   if (itemStart < 0 || itemOpeningEnd < 0 || itemEnd < 0 || itemOpeningEnd > itemEnd) return false;
   const itemOpening = html.slice(itemStart, itemOpeningEnd + 1);
   return itemOpening.includes(`data-entry-kind="${escapeAttribute(entryKind)}"`);
+}
+
+function findInlineEditorMarkerIndex(html, {
+  markerAttribute,
+  id,
+  editorRole,
+  entryKind,
+  startIndex,
+  endIndex,
+}) {
+  const editorMarker = `data-role="${escapeAttribute(editorRole)}"`;
+  const canonicalMarker = `${markerAttribute}="${id}"`;
+  let editorIndex = html.indexOf(editorMarker, startIndex);
+  while (editorIndex >= 0 && editorIndex < endIndex) {
+    const editorOpeningEnd = html.indexOf(">", editorIndex);
+    if (editorOpeningEnd < 0 || editorOpeningEnd > endIndex) return -1;
+    const editorOpening = html.slice(html.lastIndexOf("<", editorIndex), editorOpeningEnd + 1);
+    const matchesCanonical = editorOpening.includes(canonicalMarker);
+    const matchesEntryKind = entryKind === undefined
+      || editorOpening.includes(`data-entry-kind="${escapeAttribute(entryKind)}"`);
+    if (matchesCanonical && matchesEntryKind) return editorIndex;
+    editorIndex = html.indexOf(editorMarker, editorOpeningEnd + 1);
+  }
+  return -1;
 }
 
 function renderDefinitionListItemSelector({ markerAttribute, selectorId, entryKind }) {
