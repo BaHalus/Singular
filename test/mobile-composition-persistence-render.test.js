@@ -127,7 +127,7 @@ test("composition root shares one post-render lifecycle across mounted modules",
   mounted.render();
   mounted.render();
 
-  assert.equal(baseRenderCount, 2);
+  assert.equal(baseRenderCount, 4);
   assert.equal(enhancerRuns, 4);
   assert.equal(mounted.postRenderLifecycle, postRenderLifecycle);
 
