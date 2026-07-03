@@ -38,6 +38,7 @@ test("trait edit mount does not own persistence actions", async () => {
       render() {
         renderCalls += 1;
         root.innerHTML = '<section data-card="traits"><h2>Traços</h2><p>Base</p></section>';
+        return root.innerHTML;
       },
       getState() {
         return { busy: false };
@@ -72,6 +73,8 @@ test("trait edit mount does not own persistence actions", async () => {
 function createRoot() {
   const listeners = new Map();
   const attributes = new Map();
+  const section = createSection();
+
   return {
     innerHTML: '<section data-card="traits"><h2>Traços</h2><p>Base</p></section>',
     addEventListener(type, listener) {
@@ -87,13 +90,47 @@ function createRoot() {
     getAttribute(name) {
       return attributes.get(name) ?? null;
     },
-    querySelector() {
-      return null;
+    querySelector(selector) {
+      return selector === '[data-card="traits"]' ? section : null;
     },
     async dispatch(type, event) {
       for (const listener of listeners.get(type) ?? []) {
         await listener(event);
       }
+    },
+  };
+}
+
+function createSection() {
+  const header = { nextSibling: createSibling() };
+  const section = {
+    ownerDocument: createDocument(),
+    querySelector(selector) {
+      return selector === "h2" ? header : null;
+    },
+    append(...nodes) {
+      this.appendedNodes = nodes;
+    },
+  };
+  return section;
+}
+
+function createSibling() {
+  return {
+    remove() {},
+  };
+}
+
+function createDocument() {
+  return {
+    createElement(tagName) {
+      if (tagName !== "template") return null;
+      return {
+        content: { childNodes: [{}] },
+        set innerHTML(value) {
+          this.rendered = value;
+        },
+      };
     },
   };
 }
