@@ -33,8 +33,11 @@ test("language/culture mobile bootstrap exposes creation controls and blocks tab
   }
 });
 
-test("language/culture rerender delegates to the base mobile render pipeline", () => {
-  assert.ok(moduleSource.includes("root.innerHTML = renderCharacterMobileApp(session.character, { mode: app.mode });"));
+test("language/culture rerender delegates to the canonical mobile render pipeline and lifecycle", () => {
+  assert.ok(moduleSource.includes("lifecycleApp.render({"));
+  assert.ok(moduleSource.includes("skipPostRenderLifecycle: true"));
+  assert.ok(moduleSource.includes("runPostRenderLifecycle(postRenderLifecycle, root, lifecycleApp, renderOptions)"));
+  assert.ok(moduleSource.includes("root.innerHTML = renderCharacterMobileApp(session.character, { mode: renderMode });"));
   assert.ok(!moduleSource.includes("root.innerHTML = app.ui.render("));
   assert.ok(!moduleSource.includes("root.innerHTML = ui.render("));
 });
