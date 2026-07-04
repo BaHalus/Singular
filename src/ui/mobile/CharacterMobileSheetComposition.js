@@ -19,15 +19,23 @@ export function createCharacterMobileSheetRenderModelForCharacter(character) {
   const spellsPowersModel = serializeCharacterMobileSpellsPowersReadModel(
     createCharacterMobileSpellsPowersReadModel(character),
   );
+  const mechanicalResultsCard = createMechanicalResultsCard(baseModel.summary.attributes);
 
   const composedModel = {
     ...baseModel,
     cards: [
       ...baseModel.cards,
+      mechanicalResultsCard,
       ...spellsPowersModel.cards,
     ],
     sections: [
       ...baseModel.sections,
+      {
+        id: mechanicalResultsCard.id,
+        title: mechanicalResultsCard.title,
+        status: mechanicalResultsCard.status,
+        collapsed: false,
+      },
       ...spellsPowersModel.cards.map(card => ({
         id: card.id,
         title: card.title,
@@ -54,6 +62,21 @@ function withMobilePresentationLabels(model) {
         })),
       };
     }),
+  };
+}
+
+function createMechanicalResultsCard(attributes) {
+  return {
+    id: "mechanical-results",
+    title: "Resultados mecânicos",
+    status: "available",
+    items: attributes.map(attribute => ({
+      id: `mechanical:${attribute.id}`,
+      label: "Atributo efetivo",
+      value: `${attribute.label} ${formatPresentationValue(attribute.value)}`,
+      notes: `Calculado pelo motor de atributos; fonte ${attribute.source}`,
+      status: attribute.status,
+    })),
   };
 }
 
