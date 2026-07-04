@@ -19,8 +19,8 @@ test("A5 power controls remount through canonical post-render lifecycle without 
     name: "Divine Favor",
     source: "divine",
     powerModifier: Object.freeze({ name: "Pacto", valuePercent: -10, notes: "A5 regression" }),
-    talentTraitId: "power-investiture",
-    memberTraitIds: ["blessed"],
+    talentTraitId: null,
+    memberTraitIds: [],
     tags: ["a5"],
     notes: "Operational A5 power surface",
   })];
