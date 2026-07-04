@@ -47,6 +47,7 @@ test("A6 secondary notes surface survives composed render, remount and mode chan
   let mode = "creation";
   let baseRenderCount = 0;
   let modeSyncCount = 0;
+  root.innerHTML = renderCharacterMobileApp(character, { mode });
 
   const app = Object.freeze({
     get character() { return character; },

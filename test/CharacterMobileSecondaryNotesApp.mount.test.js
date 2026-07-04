@@ -4,10 +4,11 @@ import assert from "node:assert/strict";
 import { createCharacter } from "../src/domain/character/Character.js";
 import { mountCharacterMobileSecondaryNotesApp } from "../src/ui/mobile/CharacterMobileSecondaryNotesApp.js";
 
-test("secondary notes mount detaches only its own listener and observer", () => {
+test("secondary notes mount detaches only its own listener and lifecycle registration", () => {
   const listeners = new Map();
-  let disconnectCalls = 0;
-  let observeCalls = 0;
+  let observerConstructCalls = 0;
+  let unregisterCalls = 0;
+  let registerCalls = 0;
   let previousDestroyCalls = 0;
   let modeSyncCalls = 0;
 
@@ -28,9 +29,10 @@ test("secondary notes mount detaches only its own listener and observer", () => 
   };
 
   const MutationObserver = function MutationObserver() {
+    observerConstructCalls += 1;
     return {
-      observe() { observeCalls += 1; },
-      disconnect() { disconnectCalls += 1; },
+      observe() {},
+      disconnect() {},
     };
   };
 
@@ -55,13 +57,22 @@ test("secondary notes mount detaches only its own listener and observer", () => 
     commands: Object.freeze({}),
     repositories: Object.freeze({}),
     runtime: Object.freeze({}),
+    postRenderLifecycle: Object.freeze({
+      register() {
+        registerCalls += 1;
+        return () => { unregisterCalls += 1; };
+      },
+      run() {},
+    }),
     languageCulture: Object.freeze({ destroy() { previousDestroyCalls += 1; } }),
+    render() {},
   };
 
   const mounted = mountCharacterMobileSecondaryNotesApp(app, { root, MutationObserver });
 
   assert.equal(listeners.has("click"), true);
-  assert.equal(observeCalls, 1);
+  assert.equal(observerConstructCalls, 0);
+  assert.equal(registerCalls, 1);
   assert.equal(modeSyncCalls, 1);
   assert.equal(mounted.character, app.character);
   assert.equal(mounted.session, app.session);
@@ -69,6 +80,7 @@ test("secondary notes mount detaches only its own listener and observer", () => 
   mounted.secondaryNotes.destroy();
 
   assert.equal(listeners.has("click"), false);
-  assert.equal(disconnectCalls, 1);
+  assert.equal(unregisterCalls, 1);
+  assert.equal(observerConstructCalls, 0);
   assert.equal(previousDestroyCalls, 0);
 });

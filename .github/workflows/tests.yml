@@ -47,3 +47,48 @@ jobs:
           path: test-output.log
           if-no-files-found: error
           retention-days: 3
+
+  browser-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install pinned Playwright test runner
+        run: npm install --silent --no-save --no-package-lock @playwright/test@1.54.1
+
+      - name: Install Playwright Chromium
+        shell: bash
+        run: |
+          npx playwright install --with-deps chromium >/tmp/playwright-install.log 2>&1 || {
+            tail -200 /tmp/playwright-install.log
+            exit 1
+          }
+
+      - name: Run real mobile browser smoke
+        shell: bash
+        run: |
+          set +e
+          timeout 180s npx playwright test --config=playwright.config.js > browser-smoke-output.log 2>&1
+          status=$?
+          cat browser-smoke-output.log
+          exit "$status"
+
+      - name: Upload browser smoke evidence on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: browser-smoke-${{ github.run_id }}
+          path: |
+            browser-smoke-output.log
+            playwright-report
+            test-results
+          if-no-files-found: warn
+          retention-days: 3
