@@ -137,6 +137,7 @@ export function mountCharacterMobileCompositionRoot(
     }
     app.interactions?.destroy?.();
     app.modeSync?.destroy?.();
+    app.ui?.destroy?.();
     postRenderLifecycle.destroy?.();
   };
 
@@ -163,10 +164,6 @@ export function mountCharacterMobileCompositionRoot(
     postRenderLifecycle,
     render,
     ...featureHandles,
-    powerEdit: Object.freeze({
-      ...featureHandles.powerEdit,
-      destroy: destroyComposition,
-    }),
     compositionRoot: Object.freeze({
       destroy: destroyComposition,
     }),
