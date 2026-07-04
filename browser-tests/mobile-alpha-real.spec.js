@@ -53,21 +53,21 @@ test("real mobile composition edits, persists, changes mode and remounts without
   await page.locator('[data-role="trait-points"]').fill("5");
   await page.locator('[data-action="trait-add"]').click();
   await expect(page.getByText("Destemida", { exact: true })).toHaveCount(1);
-  await expect(page.locator('[data-trait-id]')).toHaveCount(1);
+  await expect(page.locator('.singular-mobile-sheet__trait-list > div[data-trait-id]')).toHaveCount(1);
 
   await page.locator('[data-role="attack-name"]').fill("Machado de teste");
   await page.locator('[data-role="attack-damage-value"]').fill("1d+2");
   await page.locator('[data-role="attack-damage-type"]').fill("cut");
   await page.locator('[data-action="attack-add"]').click();
   await expect(page.getByText("Machado de teste", { exact: true })).toHaveCount(1);
-  await expect(page.locator('[data-attack-id]')).toHaveCount(1);
+  await expect(page.locator('.singular-mobile-sheet__attack-list > div[data-attack-id]')).toHaveCount(1);
 
   await page.locator('[data-role="equipment-name"]').fill("Mochila de teste");
   await page.locator('[data-role="equipment-weight-kg"]').fill("1.5");
   await page.locator('[data-role="equipment-cost"]').fill("60");
   await page.locator('[data-action="equipment-add"]').click();
   await expect(page.getByText("Mochila de teste", { exact: true })).toHaveCount(1);
-  await expect(page.locator('[data-equipment-id]')).toHaveCount(1);
+  await expect(page.locator('.singular-mobile-sheet__equipment-list > div[data-equipment-id]')).toHaveCount(1);
 
   const beforeSave = await readHarnessState(page);
   expect(beforeSave.revision).toBeGreaterThanOrEqual(4);
@@ -110,7 +110,7 @@ test("real mobile composition edits, persists, changes mode and remounts without
   await page.locator('[data-role="trait-points"]').fill("1");
   await page.locator('[data-action="trait-add"]').click();
   await expect(page.getByText("Segundo traço", { exact: true })).toHaveCount(1);
-  await expect(page.locator('[data-trait-id]')).toHaveCount(2);
+  await expect(page.locator('.singular-mobile-sheet__trait-list > div[data-trait-id]')).toHaveCount(2);
 
   const afterSingleAction = await readHarnessState(page);
   expect(afterSingleAction.revision).toBe(remountedState.revision + 1);
