@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 
 import { mountCharacterMobileLanguageCultureApp } from "../src/ui/mobile/CharacterMobileLanguageCultureApp.js";
 
-test("language culture mount detaches only its own listener and observer", () => {
+test("language culture mount detaches only its own listener and lifecycle registration", () => {
   const listeners = new Map();
   let disconnectCalls = 0;
   let observeCalls = 0;
@@ -47,12 +47,14 @@ test("language culture mount detaches only its own listener and observer", () =>
   const mounted = mountCharacterMobileLanguageCultureApp(app, { root, MutationObserver });
 
   assert.equal(listeners.has("click"), true);
-  assert.equal(observeCalls, 1);
+  assert.equal(observeCalls, 0);
+  assert.equal(mounted.postRenderLifecycle.size, 1);
   assert.equal(mounted.character, app.character);
   assert.equal(mounted.session, app.session);
 
   mounted.languageCulture.destroy();
 
   assert.equal(listeners.has("click"), false);
-  assert.equal(disconnectCalls, 1);
+  assert.equal(disconnectCalls, 0);
+  assert.equal(mounted.postRenderLifecycle.size, 0);
 });
