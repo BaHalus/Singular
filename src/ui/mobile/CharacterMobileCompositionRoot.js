@@ -59,8 +59,9 @@ export const CHARACTER_MOBILE_COMPOSITION_MODULES = Object.freeze([
 ]);
 
 export async function bootstrapCharacterMobileCompositionRoot(options = {}) {
-  const app = await bootstrapCharacterMobileApp(options);
-  return mountCharacterMobileCompositionRoot(app, options);
+  const canonicalOptions = disableObserverBasedRerendering(options);
+  const app = await bootstrapCharacterMobileApp(canonicalOptions);
+  return mountCharacterMobileCompositionRoot(app, canonicalOptions);
 }
 
 export function mountCharacterMobileCompositionRoot(
@@ -168,6 +169,11 @@ export function mountCharacterMobileCompositionRoot(
       destroy: destroyComposition,
     }),
   });
+}
+
+function disableObserverBasedRerendering(options) {
+  if (Object.prototype.hasOwnProperty.call(options, "MutationObserver")) return options;
+  return Object.freeze({ ...options, MutationObserver: false });
 }
 
 function exposePostRenderLifecycle(app, postRenderLifecycle) {
