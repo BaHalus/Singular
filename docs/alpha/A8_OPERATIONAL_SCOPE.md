@@ -36,7 +36,7 @@ A8 não abre uma nova área funcional ampla. A fatia deve atuar como gate final:
 - Criar nova superfície funcional ampla.
 - Reabrir S4, S5 ou A2–A7 sem regressão nova demonstrada.
 - Alterar regras GURPS, domínio, sessão, executor, command registry ou persistência.
-- Criar pipeline, registry, normalizador, executor, sessão, persistência ou composition root paralelo.
+- Criar pipeline, registry, normalizador, executor, sessão, persistência, repositório ou composition root paralelo.
 - Fazer mudança visual ampla sem regressão operacional mínima.
 
 ## Gate mínimo
@@ -49,7 +49,7 @@ A PR A8 só pode ser integrada quando houver evidência de que:
 - zero findings P1/P2 permanecem abertos;
 - a composição mobile final opera pelo composition root canônico;
 - as superfícies integradas até A7 não duplicam editores, listeners, ações ou registros após render repetido, remount e troca de modo;
-- nenhum caminho executável cria regra GURPS, domínio, sessão, executor, command registry, persistência ou pipeline paralelo;
+- nenhum caminho executável introduz regra GURPS, domínio, sessão, executor, command registry, persistência, repositório ou pipeline paralelo fora do bootstrap canônico já integrado;
 - as invariantes arquiteturais seguem preservadas: motor calcula, schema declara, aplicação orquestra, UI apresenta/coleta intenção e persistência guarda snapshots.
 
 ## Próxima ação material
