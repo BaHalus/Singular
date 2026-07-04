@@ -501,7 +501,8 @@ test("blocks unsupported equipment patch fields without updateEquipment", () => 
         calls.push(input);
         return Object.freeze({ status: "applied" });
       },
-    }, "equipment:backpack", {
+    },
+  }, "equipment:backpack", {
     name: "Mochila",
     quantity: 1,
     weightKg: 0.75,
