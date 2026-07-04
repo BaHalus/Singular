@@ -24,6 +24,10 @@ async function expectCreationSurface(page) {
   }
 }
 
+async function expectCharacterName(page, name) {
+  await expect(page.locator('.singular-mobile-sheet__identity-summary')).toContainText(name);
+}
+
 test("real mobile composition edits, persists, changes mode and remounts without duplication", async ({ page }) => {
   const browserErrors = [];
   page.on("pageerror", error => browserErrors.push(error.message));
@@ -47,7 +51,8 @@ test("real mobile composition edits, persists, changes mode and remounts without
   await page.locator('[data-role="character-concept"]').fill("Exploradora da Alpha");
   await page.locator('[data-action="character-summary-save"]').click();
   await expect(root).toHaveAttribute("data-last-command-status", "applied");
-  await expect(page.getByText("Alda Navegante", { exact: true })).toHaveCount(1);
+  await expectCharacterName(page, "Alda Navegante");
+  await expect(page.locator('[data-role="character-name"]')).toHaveValue("Alda Navegante");
 
   await page.locator('[data-role="trait-name"]').fill("Destemida");
   await page.locator('[data-role="trait-points"]').fill("5");
@@ -81,7 +86,7 @@ test("real mobile composition edits, persists, changes mode and remounts without
   for (const role of creationEditors) {
     await expect(page.locator(`[data-role="${role}"]`)).toHaveCount(0);
   }
-  await expect(page.getByText("Alda Navegante", { exact: true })).toHaveCount(1);
+  await expectCharacterName(page, "Alda Navegante");
 
   await page.locator('[data-action="mode-creation"]').click();
   await expect(root).toHaveAttribute("data-mode", "creation");
@@ -101,7 +106,8 @@ test("real mobile composition edits, persists, changes mode and remounts without
   expect(remountedState.revision).toBe(beforeSave.revision);
 
   await expectCreationSurface(page);
-  await expect(page.getByText("Alda Navegante", { exact: true })).toHaveCount(1);
+  await expectCharacterName(page, "Alda Navegante");
+  await expect(page.locator('[data-role="character-name"]')).toHaveValue("Alda Navegante");
   await expect(page.getByText("Destemida", { exact: true })).toHaveCount(1);
   await expect(page.getByText("Machado de teste", { exact: true })).toHaveCount(1);
   await expect(page.getByText("Mochila de teste", { exact: true })).toHaveCount(1);
