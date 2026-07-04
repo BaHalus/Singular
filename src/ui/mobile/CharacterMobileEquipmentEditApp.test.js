@@ -4,7 +4,9 @@ import assert from "node:assert/strict";
 import { createCharacter } from "../../domain/character/Character.js";
 import {
   applyEquipmentPatch,
+  applyEquipmentStatePatch,
   bootstrapCharacterMobileEquipmentEditApp,
+  buildEquipmentStateUpdatePayload,
   buildEquipmentUpdatePayload,
   injectMobileEquipmentEditControls,
   shouldBlockMobileEquipmentEdit,
@@ -181,6 +183,10 @@ test("keeps equipment structural edit controls out of table mode", () => {
 
   assert.doesNotMatch(table, /data-role="equipment-inline-editor"/);
   assert.doesNotMatch(table, /data-action="equipment-update"/);
+  assert.match(table, /data-role="equipment-state-controls"/);
+  assert.match(table, /data-action="equipment-state-update"/);
+  assert.match(table, /data-equipment-state="equipped"/);
+  assert.match(table, /data-equipment-state="ignored"/);
   assert.match(table, /Mochila/);
   assert.match(table, /Corda/);
 });
@@ -212,6 +218,20 @@ test("builds canonical equipment.update payload with only changed fields", () =>
       cost: 80,
       notes: "Tem bolsos internos\ne fivela nova",
     },
+  });
+});
+
+test("builds canonical table-state payload with only the transient state", () => {
+  const current = character().equipment[0];
+
+  assert.deepEqual(buildEquipmentStateUpdatePayload(current, "equipment:backpack", "equipped"), {
+    itemId: "equipment:backpack",
+    patch: { state: "equipped" },
+  });
+
+  assert.deepEqual(buildEquipmentStateUpdatePayload(current, "equipment:backpack", "carried"), {
+    itemId: "equipment:backpack",
+    patch: {},
   });
 });
 
@@ -299,6 +319,28 @@ test("uses canonical equipment.update for weight cost and notes when available",
   }]);
 });
 
+test("applies table-mode equipment state transients through canonical update", () => {
+  const calls = [];
+  const result = applyEquipmentStatePatch({
+    character: character(),
+    commands: {
+      updateEquipment(payload) {
+        calls.push(payload);
+        return Object.freeze({ status: "applied" });
+      },
+      setEquipmentState() {
+        throw new Error("legacy equipment state must not be used when updateEquipment exists");
+      },
+    },
+  }, "equipment:backpack", "equipped");
+
+  assert.equal(result.status, "applied");
+  assert.deepEqual(calls, [{
+    itemId: "equipment:backpack",
+    patch: { state: "equipped" },
+  }]);
+});
+
 test("persists existing mobile equipment edits through canonical update commands", async () => {
   const root = rootFixture();
   const mounted = await bootstrapCharacterMobileEquipmentEditApp({
@@ -340,6 +382,54 @@ test("persists existing mobile equipment edits through canonical update commands
   assert.equal(saved.character.equipment[0].cost, 80);
   assert.equal(saved.character.equipment[0].state, "stored");
   assert.equal(saved.character.equipment[0].notes, "Tem bolsos internos\ne fivela nova");
+});
+
+test("persists table-mode equipment state through save and remount", async () => {
+  const root = rootFixture();
+  const storage = createMemoryStorage();
+  const mounted = await bootstrapCharacterMobileEquipmentEditApp({
+    root,
+    character: fullCharacter(),
+    sessionId: "session-mobile-equipment-state-table",
+    storage,
+    namespace: "test.mobile.equipment-state-table",
+    runtime: runtime(),
+    mode: "table",
+  });
+
+  assert.doesNotMatch(root.innerHTML, /data-action="equipment-update"/);
+  assert.match(root.innerHTML, /data-action="equipment-state-update"/);
+  assert.match(root.innerHTML, /data-equipment-state="equipped"/);
+
+  await root.dispatch("click", click("equipment-state-update", {
+    equipmentId: "equipment:backpack",
+    equipmentState: "equipped",
+  }));
+
+  assert.equal(root.getAttribute("data-last-command-status"), "applied");
+  assert.equal(mounted.session.history[0].commandType, "equipment.update");
+  assert.equal(mounted.character.equipment[0].state, "equipped");
+  assert.match(root.innerHTML, /data-equipment-state="equipped" aria-pressed="true"/);
+  assert.doesNotMatch(root.innerHTML, /data-role="equipment-inline-editor"/);
+
+  await root.dispatch("click", click("persistence-save"));
+  mounted.equipmentEdit.destroy();
+
+  const remountRoot = rootFixture();
+  const remounted = await bootstrapCharacterMobileEquipmentEditApp({
+    root: remountRoot,
+    character: fullCharacter(),
+    sessionId: "session-mobile-equipment-state-table",
+    storage,
+    namespace: "test.mobile.equipment-state-table",
+    runtime: runtime(),
+    mode: "table",
+  });
+  await remountRoot.dispatch("click", click("persistence-load"));
+
+  assert.equal(remounted.character.equipment[0].state, "equipped");
+  assert.match(remountRoot.innerHTML, /data-equipment-state="equipped" aria-pressed="true"/);
+  assert.doesNotMatch(remountRoot.innerHTML, /data-role="equipment-inline-editor"/);
 });
 
 test("preserves legacy equipment commands when updateEquipment is unavailable", () => {
