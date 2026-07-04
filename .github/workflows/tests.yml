@@ -71,7 +71,7 @@ jobs:
         shell: bash
         run: |
           set -o pipefail
-          npx playwright test --config=playwright.config.js 2>&1 | tee browser-smoke-output.log
+          timeout 180s npx playwright test --config=playwright.config.js 2>&1 | tee browser-smoke-output.log
 
       - name: Upload browser smoke evidence on failure
         if: failure()
