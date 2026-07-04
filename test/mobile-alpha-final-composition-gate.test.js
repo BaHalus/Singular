@@ -15,7 +15,7 @@ test("A8 final alpha mobile composition gate stays idempotent across render, rem
   const character = createAlphaCharacter();
   const session = createApplicationSession({ id: "session-a8-final", character });
   const root = createRoot();
-  const postRenderLifecycle = createCharacterMobilePostRenderLifecycle();
+  let postRenderLifecycle = createCharacterMobilePostRenderLifecycle();
   let mode = "creation";
   let baseRenderCount = 0;
   let modeSyncCount = 0;
@@ -37,7 +37,7 @@ test("A8 final alpha mobile composition gate stays idempotent across render, rem
     commands: Object.freeze(createNoOpCommands()),
     repositories: Object.freeze({}),
     runtime: Object.freeze({}),
-    postRenderLifecycle,
+    get postRenderLifecycle() { return postRenderLifecycle; },
     render(options = {}) {
       baseRenderCount += 1;
       const renderMode = options.mode ?? mode;
@@ -51,30 +51,52 @@ test("A8 final alpha mobile composition gate stays idempotent across render, rem
   });
 
   const mounted = mountCharacterMobileCompositionRoot(app, { root });
+  const initialClickListeners = root.listenerCount("click");
 
+  assert.ok(initialClickListeners > 0);
   assertCreationSurface(root.innerHTML);
 
   mounted.render();
   mounted.render();
 
   assert.ok(baseRenderCount >= 2);
+  assert.equal(root.listenerCount("click"), initialClickListeners);
   assertCreationSurface(root.innerHTML);
 
   mode = "table";
   mounted.render();
 
+  assert.equal(root.listenerCount("click"), initialClickListeners);
   assertTableSurface(root.innerHTML);
 
   mode = "creation";
   mounted.render();
 
+  assert.equal(root.listenerCount("click"), initialClickListeners);
   assertCreationSurface(root.innerHTML);
   assert.ok(modeSyncCount >= 4);
 
   mounted.compositionRoot.destroy();
+  assert.equal(root.listenerCount("click"), 0);
   postRenderLifecycle.run({ root, character: session.character, session, mode: "creation" });
-
   assertCreationSurface(root.innerHTML);
+  assert.equal(root.listenerCount("click"), 0);
+
+  postRenderLifecycle = createCharacterMobilePostRenderLifecycle();
+  const remounted = mountCharacterMobileCompositionRoot(app, { root });
+  const remountClickListeners = root.listenerCount("click");
+
+  assert.equal(remountClickListeners, initialClickListeners);
+  assertCreationSurface(root.innerHTML);
+
+  remounted.render();
+  remounted.render();
+
+  assert.equal(root.listenerCount("click"), remountClickListeners);
+  assertCreationSurface(root.innerHTML);
+
+  remounted.compositionRoot.destroy();
+  assert.equal(root.listenerCount("click"), 0);
 });
 
 function createAlphaCharacter() {
@@ -175,6 +197,7 @@ function createRoot() {
       listeners.get(type).add(listener);
     },
     removeEventListener(type, listener) { listeners.get(type)?.delete(listener); },
+    listenerCount(type) { return listeners.get(type)?.size ?? 0; },
     setAttribute(name, value) { attributes.set(name, String(value)); },
     getAttribute(name) { return attributes.get(name) ?? null; },
     querySelector() { return null; },
