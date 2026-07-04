@@ -2,6 +2,9 @@ import {
   bootstrapCharacterMobileEquipmentEditApp,
 } from "./CharacterMobileEquipmentEditApp.js";
 import {
+  createCharacterMobilePostRenderLifecycle,
+} from "./CharacterMobilePostRenderLifecycle.js";
+import {
   appendInlineEditorToDefinitionListItem,
   appendInlineEditorToDefinitionListItemNode,
   escapeAttribute,
@@ -16,8 +19,15 @@ import {
 } from "./MobileInlineEditHelpers.js";
 
 export async function bootstrapCharacterMobileSpellEditApp(options = {}) {
-  const app = await bootstrapCharacterMobileEquipmentEditApp(options);
-  const mounted = mountCharacterMobileSpellEditApp(app, options);
+  const postRenderLifecycle = resolvePostRenderLifecycle(options.postRenderLifecycle);
+  const app = await bootstrapCharacterMobileEquipmentEditApp(Object.freeze({
+    ...options,
+    postRenderLifecycle,
+  }));
+  const mounted = mountCharacterMobileSpellEditApp(
+    exposePostRenderLifecycle(app, postRenderLifecycle),
+    options,
+  );
   const previousDestroy = app.equipmentEdit?.destroy;
 
   return Object.freeze({
@@ -32,7 +42,7 @@ export async function bootstrapCharacterMobileSpellEditApp(options = {}) {
     commands: mounted.commands,
     repositories: mounted.repositories,
     runtime: mounted.runtime,
-    postRenderLifecycle: mounted.postRenderLifecycle,
+    postRenderLifecycle,
     render: mounted.render,
     spellEdit: Object.freeze({
       destroy() {
@@ -48,30 +58,54 @@ export function mountCharacterMobileSpellEditApp(app, options = {}) {
     options.document,
     "Character mobile spell edit bootstrap root was not found",
   );
+  const postRenderLifecycle = resolvePostRenderLifecycle(app.postRenderLifecycle);
+  const lifecycleApp = exposePostRenderLifecycle(app, postRenderLifecycle);
+  const useDomMount = canMountSpellControlsWithDom(root, lifecycleApp.character);
 
-  const render = (renderOptions = {}) => {
-    app.render(renderOptions);
-    injectCurrentSpellControls(root, app);
+  const mountSpellEditors = context => {
+    injectCurrentSpellControls(context.root, {
+      character: context.character,
+      mode: context.mode,
+      modeSync: lifecycleApp.modeSync,
+    });
   };
+  const unregisterPostRender = postRenderLifecycle.register(mountSpellEditors);
 
-  injectCurrentSpellControls(root, app);
+  const render = useDomMount
+    ? (renderOptions = {}) => {
+      const result = lifecycleApp.render({
+        ...renderOptions,
+        skipPostRenderLifecycle: true,
+      });
+      if (!renderOptions.skipPostRenderLifecycle) {
+        runPostRenderLifecycle(postRenderLifecycle, root, lifecycleApp, renderOptions);
+      }
+      return result;
+    }
+    : (renderOptions = {}) => renderLegacySpellControls(root, lifecycleApp, renderOptions);
+
+  if (useDomMount) {
+    mountSpellEditors(readPostRenderContext(root, lifecycleApp));
+  } else {
+    render();
+  }
 
   const handleClick = event => {
     const target = findDataTarget(event?.target, "action");
     const action = target === null ? null : readDataset(target, "action");
     if (action !== "spell-update") return null;
     event.preventDefault?.();
-    if (app.mode !== "creation") {
+    if (lifecycleApp.mode !== "creation") {
       root.setAttribute?.("data-last-command-status", "blocked-by-mode");
       return null;
     }
-    if (app.ui.getState().busy) {
+    if (lifecycleApp.ui.getState().busy) {
       root.setAttribute?.("data-last-command-status", "busy");
       return null;
     }
 
     const spellId = readDataset(target, "spellId");
-    const result = app.commands.updateSpell({
+    const result = lifecycleApp.commands.updateSpell({
       spellId,
       patch: readSpellPatch(root, spellId),
     });
@@ -83,21 +117,22 @@ export function mountCharacterMobileSpellEditApp(app, options = {}) {
   root.addEventListener("click", handleClick);
 
   return Object.freeze({
-    get character() { return app.character; },
-    get session() { return app.session; },
+    get character() { return lifecycleApp.character; },
+    get session() { return lifecycleApp.session; },
     get html() { return root.innerHTML; },
-    get mode() { return app.mode; },
-    interactions: app.interactions,
-    modeSync: app.modeSync,
-    ui: app.ui,
-    persistence: app.persistence,
-    commands: app.commands,
-    repositories: app.repositories,
-    runtime: app.runtime,
-    postRenderLifecycle: app.postRenderLifecycle,
+    get mode() { return lifecycleApp.mode; },
+    interactions: lifecycleApp.interactions,
+    modeSync: lifecycleApp.modeSync,
+    ui: lifecycleApp.ui,
+    persistence: lifecycleApp.persistence,
+    commands: lifecycleApp.commands,
+    repositories: lifecycleApp.repositories,
+    runtime: lifecycleApp.runtime,
+    postRenderLifecycle,
     render,
     spellEdit: Object.freeze({
       destroy() {
+        unregisterPostRender();
         root.removeEventListener?.("click", handleClick);
       },
     }),
@@ -113,24 +148,14 @@ export function injectMobileSpellEditControls(html, character, mode) {
   return nextHtml;
 }
 
-function injectCurrentSpellControls(root, app) {
-  if (app.mode !== "creation") {
-    app.modeSync.sync();
-    return;
-  }
-
-  let allEditorsMounted = true;
-  for (const spell of app.character.spells ?? []) {
-    allEditorsMounted = appendSpellInlineEditorNode(root, spell) && allEditorsMounted;
-  }
-  if (!allEditorsMounted) {
-    root.innerHTML = injectMobileSpellEditControls(
-      root.innerHTML,
-      app.character,
-      app.mode,
-    );
-  }
-  app.modeSync.sync();
+function injectCurrentSpellControls(root, { character, mode, modeSync }) {
+  const mounted = mode === "creation"
+    ? (character.spells ?? [])
+      .map(spell => appendSpellInlineEditorNode(root, spell))
+      .every(Boolean)
+    : true;
+  modeSync.sync();
+  return mounted;
 }
 
 function appendSpellInlineEditorNode(root, spell) {
@@ -175,7 +200,7 @@ ${escapeTextContent(spell.notes ?? "")}</textarea></label>`,
 
 function spellTypeOptions(active) {
   return [["standard", "Padrão"], ["ritualMagic", "Ritualística"]]
-    .map(([value, label]) => `<option value="${value}"${value === active ? " selected" : ""}>${label}</option>`)
+    .map(([value, label]) => `<option value="${value}"${value === active ? " selected" : ""}>${escapeTextContent(label)}</option>`)
     .join("");
 }
 
@@ -195,4 +220,79 @@ function readSpellPatch(root, spellId) {
     duration: readInputValue(root, `[data-role="spell-edit-duration-${suffix}"]`),
     notes: readInputValue(root, `[data-role="spell-edit-notes-${suffix}"]`),
   };
+}
+
+function canMountSpellControlsWithDom(root, character) {
+  const firstSpell = (character.spells ?? [])[0] ?? null;
+  if (firstSpell === null) return true;
+  const selectorId = escapeSelectorValue(firstSpell.id);
+  const item = root.querySelector?.(`[data-spell-id="${selectorId}"]`) ?? null;
+  return item !== null &&
+    typeof item.querySelector === "function" &&
+    (item.ownerDocument?.createElement ?? root.ownerDocument?.createElement ?? globalThis.document?.createElement) !== undefined;
+}
+
+function renderLegacySpellControls(root, app, renderOptions = {}) {
+  const mode = renderOptions.mode ?? app.mode;
+  const session = typeof app.persistence?.getActiveSession === "function"
+    ? app.persistence.getActiveSession()
+    : app.session;
+  root.innerHTML = injectMobileSpellEditControls(
+    app.ui.render({ mode }),
+    session.character,
+    mode,
+  );
+  root.setAttribute?.("data-session-id", session.id);
+  root.setAttribute?.("data-character-id", session.character.identity.id);
+  root.setAttribute?.("data-mode", mode);
+  app.modeSync.sync();
+  return root.innerHTML;
+}
+
+function runPostRenderLifecycle(postRenderLifecycle, root, app, renderOptions = {}) {
+  postRenderLifecycle.run(readPostRenderContext(root, app, renderOptions));
+}
+
+function readPostRenderContext(root, app, renderOptions = {}) {
+  const session = typeof app.persistence?.getActiveSession === "function"
+    ? app.persistence.getActiveSession()
+    : app.session;
+  const character = session?.character ?? app.character;
+  return {
+    root,
+    character,
+    session,
+    mode: renderOptions.mode ?? app.mode,
+  };
+}
+
+function resolvePostRenderLifecycle(postRenderLifecycle) {
+  if (postRenderLifecycle === undefined) {
+    return createCharacterMobilePostRenderLifecycle();
+  }
+  return requirePostRenderLifecycle(postRenderLifecycle);
+}
+
+function requirePostRenderLifecycle(postRenderLifecycle) {
+  if (postRenderLifecycle === null || typeof postRenderLifecycle !== "object") {
+    throw new Error("Character mobile spell edit requires a post-render lifecycle");
+  }
+  if (typeof postRenderLifecycle.register !== "function") {
+    throw new Error("Character mobile spell edit post-render lifecycle must register enhancers");
+  }
+  if (typeof postRenderLifecycle.run !== "function") {
+    throw new Error("Character mobile spell edit post-render lifecycle must run enhancers");
+  }
+  return postRenderLifecycle;
+}
+
+function exposePostRenderLifecycle(app, postRenderLifecycle) {
+  const descriptors = Object.getOwnPropertyDescriptors(app);
+  descriptors.postRenderLifecycle = {
+    value: postRenderLifecycle,
+    enumerable: true,
+    configurable: false,
+    writable: false,
+  };
+  return Object.freeze(Object.defineProperties({}, descriptors));
 }
