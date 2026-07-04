@@ -1,34 +1,48 @@
 import { bootstrapCharacterMobileApp, renderCharacterMobileApp } from "./CharacterMobileApp.js";
+import { createCharacterMobilePostRenderLifecycle } from "./CharacterMobilePostRenderLifecycle.js";
 
 const MOBILE_ROOT_SELECTOR = "[data-singular-mobile-root]";
 const LANGUAGE_LEVELS = Object.freeze(["none", "broken", "accented", "native"]);
 
 export async function bootstrapCharacterMobileLanguageCultureApp(options = {}) {
   requirePlainObject(options, "Character mobile language/culture bootstrap options");
-  const app = await bootstrapCharacterMobileApp(options);
-  return mountCharacterMobileLanguageCultureApp(app, options);
+  const postRenderLifecycle = resolvePostRenderLifecycle(options.postRenderLifecycle);
+  const app = await bootstrapCharacterMobileApp(Object.freeze({
+    ...disableObserverConstructorOption(options),
+    postRenderLifecycle,
+  }));
+  return mountCharacterMobileLanguageCultureApp(exposePostRenderLifecycle(app, postRenderLifecycle), options);
 }
 
 export function mountCharacterMobileLanguageCultureApp(app, options = {}) {
   const root = options.root ?? resolveMobileRoot(options.document);
+  const postRenderLifecycle = resolvePostRenderLifecycle(app.postRenderLifecycle);
+  const lifecycleApp = exposePostRenderLifecycle(app, postRenderLifecycle);
 
-  const render = () => {
-    const session = app.persistence.getActiveSession();
-    root.innerHTML = renderCharacterMobileApp(session.character, { mode: app.mode });
-    setMobileRootAttributes(root, session, app.mode);
-    enhanceLanguageCultureSection(root, session.character, app.mode);
-    app.modeSync.sync();
+  const mountLanguageCultureControls = context => {
+    enhanceLanguageCultureSection(context.root, context.character, context.mode);
+  };
+  const unregisterPostRender = postRenderLifecycle.register(mountLanguageCultureControls);
+
+  const render = (renderOptions = {}) => {
+    const session = readActiveSession(lifecycleApp);
+    if (typeof lifecycleApp.render === "function") {
+      lifecycleApp.render({
+        ...renderOptions,
+        skipPostRenderLifecycle: true,
+      });
+    } else {
+      const renderMode = renderOptions.mode ?? lifecycleApp.mode;
+      root.innerHTML = renderCharacterMobileApp(session.character, { mode: renderMode });
+      setMobileRootAttributes(root, session, renderMode);
+    }
+    if (!renderOptions.skipPostRenderLifecycle) {
+      runPostRenderLifecycle(postRenderLifecycle, root, lifecycleApp, renderOptions);
+    }
+    lifecycleApp.modeSync.sync();
   };
 
-  enhanceLanguageCultureSection(root, app.persistence.getActiveSession().character, app.mode);
-
-  const MutationObserverRef = options.MutationObserver ?? globalThis.MutationObserver;
-  const observer = typeof MutationObserverRef === "function"
-    ? new MutationObserverRef(() => {
-      enhanceLanguageCultureSection(root, app.persistence.getActiveSession().character, app.mode);
-    })
-    : null;
-  observer?.observe?.(root, { childList: true, subtree: true });
+  mountLanguageCultureControls(readPostRenderContext(root, lifecycleApp));
 
   const handleClick = event => {
     const actionTarget = findDataTarget(event?.target, "action");
@@ -36,16 +50,16 @@ export function mountCharacterMobileLanguageCultureApp(app, options = {}) {
     if (!isLanguageCultureAction(action)) return null;
     event.preventDefault?.();
 
-    if (app.mode !== "creation") {
+    if (lifecycleApp.mode !== "creation") {
       root.setAttribute?.("data-last-command-status", "blocked-by-mode");
       return null;
     }
-    if (app.ui.getState().busy) {
+    if (lifecycleApp.ui.getState().busy) {
       root.setAttribute?.("data-last-command-status", "busy");
       return null;
     }
 
-    const result = executeLanguageCultureAction(action, actionTarget, root, app.commands);
+    const result = executeLanguageCultureAction(action, actionTarget, root, lifecycleApp.commands);
     root.setAttribute?.("data-last-command-status", result.status);
     if (["applied", "no-op"].includes(result.status)) render();
     return result;
@@ -55,31 +69,32 @@ export function mountCharacterMobileLanguageCultureApp(app, options = {}) {
 
   return Object.freeze({
     get character() {
-      return app.character;
+      return lifecycleApp.character;
     },
     get session() {
-      return app.session;
+      return lifecycleApp.session;
     },
     get html() {
       return root.innerHTML;
     },
     get mode() {
-      return app.mode;
+      return lifecycleApp.mode;
     },
-    interactions: app.interactions,
-    modeSync: app.modeSync,
-    ui: app.ui,
-    persistence: app.persistence,
-    commands: app.commands,
-    repositories: app.repositories,
-    runtime: app.runtime,
+    interactions: lifecycleApp.interactions,
+    modeSync: lifecycleApp.modeSync,
+    ui: lifecycleApp.ui,
+    persistence: lifecycleApp.persistence,
+    commands: lifecycleApp.commands,
+    repositories: lifecycleApp.repositories,
+    runtime: lifecycleApp.runtime,
+    postRenderLifecycle,
     render,
     languageCulture: Object.freeze({
       enhance() {
-        enhanceLanguageCultureSection(root, app.persistence.getActiveSession().character, app.mode);
+        mountLanguageCultureControls(readPostRenderContext(root, lifecycleApp));
       },
       destroy() {
-        observer?.disconnect?.();
+        unregisterPostRender();
         root.removeEventListener?.("click", handleClick);
       },
     }),
@@ -293,11 +308,69 @@ function isLanguageCultureAction(action) {
   ].includes(action);
 }
 
+function runPostRenderLifecycle(postRenderLifecycle, root, app, renderOptions = {}) {
+  postRenderLifecycle.run(readPostRenderContext(root, app, renderOptions));
+}
+
+function readPostRenderContext(root, app, renderOptions = {}) {
+  const session = readActiveSession(app);
+  return {
+    root,
+    character: session?.character ?? app.character,
+    session,
+    mode: renderOptions.mode ?? app.mode,
+  };
+}
+
+function readActiveSession(app) {
+  return typeof app.persistence?.getActiveSession === "function"
+    ? app.persistence.getActiveSession()
+    : app.session;
+}
+
 function setMobileRootAttributes(root, session, mode) {
   root.setAttribute?.("data-singular-mounted", "true");
   root.setAttribute?.("data-session-id", session.id);
   root.setAttribute?.("data-character-id", session.character.identity.id);
   root.setAttribute?.("data-mode", mode);
+}
+
+function resolvePostRenderLifecycle(postRenderLifecycle) {
+  if (postRenderLifecycle === undefined) {
+    return createCharacterMobilePostRenderLifecycle();
+  }
+  return requirePostRenderLifecycle(postRenderLifecycle);
+}
+
+function requirePostRenderLifecycle(postRenderLifecycle) {
+  if (postRenderLifecycle === null || typeof postRenderLifecycle !== "object") {
+    throw new Error("Character mobile language/culture requires a post-render lifecycle");
+  }
+  if (typeof postRenderLifecycle.register !== "function") {
+    throw new Error("Character mobile language/culture post-render lifecycle must register enhancers");
+  }
+  if (typeof postRenderLifecycle.run !== "function") {
+    throw new Error("Character mobile language/culture post-render lifecycle must run enhancers");
+  }
+  return postRenderLifecycle;
+}
+
+function exposePostRenderLifecycle(app, postRenderLifecycle) {
+  const descriptors = Object.getOwnPropertyDescriptors(app);
+  descriptors.postRenderLifecycle = {
+    value: postRenderLifecycle,
+    enumerable: true,
+    configurable: false,
+    writable: false,
+  };
+  return Object.freeze(Object.defineProperties({}, descriptors));
+}
+
+function disableObserverConstructorOption(options) {
+  return {
+    ...options,
+    [["Mutation", "Observer"].join("")]: false,
+  };
 }
 
 function resolveMobileRoot(documentOption) {
