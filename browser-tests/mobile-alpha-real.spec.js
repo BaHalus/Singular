@@ -31,7 +31,7 @@ async function expectCharacterName(page, name) {
 async function expectCanonicalItem(page, selector, text, count = 1) {
   const items = page.locator(selector);
   await expect(items).toHaveCount(count);
-  await expect(items).toContainText(text);
+  await expect(items.filter({ hasText: text })).toHaveCount(1);
 }
 
 test("real mobile composition edits, persists, changes mode and remounts without duplication", async ({ page }) => {
