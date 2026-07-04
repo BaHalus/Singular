@@ -1,8 +1,7 @@
-import { renderCharacterMobileApp } from "./CharacterMobileApp.js";
 import {
   bootstrapCharacterMobileLanguageCultureApp,
-  injectLanguageCultureCreationControls,
 } from "./CharacterMobileLanguageCultureApp.js";
+import { createCharacterMobilePostRenderLifecycle } from "./CharacterMobilePostRenderLifecycle.js";
 
 const MOBILE_ROOT_SELECTOR = "[data-singular-mobile-root]";
 const SECONDARY_KEYS = Object.freeze(["HP", "FP", "Will", "Per", "BasicSpeed", "BasicMove"]);
@@ -11,7 +10,11 @@ const POOL_MAXIMUM_KEYS = Object.freeze(["HP", "FP"]);
 export async function bootstrapCharacterMobileSecondaryNotesApp(options = {}) {
   requirePlainObject(options, "Character mobile secondary/notes bootstrap options");
   const app = await bootstrapCharacterMobileLanguageCultureApp(options);
-  const mounted = mountCharacterMobileSecondaryNotesApp(app, options);
+  const postRenderLifecycle = resolvePostRenderLifecycle(app.postRenderLifecycle);
+  const mounted = mountCharacterMobileSecondaryNotesApp(
+    exposePostRenderLifecycle(app, postRenderLifecycle),
+    options,
+  );
   const previousDestroy = app.languageCulture?.destroy;
 
   return Object.freeze({
@@ -34,6 +37,7 @@ export async function bootstrapCharacterMobileSecondaryNotesApp(options = {}) {
     commands: mounted.commands,
     repositories: mounted.repositories,
     runtime: mounted.runtime,
+    postRenderLifecycle: mounted.postRenderLifecycle,
     render: mounted.render,
     secondaryNotes: Object.freeze({
       destroy() {
@@ -46,35 +50,32 @@ export async function bootstrapCharacterMobileSecondaryNotesApp(options = {}) {
 
 export function mountCharacterMobileSecondaryNotesApp(app, options = {}) {
   const root = options.root ?? resolveMobileRoot(options.document);
+  const postRenderLifecycle = resolvePostRenderLifecycle(app.postRenderLifecycle);
+  const lifecycleApp = exposePostRenderLifecycle(app, postRenderLifecycle);
 
-  const render = () => {
-    const session = app.persistence.getActiveSession();
-    root.innerHTML = injectMobileSecondaryNotesControls(
-      injectLanguageCultureCreationControls(
-        renderCharacterMobileApp(session.character, { mode: app.mode }),
-        session.character,
-        app.mode,
-      ),
-      session.character,
-      app.mode,
+  const mountSecondaryNotesControls = context => {
+    context.root.innerHTML = injectMobileSecondaryNotesControls(
+      context.root.innerHTML,
+      context.character,
+      context.mode,
     );
-    setMobileRootAttributes(root, session, app.mode);
-    app.modeSync.sync();
+    setMobileRootAttributes(context.root, context.session, context.mode);
+    lifecycleApp.modeSync.sync();
+  };
+  const unregisterPostRender = postRenderLifecycle.register(mountSecondaryNotesControls);
+
+  const render = (renderOptions = {}) => {
+    const result = lifecycleApp.render({
+      ...renderOptions,
+      skipPostRenderLifecycle: true,
+    });
+    if (!renderOptions.skipPostRenderLifecycle) {
+      postRenderLifecycle.run(readPostRenderContext(root, lifecycleApp, renderOptions));
+    }
+    return result;
   };
 
-  render();
-
-  const MutationObserverRef = options.MutationObserver ?? globalThis.MutationObserver;
-  const observer = typeof MutationObserverRef === "function"
-    ? new MutationObserverRef(() => {
-      root.innerHTML = injectMobileSecondaryNotesControls(
-        root.innerHTML,
-        app.persistence.getActiveSession().character,
-        app.mode,
-      );
-    })
-    : null;
-  observer?.observe?.(root, { childList: true, subtree: true });
+  mountSecondaryNotesControls(readPostRenderContext(root, lifecycleApp));
 
   const handleClick = event => {
     const actionTarget = findDataTarget(event?.target, "action");
@@ -82,16 +83,16 @@ export function mountCharacterMobileSecondaryNotesApp(app, options = {}) {
     if (!isSecondaryNotesAction(action)) return null;
     event.preventDefault?.();
 
-    if (app.mode !== "creation") {
+    if (lifecycleApp.mode !== "creation") {
       root.setAttribute?.("data-last-command-status", "blocked-by-mode");
       return null;
     }
-    if (app.ui.getState().busy) {
+    if (lifecycleApp.ui.getState().busy) {
       root.setAttribute?.("data-last-command-status", "busy");
       return null;
     }
 
-    const result = executeSecondaryNotesAction(action, actionTarget, root, app.commands);
+    const result = executeSecondaryNotesAction(action, actionTarget, root, lifecycleApp.commands);
     root.setAttribute?.("data-last-command-status", result.status);
     if (["applied", "no-op"].includes(result.status)) render();
     return result;
@@ -101,28 +102,29 @@ export function mountCharacterMobileSecondaryNotesApp(app, options = {}) {
 
   return Object.freeze({
     get character() {
-      return app.character;
+      return lifecycleApp.character;
     },
     get session() {
-      return app.session;
+      return lifecycleApp.session;
     },
     get html() {
       return root.innerHTML;
     },
     get mode() {
-      return app.mode;
+      return lifecycleApp.mode;
     },
-    interactions: app.interactions,
-    modeSync: app.modeSync,
-    ui: app.ui,
-    persistence: app.persistence,
-    commands: app.commands,
-    repositories: app.repositories,
-    runtime: app.runtime,
+    interactions: lifecycleApp.interactions,
+    modeSync: lifecycleApp.modeSync,
+    ui: lifecycleApp.ui,
+    persistence: lifecycleApp.persistence,
+    commands: lifecycleApp.commands,
+    repositories: lifecycleApp.repositories,
+    runtime: lifecycleApp.runtime,
+    postRenderLifecycle,
     render,
     secondaryNotes: Object.freeze({
       destroy() {
-        observer?.disconnect?.();
+        unregisterPostRender();
         root.removeEventListener?.("click", handleClick);
       },
     }),
@@ -387,6 +389,45 @@ function secondaryLabel(key) {
   if (key === "BasicSpeed") return "Velocidade Básica";
   if (key === "BasicMove") return "Deslocamento Básico";
   return key;
+}
+
+function readPostRenderContext(root, app, renderOptions = {}) {
+  const session = typeof app.persistence?.getActiveSession === "function"
+    ? app.persistence.getActiveSession()
+    : app.session;
+  const character = session?.character ?? app.character;
+  return {
+    root,
+    character,
+    session,
+    mode: renderOptions.mode ?? app.mode,
+  };
+}
+
+function resolvePostRenderLifecycle(postRenderLifecycle) {
+  if (postRenderLifecycle === undefined) {
+    return createCharacterMobilePostRenderLifecycle();
+  }
+  if (
+    postRenderLifecycle === null
+    || typeof postRenderLifecycle !== "object"
+    || typeof postRenderLifecycle.register !== "function"
+    || typeof postRenderLifecycle.run !== "function"
+  ) {
+    throw new Error("Character mobile secondary/notes requires a post-render lifecycle");
+  }
+  return postRenderLifecycle;
+}
+
+function exposePostRenderLifecycle(app, postRenderLifecycle) {
+  const descriptors = Object.getOwnPropertyDescriptors(app);
+  descriptors.postRenderLifecycle = {
+    value: postRenderLifecycle,
+    enumerable: true,
+    configurable: false,
+    writable: false,
+  };
+  return Object.freeze(Object.defineProperties({}, descriptors));
 }
 
 function setMobileRootAttributes(root, session, mode) {
