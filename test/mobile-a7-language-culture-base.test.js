@@ -35,7 +35,6 @@ test("A7 language culture base controls mount through post-render lifecycle with
   assert.equal(root.section.familiarityItem.actionInsertions, 1);
 
   mounted.languageCulture.destroy();
-  mounted.languageCulture.destroy();
   assert.equal(lifecycle.size, 0);
   assert.deepEqual(root.removedListeners, ["click"]);
 });
@@ -43,14 +42,10 @@ test("A7 language culture base controls mount through post-render lifecycle with
 test("A7 language culture base controls survive render, remount and mode changes", () => {
   const root = createLanguageCultureRoot();
   const lifecycle = createCharacterMobilePostRenderLifecycle();
-  let currentMode = "creation";
   let renderCalls = 0;
   const app = createLanguageCultureApp({
     root,
     postRenderLifecycle: lifecycle,
-    get mode() {
-      return currentMode;
-    },
     render() {
       renderCalls += 1;
       root.resetSection();
@@ -72,14 +67,12 @@ test("A7 language culture base controls survive render, remount and mode changes
   assert.equal(root.section.languageItem.actionInsertions, 1);
   assert.equal(root.section.familiarityItem.actionInsertions, 1);
 
-  currentMode = "table";
   mounted.render({ mode: "table" });
   assert.equal(renderCalls, 3);
   assert.equal(root.section.editorInsertions, 0);
   assert.equal(root.section.languageItem.actionInsertions, 0);
   assert.equal(root.section.familiarityItem.actionInsertions, 0);
 
-  currentMode = "creation";
   mounted.render({ mode: "creation" });
   assert.equal(renderCalls, 4);
   assert.equal(root.section.editorInsertions, 1);
