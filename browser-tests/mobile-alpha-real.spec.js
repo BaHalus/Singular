@@ -28,6 +28,12 @@ async function expectCharacterName(page, name) {
   await expect(page.locator('.singular-mobile-sheet__identity-summary')).toContainText(name);
 }
 
+async function expectCanonicalItem(page, selector, text, count = 1) {
+  const items = page.locator(selector);
+  await expect(items).toHaveCount(count);
+  await expect(items).toContainText(text);
+}
+
 test("real mobile composition edits, persists, changes mode and remounts without duplication", async ({ page }) => {
   const browserErrors = [];
   page.on("pageerror", error => browserErrors.push(error.message));
@@ -57,22 +63,31 @@ test("real mobile composition edits, persists, changes mode and remounts without
   await page.locator('[data-role="trait-name"]').fill("Destemida");
   await page.locator('[data-role="trait-points"]').fill("5");
   await page.locator('[data-action="trait-add"]').click();
-  await expect(page.getByText("Destemida", { exact: true })).toHaveCount(1);
-  await expect(page.locator('.singular-mobile-sheet__trait-list > div[data-trait-id]')).toHaveCount(1);
+  await expectCanonicalItem(
+    page,
+    '.singular-mobile-sheet__trait-list > div[data-trait-id]',
+    "Destemida",
+  );
 
   await page.locator('[data-role="attack-name"]').fill("Machado de teste");
   await page.locator('[data-role="attack-damage-value"]').fill("1d+2");
   await page.locator('[data-role="attack-damage-type"]').fill("cut");
   await page.locator('[data-action="attack-add"]').click();
-  await expect(page.getByText("Machado de teste", { exact: true })).toHaveCount(1);
-  await expect(page.locator('.singular-mobile-sheet__attack-list > div[data-attack-id]')).toHaveCount(1);
+  await expectCanonicalItem(
+    page,
+    '.singular-mobile-sheet__attack-list > div[data-attack-id]',
+    "Machado de teste",
+  );
 
   await page.locator('[data-role="equipment-name"]').fill("Mochila de teste");
   await page.locator('[data-role="equipment-weight-kg"]').fill("1.5");
   await page.locator('[data-role="equipment-cost"]').fill("60");
   await page.locator('[data-action="equipment-add"]').click();
-  await expect(page.getByText("Mochila de teste", { exact: true })).toHaveCount(1);
-  await expect(page.locator('.singular-mobile-sheet__equipment-list > div[data-equipment-id]')).toHaveCount(1);
+  await expectCanonicalItem(
+    page,
+    '.singular-mobile-sheet__equipment-list > div[data-equipment-id]',
+    "Mochila de teste",
+  );
 
   const beforeSave = await readHarnessState(page);
   expect(beforeSave.revision).toBeGreaterThanOrEqual(4);
@@ -108,15 +123,31 @@ test("real mobile composition edits, persists, changes mode and remounts without
   await expectCreationSurface(page);
   await expectCharacterName(page, "Alda Navegante");
   await expect(page.locator('[data-role="character-name"]')).toHaveValue("Alda Navegante");
-  await expect(page.getByText("Destemida", { exact: true })).toHaveCount(1);
-  await expect(page.getByText("Machado de teste", { exact: true })).toHaveCount(1);
-  await expect(page.getByText("Mochila de teste", { exact: true })).toHaveCount(1);
+  await expectCanonicalItem(
+    page,
+    '.singular-mobile-sheet__trait-list > div[data-trait-id]',
+    "Destemida",
+  );
+  await expectCanonicalItem(
+    page,
+    '.singular-mobile-sheet__attack-list > div[data-attack-id]',
+    "Machado de teste",
+  );
+  await expectCanonicalItem(
+    page,
+    '.singular-mobile-sheet__equipment-list > div[data-equipment-id]',
+    "Mochila de teste",
+  );
 
   await page.locator('[data-role="trait-name"]').fill("Segundo traço");
   await page.locator('[data-role="trait-points"]').fill("1");
   await page.locator('[data-action="trait-add"]').click();
-  await expect(page.getByText("Segundo traço", { exact: true })).toHaveCount(1);
-  await expect(page.locator('.singular-mobile-sheet__trait-list > div[data-trait-id]')).toHaveCount(2);
+  await expectCanonicalItem(
+    page,
+    '.singular-mobile-sheet__trait-list > div[data-trait-id]',
+    "Segundo traço",
+    2,
+  );
 
   const afterSingleAction = await readHarnessState(page);
   expect(afterSingleAction.revision).toBe(remountedState.revision + 1);
