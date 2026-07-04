@@ -19,7 +19,11 @@ export function createCharacterMobileSheetRenderModelForCharacter(character) {
   const spellsPowersModel = serializeCharacterMobileSpellsPowersReadModel(
     createCharacterMobileSpellsPowersReadModel(character),
   );
-  const mechanicalResultsCard = createMechanicalResultsCard(baseModel.summary.attributes);
+  const equipmentCard = baseModel.cards.find(card => card.id === "equipment");
+  const mechanicalResultsCard = createMechanicalResultsCard({
+    attributes: baseModel.summary.attributes,
+    equipmentTotals: equipmentCard?.totals,
+  });
 
   const composedModel = {
     ...baseModel,
@@ -65,19 +69,50 @@ function withMobilePresentationLabels(model) {
   };
 }
 
-function createMechanicalResultsCard(attributes) {
+function createMechanicalResultsCard({ attributes, equipmentTotals }) {
   return {
     id: "mechanical-results",
     title: "Resultados mecânicos",
     status: "available",
-    items: attributes.map(attribute => ({
-      id: `mechanical:${attribute.id}`,
-      label: "Atributo efetivo",
-      value: `${attribute.label} ${formatPresentationValue(attribute.value)}`,
-      notes: `Calculado pelo motor de atributos; fonte ${attribute.source}`,
-      status: attribute.status,
-    })),
+    items: [
+      ...attributes.map(attribute => ({
+        id: `mechanical:${attribute.id}`,
+        label: "Atributo efetivo",
+        value: `${attribute.label} ${formatPresentationValue(attribute.value)}`,
+        notes: `Calculado pelo motor de atributos; fonte ${attribute.source}`,
+        status: attribute.status,
+      })),
+      ...createEquipmentTotalResultItems(equipmentTotals),
+    ],
   };
+}
+
+function createEquipmentTotalResultItems(totals) {
+  if (!totals) return [];
+  const notes = "Calculado pelo motor de equipamento";
+  return [
+    {
+      id: "mechanical:equipment-total-quantity",
+      label: "Quantidade em equipamento",
+      value: formatPresentationValue(totals.quantity),
+      notes,
+      status: "available",
+    },
+    {
+      id: "mechanical:equipment-total-weight",
+      label: "Peso total em equipamento",
+      value: `${formatPresentationValue(totals.weightKg)} kg`,
+      notes,
+      status: "available",
+    },
+    {
+      id: "mechanical:equipment-total-cost",
+      label: "Custo total em equipamento",
+      value: `$ ${formatPresentationValue(totals.cost)}`,
+      notes,
+      status: "available",
+    },
+  ];
 }
 
 function secondaryCharacteristicLabel(id, fallback) {
