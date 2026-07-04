@@ -64,6 +64,9 @@ jobs:
       - name: Install pinned Playwright test runner
         run: npm install --no-save --no-package-lock @playwright/test@1.54.1
 
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
       - name: Run real mobile browser smoke
         shell: bash
         run: |
