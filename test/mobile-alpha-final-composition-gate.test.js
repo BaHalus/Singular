@@ -34,38 +34,7 @@ test("A8 final alpha mobile composition gate stays idempotent across render, rem
       getState() { return Object.freeze({ busy: false }); },
     }),
     persistence: Object.freeze({ getActiveSession() { return session; } }),
-    commands: Object.freeze({
-      addLanguage: noOpCommand,
-      removeLanguage: noOpCommand,
-      reorderLanguage: noOpCommand,
-      addFamiliarity: noOpCommand,
-      removeFamiliarity: noOpCommand,
-      reorderFamiliarity: noOpCommand,
-      updateSecondaryCharacteristic: noOpCommand,
-      clearSecondaryCharacteristicOverride: noOpCommand,
-      setPoolMaximum: noOpCommand,
-      saveGeneralNotes: noOpCommand,
-      addStructuredNote: noOpCommand,
-      updateStructuredNote: noOpCommand,
-      removeStructuredNote: noOpCommand,
-      reorderStructuredNote: noOpCommand,
-      addTrait: noOpCommand,
-      updateTrait: noOpCommand,
-      removeTrait: noOpCommand,
-      reorderTrait: noOpCommand,
-      addSkill: noOpCommand,
-      updateSkill: noOpCommand,
-      removeSkill: noOpCommand,
-      reorderSkill: noOpCommand,
-      addTechnique: noOpCommand,
-      updateTechnique: noOpCommand,
-      removeTechnique: noOpCommand,
-      reorderTechnique: noOpCommand,
-      updateAttack: noOpCommand,
-      updateEquipment: noOpCommand,
-      updateSpell: noOpCommand,
-      renamePower: noOpCommand,
-    }),
+    commands: Object.freeze(createNoOpCommands()),
     repositories: Object.freeze({}),
     runtime: Object.freeze({}),
     postRenderLifecycle,
@@ -117,127 +86,28 @@ function createAlphaCharacter() {
       playerId: "player-a8",
       campaignId: "campaign-alpha",
     },
-    attributes: { ST: 11, DX: 12, IQ: 11, HT: 10 },
     secondaryCharacteristics: {
-      HP: { base: 11, override: 12 },
+      HP: { base: 10, override: 12 },
       FP: { base: 10, override: null },
-      Will: { base: 11, override: 12 },
-      Per: { base: 11, override: null },
-      BasicSpeed: { base: 5.5, override: null },
+      Will: { base: 10, override: 11 },
+      Per: { base: 10, override: null },
+      BasicSpeed: { base: 5, override: null },
       BasicMove: { base: 5, override: 6 },
     },
     pools: {
       HP: { current: 12, maximum: 12 },
       FP: { current: 10, maximum: 10 },
     },
-    traits: [{
-      id: "trait-combat-reflexes",
-      name: "Reflexos em Combate",
-      role: "advantage",
-      points: 15,
-      levels: null,
-      selfControl: null,
-      frequency: null,
-      roundCostDown: false,
-      choices: [],
-      notes: "A8 trait surface",
-      tags: ["a8"],
-    }],
-    skills: [{
-      id: "skill-broadsword",
-      name: "Espada de Lâmina Larga",
-      specialization: "",
-      techLevel: null,
-      attribute: "DX",
-      difficulty: "A",
-      points: 2,
-      notes: "A8 skill surface",
-      tags: ["a8"],
-    }],
-    techniques: [{
-      id: "technique-feint",
-      name: "Finta",
-      specialization: "Espada de Lâmina Larga",
-      skillId: "skill-broadsword",
-      skillName: "Espada de Lâmina Larga",
-      skillSpecialization: "",
-      difficulty: "A",
-      points: 1,
-      defaultPenalty: -4,
-      maximumRelativeLevel: 0,
-      notes: "A8 technique surface",
-      tags: ["a8"],
-    }],
-    attacks: [{
-      id: "attack-sword",
-      name: "Espada longa",
-      category: "melee",
-      skillId: "skill-broadsword",
-      damage: { value: "1d+2", type: "cut" },
-      reach: "1",
-      range: null,
-      notes: "A8 attack surface",
-    }],
-    equipment: [{
-      id: "equipment-rope",
-      name: "Corda",
-      quantity: 1,
-      state: "carried",
-      weightKg: 2.5,
-      cost: 10,
-      notes: "15 m",
-    }],
-    spells: [{
-      id: "spell-ignite",
-      name: "Ignite Fire",
-      spellType: "standard",
-      attribute: "IQ",
-      difficulty: "H",
-      points: 1,
-      spellClass: "Regular",
-      resistance: "",
-      castingCost: "1",
-      maintenanceCost: "0",
-      castingTime: "1 s",
-      duration: "1 min",
-      notes: "A8 spell surface",
-    }],
-    powers: [{
-      id: "power-divine-favor",
-      name: "Divine Favor",
-      source: "divine",
-      powerModifier: { name: "Pacto", valuePercent: -10, notes: "A8 power modifier" },
-      talentTraitId: null,
-      memberTraitIds: [],
-      tags: ["a8"],
-      notes: "A8 power surface",
-    }],
-    languages: [{
-      id: "language-norse",
-      name: "Nórdico Antigo",
-      spokenLevel: "native",
-      writtenLevel: "accented",
-      native: true,
-      notes: "A8 language surface",
-      tags: ["a8"],
-    }],
-    familiarities: [{
-      id: "familiarity-yrth",
-      name: "Yrth",
-      native: true,
-      notes: "A8 familiarity surface",
-      tags: ["a8"],
-    }],
     notes: {
       general: "A8 operational final note",
-      structured: [{
+      structured: [Object.freeze({
         id: "note-a8",
         title: "Mesa",
         text: "Checar composição final.",
         category: "sessão",
         reference: "A8",
         tags: ["alpha", "mobile"],
-      }],
+      })],
     },
     metadata: {
       createdAt: "2026-07-04T07:40:00.000Z",
@@ -263,6 +133,7 @@ function assertCreationSurface(html) {
   assert.equal(count(html, 'data-action="secondary-base-set"'), 6);
   assert.equal(count(html, 'data-card="notes"'), 1);
   assert.equal(count(html, 'data-card="languages-culture"'), 1);
+  assert.equal(count(html, 'data-card="secondary-characteristics"'), 1);
   assert.equal(count(html, 'data-card="traits"'), 1);
   assert.equal(count(html, 'data-card="skills-techniques"'), 1);
   assert.equal(count(html, 'data-card="attacks"'), 1);
@@ -272,18 +143,22 @@ function assertCreationSurface(html) {
 }
 
 function assertTableSurface(html) {
-  assert.equal(count(html, 'data-role="language-editor"'), 0);
-  assert.equal(count(html, 'data-role="familiarity-editor"'), 0);
-  assert.equal(count(html, 'data-role="trait-editor"'), 0);
-  assert.equal(count(html, 'data-role="skill-editor"'), 0);
-  assert.equal(count(html, 'data-role="technique-editor"'), 0);
-  assert.equal(count(html, 'data-role="attack-editor"'), 0);
-  assert.equal(count(html, 'data-role="equipment-editor"'), 0);
-  assert.equal(count(html, 'data-role="spell-editor"'), 0);
-  assert.equal(count(html, 'data-role="power-editor"'), 0);
-  assert.equal(count(html, 'data-role="general-notes-editor"'), 0);
-  assert.equal(count(html, 'data-role="structured-note-editor"'), 0);
-  assert.equal(count(html, 'data-role="structured-note-inline-editor"'), 0);
+  for (const role of [
+    "language-editor",
+    "familiarity-editor",
+    "trait-editor",
+    "skill-editor",
+    "technique-editor",
+    "attack-editor",
+    "equipment-editor",
+    "spell-editor",
+    "power-editor",
+    "general-notes-editor",
+    "structured-note-editor",
+    "structured-note-inline-editor",
+  ]) {
+    assert.equal(count(html, `data-role="${role}"`), 0);
+  }
   assert.equal(count(html, 'data-action="secondary-base-set"'), 0);
   assert.equal(count(html, 'data-card="notes"'), 1);
   assert.match(html, /A8 operational final note/);
@@ -317,6 +192,54 @@ function createDocument() {
       };
     },
   };
+}
+
+function createNoOpCommands() {
+  const names = [
+    "addLanguage",
+    "removeLanguage",
+    "reorderLanguage",
+    "addFamiliarity",
+    "removeFamiliarity",
+    "reorderFamiliarity",
+    "updateSecondaryCharacteristic",
+    "clearSecondaryCharacteristicOverride",
+    "setPoolMaximum",
+    "saveGeneralNotes",
+    "addStructuredNote",
+    "updateStructuredNote",
+    "removeStructuredNote",
+    "reorderStructuredNote",
+    "addTrait",
+    "updateTrait",
+    "removeTrait",
+    "reorderTrait",
+    "addSkill",
+    "updateSkill",
+    "removeSkill",
+    "reorderSkill",
+    "addTechnique",
+    "updateTechnique",
+    "removeTechnique",
+    "reorderTechnique",
+    "addAttack",
+    "updateAttack",
+    "removeAttack",
+    "reorderAttack",
+    "addEquipment",
+    "updateEquipment",
+    "removeEquipment",
+    "reorderEquipment",
+    "setEquipmentState",
+    "addSpell",
+    "updateSpell",
+    "removeSpell",
+    "reorderSpell",
+    "addPower",
+    "renamePower",
+    "removePower",
+  ];
+  return Object.fromEntries(names.map(name => [name, noOpCommand]));
 }
 
 function noOpCommand() {
