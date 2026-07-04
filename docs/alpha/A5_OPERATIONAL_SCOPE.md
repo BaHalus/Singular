@@ -6,7 +6,13 @@ Esta fatia começa a partir da `main` atual após a integração de A4.
 
 Continuar a validação operacional concreta da Alpha Mobile escolhendo uma única superfície vertical ainda não coberta por regressão integrada pós-A4 e provando que ela permanece estável no composition root canônico.
 
-A5 deve produzir evidência executável mínima, preferencialmente por teste automatizado, de que a superfície escolhida continua funcionando após render, remount, troca de modo e persistência sem criar caminhos paralelos.
+A5 produz evidência executável mínima de que a superfície escolhida continua funcionando após render, remount, troca de modo e persistência sem criar caminhos paralelos.
+
+## Superfície A5 escolhida
+
+A superfície operacional concreta de A5 é **Poderes**.
+
+A5 migra a montagem dos editores mobile de Poderes para o `postRenderLifecycle` canônico, preservando o helper legado somente como compatibilidade para roots mínimos sem DOM real.
 
 ## Entradas obrigatórias
 
@@ -38,6 +44,13 @@ A5 deve produzir evidência executável mínima, preferencialmente por teste aut
 - Resolver múltiplas superfícies verticais na mesma PR.
 - Fazer mudança visual ampla sem regressão operacional mínima.
 
+## Evidência executável A5
+
+- `CharacterMobilePowerEditApp` registra aprimorador no `postRenderLifecycle` canônico.
+- O caminho DOM canônico de Poderes monta editores por append DOM explícito e idempotente.
+- O render composto executa o lifecycle sem duplicar editores após render repetido, remount e troca de modo.
+- A regressão `A5 power controls remount through canonical post-render lifecycle without duplication` cobre render composto, render repetido, modo Mesa, retorno ao modo Criação, remount e teardown do registro.
+
 ## Gate mínimo
 
 A PR A5 só pode ser integrada quando houver evidência de que:
@@ -53,4 +66,4 @@ A PR A5 só pode ser integrada quando houver evidência de que:
 
 ## Próxima ação material
 
-Auditar a superfície mobile atual e acrescentar a menor regressão integrada ainda ausente para uma superfície vertical específica, sem avançar para A6 e sem reabrir fatias já integradas.
+Revalidar CI e threads da PR #269. Com CI verde, zero P1/P2 e head revalidado, integrar A5 e abrir A6 somente depois do merge.
