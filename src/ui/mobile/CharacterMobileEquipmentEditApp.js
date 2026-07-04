@@ -96,15 +96,13 @@ export function mountCharacterMobileEquipmentEditApp(app, options = {}) {
   const handleClick = event => {
     const target = findDataTarget(event?.target, "action");
     const action = target === null ? null : readDataset(target, "action");
-    if (action !== "equipment-update") return null;
+    if (!["equipment-update", "equipment-state-update"].includes(action)) return null;
     event.preventDefault?.();
-    const blockedStatus = shouldBlockMobileEquipmentEdit(lifecycleApp);
-    if (blockedStatus !== null) {
-      root.setAttribute?.("data-last-command-status", blockedStatus);
-      return null;
-    }
+
     const itemId = readDataset(target, "equipmentId");
-    const result = applyEquipmentPatch(lifecycleApp, itemId, readEquipmentPatch(root, itemId));
+    const result = action === "equipment-state-update"
+      ? handleEquipmentStateUpdate(lifecycleApp, target, itemId)
+      : handleEquipmentStructuralUpdate(lifecycleApp, root, itemId);
     root.setAttribute?.("data-last-command-status", result.status);
     if (["applied", "no-op"].includes(result.status)) render();
     return result;
@@ -141,11 +139,23 @@ export function shouldBlockMobileEquipmentEdit(app) {
   return null;
 }
 
+export function shouldBlockMobileEquipmentTransientEdit(app) {
+  if (app.ui.getState().busy) return "busy";
+  return null;
+}
+
 export function injectMobileEquipmentEditControls(html, character, mode) {
-  if (mode !== "creation") return html;
   let nextHtml = html;
-  for (const item of flattenEquipment(character.equipment ?? [])) {
-    nextHtml = appendEditor(nextHtml, item);
+  if (mode === "creation") {
+    for (const item of flattenEquipment(character.equipment ?? [])) {
+      nextHtml = appendEditor(nextHtml, item);
+    }
+    return nextHtml;
+  }
+  if (mode === "table") {
+    for (const item of flattenEquipment(character.equipment ?? [])) {
+      nextHtml = appendStateControls(nextHtml, item);
+    }
   }
   return nextHtml;
 }
@@ -161,6 +171,11 @@ export function buildEquipmentUpdatePayload(current, itemId, patch) {
   return Object.freeze({ itemId, patch: nextPatch });
 }
 
+export function buildEquipmentStateUpdatePayload(current, itemId, state) {
+  const patch = state === (current.state ?? "carried") ? {} : { state };
+  return Object.freeze({ itemId, patch });
+}
+
 export function applyEquipmentPatch(app, itemId, patch) {
   const current = findEquipmentItem(app.character.equipment ?? [], itemId);
   if (current === null) return Object.freeze({ status: "rejected" });
@@ -172,12 +187,36 @@ export function applyEquipmentPatch(app, itemId, patch) {
   return applyLegacyEquipmentPatch(app.commands, payload);
 }
 
+export function applyEquipmentStatePatch(app, itemId, state) {
+  const current = findEquipmentItem(app.character.equipment ?? [], itemId);
+  if (current === null) return Object.freeze({ status: "rejected" });
+  const payload = buildEquipmentStateUpdatePayload(current, itemId, state);
+  if (Object.keys(payload.patch).length === 0) return Object.freeze({ status: "no-op" });
+  if (typeof app.commands.updateEquipment === "function") {
+    return app.commands.updateEquipment(payload);
+  }
+  return applyLegacyEquipmentPatch(app.commands, payload);
+}
+
+function handleEquipmentStructuralUpdate(app, root, itemId) {
+  const blockedStatus = shouldBlockMobileEquipmentEdit(app);
+  if (blockedStatus !== null) return Object.freeze({ status: blockedStatus });
+  return applyEquipmentPatch(app, itemId, readEquipmentPatch(root, itemId));
+}
+
+function handleEquipmentStateUpdate(app, target, itemId) {
+  const blockedStatus = shouldBlockMobileEquipmentTransientEdit(app);
+  if (blockedStatus !== null) return Object.freeze({ status: blockedStatus });
+  return applyEquipmentStatePatch(app, itemId, readDataset(target, "equipmentState") || "carried");
+}
+
 function injectCurrentEquipmentControls(root, { character, mode, modeSync }) {
+  const items = flattenEquipment(character.equipment ?? []);
   const mounted = mode === "creation"
-    ? flattenEquipment(character.equipment ?? [])
-      .map(item => appendEditorNode(root, item))
-      .every(Boolean)
-    : true;
+    ? items.map(item => appendEditorNode(root, item)).every(Boolean)
+    : mode === "table"
+      ? items.map(item => appendStateControlsNode(root, item)).every(Boolean)
+      : true;
   modeSync.sync();
   return mounted;
 }
@@ -191,12 +230,30 @@ function appendEditor(html, item) {
   });
 }
 
+function appendStateControls(html, item) {
+  return appendInlineEditorToDefinitionListItem(html, {
+    entityId: item.id,
+    markerAttribute: "data-equipment-id",
+    editorRole: "equipment-state-controls",
+    renderEditor: () => renderStateControls(item),
+  });
+}
+
 function appendEditorNode(root, item) {
   return appendInlineEditorToDefinitionListItemNode(root, {
     entityId: item.id,
     markerAttribute: "data-equipment-id",
     editorRole: "equipment-inline-editor",
     renderEditor: () => renderEditor(item),
+  });
+}
+
+function appendStateControlsNode(root, item) {
+  return appendInlineEditorToDefinitionListItemNode(root, {
+    entityId: item.id,
+    markerAttribute: "data-equipment-id",
+    editorRole: "equipment-state-controls",
+    renderEditor: () => renderStateControls(item),
   });
 }
 
@@ -226,10 +283,24 @@ function renderEditor(item) {
   ].join("");
 }
 
+function renderStateControls(item) {
+  const id = escapeAttribute(item.id);
+  const active = item.state ?? "carried";
+  const buttons = equipmentStates().map(([state, label]) => {
+    const pressed = state === active ? "true" : "false";
+    return `<button type="button" data-action="equipment-state-update" data-equipment-id="${id}" data-equipment-state="${escapeAttribute(state)}" aria-pressed="${pressed}">${escapeText(label)}</button>`;
+  }).join("");
+  return `<div class="singular-mobile-sheet__equipment-state-controls" data-role="equipment-state-controls" data-equipment-id="${id}">${buttons}</div>`;
+}
+
 function stateOptions(active) {
-  return [["equipped", "Equipado"], ["carried", "Carregado"], ["stored", "Guardado"], ["dropped", "Largado"], ["ignored", "Ignorado"]]
+  return equipmentStates()
     .map(([value, label]) => `<option value="${value}"${value === active ? " selected" : ""}>${escapeText(label)}</option>`)
     .join("");
+}
+
+function equipmentStates() {
+  return [["equipped", "Equipado"], ["carried", "Carregado"], ["stored", "Guardado"], ["dropped", "Largado"], ["ignored", "Ignorado"]];
 }
 
 function readEquipmentPatch(root, itemId) {
