@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>SINGULAR Alpha Browser Harness</title>
+    <link rel="stylesheet" href="../../src/ui/mobile/CharacterMobileApp.css">
+    <link rel="stylesheet" href="../../src/ui/mobile/CharacterMobileSecondaryNotesApp.css">
+    <link rel="stylesheet" href="../../src/ui/mobile/CharacterMobileTraitEditApp.css">
+    <link rel="stylesheet" href="../../src/ui/mobile/CharacterMobileSkillTechniqueEditApp.css">
+    <link rel="stylesheet" href="../../src/ui/mobile/CharacterMobileLanguageCultureEditApp.css">
+    <link rel="stylesheet" href="../../src/ui/mobile/CharacterMobileAttackEditApp.css">
+    <link rel="stylesheet" href="../../src/ui/mobile/CharacterMobileEquipmentEditApp.css">
+    <link rel="stylesheet" href="../../src/ui/mobile/CharacterMobileSpellEditApp.css">
+    <link rel="stylesheet" href="../../src/ui/mobile/CharacterMobilePowerEditApp.css">
+  </head>
+  <body>
+    <main data-singular-mobile-root aria-live="polite"></main>
+    <script type="module">
+      import { bootstrapCharacterMobileCompositionRoot } from "../../src/ui/mobile/CharacterMobileCompositionRoot.js";
+
+      const root = document.querySelector("[data-singular-mobile-root]");
+      const listeners = new Map();
+      const nativeAddEventListener = root.addEventListener.bind(root);
+      const nativeRemoveEventListener = root.removeEventListener.bind(root);
+
+      root.addEventListener = (type, listener, options) => {
+        if (!listeners.has(type)) listeners.set(type, new Set());
+        listeners.get(type).add(listener);
+        return nativeAddEventListener(type, listener, options);
+      };
+      root.removeEventListener = (type, listener, options) => {
+        listeners.get(type)?.delete(listener);
+        return nativeRemoveEventListener(type, listener, options);
+      };
+
+      if (new URLSearchParams(location.search).has("reset")) {
+        localStorage.clear();
+      }
+
+      let mounted = null;
+
+      const harness = Object.freeze({
+        async mount() {
+          if (mounted !== null) {
+            mounted.compositionRoot.destroy();
+          }
+          root.replaceChildren();
+          mounted = await bootstrapCharacterMobileCompositionRoot({
+            root,
+            storage: localStorage,
+            namespace: "singular.alpha.browser-smoke",
+          });
+          return this.state();
+        },
+        destroy() {
+          mounted?.compositionRoot.destroy();
+          mounted = null;
+          return this.state();
+        },
+        state() {
+          return Object.freeze({
+            mounted: mounted !== null,
+            mode: mounted?.mode ?? root.getAttribute("data-mode"),
+            sessionId: mounted?.session?.id ?? null,
+            revision: mounted?.session?.revision ?? null,
+            lifecycleSize: mounted?.postRenderLifecycle?.size ?? 0,
+            clickListeners: listeners.get("click")?.size ?? 0,
+          });
+        },
+      });
+
+      globalThis.__SINGULAR_ALPHA_HARNESS__ = harness;
+      globalThis.__SINGULAR_ALPHA_HARNESS_READY__ = harness.mount();
+      await globalThis.__SINGULAR_ALPHA_HARNESS_READY__;
+    </script>
+  </body>
+</html>
