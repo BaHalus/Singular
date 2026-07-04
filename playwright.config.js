@@ -3,10 +3,10 @@ import { defineConfig } from "@playwright/test";
 export default defineConfig({
   testDir: "./browser-tests",
   testMatch: "**/*.spec.js",
-  timeout: 45_000,
-  expect: { timeout: 8_000 },
+  timeout: 20_000,
+  expect: { timeout: 5_000 },
   fullyParallel: false,
-  retries: process.env.CI ? 1 : 0,
+  retries: 0,
   reporter: process.env.CI ? [["line"], ["html", { open: "never" }]] : "list",
   use: {
     baseURL: "http://127.0.0.1:4173",
