@@ -2,6 +2,9 @@ import {
   bootstrapCharacterMobileSpellEditApp,
 } from "./CharacterMobileSpellEditApp.js";
 import {
+  createCharacterMobilePostRenderLifecycle,
+} from "./CharacterMobilePostRenderLifecycle.js";
+import {
   appendInlineEditorToDefinitionListItem,
   appendInlineEditorToDefinitionListItemNode,
   escapeAttribute,
@@ -17,8 +20,15 @@ import {
 } from "./MobileInlineEditHelpers.js";
 
 export async function bootstrapCharacterMobilePowerEditApp(options = {}) {
-  const app = await bootstrapCharacterMobileSpellEditApp(options);
-  const mounted = mountCharacterMobilePowerEditApp(app, options);
+  const postRenderLifecycle = resolvePostRenderLifecycle(options.postRenderLifecycle);
+  const app = await bootstrapCharacterMobileSpellEditApp(Object.freeze({
+    ...options,
+    postRenderLifecycle,
+  }));
+  const mounted = mountCharacterMobilePowerEditApp(
+    exposePostRenderLifecycle(app, postRenderLifecycle),
+    options,
+  );
   const previousDestroy = app.spellEdit?.destroy;
 
   return Object.freeze({
@@ -33,7 +43,7 @@ export async function bootstrapCharacterMobilePowerEditApp(options = {}) {
     commands: mounted.commands,
     repositories: mounted.repositories,
     runtime: mounted.runtime,
-    postRenderLifecycle: mounted.postRenderLifecycle,
+    postRenderLifecycle,
     render: mounted.render,
     powerEdit: Object.freeze({
       destroy() {
@@ -49,31 +59,55 @@ export function mountCharacterMobilePowerEditApp(app, options = {}) {
     options.document,
     "Character mobile power edit bootstrap root was not found",
   );
+  const postRenderLifecycle = resolvePostRenderLifecycle(app.postRenderLifecycle);
+  const lifecycleApp = exposePostRenderLifecycle(app, postRenderLifecycle);
+  const useDomMount = canMountPowerControlsWithDom(root, lifecycleApp.character);
 
-  const render = (renderOptions = {}) => {
-    app.render(renderOptions);
-    injectCurrentPowerControls(root, app);
+  const mountPowerEditors = context => {
+    injectCurrentPowerControls(context.root, {
+      character: context.character,
+      mode: context.mode,
+      modeSync: lifecycleApp.modeSync,
+    });
   };
+  const unregisterPostRender = postRenderLifecycle.register(mountPowerEditors);
 
-  injectCurrentPowerControls(root, app);
+  const render = useDomMount
+    ? (renderOptions = {}) => {
+      const result = lifecycleApp.render({
+        ...renderOptions,
+        skipPostRenderLifecycle: true,
+      });
+      if (!renderOptions.skipPostRenderLifecycle) {
+        runPostRenderLifecycle(postRenderLifecycle, root, lifecycleApp, renderOptions);
+      }
+      return result;
+    }
+    : (renderOptions = {}) => renderLegacyPowerControls(root, lifecycleApp, renderOptions);
+
+  if (useDomMount) {
+    mountPowerEditors(readPostRenderContext(root, lifecycleApp));
+  } else {
+    render();
+  }
 
   const handleClick = event => {
     const target = findDataTarget(event?.target, "action");
     const action = target === null ? null : readDataset(target, "action");
     if (action !== "power-update") return null;
     event.preventDefault?.();
-    if (app.mode !== "creation") {
+    if (lifecycleApp.mode !== "creation") {
       root.setAttribute?.("data-last-command-status", "blocked-by-mode");
       return null;
     }
-    if (app.ui.getState().busy) {
+    if (lifecycleApp.ui.getState().busy) {
       root.setAttribute?.("data-last-command-status", "busy");
       return null;
     }
 
     const powerId = readDataset(target, "powerId");
     const patch = readPowerPatch(root, powerId);
-    const current = app.character.powers.find(power => power.id === powerId);
+    const current = lifecycleApp.character.powers.find(power => power.id === powerId);
     if (current === undefined) {
       root.setAttribute?.("data-last-command-status", "rejected");
       return Object.freeze({ status: "rejected" });
@@ -82,7 +116,7 @@ export function mountCharacterMobilePowerEditApp(app, options = {}) {
       root.setAttribute?.("data-last-command-status", "no-op");
       return Object.freeze({ status: "no-op" });
     }
-    const result = app.commands.renamePower({ powerId, name: patch.name });
+    const result = lifecycleApp.commands.renamePower({ powerId, name: patch.name });
     root.setAttribute?.("data-last-command-status", result.status);
     if (["applied", "no-op"].includes(result.status)) render();
     return result;
@@ -91,21 +125,22 @@ export function mountCharacterMobilePowerEditApp(app, options = {}) {
   root.addEventListener("click", handleClick);
 
   return Object.freeze({
-    get character() { return app.character; },
-    get session() { return app.session; },
+    get character() { return lifecycleApp.character; },
+    get session() { return lifecycleApp.session; },
     get html() { return root.innerHTML; },
-    get mode() { return app.mode; },
-    interactions: app.interactions,
-    modeSync: app.modeSync,
-    ui: app.ui,
-    persistence: app.persistence,
-    commands: app.commands,
-    repositories: app.repositories,
-    runtime: app.runtime,
-    postRenderLifecycle: app.postRenderLifecycle,
+    get mode() { return lifecycleApp.mode; },
+    interactions: lifecycleApp.interactions,
+    modeSync: lifecycleApp.modeSync,
+    ui: lifecycleApp.ui,
+    persistence: lifecycleApp.persistence,
+    commands: lifecycleApp.commands,
+    repositories: lifecycleApp.repositories,
+    runtime: lifecycleApp.runtime,
+    postRenderLifecycle,
     render,
     powerEdit: Object.freeze({
       destroy() {
+        unregisterPostRender();
         root.removeEventListener?.("click", handleClick);
       },
     }),
@@ -135,24 +170,14 @@ export function readPowerPatchFromValues(values = {}) {
   });
 }
 
-function injectCurrentPowerControls(root, app) {
-  if (app.mode !== "creation") {
-    app.modeSync.sync();
-    return;
-  }
-
-  let allEditorsMounted = true;
-  for (const power of app.character.powers ?? []) {
-    allEditorsMounted = appendPowerInlineEditorNode(root, power) && allEditorsMounted;
-  }
-  if (!allEditorsMounted) {
-    root.innerHTML = injectMobilePowerEditControls(
-      root.innerHTML,
-      app.character,
-      app.mode,
-    );
-  }
-  app.modeSync.sync();
+function injectCurrentPowerControls(root, { character, mode, modeSync }) {
+  const mounted = mode === "creation"
+    ? (character.powers ?? [])
+      .map(power => appendPowerInlineEditorNode(root, power))
+      .every(Boolean)
+    : true;
+  modeSync.sync();
+  return mounted;
 }
 
 function appendPowerInlineEditorNode(root, power) {
@@ -205,4 +230,79 @@ function readPowerPatch(root, powerId) {
     tags: readInputValue(root, `[data-role="power-edit-tags-${suffix}"]`),
     notes: readInputValue(root, `[data-role="power-edit-notes-${suffix}"]`),
   });
+}
+
+function canMountPowerControlsWithDom(root, character) {
+  const firstPower = (character.powers ?? [])[0] ?? null;
+  if (firstPower === null) return true;
+  const selectorId = escapeSelectorValue(firstPower.id);
+  const item = root.querySelector?.(`[data-power-id="${selectorId}"]`) ?? null;
+  return item !== null &&
+    typeof item.querySelector === "function" &&
+    (item.ownerDocument?.createElement ?? root.ownerDocument?.createElement ?? globalThis.document?.createElement) !== undefined;
+}
+
+function renderLegacyPowerControls(root, app, renderOptions = {}) {
+  const mode = renderOptions.mode ?? app.mode;
+  const session = typeof app.persistence?.getActiveSession === "function"
+    ? app.persistence.getActiveSession()
+    : app.session;
+  root.innerHTML = injectMobilePowerEditControls(
+    app.ui.render({ mode }),
+    session.character,
+    mode,
+  );
+  root.setAttribute?.("data-session-id", session.id);
+  root.setAttribute?.("data-character-id", session.character.identity.id);
+  root.setAttribute?.("data-mode", mode);
+  app.modeSync.sync();
+  return root.innerHTML;
+}
+
+function runPostRenderLifecycle(postRenderLifecycle, root, app, renderOptions = {}) {
+  postRenderLifecycle.run(readPostRenderContext(root, app, renderOptions));
+}
+
+function readPostRenderContext(root, app, renderOptions = {}) {
+  const session = typeof app.persistence?.getActiveSession === "function"
+    ? app.persistence.getActiveSession()
+    : app.session;
+  const character = session?.character ?? app.character;
+  return {
+    root,
+    character,
+    session,
+    mode: renderOptions.mode ?? app.mode,
+  };
+}
+
+function resolvePostRenderLifecycle(postRenderLifecycle) {
+  if (postRenderLifecycle === undefined) {
+    return createCharacterMobilePostRenderLifecycle();
+  }
+  return requirePostRenderLifecycle(postRenderLifecycle);
+}
+
+function requirePostRenderLifecycle(postRenderLifecycle) {
+  if (postRenderLifecycle === null || typeof postRenderLifecycle !== "object") {
+    throw new Error("Character mobile power edit requires a post-render lifecycle");
+  }
+  if (typeof postRenderLifecycle.register !== "function") {
+    throw new Error("Character mobile power edit post-render lifecycle must register enhancers");
+  }
+  if (typeof postRenderLifecycle.run !== "function") {
+    throw new Error("Character mobile power edit post-render lifecycle must run enhancers");
+  }
+  return postRenderLifecycle;
+}
+
+function exposePostRenderLifecycle(app, postRenderLifecycle) {
+  const descriptors = Object.getOwnPropertyDescriptors(app);
+  descriptors.postRenderLifecycle = {
+    value: postRenderLifecycle,
+    enumerable: true,
+    configurable: false,
+    writable: false,
+  };
+  return Object.freeze(Object.defineProperties({}, descriptors));
 }
