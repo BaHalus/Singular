@@ -8,8 +8,8 @@ function emptyCharacter() {
   return createCharacter({
     identity: {
       id: "character-mobile-empty-states",
-      name: "",
-      concept: "",
+      name: "Ayla",
+      concept: "Ficha vazia para regressão",
       playerId: "player-one",
       campaignId: "campaign-alpha",
     },
