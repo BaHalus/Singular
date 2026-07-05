@@ -1,0 +1,79 @@
+/* Text overflow guards for rendered mobile/table content.
+   Presentation-only: no controls, commands, calculations, or alternate session path. */
+
+.singular-mobile-sheet,
+.singular-alpha-mobile {
+  overflow-wrap: anywhere;
+}
+
+.singular-mobile-sheet__toolbar,
+.singular-mobile-sheet__summary,
+.singular-mobile-sheet__card,
+.singular-mobile-sheet__section-marker,
+.singular-mobile-sheet__stat,
+.singular-mobile-sheet__pool,
+.singular-mobile-sheet__equipment-totals > div,
+.singular-mobile-sheet__languages-culture-list > div,
+.singular-mobile-sheet__equipment-list > div,
+.singular-mobile-sheet__attack-list > div,
+.singular-mobile-sheet__trait-list > div,
+.singular-mobile-sheet__skill-technique-list > div,
+.singular-mobile-sheet__structured-note-list > div,
+.singular-alpha-mobile__persistence,
+.singular-alpha-mobile__save-list li {
+  min-width: 0;
+}
+
+.singular-mobile-sheet h1,
+.singular-mobile-sheet h2,
+.singular-mobile-sheet h3,
+.singular-mobile-sheet p,
+.singular-mobile-sheet dt,
+.singular-mobile-sheet dd,
+.singular-mobile-sheet small,
+.singular-mobile-sheet label,
+.singular-mobile-sheet button,
+.singular-alpha-mobile button,
+.singular-alpha-mobile__save-list span,
+.singular-alpha-mobile__save-list small {
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: normal;
+}
+
+.singular-mobile-sheet__section-collapse-toggle,
+.singular-mobile-sheet__secondary-actions button,
+.singular-mobile-sheet__attack-actions button,
+.singular-mobile-sheet__equipment-actions button,
+.singular-mobile-sheet__power-actions button,
+.singular-mobile-sheet__trait-actions button,
+.singular-mobile-sheet__skill-actions button,
+.singular-mobile-sheet__technique-actions button,
+.singular-mobile-sheet__note-actions button {
+  min-width: 0;
+  white-space: normal;
+}
+
+.singular-mobile-sheet__card[data-status="empty"] h2::after,
+.singular-mobile-sheet__section-marker[data-status="empty"] h2::after,
+.singular-mobile-sheet__card[data-status="declared-only"] h2::after,
+.singular-mobile-sheet__section-marker[data-status="declared-only"] h2::after {
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.singular-mobile-sheet__attribute-control dl,
+.singular-mobile-sheet__pool dl,
+.singular-mobile-sheet__card dl,
+.singular-mobile-sheet__languages-culture-list,
+.singular-mobile-sheet__equipment-totals,
+.singular-mobile-sheet__equipment-list,
+.singular-mobile-sheet__attack-list,
+.singular-mobile-sheet__trait-list,
+.singular-mobile-sheet__skill-technique-list,
+.singular-mobile-sheet__structured-note-list {
+  min-width: 0;
+  max-width: 100%;
+}
