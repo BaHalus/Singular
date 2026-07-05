@@ -96,13 +96,15 @@ export function mountCharacterMobileEquipmentEditApp(app, options = {}) {
   const handleClick = event => {
     const target = findDataTarget(event?.target, "action");
     const action = target === null ? null : readDataset(target, "action");
-    if (!["equipment-update", "equipment-state-update"].includes(action)) return null;
+    if (!["equipment-update", "equipment-state-update", "equipment-uses-update"].includes(action)) return null;
     event.preventDefault?.();
 
     const itemId = readDataset(target, "equipmentId");
     const result = action === "equipment-state-update"
       ? handleEquipmentStateUpdate(lifecycleApp, target, itemId)
-      : handleEquipmentStructuralUpdate(lifecycleApp, root, itemId);
+      : action === "equipment-uses-update"
+        ? handleEquipmentUsesUpdate(lifecycleApp, target, itemId)
+        : handleEquipmentStructuralUpdate(lifecycleApp, root, itemId);
     root.setAttribute?.("data-last-command-status", result.status);
     if (["applied", "no-op"].includes(result.status)) render();
     return result;
@@ -155,6 +157,7 @@ export function injectMobileEquipmentEditControls(html, character, mode) {
   if (mode === "table") {
     for (const item of flattenEquipment(character.equipment ?? [])) {
       nextHtml = appendStateControls(nextHtml, item);
+      nextHtml = appendUsesControls(nextHtml, item);
     }
   }
   return nextHtml;
@@ -173,6 +176,14 @@ export function buildEquipmentUpdatePayload(current, itemId, patch) {
 
 export function buildEquipmentStateUpdatePayload(current, itemId, state) {
   const patch = state === (current.state ?? "carried") ? {} : { state };
+  return Object.freeze({ itemId, patch });
+}
+
+export function buildEquipmentUsesUpdatePayload(current, itemId, uses) {
+  const normalizedUses = normalizeUses(uses, "Equipment uses transient");
+  const patch = Object.is(normalizedUses, current.uses ?? null)
+    ? {}
+    : { uses: normalizedUses };
   return Object.freeze({ itemId, patch });
 }
 
@@ -198,6 +209,17 @@ export function applyEquipmentStatePatch(app, itemId, state) {
   return applyLegacyEquipmentPatch(app.commands, payload);
 }
 
+export function applyEquipmentUsesPatch(app, itemId, uses) {
+  const current = findEquipmentItem(app.character.equipment ?? [], itemId);
+  if (current === null) return Object.freeze({ status: "rejected" });
+  const payload = buildEquipmentUsesUpdatePayload(current, itemId, uses);
+  if (Object.keys(payload.patch).length === 0) return Object.freeze({ status: "no-op" });
+  if (typeof app.commands.updateEquipment === "function") {
+    return app.commands.updateEquipment(payload);
+  }
+  return applyLegacyEquipmentPatch(app.commands, payload);
+}
+
 function handleEquipmentStructuralUpdate(app, root, itemId) {
   const blockedStatus = shouldBlockMobileEquipmentEdit(app);
   if (blockedStatus !== null) return Object.freeze({ status: blockedStatus });
@@ -210,12 +232,24 @@ function handleEquipmentStateUpdate(app, target, itemId) {
   return applyEquipmentStatePatch(app, itemId, readDataset(target, "equipmentState") || "carried");
 }
 
+function handleEquipmentUsesUpdate(app, target, itemId) {
+  const blockedStatus = shouldBlockMobileEquipmentTransientEdit(app);
+  if (blockedStatus !== null) return Object.freeze({ status: blockedStatus });
+  const current = findEquipmentItem(app.character.equipment ?? [], itemId);
+  if (current === null) return Object.freeze({ status: "rejected" });
+  if (!hasEquipmentUsesCounter(current)) return Object.freeze({ status: "no-op" });
+  const delta = readNumberDataset(target, "equipmentUsesDelta", 0);
+  const uses = normalizeUses(Math.max(0, (current.uses ?? 0) + delta), "Equipment uses transient");
+  const boundedUses = Number.isFinite(current.maxUses) ? Math.min(uses, current.maxUses) : uses;
+  return applyEquipmentUsesPatch(app, itemId, boundedUses);
+}
+
 function injectCurrentEquipmentControls(root, { character, mode, modeSync }) {
   const items = flattenEquipment(character.equipment ?? []);
   const mounted = mode === "creation"
     ? items.map(item => appendEditorNode(root, item)).every(Boolean)
     : mode === "table"
-      ? items.map(item => appendStateControlsNode(root, item)).every(Boolean)
+      ? items.map(item => appendTableTransientControlsNode(root, item)).every(Boolean)
       : true;
   modeSync.sync();
   return mounted;
@@ -239,6 +273,16 @@ function appendStateControls(html, item) {
   });
 }
 
+function appendUsesControls(html, item) {
+  if (!hasEquipmentUsesCounter(item)) return html;
+  return appendInlineEditorToDefinitionListItem(html, {
+    entityId: item.id,
+    markerAttribute: "data-equipment-id",
+    editorRole: "equipment-uses-controls",
+    renderEditor: () => renderUsesControls(item),
+  });
+}
+
 function appendEditorNode(root, item) {
   return appendInlineEditorToDefinitionListItemNode(root, {
     entityId: item.id,
@@ -255,6 +299,20 @@ function appendStateControlsNode(root, item) {
     editorRole: "equipment-state-controls",
     renderEditor: () => renderStateControls(item),
   });
+}
+
+function appendUsesControlsNode(root, item) {
+  if (!hasEquipmentUsesCounter(item)) return true;
+  return appendInlineEditorToDefinitionListItemNode(root, {
+    entityId: item.id,
+    markerAttribute: "data-equipment-id",
+    editorRole: "equipment-uses-controls",
+    renderEditor: () => renderUsesControls(item),
+  });
+}
+
+function appendTableTransientControlsNode(root, item) {
+  return appendStateControlsNode(root, item) && appendUsesControlsNode(root, item);
 }
 
 function canMountEquipmentControlsWithDom(root, character) {
@@ -291,6 +349,22 @@ function renderStateControls(item) {
     return `<button type="button" data-action="equipment-state-update" data-equipment-id="${id}" data-equipment-state="${escapeAttribute(state)}" aria-pressed="${pressed}">${escapeText(label)}</button>`;
   }).join("");
   return `<div class="singular-mobile-sheet__equipment-state-controls" data-role="equipment-state-controls" data-equipment-id="${id}">${buttons}</div>`;
+}
+
+function renderUsesControls(item) {
+  const id = escapeAttribute(item.id);
+  const uses = normalizeUses(item.uses ?? 0, "Equipment uses transient");
+  const maxUses = item.maxUses == null ? null : normalizeUses(item.maxUses, "Equipment maxUses");
+  const maximum = maxUses === null ? "—" : String(maxUses);
+  const decreaseDisabled = uses > 0 ? "false" : "true";
+  const increaseDisabled = maxUses === null || uses < maxUses ? "false" : "true";
+  return [
+    `<div class="singular-mobile-sheet__equipment-uses-controls" data-role="equipment-uses-controls" data-equipment-id="${id}">`,
+    `<span data-role="equipment-uses-current-${id}">Usos ${escapeText(String(uses))} / ${escapeText(maximum)}</span>`,
+    `<button type="button" data-action="equipment-uses-update" data-equipment-id="${id}" data-equipment-uses-delta="-1" aria-disabled="${decreaseDisabled}">−</button>`,
+    `<button type="button" data-action="equipment-uses-update" data-equipment-id="${id}" data-equipment-uses-delta="1" aria-disabled="${increaseDisabled}">+</button>`,
+    "</div>",
+  ].join("");
 }
 
 function stateOptions(active) {
@@ -423,6 +497,24 @@ function disableObserverConstructorOption(options) {
     ...options,
     [["Mutation", "Observer"].join("")]: false,
   };
+}
+
+function hasEquipmentUsesCounter(item) {
+  return item.uses != null || item.maxUses != null;
+}
+
+function readNumberDataset(target, key, fallback) {
+  const value = readDataset(target, key);
+  if (value === null || value === "") return fallback;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function normalizeUses(value, label) {
+  if (typeof value !== "number" || !Number.isFinite(value) || value < 0) {
+    throw new Error(`${label} must be non-negative finite number`);
+  }
+  return Object.is(value, -0) ? 0 : value;
 }
 
 function hasOwn(object, key) {
