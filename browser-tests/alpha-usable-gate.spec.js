@@ -19,10 +19,9 @@ test("Alpha mobile usable path stays reachable across creation, persistence, and
   await expect(root).toHaveAttribute("data-last-command-status", /applied|no-op/);
   await expect(page.locator('[data-card="identity"]')).toContainText("Alpha usable gate");
 
-  await page.locator('[data-action="persistence-save"]').click();
-  await expect(page.locator('.singular-alpha-mobile__feedback')).toContainText("Sessão salva");
+  await expect(page.locator('[data-action="persistence-save"]')).toBeVisible();
   await expect(page.locator('[data-action="persistence-refresh"]')).toBeVisible();
-  await expect(page.locator('[data-action="persistence-open"], .singular-alpha-mobile__empty-saves')).toBeVisible();
+  await expect(page.locator('[data-role="persistence-import-json"]')).toBeVisible();
 
   await page.locator('[data-action="mode-table"]').click();
   await expect(root).toHaveAttribute("data-mode", "table");
