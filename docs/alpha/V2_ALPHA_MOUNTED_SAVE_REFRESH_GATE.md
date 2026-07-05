@@ -41,9 +41,9 @@ Criação/Mesa continuam preservados. Mesa continua modo de transitórios; salva
 
 ## Fora de escopo
 
-- formato universal;
+- promessa de formato universal;
 - sincronização remota;
-- recuperação automática;
-- merge de sessões;
-- storage novo;
+- reparo automático de registros;
+- combinação de sessões;
+- mecanismo adicional de persistência;
 - alteração visual ampla fora do feedback/lista já existentes.
