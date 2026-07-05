@@ -22,6 +22,11 @@ function makeSession(id, name, concept = "Exploradora") {
 }
 
 function createPersistenceCoordinator() {
+  const initialSession = makeSession(
+    "session-mounted-restore-initial",
+    "Alice",
+    "Sessão Inicial Única",
+  );
   const restoredSession = makeSession(
     "session-mounted-restore-last",
     "Bianca",
@@ -29,6 +34,7 @@ function createPersistenceCoordinator() {
   );
   const otherSession = makeSession("session-mounted-restore-other", "Ciro");
   const calls = [];
+  let activeSession = initialSession;
   const savedSessions = [restoredSession, otherSession].map(session => ({
     id: session.id,
     status: "available",
@@ -40,30 +46,31 @@ function createPersistenceCoordinator() {
   return {
     calls,
     getActiveSession() {
-      calls.push(`getActiveSession:${restoredSession.id}`);
-      return restoredSession;
+      calls.push(`getActiveSession:${activeSession.id}`);
+      return activeSession;
     },
     async initialize() {
       calls.push("initialize");
+      activeSession = restoredSession;
       return result({
         status: "restored",
-        activeSessionId: restoredSession.id,
-        data: { restoredSessionId: restoredSession.id },
+        activeSessionId: activeSession.id,
+        data: { restoredSessionId: activeSession.id },
       });
     },
     async saveActiveSession() {
       calls.push("saveActiveSession");
       return result({
         status: "saved",
-        activeSessionId: restoredSession.id,
-        data: { savedSessionId: restoredSession.id },
+        activeSessionId: activeSession.id,
+        data: { savedSessionId: activeSession.id },
       });
     },
     async listSavedSessions() {
       calls.push("listSavedSessions");
       return result({
         status: "listed",
-        activeSessionId: restoredSession.id,
+        activeSessionId: activeSession.id,
         data: { sessions: savedSessions.map(session => ({ ...session })) },
       });
     },
@@ -71,7 +78,7 @@ function createPersistenceCoordinator() {
       calls.push(`openSession:${sessionId}`);
       return result({
         status: "opened",
-        activeSessionId: restoredSession.id,
+        activeSessionId: activeSession.id,
         data: { openedSessionId: sessionId },
       });
     },
@@ -79,7 +86,7 @@ function createPersistenceCoordinator() {
       calls.push(`removeSession:${sessionId}`);
       return result({
         status: "removed",
-        activeSessionId: restoredSession.id,
+        activeSessionId: activeSession.id,
         data: { removedSessionId: sessionId },
       });
     },
@@ -87,15 +94,15 @@ function createPersistenceCoordinator() {
       calls.push("exportActiveCharacter");
       return result({
         status: "exported",
-        activeSessionId: restoredSession.id,
-        data: { filename: "bianca.singular.json", json: "{}" },
+        activeSessionId: activeSession.id,
+        data: { filename: `${activeSession.character.identity.name.toLowerCase()}.singular.json`, json: "{}" },
       });
     },
     importCharacter(input) {
       calls.push(`importCharacter:${input}`);
       return result({
         status: "rejected",
-        activeSessionId: restoredSession.id,
+        activeSessionId: activeSession.id,
         data: { importedSessionId: null },
       });
     },
@@ -140,6 +147,12 @@ function createMountedRoot() {
 test("Alpha mounted initialize restores the last session and renders it as active", async () => {
   const persistence = createPersistenceCoordinator();
   const root = createMountedRoot();
+
+  const activeBeforeInitialize = persistence.getActiveSession();
+  assert.equal(activeBeforeInitialize.id, "session-mounted-restore-initial");
+  assert.equal(activeBeforeInitialize.character.identity.name, "Alice");
+  assert.equal(activeBeforeInitialize.character.identity.concept, "Sessão Inicial Única");
+
   const mounted = await mountAlphaMobilePersistenceUi({
     root,
     persistence,
@@ -158,16 +171,19 @@ test("Alpha mounted initialize restores the last session and renders it as activ
   assert.match(root.innerHTML, /Sessão restaurada: session-mounted-restore-last/);
   assert.match(root.innerHTML, /Bianca/);
   assert.match(root.innerHTML, /Guardião Restaurado Único/);
+  assert.doesNotMatch(root.innerHTML, /Alice/);
+  assert.doesNotMatch(root.innerHTML, /Sessão Inicial Única/);
   assert.match(root.innerHTML, /Ciro/);
   assert.match(root.innerHTML, /data-action="persistence-open"/);
   assert.match(root.innerHTML, /data-session-id="session-mounted-restore-last"/);
   assert.ok(
     includesOrderedSubsequence(persistence.calls, [
+      "getActiveSession:session-mounted-restore-initial",
       "initialize",
       "listSavedSessions",
       "getActiveSession:session-mounted-restore-last",
     ]),
-    "mounted initialization must restore through the coordinator, list saved sessions, then render the restored active session",
+    "mounted initialization must start on a different active session, restore through the coordinator, list saved sessions, then render the restored active session",
   );
 
   mounted.destroy();
