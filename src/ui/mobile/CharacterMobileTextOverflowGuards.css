@@ -51,7 +51,7 @@
 .singular-mobile-sheet__skill-actions button,
 .singular-mobile-sheet__technique-actions button,
 .singular-mobile-sheet__note-actions button {
-  min-width: 0;
+  min-width: 2.75rem;
   white-space: normal;
 }
 
