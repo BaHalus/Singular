@@ -60,7 +60,7 @@ function createMulticulturalCharacter() {
 test("projects languages and cultural familiarities without calculating costs", () => {
   const projection = projectCharacterForMobileSheet(createMulticulturalCharacter());
 
-  assert.equal(projection.schemaVersion, 5);
+  assert.equal(projection.schemaVersion, 6);
   assert.deepEqual(projection.languages, [
     {
       id: "language_portuguese",
