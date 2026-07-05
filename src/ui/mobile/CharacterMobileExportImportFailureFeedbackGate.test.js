@@ -106,7 +106,7 @@ test("Alpha mobile import failure feedback preserves the active session through 
   assert.equal(attributes.get("data-mode"), "table");
   assert.match(root.innerHTML, /Documento rejeitado|A importação falhou/);
   assert.match(root.innerHTML, /A sessão atual foi preservada/);
-  assert.match(root.innerHTML, /invalid-json|alpha-mobile/);
+  assert.match(root.innerHTML, /invalid-json/);
   assert.match(root.innerHTML, /data-role="persistence-import-json"/);
   assert.match(root.innerHTML, /data-action="persistence-import"/);
 });
