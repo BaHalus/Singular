@@ -11,9 +11,10 @@ import {
 } from "./CharacterMobileSpellsPowersReadModel.js";
 
 export function createCharacterMobileSheetRenderModelForCharacter(character) {
+  const projection = projectCharacterForMobileSheet(character);
   const baseModel = withMobilePresentationLabels(
     serializeCharacterMobileSheetRenderModel(
-      createCharacterMobileSheetRenderModel(projectCharacterForMobileSheet(character)),
+      createCharacterMobileSheetRenderModel(projection),
     ),
   );
   const spellsPowersModel = serializeCharacterMobileSpellsPowersReadModel(
@@ -22,6 +23,7 @@ export function createCharacterMobileSheetRenderModelForCharacter(character) {
   const equipmentCard = baseModel.cards.find(card => card.id === "equipment");
   const mechanicalResultsCard = createMechanicalResultsCard({
     attributes: baseModel.summary.attributes,
+    derivedResults: projection.mechanicalResults,
     equipmentTotals: equipmentCard?.totals,
   });
 
@@ -69,7 +71,7 @@ function withMobilePresentationLabels(model) {
   };
 }
 
-function createMechanicalResultsCard({ attributes, equipmentTotals }) {
+function createMechanicalResultsCard({ attributes, derivedResults, equipmentTotals }) {
   return {
     id: "mechanical-results",
     title: "Resultados mecânicos",
@@ -82,9 +84,22 @@ function createMechanicalResultsCard({ attributes, equipmentTotals }) {
         notes: `Calculado pelo motor de atributos; fonte ${attribute.source}`,
         status: attribute.status,
       })),
+      ...createDerivedDefenseMovementResultItems(derivedResults),
       ...createEquipmentTotalResultItems(equipmentTotals),
     ],
   };
+}
+
+function createDerivedDefenseMovementResultItems(results) {
+  if (!results) return [];
+  const notes = "Calculado pelo motor de defesa/movimento";
+  return results.items.map(item => ({
+    id: `mechanical:${item.id}`,
+    label: item.label,
+    value: formatPresentationValue(item.value),
+    notes: `${notes}; fonte ${item.source}`,
+    status: item.status,
+  }));
 }
 
 function createEquipmentTotalResultItems(totals) {
