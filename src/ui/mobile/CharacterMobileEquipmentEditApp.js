@@ -237,8 +237,9 @@ function handleEquipmentUsesUpdate(app, target, itemId) {
   if (blockedStatus !== null) return Object.freeze({ status: blockedStatus });
   const current = findEquipmentItem(app.character.equipment ?? [], itemId);
   if (current === null) return Object.freeze({ status: "rejected" });
+  if (!hasEquipmentUsesCounter(current)) return Object.freeze({ status: "no-op" });
   const delta = readNumberDataset(target, "equipmentUsesDelta", 0);
-  const uses = normalizeUses((current.uses ?? 0) + delta, "Equipment uses transient");
+  const uses = normalizeUses(Math.max(0, (current.uses ?? 0) + delta), "Equipment uses transient");
   const boundedUses = Number.isFinite(current.maxUses) ? Math.min(uses, current.maxUses) : uses;
   return applyEquipmentUsesPatch(app, itemId, boundedUses);
 }
@@ -353,7 +354,7 @@ function renderStateControls(item) {
 function renderUsesControls(item) {
   const id = escapeAttribute(item.id);
   const uses = normalizeUses(item.uses ?? 0, "Equipment uses transient");
-  const maxUses = item.maxUses === null ? null : normalizeUses(item.maxUses, "Equipment maxUses");
+  const maxUses = item.maxUses == null ? null : normalizeUses(item.maxUses, "Equipment maxUses");
   const maximum = maxUses === null ? "—" : String(maxUses);
   const decreaseDisabled = uses > 0 ? "false" : "true";
   const increaseDisabled = maxUses === null || uses < maxUses ? "false" : "true";
@@ -499,7 +500,7 @@ function disableObserverConstructorOption(options) {
 }
 
 function hasEquipmentUsesCounter(item) {
-  return item.uses !== null || item.maxUses !== null;
+  return item.uses != null || item.maxUses != null;
 }
 
 function readNumberDataset(target, key, fallback) {
