@@ -90,6 +90,18 @@ test("text-overflow guards are presentation-only and avoid truncation primitives
   assert.doesNotMatch(css, /CommandExecutor|CommandRegistry|ApplicationSession|createCharacter/);
 });
 
+test("text-overflow guards preserve touch target minimums on action buttons", () => {
+  const css = readFileSync("src/ui/mobile/CharacterMobileTextOverflowGuards.css", "utf8");
+  const actionButtonRule = css.match(
+    /\.singular-mobile-sheet__section-collapse-toggle,[\s\S]*?\.singular-mobile-sheet__note-actions button \{([\s\S]*?)\}/,
+  );
+
+  assert.ok(actionButtonRule);
+  assert.match(actionButtonRule[1], /min-width:\s*2\.75rem/);
+  assert.doesNotMatch(actionButtonRule[1], /min-width:\s*0/);
+  assert.match(actionButtonRule[1], /white-space:\s*normal/);
+});
+
 test("table mode preserves long rendered content and reachable controls without structural editors", () => {
   const html = renderCharacterMobileApp(characterWithLongRenderedText(), {
     mode: "table",
