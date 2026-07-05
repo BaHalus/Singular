@@ -35,7 +35,7 @@ Guard mínimo para confirmar que uma exportação comunica sucesso/download pelo
 - O guard não cria persistence layer paralela.
 - O guard não cria pipeline paralelo.
 - O guard não cria composition root paralelo.
-- O guard não anuncia formato universal, sincronização remota, recuperação automática, merge de sessões ou storage novo.
+- O guard fica restrito ao fluxo Alpha mobile atual e às mensagens já suportadas pela UI/coordenador existentes.
 
 ## Evidência executável
 
