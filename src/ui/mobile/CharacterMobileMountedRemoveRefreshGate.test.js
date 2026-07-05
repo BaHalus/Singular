@@ -7,7 +7,7 @@ import { createApplicationSession } from "../../application/session/ApplicationS
 import { mountAlphaMobilePersistenceUi } from "./AlphaMobilePersistenceUi.js";
 
 const PERSISTENCE_UI_PATH = "src/ui/mobile/AlphaMobilePersistenceUi.js";
-const CHECKLIST_PATH = "docs/alpha/V2_ALPHA_MOUNTED_OPEN_REFRESH_GATE.md";
+const CHECKLIST_PATH = "docs/alpha/V2_ALPHA_MOUNTED_REMOVE_REFRESH_GATE.md";
 
 function makeSession(id, name, concept = "Exploradora") {
   const character = createCharacter({
@@ -22,15 +22,11 @@ function makeSession(id, name, concept = "Exploradora") {
 }
 
 function createPersistenceCoordinator() {
-  const sourceSession = makeSession("session-mounted-open-source", "Helena");
-  const openedSession = makeSession(
-    "session-mounted-open-target",
-    "Marta",
-    "Cartógrafa Aberta Única",
-  );
+  const activeSession = makeSession("session-mounted-remove-active", "Helena");
+  const removedSession = makeSession("session-mounted-remove-target", "Rafael");
+  const keptSession = makeSession("session-mounted-remove-kept", "Lívia");
   const calls = [];
-  let activeSession = sourceSession;
-  const savedSessions = [sourceSession, openedSession].map(session => ({
+  let savedSessions = [activeSession, removedSession, keptSession].map(session => ({
     id: session.id,
     status: "available",
     revision: session.revision,
@@ -70,8 +66,6 @@ function createPersistenceCoordinator() {
     },
     async openSession(sessionId) {
       calls.push(`openSession:${sessionId}`);
-      assert.equal(sessionId, openedSession.id);
-      activeSession = openedSession;
       return result({
         status: "opened",
         activeSessionId: activeSession.id,
@@ -80,6 +74,8 @@ function createPersistenceCoordinator() {
     },
     async removeSession(sessionId) {
       calls.push(`removeSession:${sessionId}`);
+      assert.equal(sessionId, removedSession.id);
+      savedSessions = savedSessions.filter(session => session.id !== sessionId);
       return result({
         status: "removed",
         activeSessionId: activeSession.id,
@@ -91,7 +87,7 @@ function createPersistenceCoordinator() {
       return result({
         status: "exported",
         activeSessionId: activeSession.id,
-        data: { filename: "marta.singular.json", json: "{}" },
+        data: { filename: "helena.singular.json", json: "{}" },
       });
     },
     importCharacter(input) {
@@ -140,7 +136,7 @@ function createMountedRoot() {
   };
 }
 
-test("Alpha mounted open action restores a saved session and re-renders the mounted root", async () => {
+test("Alpha mounted remove action deletes a saved session and refreshes the saved list", async () => {
   const persistence = createPersistenceCoordinator();
   const root = createMountedRoot();
   const mounted = await mountAlphaMobilePersistenceUi({
@@ -151,56 +147,55 @@ test("Alpha mounted open action restores a saved session and re-renders the moun
   });
 
   const activeBefore = persistence.getActiveSession();
-  assert.equal(activeBefore.id, "session-mounted-open-source");
+  assert.equal(activeBefore.id, "session-mounted-remove-active");
   assert.equal(root.getAttribute("data-session-id"), activeBefore.id);
   assert.equal(root.getAttribute("data-character-id"), activeBefore.character.identity.id);
   assert.equal(root.getAttribute("data-mode"), "table");
   assert.match(root.innerHTML, /Helena/);
-  assert.match(root.innerHTML, /Marta/);
-  assert.match(root.innerHTML, /Exploradora/);
-  assert.doesNotMatch(root.innerHTML, /Cartógrafa Aberta Única/);
-  assert.match(root.innerHTML, /data-action="persistence-open"/);
-  assert.match(root.innerHTML, /data-session-id="session-mounted-open-target"/);
+  assert.match(root.innerHTML, /Rafael/);
+  assert.match(root.innerHTML, /Lívia/);
+  assert.match(root.innerHTML, /data-action="persistence-remove"/);
+  assert.match(root.innerHTML, /data-session-id="session-mounted-remove-target"/);
 
   const click = root.listener("click");
   assert.equal(typeof click, "function");
   await click({
     target: {
       dataset: {
-        action: "persistence-open",
-        sessionId: "session-mounted-open-target",
+        action: "persistence-remove",
+        sessionId: "session-mounted-remove-target",
       },
       parentElement: null,
     },
   });
 
   const activeAfter = persistence.getActiveSession();
-  assert.equal(activeAfter.id, "session-mounted-open-target");
-  assert.equal(activeAfter.character.identity.name, "Marta");
-  assert.equal(activeAfter.character.identity.concept, "Cartógrafa Aberta Única");
+  assert.equal(activeAfter.id, activeBefore.id);
   assert.equal(root.getAttribute("data-singular-mounted"), "true");
-  assert.equal(root.getAttribute("data-session-id"), activeAfter.id);
-  assert.equal(root.getAttribute("data-character-id"), activeAfter.character.identity.id);
+  assert.equal(root.getAttribute("data-session-id"), activeBefore.id);
+  assert.equal(root.getAttribute("data-character-id"), activeBefore.character.identity.id);
   assert.equal(root.getAttribute("data-mode"), "table");
-  assert.match(root.innerHTML, /Sessão aberta: session-mounted-open-target/);
-  assert.match(root.innerHTML, /Marta/);
-  assert.match(root.innerHTML, /Cartógrafa Aberta Única/);
-  assert.doesNotMatch(root.innerHTML, /Sessão aberta: session-mounted-open-source/);
-  assert.doesNotMatch(root.innerHTML, /Exploradora/);
+  assert.match(root.innerHTML, /Salvamento excluído: session-mounted-remove-target/);
+  assert.match(root.innerHTML, /Helena/);
+  assert.match(root.innerHTML, /Lívia/);
+  assert.doesNotMatch(root.innerHTML, /Rafael/);
+  assert.doesNotMatch(root.innerHTML, /<small>session-mounted-remove-target<\/small>/);
+  assert.match(root.innerHTML, /<small>session-mounted-remove-kept<\/small>/);
   assert.ok(
     includesOrderedSubsequence(persistence.calls, [
       "listSavedSessions",
-      "openSession:session-mounted-open-target",
-      "getActiveSession:session-mounted-open-target",
+      "removeSession:session-mounted-remove-target",
+      "listSavedSessions",
+      "getActiveSession:session-mounted-remove-active",
     ]),
-    "mounted open must delegate to the coordinator before rendering the opened active session",
+    "mounted remove must delegate to the coordinator before refreshing saved sessions and rendering the active session",
   );
 
   mounted.destroy();
   assert.equal(root.listener("click"), undefined);
 });
 
-test("Alpha mounted open refresh checklist keeps A5 scope and architecture boundaries explicit", () => {
+test("Alpha mounted remove refresh checklist keeps A5 scope and architecture boundaries explicit", () => {
   const persistenceUi = readFileSync(PERSISTENCE_UI_PATH, "utf8");
   const checklist = readFileSync(CHECKLIST_PATH, "utf8");
 
@@ -210,13 +205,14 @@ test("Alpha mounted open refresh checklist keeps A5 scope and architecture bound
     "`bootstrapCharacterMobileApp()`",
     "`mountAlphaMobilePersistenceUi()`",
     "`AlphaMobilePersistenceUi.js`",
-    "`persistence-open`",
+    "`persistence-remove`",
     "`data-session-id`",
-    "`ui.open(sessionId)`",
-    "`persistence.openSession(sessionId)`",
+    "`ui.remove(sessionId)`",
+    "`persistence.removeSession(sessionId)`",
+    "`persistence.listSavedSessions()`",
     "`requestRender()`",
-    "`data-session-id` e `data-character-id`",
-    "`Sessão aberta: <activeSessionId>`",
+    "`Salvamento excluído: <sessionId>`",
+    "preserva a sessão ativa",
     "Criação/Mesa",
     "Mesa continua modo de transitórios",
     "não cria persistência paralela",
@@ -233,8 +229,10 @@ test("Alpha mounted open refresh checklist keeps A5 scope and architecture bound
     assert.match(checklist, new RegExp(escapeRegExp(required)));
   }
 
-  assert.match(persistenceUi, /await\s+ui\.open\(sessionId\)/);
-  assert.match(persistenceUi, /const\s+result\s+=\s+await\s+persistence\.openSession\(sessionId\)/);
+  assert.match(persistenceUi, /await\s+ui\.remove\(sessionId\)/);
+  assert.match(persistenceUi, /const\s+result\s+=\s+await\s+persistence\.removeSession\(sessionId\)/);
+  assert.match(persistenceUi, /const\s+listing\s+=\s+await\s+persistence\.listSavedSessions\(\)/);
+  assert.match(persistenceUi, /savedSessions\s+=\s+listing\.data\.sessions\s*\?\?\s*\[\]/);
   assert.match(persistenceUi, /requestRender\(\)/);
   assert.match(persistenceUi, /setAttribute\("data-session-id",\s*activeSession\.id\)/);
   assert.match(persistenceUi, /setAttribute\("data-character-id",\s*activeSession\.character\.identity\.id\)/);
