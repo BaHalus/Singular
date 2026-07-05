@@ -10,7 +10,7 @@ This checklist guards the smallest mounted UI path proving that a valid exported
 2. Reach `CharacterMobileCompositionRoot.js` and `bootstrapCharacterMobileApp()`.
 3. Mount persistence through `mountAlphaMobilePersistenceUi()` in `AlphaMobilePersistenceUi.js`.
 4. Paste valid JSON into the `persistence-import-json` textarea.
-5. Activate the `Importar` button with `data-action="persistence-import"`.
+5. Activate the `Importar` button through the `persistence-import` action (`data-action="persistence-import"`).
 6. The mounted handler calls `ui.importJson(input.value)`.
 7. The UI delegates to `persistence.importCharacter(input)`.
 8. A successful import returns `status: "imported"` and changes the active session.
