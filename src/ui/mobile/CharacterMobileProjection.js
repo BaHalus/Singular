@@ -644,8 +644,14 @@ function validateMechanicalResultsProjection(mechanicalResults) {
     if (!["secondary", "attributes"].includes(item.source)) {
       throw new Error(`Mobile mechanical result ${item.id} source is invalid`);
     }
-    if (item.status !== "resolved") {
+    if (!["resolved", "blocked"].includes(item.status)) {
       throw new Error(`Mobile mechanical result ${item.id} status is invalid`);
+    }
+    if (item.status === "resolved" && item.value === null) {
+      throw new Error(`Mobile mechanical result ${item.id} resolved value is invalid`);
+    }
+    if (item.status === "blocked" && item.value !== null) {
+      throw new Error(`Mobile mechanical result ${item.id} blocked value is invalid`);
     }
   }
   if (MECHANICAL_RESULT_IDS.some(id => !ids.has(id))) {
