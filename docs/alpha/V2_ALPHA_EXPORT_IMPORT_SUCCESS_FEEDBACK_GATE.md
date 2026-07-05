@@ -34,7 +34,7 @@ Guard mínimo para confirmar que uma importação válida comunica sucesso e atu
 - O guard não cria persistence layer paralela.
 - O guard não cria pipeline paralelo.
 - O guard não cria composition root paralelo.
-- O guard não promete formato universal, sincronização remota, recuperação automática, merge de sessões ou capacidades ausentes.
+- O guard não anuncia capacidades de importação/exportação ausentes do fluxo Alpha mobile atual.
 
 ## Evidência executável
 
