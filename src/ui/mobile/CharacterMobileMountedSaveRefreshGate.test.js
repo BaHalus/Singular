@@ -229,14 +229,15 @@ test("Alpha mounted save refresh checklist keeps A5 scope and architecture bound
   assert.match(persistenceUi, /setAttribute\("data-session-id",\s*activeSession\.id\)/);
   assert.doesNotMatch(persistenceUi, /localStorage|sessionStorage|indexedDB/);
 
-  for (const forbidden of [
-    /formato\s+universal/i,
-    /sincroniza[çc][ãa]o\s+remota/i,
-    /recupera[çc][ãa]o\s+autom[áa]tica/i,
-    /merge\s+de\s+sess[õo]es/i,
-    /storage\s+novo/i,
+  assert.match(checklist, /## Fora de escopo/);
+  for (const outOfScope of [
+    "formato universal",
+    "sincronização remota",
+    "reparo automático de registros",
+    "combinação de sessões",
+    "mecanismo adicional de persistência",
   ]) {
-    assert.doesNotMatch(checklist, forbidden);
+    assert.match(checklist, new RegExp(escapeRegExp(outOfScope), "i"));
   }
 });
 
