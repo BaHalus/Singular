@@ -3,6 +3,10 @@ import {
 } from "../../application/projections/AttackReadProjection.js";
 import { serializeCharacter } from "../../domain/character/Character.js";
 import {
+  resolveDerivedDefenseMovement,
+  serializeDerivedDefenseMovementReport,
+} from "../../engine/derived/DerivedDefenseMovementResolver.js";
+import {
   createEquipmentMvpProjection,
 } from "../../engine/equipment/EquipmentMvpContract.js";
 import {
@@ -13,7 +17,7 @@ import {
   serializeAttributeLevelsReport,
 } from "../../engine/attributes/AttributeLevelResolver.js";
 
-const MOBILE_PROJECTION_SCHEMA_VERSION = 5;
+const MOBILE_PROJECTION_SCHEMA_VERSION = 6;
 const ATTRIBUTE_KEYS = Object.freeze(["ST", "DX", "IQ", "HT"]);
 const SECONDARY_KEYS = Object.freeze([
   "HP",
@@ -34,12 +38,18 @@ const ATTACK_SOURCE_KINDS = Object.freeze([
   "power",
   "other",
 ]);
+const MECHANICAL_RESULT_IDS = Object.freeze(["basic-speed", "basic-move", "dodge"]);
 
 export function projectCharacterForMobileSheet(character) {
   const serializedCharacter = serializeCharacter(character);
   const attackProjection = createAttackReadProjection(character);
-  const attributeLevels = serializeAttributeLevelsReport(
-    resolveAttributeLevels(serializedCharacter.attributes),
+  const attributeLevelsReport = resolveAttributeLevels(serializedCharacter.attributes);
+  const attributeLevels = serializeAttributeLevelsReport(attributeLevelsReport);
+  const derivedDefenseMovement = serializeDerivedDefenseMovementReport(
+    resolveDerivedDefenseMovement({
+      attributeLevels: attributeLevelsReport,
+      secondaryCharacteristics: serializedCharacter.secondaryCharacteristics,
+    }),
   );
 
   return deepFreezeMobileProjection({
@@ -57,6 +67,7 @@ export function projectCharacterForMobileSheet(character) {
     familiarities: projectFamiliarities(serializedCharacter.familiarities),
     attacks: projectAttacks(attackProjection),
     equipment: projectEquipment(serializedCharacter.equipment),
+    mechanicalResults: projectMechanicalResults(derivedDefenseMovement),
     sections: projectMobileSections({
       traits: serializedCharacter.traits,
       skills: serializedCharacter.skills,
@@ -86,6 +97,7 @@ export function validateCharacterMobileProjection(projection) {
   validateFamiliarityListProjection(projection.familiarities);
   validateAttackProjection(projection.attacks, projection.identity.id);
   validateEquipmentProjection(projection.equipment);
+  validateMechanicalResultsProjection(projection.mechanicalResults);
   validateSectionsProjection(projection.sections);
   return true;
 }
@@ -261,6 +273,22 @@ function projectEquipment(equipment) {
       cost: totalsProjection.totals.cost,
       authority: "engine.equipment",
     },
+  };
+}
+
+function projectMechanicalResults(report) {
+  return {
+    authority: report.authority,
+    items: MECHANICAL_RESULT_IDS.map(resultId => {
+      const result = report.results[resultId];
+      return {
+        id: result.id,
+        label: result.label,
+        value: result.value,
+        source: result.source,
+        status: result.status,
+      };
+    }),
   };
 }
 
@@ -594,6 +622,34 @@ function validateEquipmentProjection(equipment) {
     requireNullableNonNegativeFiniteNumber(item.maxUses, `Mobile equipment ${item.id} maxUses`);
     requireText(item.notes, `Mobile equipment ${item.id} notes`);
     requireString(item.status, `Mobile equipment ${item.id} status`);
+  }
+}
+
+function validateMechanicalResultsProjection(mechanicalResults) {
+  requirePlainObject(mechanicalResults, "Mobile mechanical results projection");
+  if (mechanicalResults.authority !== "engine.derived-defense-movement") {
+    throw new Error("Mobile mechanical results authority is invalid");
+  }
+  requireArray(mechanicalResults.items, "Mobile mechanical results items");
+  const ids = new Set();
+  for (const item of mechanicalResults.items) {
+    requirePlainObject(item, "Mobile mechanical result item");
+    if (!MECHANICAL_RESULT_IDS.includes(item.id)) {
+      throw new Error(`Mobile mechanical result ${item.id} is invalid`);
+    }
+    if (ids.has(item.id)) throw new Error("Mobile mechanical result ids must be unique");
+    ids.add(item.id);
+    requireString(item.label, `Mobile mechanical result ${item.id} label`);
+    requireNullableFiniteNumber(item.value, `Mobile mechanical result ${item.id} value`);
+    if (!["secondary", "attributes"].includes(item.source)) {
+      throw new Error(`Mobile mechanical result ${item.id} source is invalid`);
+    }
+    if (item.status !== "resolved") {
+      throw new Error(`Mobile mechanical result ${item.id} status is invalid`);
+    }
+  }
+  if (MECHANICAL_RESULT_IDS.some(id => !ids.has(id))) {
+    throw new Error("Mobile mechanical results must include defense and movement results");
   }
 }
 
