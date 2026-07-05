@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { createCharacter } from "../../domain/character/Character.js";
 import { createAlphaMobilePersistenceUi } from "./AlphaMobilePersistenceUi.js";
 
 const CHECKLIST_PATH = "docs/alpha/V2_ALPHA_EXPORT_IMPORT_REACHABILITY_GATE.md";
@@ -69,25 +70,14 @@ function createPersistenceCoordinatorStub() {
   const activeSession = Object.freeze({
     id: "alpha-export-import-gate-session",
     revision: 1,
-    character: Object.freeze({
-      identity: Object.freeze({
+    character: createCharacter({
+      identity: {
         id: "alpha-export-import-character",
         name: "Export Import Gate",
-        player: "",
+        playerId: null,
+        campaignId: null,
         concept: "",
-      }),
-      attributes: Object.freeze({ st: 10, dx: 10, iq: 10, ht: 10 }),
-      secondaryCharacteristics: Object.freeze({ hp: 10, will: 10, perception: 10, fp: 10 }),
-      traits: Object.freeze([]),
-      skills: Object.freeze([]),
-      techniques: Object.freeze([]),
-      languages: Object.freeze([]),
-      cultures: Object.freeze([]),
-      attacks: Object.freeze([]),
-      equipment: Object.freeze([]),
-      spells: Object.freeze([]),
-      powers: Object.freeze([]),
-      notes: "",
+      },
     }),
   });
 
