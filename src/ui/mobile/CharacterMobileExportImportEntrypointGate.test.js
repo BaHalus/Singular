@@ -32,7 +32,7 @@ test("Alpha export/import guard follows the real mobile.html entrypoint wiring",
 
   assert.match(
     app,
-    /import\s*\{\s*mountAlphaMobilePersistenceUi\s*\}\s*from\s*["']\.\/AlphaMobilePersistenceUi\.js["']/,
+    /import\s*\{\s*mountAlphaMobilePersistenceUi,?\s*\}\s*from\s*["']\.\/AlphaMobilePersistenceUi\.js["']/,
   );
   assert.match(app, /createAlphaMobilePersistenceBootstrap/);
   assert.match(app, /await\s+mountAlphaMobilePersistenceUi\s*\(/);
