@@ -40,7 +40,7 @@ test("projects identity, attributes and pools for the mobile sheet", () => {
   const projection = projectCharacterForMobileSheet(character);
 
   assert.equal(validateCharacterMobileProjection(projection), true);
-  assert.equal(projection.schemaVersion, 5);
+  assert.equal(projection.schemaVersion, 6);
   assert.equal(projection.identity.name, "Aventureira Mobile");
   assert.equal(projection.attributes.ST.level, 12);
   assert.equal(projection.attributes.ST.source, "override");
@@ -49,6 +49,14 @@ test("projects identity, attributes and pools for the mobile sheet", () => {
   assert.equal(projection.secondaryCharacteristics.HP.base, 12);
   assert.equal(projection.pools.HP.current, 8);
   assert.equal(projection.pools.HP.maximum, 12);
+  assert.deepEqual(
+    projection.mechanicalResults.items.map(item => [item.id, item.label, item.value, item.source]),
+    [
+      ["basic-speed", "Velocidade Básica", 5.5, "attributes"],
+      ["basic-move", "Deslocamento Básico", 5, "attributes"],
+      ["dodge", "Esquiva", 8, "attributes"],
+    ],
+  );
 });
 
 test("projects declared traits, skills and techniques without calculating rules", () => {
@@ -222,6 +230,7 @@ test("serializes the mobile projection without exposing mutable state", () => {
 
   assert.notEqual(serialized, projection);
   assert.deepEqual(serialized.attributes.ST, projection.attributes.ST);
+  assert.deepEqual(serialized.mechanicalResults, projection.mechanicalResults);
   serialized.identity.name = "Alterado";
   assert.equal(projection.identity.name, "Personagem Serializado");
 });

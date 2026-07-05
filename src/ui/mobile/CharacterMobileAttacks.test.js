@@ -59,7 +59,7 @@ function createAttackingCharacter() {
 test("projects declared attacks through the application AttackReadProjection", () => {
   const projection = projectCharacterForMobileSheet(createAttackingCharacter());
 
-  assert.equal(projection.schemaVersion, 5);
+  assert.equal(projection.schemaVersion, 6);
   assert.equal(projection.attacks.characterId, "character-mobile-attacks");
   assert.equal(
     projection.attacks.authority,
