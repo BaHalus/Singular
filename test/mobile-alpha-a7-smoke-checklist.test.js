@@ -76,6 +76,12 @@ function assertNoStructuralEditorsInTableMode(html) {
   assert.doesNotMatch(html, /data-action="power-add"/);
 }
 
+function assertNoParallelUiInfrastructure(label, source) {
+  for (const pattern of FORBIDDEN_PRESENTATION_ORCHESTRATION_PATTERNS) {
+    assert.doesNotMatch(source, pattern, `${label} must not declare parallel UI infrastructure`);
+  }
+}
+
 test("A7 smoke checklist is explicit and covers the integrated mobile/table affordances", () => {
   assert.deepEqual(ACCEPTANCE_CHECKLIST, [
     "Criação and Mesa modes render through the canonical mobile renderer",
@@ -97,7 +103,7 @@ test("mobile entrypoint keeps touch target and overflow guards on the Alpha surf
   assert.ok(mobileHtml.indexOf(touchTargets) > mobileHtml.indexOf(appStyle));
   assert.ok(mobileHtml.indexOf(overflowGuards) > mobileHtml.indexOf(touchTargets));
   assert.match(mobileHtml, /bootstrapCharacterMobileCompositionRoot/);
-  assert.doesNotMatch(mobileHtml, /CommandExecutor|CommandRegistry|ApplicationSession|MutationObserver/);
+  assertNoParallelUiInfrastructure("mobile.html", mobileHtml);
 });
 
 test("Mesa smoke keeps transient controls and section collapse reachable without structural editors", () => {
@@ -143,17 +149,15 @@ test("Criação smoke keeps existing sections, empty states, and structural edit
 });
 
 test("A7 smoke guard remains presentation/orchestration-only", async () => {
-  const [touchTargetCss, overflowGuardCss, smokeSource] = await Promise.all([
+  const [touchTargetCss, overflowGuardCss] = await Promise.all([
     readFile(new URL("../src/ui/mobile/CharacterMobileTouchTargets.css", import.meta.url), "utf8"),
     readFile(new URL("../src/ui/mobile/CharacterMobileTextOverflowGuards.css", import.meta.url), "utf8"),
-    readFile(new URL("./mobile-alpha-a7-smoke-checklist.test.js", import.meta.url), "utf8"),
   ]);
 
   assert.match(touchTargetCss, /min-height:\s*2\.75rem|min-width:\s*2\.75rem/);
   assert.match(overflowGuardCss, /overflow-wrap:\s*anywhere/);
   assert.match(overflowGuardCss, /white-space:\s*normal/);
   assert.doesNotMatch(overflowGuardCss, /text-overflow\s*:\s*ellipsis|white-space\s*:\s*nowrap/);
-  for (const pattern of FORBIDDEN_PRESENTATION_ORCHESTRATION_PATTERNS) {
-    assert.doesNotMatch(smokeSource, pattern);
-  }
+  assertNoParallelUiInfrastructure("touch target guard CSS", touchTargetCss);
+  assertNoParallelUiInfrastructure("text overflow guard CSS", overflowGuardCss);
 });
