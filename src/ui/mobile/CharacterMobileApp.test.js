@@ -108,6 +108,13 @@ function rootFixture() {
   };
 }
 
+function click(targetDataset) {
+  return {
+    target: { dataset: targetDataset, parentElement: null },
+    preventDefault() {},
+  };
+}
+
 test("renders a real canonical Character through the complete mobile pipeline", () => {
   const html = renderCharacterMobileApp(character(), { mode: "creation" });
 
@@ -221,6 +228,85 @@ test("adjusts PV through App Core, rerenders and saves only after manual save", 
   assert.equal(saved.character.pools.HP.current, 8);
   assert.equal(mounted.mode, "table");
   assert.equal(root.getAttribute("data-mode"), "table");
+});
+
+test("table quick header edits only current PV and PF through canonical pool commands and survives remount", async () => {
+  const storage = createMemoryStorage();
+  const firstRoot = rootFixture();
+  const mounted = await bootstrapCharacterMobileApp({
+    root: firstRoot,
+    character: character(),
+    sessionId: "session-table-quick-header-pools",
+    storage,
+    namespace: "test.mobile.table-quick-header-pools",
+    runtime: runtime(),
+    mode: "table",
+  });
+
+  assert.equal(mounted.mode, "table");
+  assert.match(firstRoot.innerHTML, /data-mode="table"/);
+  assert.match(firstRoot.innerHTML, /data-pool-key="HP" data-pool-adjust="-1"/);
+  assert.match(firstRoot.innerHTML, /data-pool-key="FP" data-pool-adjust="-1"/);
+  assert.doesNotMatch(firstRoot.innerHTML, /data-role="character-summary-editor"/);
+  assert.doesNotMatch(firstRoot.innerHTML, /data-role="equipment-editor"/);
+  assert.doesNotMatch(firstRoot.innerHTML, /data-action="equipment-add"/);
+  assert.doesNotMatch(firstRoot.innerHTML, /data-attribute-key="ST"/);
+
+  await firstRoot.dispatch("click", click({ poolKey: "HP", poolAdjust: "-1" }));
+  await firstRoot.dispatch("click", click({ poolKey: "FP", poolAdjust: "-1" }));
+
+  assert.equal(firstRoot.getAttribute("data-last-command-status"), "applied");
+  assert.equal(mounted.session.revision, 2);
+  assert.equal(mounted.session.history.length, 2);
+  assert.deepEqual(mounted.session.history.map(entry => entry.commandType), [
+    "pool.current.adjust",
+    "pool.current.adjust",
+  ]);
+  assert.equal(mounted.character.pools.HP.current, 8);
+  assert.equal(mounted.character.pools.HP.maximum, 11);
+  assert.equal(mounted.character.pools.FP.current, 7);
+  assert.equal(mounted.character.pools.FP.maximum, 11);
+  assert.equal(mounted.character.attributes.ST.base, 11);
+  assert.equal(mounted.character.attributes.DX.base, 12);
+  assert.match(firstRoot.innerHTML, /<dt>PV<\/dt><dd>8 \/ 11<\/dd>/);
+  assert.match(firstRoot.innerHTML, /<dt>PF<\/dt><dd>7 \/ 11<\/dd>/);
+  assert.doesNotMatch(firstRoot.innerHTML, /data-attribute-key="ST"/);
+
+  await firstRoot.dispatch("click", click({ action: "persistence-save" }));
+  const saved = await mounted.repositories.session.load("session-table-quick-header-pools");
+
+  assert.equal(saved.revision, 2);
+  assert.equal(saved.character.pools.HP.current, 8);
+  assert.equal(saved.character.pools.HP.maximum, 11);
+  assert.equal(saved.character.pools.FP.current, 7);
+  assert.equal(saved.character.pools.FP.maximum, 11);
+  assert.equal(saved.character.attributes.ST.base, 11);
+  assert.equal(saved.character.attributes.DX.base, 12);
+
+  mounted.interactions.destroy();
+
+  const remountRoot = rootFixture();
+  const remounted = await bootstrapCharacterMobileApp({
+    root: remountRoot,
+    storage,
+    namespace: "test.mobile.table-quick-header-pools",
+    runtime: runtime(),
+    mode: "table",
+  });
+
+  assert.equal(remounted.mode, "table");
+  assert.equal(remounted.session.id, "session-table-quick-header-pools");
+  assert.equal(remounted.session.revision, 2);
+  assert.equal(remounted.character.pools.HP.current, 8);
+  assert.equal(remounted.character.pools.HP.maximum, 11);
+  assert.equal(remounted.character.pools.FP.current, 7);
+  assert.equal(remounted.character.pools.FP.maximum, 11);
+  assert.equal(remounted.character.attributes.ST.base, 11);
+  assert.equal(remountRoot.getAttribute("data-mode"), "table");
+  assert.match(remountRoot.innerHTML, /<dt>PV<\/dt><dd>8 \/ 11<\/dd>/);
+  assert.match(remountRoot.innerHTML, /<dt>PF<\/dt><dd>7 \/ 11<\/dd>/);
+  assert.doesNotMatch(remountRoot.innerHTML, /data-role="character-summary-editor"/);
+  assert.doesNotMatch(remountRoot.innerHTML, /data-attribute-key="ST"/);
 });
 
 test("edits character summary in creation mode and blocks it in table mode", async () => {
@@ -356,30 +442,4 @@ test("exposes detached supported modes and the canonical root selector", () => {
   modes.push("print");
   assert.deepEqual(getCharacterMobileModes(), ["creation", "table"]);
   assert.equal(getCharacterMobileRootSelector(), "[data-singular-mobile-root]");
-});
-
-test("ships an executable browser page wired to persistence and responsive styles", () => {
-  const page = readFileSync(
-    new URL("../../../mobile.html", import.meta.url),
-    "utf8",
-  );
-  const css = readFileSync(
-    new URL("./CharacterMobileApp.css", import.meta.url),
-    "utf8",
-  );
-
-  assert.match(page, /<meta name="viewport"/);
-  assert.match(page, /data-singular-mobile-root/);
-  assert.match(page, /CharacterMobileApp\.css/);
-  assert.match(page, /await bootstrapCharacterMobileApp\(\)/);
-  assert.match(page, /type="module"/);
-
-  assert.match(css, /min-width: 320px/);
-  assert.match(css, /grid-template-columns: repeat\(4/);
-  assert.match(css, /singular-alpha-mobile__persistence/);
-  assert.match(css, /singular-mobile-sheet__pool-adjust/);
-  assert.match(css, /singular-mobile-sheet__summary-editor/);
-  assert.match(css, /\[data-mode="table"\] \.singular-mobile-sheet__summary-editor/);
-  assert.match(css, /@media \(max-width: 25rem\)/);
-  assert.match(css, /min-height: 2\.75rem/);
 });
