@@ -4,28 +4,10 @@ import { readFileSync } from "node:fs";
 
 import { createCharacter } from "../../domain/character/Character.js";
 import { createApplicationSession } from "../../application/session/ApplicationSession.js";
-import {
-  createAlphaMobilePersistenceBootstrap,
-} from "../../application/bootstrap/AlphaMobilePersistenceBootstrap.js";
 import { mountAlphaMobilePersistenceUi } from "./AlphaMobilePersistenceUi.js";
 
 const PERSISTENCE_UI_PATH = "src/ui/mobile/AlphaMobilePersistenceUi.js";
 const CHECKLIST_PATH = "docs/alpha/V2_ALPHA_MOUNTED_SAVE_REFRESH_GATE.md";
-
-function createMemoryStorage() {
-  const values = new Map();
-  return {
-    getItem(key) {
-      return values.has(String(key)) ? values.get(String(key)) : null;
-    },
-    setItem(key, value) {
-      values.set(String(key), String(value));
-    },
-    removeItem(key) {
-      values.delete(String(key));
-    },
-  };
-}
 
 function initialSession(id = "session-mounted-save-source", name = "Helena") {
   const character = createCharacter({
@@ -39,21 +21,90 @@ function initialSession(id = "session-mounted-save-source", name = "Helena") {
   return createApplicationSession({ id, character });
 }
 
-function application() {
-  let sequence = 0;
-  return createAlphaMobilePersistenceBootstrap({
-    storage: createMemoryStorage(),
-    namespace: "test.ui.mounted.save.refresh",
-    initialSession: initialSession(),
-    runtime: {
-      clock: { now: () => "2026-06-26T19:00:00.000Z" },
-      idGenerator: {
-        next(prefix) {
-          sequence += 1;
-          return `${prefix}:mounted-save-${sequence}`;
-        },
-      },
+function createPersistenceCoordinator() {
+  const activeSession = initialSession();
+  const calls = [];
+  let savedSessions = [];
+
+  return {
+    calls,
+    getActiveSession() {
+      calls.push("getActiveSession");
+      return activeSession;
     },
+    async initialize() {
+      calls.push("initialize");
+      return result({
+        status: "started",
+        activeSessionId: activeSession.id,
+        data: { restoredSessionId: null },
+      });
+    },
+    async saveActiveSession() {
+      calls.push("saveActiveSession");
+      savedSessions = [{
+        id: activeSession.id,
+        status: "available",
+        revision: activeSession.revision,
+        characterId: activeSession.character.identity.id,
+        characterName: activeSession.character.identity.name,
+      }];
+      return result({
+        status: "saved",
+        activeSessionId: activeSession.id,
+        data: { savedSessionId: activeSession.id },
+      });
+    },
+    async listSavedSessions() {
+      calls.push("listSavedSessions");
+      return result({
+        status: "listed",
+        activeSessionId: activeSession.id,
+        data: { sessions: savedSessions.map(session => ({ ...session })) },
+      });
+    },
+    async openSession(sessionId) {
+      calls.push(`openSession:${sessionId}`);
+      return result({
+        status: "opened",
+        activeSessionId: activeSession.id,
+        data: { openedSessionId: sessionId },
+      });
+    },
+    async removeSession(sessionId) {
+      calls.push(`removeSession:${sessionId}`);
+      savedSessions = savedSessions.filter(session => session.id !== sessionId);
+      return result({
+        status: "removed",
+        activeSessionId: activeSession.id,
+        data: { removedSessionId: sessionId },
+      });
+    },
+    exportActiveCharacter() {
+      calls.push("exportActiveCharacter");
+      return result({
+        status: "exported",
+        activeSessionId: activeSession.id,
+        data: { filename: "helena.singular.json", json: "{}" },
+      });
+    },
+    importCharacter(input) {
+      calls.push(`importCharacter:${input}`);
+      return result({
+        status: "rejected",
+        activeSessionId: activeSession.id,
+        data: { importedSessionId: null },
+      });
+    },
+  };
+}
+
+function result(input) {
+  return Object.freeze({
+    changed: false,
+    diagnostics: [],
+    ...input,
+    data: Object.freeze(input.data ?? {}),
   });
 }
 
@@ -84,19 +135,23 @@ function createMountedRoot() {
 }
 
 test("Alpha mounted save action persists the active session and re-renders the saved list", async () => {
-  const app = application();
+  const persistence = createPersistenceCoordinator();
   const root = createMountedRoot();
   const mounted = await mountAlphaMobilePersistenceUi({
     root,
-    persistence: app.persistence,
+    persistence,
     mode: "creation",
     downloadText: () => undefined,
   });
 
-  const activeBefore = app.persistence.getActiveSession();
+  const activeBefore = persistence.getActiveSession();
   assert.match(root.innerHTML, /Nenhum salvamento local listado\./);
   assert.match(root.innerHTML, /data-action="persistence-save"/);
   assert.match(root.innerHTML, /data-action="persistence-refresh"/);
+  assert.deepEqual(
+    persistence.calls.filter(call => call === "initialize" || call === "listSavedSessions"),
+    ["initialize", "listSavedSessions"],
+  );
 
   const click = root.listener("click");
   assert.equal(typeof click, "function");
@@ -107,7 +162,7 @@ test("Alpha mounted save action persists the active session and re-renders the s
     },
   });
 
-  const activeAfter = app.persistence.getActiveSession();
+  const activeAfter = persistence.getActiveSession();
   assert.equal(activeAfter.id, activeBefore.id);
   assert.equal(root.getAttribute("data-singular-mounted"), "true");
   assert.equal(root.getAttribute("data-session-id"), activeBefore.id);
@@ -119,6 +174,13 @@ test("Alpha mounted save action persists the active session and re-renders the s
   assert.match(root.innerHTML, /data-save-status="available"/);
   assert.match(root.innerHTML, /data-action="persistence-open"/);
   assert.match(root.innerHTML, /data-action="persistence-remove"/);
+  assert.ok(
+    includesOrderedSubsequence(persistence.calls, [
+      "saveActiveSession",
+      "listSavedSessions",
+    ]),
+    "mounted save must delegate to the coordinator save path before refreshing saved sessions",
+  );
 
   mounted.destroy();
   assert.equal(root.listener("click"), undefined);
@@ -177,6 +239,15 @@ test("Alpha mounted save refresh checklist keeps A5 scope and architecture bound
     assert.doesNotMatch(checklist, forbidden);
   }
 });
+
+function includesOrderedSubsequence(values, expected) {
+  let cursor = 0;
+  for (const value of values) {
+    if (value === expected[cursor]) cursor += 1;
+    if (cursor === expected.length) return true;
+  }
+  return false;
+}
 
 function escapeRegExp(value) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
