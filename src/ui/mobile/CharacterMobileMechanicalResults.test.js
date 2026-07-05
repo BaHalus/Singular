@@ -9,6 +9,9 @@ import {
   renderCharacterMobileSheetHtml,
 } from "./CharacterMobileSheetHtml.js";
 
+const ATTRIBUTE_RESULT_COUNT = 4;
+const DERIVED_DEFENSE_MOVEMENT_RESULT_COUNT = 3;
+
 test("surfaces engine-calculated effective attribute results on mobile", () => {
   const character = createCharacter({
     identity: {
@@ -31,7 +34,7 @@ test("surfaces engine-calculated effective attribute results on mobile", () => {
 
   assert.equal(mechanicalResults.title, "Resultados mecânicos");
   assert.deepEqual(
-    mechanicalResults.items.slice(0, 4).map(item => [item.value, item.notes]),
+    mechanicalResults.items.slice(0, ATTRIBUTE_RESULT_COUNT).map(item => [item.value, item.notes]),
     [
       ["ST 13", "Calculado pelo motor de atributos; fonte override"],
       ["DX 10", "Calculado pelo motor de atributos; fonte base"],
@@ -46,6 +49,50 @@ test("surfaces engine-calculated effective attribute results on mobile", () => {
   assert.match(html, /<h2>Resultados mecânicos<\/h2>/);
   assert.match(html, /Atributo efetivo<\/dt><dd>ST 13 <small>Calculado pelo motor de atributos; fonte override<\/small><\/dd>/);
   assert.match(html, /data-section="mechanical-results" data-status="available"/);
+});
+
+test("surfaces engine-derived defense and movement results on mobile without UI calculation", () => {
+  const character = createCharacter({
+    identity: {
+      id: "character-mobile-derived-defense-movement-results",
+      name: "Dai",
+      concept: "Duelista",
+      playerId: "player-defense",
+      campaignId: "campaign-alpha",
+    },
+    attributes: {
+      ST: { base: 10, override: null },
+      DX: { base: 12, override: null },
+      IQ: { base: 10, override: null },
+      HT: { base: 11, override: null },
+    },
+    secondaryCharacteristics: {
+      BasicSpeed: { base: null, override: null },
+      BasicMove: { base: null, override: null },
+    },
+  });
+
+  const model = createCharacterMobileSheetRenderModelForCharacter(character);
+  const mechanicalResults = model.cards.find(card => card.id === "mechanical-results");
+  const derivedResults = mechanicalResults.items.slice(
+    ATTRIBUTE_RESULT_COUNT,
+    ATTRIBUTE_RESULT_COUNT + DERIVED_DEFENSE_MOVEMENT_RESULT_COUNT,
+  );
+
+  assert.deepEqual(
+    derivedResults.map(item => [item.label, item.value, item.notes]),
+    [
+      ["Velocidade Básica", "5.75", "Calculado pelo motor de defesa/movimento; fonte attributes"],
+      ["Deslocamento Básico", "5", "Calculado pelo motor de defesa/movimento; fonte attributes"],
+      ["Esquiva", "8", "Calculado pelo motor de defesa/movimento; fonte attributes"],
+    ],
+  );
+
+  const html = renderCharacterMobileSheetHtml(model, { mode: "table" });
+
+  assert.match(html, /Velocidade Básica<\/dt><dd>5.75 <small>Calculado pelo motor de defesa\/movimento; fonte attributes<\/small><\/dd>/);
+  assert.match(html, /Deslocamento Básico<\/dt><dd>5 <small>Calculado pelo motor de defesa\/movimento; fonte attributes<\/small><\/dd>/);
+  assert.match(html, /Esquiva<\/dt><dd>8 <small>Calculado pelo motor de defesa\/movimento; fonte attributes<\/small><\/dd>/);
 });
 
 test("surfaces engine-calculated equipment totals as mechanical results on mobile", () => {
@@ -83,9 +130,12 @@ test("surfaces engine-calculated equipment totals as mechanical results on mobil
 
   const model = createCharacterMobileSheetRenderModelForCharacter(character);
   const mechanicalResults = model.cards.find(card => card.id === "mechanical-results");
+  const equipmentResults = mechanicalResults.items.slice(
+    ATTRIBUTE_RESULT_COUNT + DERIVED_DEFENSE_MOVEMENT_RESULT_COUNT,
+  );
 
   assert.deepEqual(
-    mechanicalResults.items.slice(4).map(item => [item.label, item.value, item.notes]),
+    equipmentResults.map(item => [item.label, item.value, item.notes]),
     [
       ["Quantidade em equipamento", "3", "Calculado pelo motor de equipamento"],
       ["Peso total em equipamento", "2.25 kg", "Calculado pelo motor de equipamento"],
