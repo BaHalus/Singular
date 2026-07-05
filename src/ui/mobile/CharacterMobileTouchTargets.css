@@ -1,0 +1,54 @@
+/* Touch target hardening for mobile/table actions.
+   This stylesheet is presentation-only: it does not add edit controls,
+   calculate game data, or bypass the canonical command/session path. */
+
+.singular-mobile-sheet button,
+.singular-alpha-mobile button {
+  min-height: 2.75rem;
+  min-width: 2.75rem;
+  touch-action: manipulation;
+}
+
+.singular-mobile-sheet__section-collapse-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 0.5rem;
+  border: 1px solid #344457;
+  border-radius: 999px;
+  background: #202b38;
+  color: inherit;
+  padding: 0.45rem 0.75rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.singular-mobile-sheet__section-collapse-toggle:focus-visible,
+.singular-mobile-sheet button:focus-visible,
+.singular-alpha-mobile button:focus-visible {
+  outline: 0.18rem solid #71d2b4;
+  outline-offset: 0.12rem;
+}
+
+.singular-mobile-sheet__actions,
+.singular-mobile-sheet__attack-actions,
+.singular-mobile-sheet__equipment-actions,
+.singular-mobile-sheet__power-actions,
+.singular-mobile-sheet__trait-actions,
+.singular-mobile-sheet__skill-actions,
+.singular-mobile-sheet__technique-actions,
+.singular-mobile-sheet__note-actions {
+  gap: 0.5rem;
+}
+
+.singular-mobile-sheet__equipment-actions,
+.singular-mobile-sheet__power-actions {
+  display: flex;
+  flex-wrap: wrap;
+  margin-top: 0.5rem;
+}
+
+.singular-mobile-sheet__equipment-actions button,
+.singular-mobile-sheet__power-actions button {
+  flex: 1 1 auto;
+}
