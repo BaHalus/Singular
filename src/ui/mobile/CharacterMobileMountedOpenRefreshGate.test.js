@@ -23,7 +23,11 @@ function makeSession(id, name, concept = "Exploradora") {
 
 function createPersistenceCoordinator() {
   const sourceSession = makeSession("session-mounted-open-source", "Helena");
-  const openedSession = makeSession("session-mounted-open-target", "Marta", "Cartógrafa");
+  const openedSession = makeSession(
+    "session-mounted-open-target",
+    "Marta",
+    "Cartógrafa Aberta Única",
+  );
   const calls = [];
   let activeSession = sourceSession;
   const savedSessions = [sourceSession, openedSession].map(session => ({
@@ -153,6 +157,8 @@ test("Alpha mounted open action restores a saved session and re-renders the moun
   assert.equal(root.getAttribute("data-mode"), "table");
   assert.match(root.innerHTML, /Helena/);
   assert.match(root.innerHTML, /Marta/);
+  assert.match(root.innerHTML, /Exploradora/);
+  assert.doesNotMatch(root.innerHTML, /Cartógrafa Aberta Única/);
   assert.match(root.innerHTML, /data-action="persistence-open"/);
   assert.match(root.innerHTML, /data-session-id="session-mounted-open-target"/);
 
@@ -171,13 +177,16 @@ test("Alpha mounted open action restores a saved session and re-renders the moun
   const activeAfter = persistence.getActiveSession();
   assert.equal(activeAfter.id, "session-mounted-open-target");
   assert.equal(activeAfter.character.identity.name, "Marta");
+  assert.equal(activeAfter.character.identity.concept, "Cartógrafa Aberta Única");
   assert.equal(root.getAttribute("data-singular-mounted"), "true");
   assert.equal(root.getAttribute("data-session-id"), activeAfter.id);
   assert.equal(root.getAttribute("data-character-id"), activeAfter.character.identity.id);
   assert.equal(root.getAttribute("data-mode"), "table");
   assert.match(root.innerHTML, /Sessão aberta: session-mounted-open-target/);
   assert.match(root.innerHTML, /Marta/);
+  assert.match(root.innerHTML, /Cartógrafa Aberta Única/);
   assert.doesNotMatch(root.innerHTML, /Sessão aberta: session-mounted-open-source/);
+  assert.doesNotMatch(root.innerHTML, /Exploradora/);
   assert.ok(
     includesOrderedSubsequence(persistence.calls, [
       "listSavedSessions",
