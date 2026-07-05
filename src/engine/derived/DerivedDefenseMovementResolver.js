@@ -8,6 +8,7 @@ import {
 const DERIVED_DEFENSE_MOVEMENT_SCHEMA_VERSION = 1;
 const RESULT_IDS = Object.freeze(["basic-speed", "basic-move", "dodge"]);
 const RESULT_SOURCES = Object.freeze(["secondary", "attributes"]);
+const RESULT_STATUSES = Object.freeze(["resolved", "blocked"]);
 
 export function resolveDerivedDefenseMovement(input = {}) {
   requireEnginePlainObject(input, "Derived defense/movement input");
@@ -21,19 +22,15 @@ export function resolveDerivedDefenseMovement(input = {}) {
     "Derived defense/movement secondary characteristics",
   );
 
-  const dx = requireResolvedAttributeLevel(input.attributeLevels.results.DX, "DX");
-  const ht = requireResolvedAttributeLevel(input.attributeLevels.results.HT, "HT");
-  const basicSpeed = resolveSecondaryValue({
-    key: "BasicSpeed",
+  const basicSpeed = resolveBasicSpeed({
     characteristic: input.secondaryCharacteristics.BasicSpeed,
-    fallback: () => (dx + ht) / 4,
+    attributeResults: input.attributeLevels.results,
   });
-  const basicMove = resolveSecondaryValue({
-    key: "BasicMove",
+  const basicMove = resolveBasicMove({
     characteristic: input.secondaryCharacteristics.BasicMove,
-    fallback: () => Math.floor(basicSpeed.value),
+    basicSpeed,
   });
-  const dodge = Math.floor(basicSpeed.value) + 3;
+  const dodge = resolveDodge(basicSpeed);
 
   const report = {
     schemaVersion: DERIVED_DEFENSE_MOVEMENT_SCHEMA_VERSION,
@@ -42,20 +39,23 @@ export function resolveDerivedDefenseMovement(input = {}) {
       "basic-speed": createResult({
         id: "basic-speed",
         label: "Velocidade Básica",
-        value: normalizeZero(basicSpeed.value),
+        value: basicSpeed.value,
         source: basicSpeed.source,
+        status: basicSpeed.status,
       }),
       "basic-move": createResult({
         id: "basic-move",
         label: "Deslocamento Básico",
-        value: normalizeZero(basicMove.value),
+        value: basicMove.value,
         source: basicMove.source,
+        status: basicMove.status,
       }),
       dodge: createResult({
         id: "dodge",
         label: "Esquiva",
-        value: normalizeZero(dodge),
-        source: basicSpeed.source,
+        value: dodge.value,
+        source: dodge.source,
+        status: dodge.status,
       }),
     },
   };
@@ -96,13 +96,37 @@ export function getDerivedDefenseMovementSchemaVersion() {
   return DERIVED_DEFENSE_MOVEMENT_SCHEMA_VERSION;
 }
 
+function resolveBasicSpeed({ characteristic, attributeResults }) {
+  const declared = resolveDeclaredSecondaryValue("BasicSpeed", characteristic);
+  if (declared) return declared;
+
+  const dx = readResolvedAttributeLevel(attributeResults.DX, "DX");
+  const ht = readResolvedAttributeLevel(attributeResults.HT, "HT");
+  if (dx.status !== "resolved" || ht.status !== "resolved") {
+    return blockedResult("attributes");
+  }
+  return resolvedResult((dx.value + ht.value) / 4, "attributes");
+}
+
+function resolveBasicMove({ characteristic, basicSpeed }) {
+  const declared = resolveDeclaredSecondaryValue("BasicMove", characteristic);
+  if (declared) return declared;
+  if (basicSpeed.status !== "resolved") return blockedResult("attributes");
+  return resolvedResult(Math.floor(basicSpeed.value), "attributes");
+}
+
+function resolveDodge(basicSpeed) {
+  if (basicSpeed.status !== "resolved") return blockedResult(basicSpeed.source);
+  return resolvedResult(Math.floor(basicSpeed.value) + 3, basicSpeed.source);
+}
+
 function createResult(input) {
   const result = {
     id: normalizeResultId(input.id),
     label: normalizeNonEmptyString(input.label, `Derived defense/movement ${input.id} label`),
-    value: normalizeFiniteNumber(input.value, `Derived defense/movement ${input.id} value`),
+    value: normalizeNullableFiniteNumber(input.value, `Derived defense/movement ${input.id} value`),
     source: normalizeResultSource(input.source),
-    status: "resolved",
+    status: normalizeResultStatus(input.status),
   };
   validateResult(result, result.id);
   return result;
@@ -114,32 +138,44 @@ function validateResult(result, expectedId) {
     throw new Error("Derived defense/movement result id mismatch");
   }
   normalizeNonEmptyString(result.label, `Derived defense/movement ${expectedId} label`);
-  normalizeFiniteNumber(result.value, `Derived defense/movement ${expectedId} value`);
+  normalizeNullableFiniteNumber(result.value, `Derived defense/movement ${expectedId} value`);
   normalizeResultSource(result.source);
-  if (result.status !== "resolved") {
-    throw new Error(`Derived defense/movement ${expectedId} status is invalid`);
+  const status = normalizeResultStatus(result.status);
+  if (status === "resolved" && result.value === null) {
+    throw new Error(`Derived defense/movement ${expectedId} resolved value is invalid`);
+  }
+  if (status === "blocked" && result.value !== null) {
+    throw new Error(`Derived defense/movement ${expectedId} blocked value is invalid`);
   }
   assertEnginePortableValue(result, `Derived defense/movement result ${expectedId}`);
   return true;
 }
 
-function requireResolvedAttributeLevel(result, key) {
+function readResolvedAttributeLevel(result, key) {
   requireEnginePlainObject(result, `Derived defense/movement ${key} attribute level`);
   if (result.status !== "resolved" || !Number.isFinite(result.level)) {
-    throw new Error(`Derived defense/movement requires resolved ${key}`);
+    return { status: "blocked", value: null };
   }
-  return result.level;
+  return { status: "resolved", value: result.level };
 }
 
-function resolveSecondaryValue({ key, characteristic, fallback }) {
+function resolveDeclaredSecondaryValue(key, characteristic) {
   requireEnginePlainObject(characteristic, `Derived defense/movement ${key}`);
   if (Number.isFinite(characteristic.override)) {
-    return { value: characteristic.override, source: "secondary" };
+    return resolvedResult(characteristic.override, "secondary");
   }
   if (Number.isFinite(characteristic.base)) {
-    return { value: characteristic.base, source: "secondary" };
+    return resolvedResult(characteristic.base, "secondary");
   }
-  return { value: fallback(), source: "attributes" };
+  return null;
+}
+
+function resolvedResult(value, source) {
+  return { value: normalizeZero(value), source, status: "resolved" };
+}
+
+function blockedResult(source) {
+  return { value: null, source, status: "blocked" };
 }
 
 function normalizeResultId(value) {
@@ -156,6 +192,13 @@ function normalizeResultSource(value) {
   return value;
 }
 
+function normalizeResultStatus(value) {
+  if (!RESULT_STATUSES.includes(value)) {
+    throw new Error("Derived defense/movement result status is invalid");
+  }
+  return value;
+}
+
 function normalizeNonEmptyString(value, label) {
   if (typeof value !== "string" || value.trim() === "") {
     throw new Error(`${label} must be a non-empty string`);
@@ -163,8 +206,9 @@ function normalizeNonEmptyString(value, label) {
   return value;
 }
 
-function normalizeFiniteNumber(value, label) {
-  if (!Number.isFinite(value)) throw new Error(`${label} must be a finite number`);
+function normalizeNullableFiniteNumber(value, label) {
+  if (value === null) return null;
+  if (!Number.isFinite(value)) throw new Error(`${label} must be a finite number or null`);
   return normalizeZero(value);
 }
 
