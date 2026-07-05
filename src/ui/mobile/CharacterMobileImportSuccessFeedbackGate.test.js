@@ -1,100 +1,100 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+
+import { createCharacter } from "../../domain/character/Character.js";
+import { createApplicationSession } from "../../application/session/ApplicationSession.js";
+import {
+  createAlphaMobilePersistenceBootstrap,
+} from "../../application/bootstrap/AlphaMobilePersistenceBootstrap.js";
 import { createAlphaMobilePersistenceUi } from "./AlphaMobilePersistenceUi.js";
 
 const PERSISTENCE_UI_PATH = "src/ui/mobile/AlphaMobilePersistenceUi.js";
 const CHECKLIST_PATH = "docs/alpha/V2_ALPHA_EXPORT_IMPORT_SUCCESS_FEEDBACK_GATE.md";
 
-const importedSession = Object.freeze({
-  id: "session-imported-valid",
-  revision: 2,
-  character: Object.freeze({
-    identity: Object.freeze({
-      id: "character-imported-valid",
-      name: "Importado Válido",
-    }),
-    attributes: Object.freeze({
-      ST: 10,
-      DX: 10,
-      IQ: 10,
-      HT: 10,
-    }),
-    secondary: Object.freeze({}),
-    traits: Object.freeze([]),
-    skills: Object.freeze([]),
-    equipment: Object.freeze([]),
-    notes: "",
-  }),
-});
+function createMemoryStorage() {
+  const values = new Map();
+  return {
+    getItem(key) {
+      return values.has(String(key)) ? values.get(String(key)) : null;
+    },
+    setItem(key, value) {
+      values.set(String(key), String(value));
+    },
+    removeItem(key) {
+      values.delete(String(key));
+    },
+  };
+}
 
-const initialSession = Object.freeze({
-  id: "session-initial-active",
-  revision: 1,
-  character: Object.freeze({
-    identity: Object.freeze({
-      id: "character-initial-active",
-      name: "Inicial Ativo",
-    }),
-    attributes: Object.freeze({
-      ST: 10,
-      DX: 10,
-      IQ: 10,
-      HT: 10,
-    }),
-    secondary: Object.freeze({}),
-    traits: Object.freeze([]),
-    skills: Object.freeze([]),
-    equipment: Object.freeze([]),
-    notes: "",
-  }),
-});
-
-test("Alpha import success feedback uses the existing persistence UI/coordinator and updates active session", async () => {
-  const calls = [];
-  let activeSession = initialSession;
-  const persistence = createPersistenceCoordinator({
-    getActiveSession: () => activeSession,
-    importCharacter(input) {
-      calls.push(["importCharacter", input]);
-      activeSession = importedSession;
-      return {
-        status: "imported",
-        changed: true,
-        activeSessionId: activeSession.id,
-        diagnostics: [],
-        data: { session: activeSession },
-      };
+function initialSession(id = "session-success-source", name = "Ayla") {
+  const character = createCharacter({
+    identity: { id: `character-${id}`, name, concept: "Exploradora" },
+    metadata: {
+      createdAt: "2026-06-26T18:00:00.000Z",
+      updatedAt: "2026-06-26T18:00:00.000Z",
+      source: "test",
     },
   });
-  const ui = createAlphaMobilePersistenceUi({ persistence });
+  return createApplicationSession({ id, character });
+}
 
-  assert.equal(ui.getState().activeSessionId, "session-initial-active");
+function application() {
+  let sequence = 0;
+  return createAlphaMobilePersistenceBootstrap({
+    storage: createMemoryStorage(),
+    namespace: "test.ui.import.success",
+    initialSession: initialSession(),
+    runtime: {
+      clock: { now: () => "2026-06-26T19:00:00.000Z" },
+      idGenerator: {
+        next(prefix) {
+          sequence += 1;
+          return `${prefix}:success-${sequence}`;
+        },
+      },
+    },
+  });
+}
 
-  const result = await ui.importJson('{"singular":"valid"}');
+test("Alpha valid import reports success and updates the active session through the existing persistence UI", async () => {
+  const app = application();
+  const downloads = [];
+  const ui = createAlphaMobilePersistenceUi({
+    persistence: app.persistence,
+    downloadText: input => downloads.push(input),
+  });
+
+  await ui.initialize();
+  const activeBefore = app.persistence.getActiveSession();
+  const exported = await ui.exportCharacter();
+  assert.equal(exported.status, "exported");
+  assert.equal(downloads.length, 1);
+
+  const result = await ui.importJson(downloads[0].text);
 
   assert.equal(result.status, "imported");
   assert.equal(result.changed, true);
-  assert.equal(result.activeSessionId, "session-imported-valid");
-  assert.deepEqual(calls, [["importCharacter", '{"singular":"valid"}']]);
+  assert.notEqual(result.activeSessionId, activeBefore.id);
+  assert.equal(app.persistence.getActiveSession().id, result.activeSessionId);
 
   const state = ui.getState();
-  assert.equal(state.activeSessionId, "session-imported-valid");
+  assert.equal(state.activeSessionId, result.activeSessionId);
   assert.equal(
     state.feedback,
-    "Personagem importado em nova sessão: session-imported-valid",
+    `Personagem importado em nova sessão: ${result.activeSessionId}`,
   );
 
   const creationHtml = ui.render({ mode: "creation" });
   const tableHtml = ui.render({ mode: "table" });
 
-  assert.match(creationHtml, /Importado Válido/);
-  assert.match(creationHtml, /Sessão ativa:\s*<strong>session-imported-valid<\/strong>/);
-  assert.match(creationHtml, /Personagem importado em nova sessão: session-imported-valid/);
+  assert.match(creationHtml, new RegExp(escapeRegExp(result.activeSessionId)));
+  assert.match(creationHtml, /Personagem importado em nova sessão:/);
   assert.match(creationHtml, /data-role="persistence-import-json"/);
   assert.match(creationHtml, /data-action="persistence-import"/);
-  assert.match(tableHtml, /Importado Válido/);
-  assert.match(tableHtml, /Sessão ativa:\s*<strong>session-imported-valid<\/strong>/);
+  assert.match(tableHtml, new RegExp(escapeRegExp(result.activeSessionId)));
+  assert.match(tableHtml, /data-role="persistence-import-json"/);
+  assert.match(tableHtml, /data-action="persistence-import"/);
 });
 
 test("Alpha import success feedback checklist keeps scope and architecture boundaries explicit", () => {
@@ -146,62 +146,6 @@ test("Alpha import success feedback checklist keeps scope and architecture bound
     assert.doesNotMatch(checklist, forbidden);
   }
 });
-
-function createPersistenceCoordinator(overrides = {}) {
-  return {
-    getActiveSession: () => initialSession,
-    initialize: () => ({
-      status: "empty",
-      changed: false,
-      activeSessionId: initialSession.id,
-      diagnostics: [],
-      data: {},
-    }),
-    saveActiveSession: () => ({
-      status: "saved",
-      changed: false,
-      activeSessionId: initialSession.id,
-      diagnostics: [],
-      data: {},
-    }),
-    listSavedSessions: () => ({
-      status: "listed",
-      changed: false,
-      activeSessionId: initialSession.id,
-      diagnostics: [],
-      data: { sessions: [] },
-    }),
-    openSession: () => ({
-      status: "missing",
-      changed: false,
-      activeSessionId: initialSession.id,
-      diagnostics: [],
-      data: {},
-    }),
-    removeSession: () => ({
-      status: "missing",
-      changed: false,
-      activeSessionId: initialSession.id,
-      diagnostics: [],
-      data: {},
-    }),
-    exportActiveCharacter: () => ({
-      status: "exported",
-      changed: false,
-      activeSessionId: initialSession.id,
-      diagnostics: [],
-      data: { filename: "singular-alpha.json", json: "{}" },
-    }),
-    importCharacter: () => ({
-      status: "failed",
-      changed: false,
-      activeSessionId: initialSession.id,
-      diagnostics: [],
-      data: {},
-    }),
-    ...overrides,
-  };
-}
 
 function escapeRegExp(value) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
