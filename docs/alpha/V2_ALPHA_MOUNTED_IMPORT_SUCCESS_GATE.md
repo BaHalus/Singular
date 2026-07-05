@@ -34,8 +34,8 @@ This checklist guards the smallest mounted UI path proving that a valid exported
 
 ## Non-goals
 
-- No formato universal.
-- No sincronização remota.
-- No recuperação automática.
-- No merge de sessões.
-- No storage novo.
+- No cross-app interchange promise.
+- No network account feature.
+- No automatic repair guarantee.
+- No session-combining behavior.
+- No additional storage mechanism.
