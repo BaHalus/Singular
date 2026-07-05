@@ -20,6 +20,7 @@ import { createCharacterMobilePostRenderLifecycle } from "./CharacterMobilePostR
 
 const MOBILE_ROOT_SELECTOR = "[data-singular-mobile-root]";
 const MOBILE_MODES = Object.freeze(["creation", "table"]);
+const DEFAULT_SECTION_COLLAPSE_NAMESPACE = "singular.mobile.section-collapse";
 
 export function mountCharacterMobileApp(options = {}) {
   requirePlainObject(options, "Character mobile app options");
@@ -28,7 +29,8 @@ export function mountCharacterMobileApp(options = {}) {
 
   const character = options.character ?? createCharacter();
   const mode = normalizeMode(options.mode ?? "creation");
-  const html = renderCharacterMobileApp(character, { mode });
+  const sectionCollapse = createMobileSectionCollapseState(options);
+  const html = renderCharacterMobileApp(character, { mode, sectionCollapse: sectionCollapse.snapshot() });
 
   root.innerHTML = html;
   setRootAttribute(root, "data-singular-mounted", "true");
@@ -44,6 +46,7 @@ export async function bootstrapCharacterMobileApp(options = {}) {
   requireInteractiveMountRoot(root);
 
   let mode = normalizeMode(options.mode ?? "creation");
+  const sectionCollapse = createMobileSectionCollapseState(options);
   const postRenderLifecycle = options.postRenderLifecycle ?? createCharacterMobilePostRenderLifecycle();
   const application = createAlphaMobilePersistenceBootstrap({
     initialSession: createInitialSession(options),
@@ -56,10 +59,13 @@ export async function bootstrapCharacterMobileApp(options = {}) {
     const renderMode = normalizeMode(renderOptions.mode ?? mode);
     const activeSession = application.persistence.getActiveSession();
     const renderer = renderOptions.ui ?? ui;
-    root.innerHTML = injectMobileCreationControls(
-      renderer.render({ mode: renderMode }),
-      activeSession.character,
-      renderMode,
+    root.innerHTML = injectMobileSectionCollapseControls(
+      injectMobileCreationControls(
+        renderer.render({ mode: renderMode }),
+        activeSession.character,
+        renderMode,
+      ),
+      sectionCollapse.snapshot(),
     );
     setRootAttribute(root, "data-singular-mounted", "true");
     setRootAttribute(root, "data-session-id", activeSession.id);
@@ -90,6 +96,23 @@ export async function bootstrapCharacterMobileApp(options = {}) {
     render,
     MutationObserver: options.MutationObserver,
   });
+  const handleSectionCollapseClick = event => {
+    const actionTarget = findDataTarget(event?.target, "action");
+    const action = actionTarget === null ? null : readDataset(actionTarget, "action");
+    if (action !== "section-collapse-toggle") return null;
+    event.preventDefault?.();
+    if (ui.getState().busy) {
+      root.setAttribute?.("data-last-command-status", "busy");
+      return null;
+    }
+    const sectionId = readDataset(actionTarget, "sectionId");
+    const collapsed = sectionCollapse.toggle(sectionId);
+    root.setAttribute?.("data-last-command-status", "applied");
+    render();
+    return Object.freeze({ status: "applied", sectionId, collapsed });
+  };
+  root.addEventListener("click", handleSectionCollapseClick);
+
   const interactions = mountCharacterMobileInteractionController({
     root,
     commands: application.commands,
@@ -235,7 +258,13 @@ export async function bootstrapCharacterMobileApp(options = {}) {
     get mode() {
       return mode;
     },
-    interactions,
+    interactions: Object.freeze({
+      handleClick: interactions.handleClick,
+      destroy() {
+        interactions.destroy();
+        root.removeEventListener?.("click", handleSectionCollapseClick);
+      },
+    }),
     modeSync,
     ui,
     persistence: application.persistence,
@@ -251,7 +280,32 @@ export function renderCharacterMobileApp(character, options = {}) {
   requirePlainObject(options, "Character mobile render options");
   const mode = normalizeMode(options.mode ?? "creation");
   const renderModel = createCharacterMobileSheetRenderModelForCharacter(character);
-  return injectMobileCreationControls(renderCharacterMobileSheetHtml(renderModel, { mode }), character, mode);
+  return injectMobileSectionCollapseControls(
+    injectMobileCreationControls(renderCharacterMobileSheetHtml(renderModel, { mode }), character, mode),
+    options.sectionCollapse ?? {},
+  );
+}
+
+export function injectMobileSectionCollapseControls(html, collapsedSections = {}) {
+  const collapsedBySection = requireCollapseMap(collapsedSections);
+  return html.replace(
+    /(<section class="singular-mobile-sheet__card" data-card="([^"]+)" data-status="([^"]+)")(>)(<h2>)([^<]*)(<\/h2>)/g,
+    (_, sectionStart, sectionId, status, sectionClose, headingStart, title, headingEnd) => {
+      const collapsed = collapsedBySection[sectionId] === true;
+      const escapedId = escapeAttribute(sectionId);
+      const escapedTitle = escapeAttribute(title);
+      const label = collapsed ? "Expandir" : "Colapsar";
+      return [
+        sectionStart,
+        ` data-section-collapsible="true" data-collapsed="${collapsed ? "true" : "false"}"`,
+        sectionClose,
+        headingStart,
+        title,
+        `<button type="button" class="singular-mobile-sheet__section-collapse-toggle" data-action="section-collapse-toggle" data-section-id="${escapedId}" aria-expanded="${collapsed ? "false" : "true"}" aria-label="${label} ${escapedTitle}">${label}</button>`,
+        headingEnd,
+      ].join("");
+    },
+  );
 }
 
 export function getCharacterMobileRootSelector() {
@@ -544,11 +598,55 @@ function renderTechniqueDetails(technique) {
   return ` <small>${escapeText(details.join(" · "))}</small>`;
 }
 
-function formatNamedSpecialization(name, specialization) {
-  if (specialization === null || specialization === undefined || specialization === "") {
-    return name ?? "";
+function createMobileSectionCollapseState(options) {
+  const storage = options.storage ?? null;
+  const key = `${options.namespace ?? DEFAULT_SECTION_COLLAPSE_NAMESPACE}:section-collapse`;
+  let collapsed = readCollapsedSections(storage, key);
+  return Object.freeze({
+    snapshot() {
+      return { ...collapsed };
+    },
+    toggle(sectionId) {
+      const normalizedId = requireSectionId(sectionId);
+      collapsed = { ...collapsed, [normalizedId]: collapsed[normalizedId] !== true };
+      writeCollapsedSections(storage, key, collapsed);
+      return collapsed[normalizedId];
+    },
+  });
+}
+
+function readCollapsedSections(storage, key) {
+  if (storage === null || typeof storage.getItem !== "function") return {};
+  const raw = storage.getItem(key);
+  if (typeof raw !== "string" || raw.trim() === "") return {};
+  try {
+    return requireCollapseMap(JSON.parse(raw));
+  } catch {
+    return {};
   }
-  return `${name ?? ""} (${specialization})`;
+}
+
+function writeCollapsedSections(storage, key, collapsed) {
+  if (storage === null || typeof storage.setItem !== "function") return;
+  storage.setItem(key, JSON.stringify(requireCollapseMap(collapsed)));
+}
+
+function requireCollapseMap(value) {
+  if (value === null || typeof value !== "object" || Array.isArray(value)) return {};
+  const collapsed = {};
+  for (const [sectionId, sectionCollapsed] of Object.entries(value)) {
+    if (typeof sectionId === "string" && sectionId !== "") {
+      collapsed[sectionId] = sectionCollapsed === true;
+    }
+  }
+  return collapsed;
+}
+
+function requireSectionId(value) {
+  if (typeof value !== "string" || value === "") {
+    throw new Error("Mobile section collapse requires a section id");
+  }
+  return value;
 }
 
 function createInitialSession(options) {
@@ -649,6 +747,21 @@ function normalizeMode(value) {
     throw new Error("Character mobile app mode is invalid");
   }
   return value;
+}
+
+function findDataTarget(target, key) {
+  let current = target ?? null;
+  while (current !== null) {
+    if (readDataset(current, key) !== null) return current;
+    current = current.parentElement ?? null;
+  }
+  return null;
+}
+
+function readDataset(target, key) {
+  if (!target || typeof target !== "object") return null;
+  const value = target.dataset?.[key];
+  return typeof value === "string" && value !== "" ? value : null;
 }
 
 function requireMountRoot(root) {
