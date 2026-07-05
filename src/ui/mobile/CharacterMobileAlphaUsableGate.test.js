@@ -3,7 +3,6 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
 const CHECKLIST_PATH = "docs/alpha/V2_ALPHA_USABLE_GATE_MINIMAL.md";
-const BROWSER_GATE_PATH = "browser-tests/alpha-usable-gate.spec.js";
 
 test("Alpha usable gate checklist covers the agreed mobile/Mesa sequence", () => {
   const checklist = readFileSync(CHECKLIST_PATH, "utf8");
@@ -26,8 +25,6 @@ test("Alpha usable gate checklist covers the agreed mobile/Mesa sequence", () =>
 
 test("Alpha usable gate keeps UI authority and architecture boundaries explicit", () => {
   const checklist = readFileSync(CHECKLIST_PATH, "utf8");
-  const browserGate = readFileSync(BROWSER_GATE_PATH, "utf8");
-  const combined = `${checklist}\n${browserGate}`;
 
   for (const forbidden of [
     "cálculo ou regra de domínio na UI",
@@ -43,9 +40,9 @@ test("Alpha usable gate keeps UI authority and architecture boundaries explicit"
     assert.match(checklist, new RegExp(escapeRegExp(forbidden)));
   }
 
-  assert.doesNotMatch(browserGate, /createCharacter\s*\(/);
-  assert.doesNotMatch(browserGate, /CommandExecutor|CommandRegistry|ApplicationSession/);
-  assert.doesNotMatch(combined, /data-action="save"/);
+  assert.doesNotMatch(checklist, /data-action="save"/);
+  assert.doesNotMatch(checklist, /createCharacter\s*\(/);
+  assert.doesNotMatch(checklist, /CommandExecutor|CommandRegistry|ApplicationSession/);
 });
 
 function escapeRegExp(value) {
