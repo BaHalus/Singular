@@ -6,9 +6,10 @@ import {
   applyEquipmentUsesPatch,
   bootstrapCharacterMobileEquipmentEditApp,
   buildEquipmentUsesUpdatePayload,
+  injectMobileEquipmentEditControls,
 } from "./CharacterMobileEquipmentEditApp.js";
 
-function character() {
+function character(overrides = {}) {
   return createCharacter({
     identity: {
       id: "character-table-equipment-uses-transients",
@@ -27,7 +28,7 @@ function character() {
         weightKg: 1,
         cost: 20,
         state: "carried",
-        uses: 1,
+        uses: overrides.lanternUses ?? 1,
         maxUses: 3,
         notes: "Óleo contado por cena",
       },
@@ -174,6 +175,48 @@ test("applies table-mode equipment uses transients through canonical update", ()
     itemId: "equipment:lantern",
     patch: { uses: 2 },
   }]);
+});
+
+test("omits table uses controls when equipment has no uses counter", () => {
+  const sparseHtml = [
+    '<section data-card="equipment"><h2>Equipamentos</h2><dl>',
+    '<div data-equipment-id="equipment:torch"><dt>Equipamento</dt><dd>Tocha</dd></div>',
+    '</dl></section>',
+  ].join("");
+  const table = injectMobileEquipmentEditControls(sparseHtml, {
+    equipment: [{ id: "equipment:torch", name: "Tocha", state: "carried" }],
+  }, "table");
+
+  assert.match(table, /data-role="equipment-state-controls"/);
+  assert.doesNotMatch(table, /data-role="equipment-uses-controls"/);
+  assert.doesNotMatch(table, /data-action="equipment-uses-update"/);
+});
+
+test("decrementing zero table uses is a no-op instead of throwing", async () => {
+  const root = rootFixture();
+  const mounted = await bootstrapCharacterMobileEquipmentEditApp({
+    root,
+    character: character({ lanternUses: 0 }),
+    sessionId: "session-table-equipment-uses-zero",
+    storage: createMemoryStorage(),
+    namespace: "test.mobile.table-equipment-uses-zero",
+    runtime: runtime(),
+    mode: "table",
+  });
+
+  assert.match(root.innerHTML, /Usos 0 \/ 3/);
+  assert.match(root.innerHTML, /data-equipment-uses-delta="-1" aria-disabled="true"/);
+
+  await root.dispatch("click", click("equipment-uses-update", {
+    equipmentId: "equipment:lantern",
+    equipmentUsesDelta: "-1",
+  }));
+
+  assert.equal(root.getAttribute("data-last-command-status"), "no-op");
+  assert.equal(mounted.session.revision, 0);
+  assert.equal(mounted.session.history.length, 0);
+  assert.equal(mounted.character.equipment[0].uses, 0);
+  assert.equal(mounted.character.equipment[0].maxUses, 3);
 });
 
 test("table mode edits only equipment uses through canonical session commands and survives save/remount/load", async () => {
