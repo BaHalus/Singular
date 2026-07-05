@@ -3,6 +3,10 @@ import assert from "node:assert/strict";
 
 import { createCharacter } from "../../domain/character/Character.js";
 import {
+  projectCharacterForMobileSheet,
+  serializeCharacterMobileProjection,
+} from "./CharacterMobileProjection.js";
+import {
   createCharacterMobileSheetRenderModelForCharacter,
 } from "./CharacterMobileSheetComposition.js";
 import {
@@ -93,6 +97,58 @@ test("surfaces engine-derived defense and movement results on mobile without UI 
   assert.match(html, /Velocidade Básica<\/dt><dd>5.75 <small>Calculado pelo motor de defesa\/movimento; fonte attributes<\/small><\/dd>/);
   assert.match(html, /Deslocamento Básico<\/dt><dd>5 <small>Calculado pelo motor de defesa\/movimento; fonte attributes<\/small><\/dd>/);
   assert.match(html, /Esquiva<\/dt><dd>8 <small>Calculado pelo motor de defesa\/movimento; fonte attributes<\/small><\/dd>/);
+});
+
+test("keeps mobile projection serializable when derived defense and movement results are blocked", () => {
+  const character = createCharacter({
+    identity: {
+      id: "character-mobile-blocked-derived-defense-movement-results",
+      name: "Ivar",
+      concept: "Ferido",
+      playerId: "player-blocked",
+      campaignId: "campaign-alpha",
+    },
+    attributes: {
+      ST: { base: 10, override: null },
+      DX: { base: NaN, override: null },
+      IQ: { base: 10, override: null },
+      HT: { base: 11, override: null },
+    },
+    secondaryCharacteristics: {
+      BasicSpeed: { base: null, override: null },
+      BasicMove: { base: null, override: null },
+    },
+  });
+
+  const projection = projectCharacterForMobileSheet(character);
+  const serializedProjection = serializeCharacterMobileProjection(projection);
+  const mechanicalResults = serializedProjection.mechanicalResults.items;
+
+  assert.deepEqual(
+    mechanicalResults.map(item => [item.id, item.status, item.value, item.source]),
+    [
+      ["basic-speed", "blocked", null, "attributes"],
+      ["basic-move", "blocked", null, "attributes"],
+      ["dodge", "blocked", null, "attributes"],
+    ],
+  );
+
+  const model = createCharacterMobileSheetRenderModelForCharacter(character);
+  const derivedResults = model.cards
+    .find(card => card.id === "mechanical-results")
+    .items.slice(
+      ATTRIBUTE_RESULT_COUNT,
+      ATTRIBUTE_RESULT_COUNT + DERIVED_DEFENSE_MOVEMENT_RESULT_COUNT,
+    );
+
+  assert.deepEqual(
+    derivedResults.map(item => [item.label, item.value, item.status]),
+    [
+      ["Velocidade Básica", "—", "blocked"],
+      ["Deslocamento Básico", "—", "blocked"],
+      ["Esquiva", "—", "blocked"],
+    ],
+  );
 });
 
 test("surfaces engine-calculated equipment totals as mechanical results on mobile", () => {
