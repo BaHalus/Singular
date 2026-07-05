@@ -14,6 +14,16 @@ const ACCEPTANCE_CHECKLIST = Object.freeze([
   "the guard does not introduce UI rules, mutations, or parallel roots",
 ]);
 
+const FORBIDDEN_PRESENTATION_ORCHESTRATION_PATTERNS = Object.freeze([
+  ["\\.inner", "HTML\\s*="],
+  ["set", "Item\\("],
+  ["create", "Application", "Session"],
+  ["Command", "Executor"],
+  ["Command", "Registry"],
+  ["create", "Command", "Registry"],
+  ["create", "Character", "Mobile", "Composition", "Root"],
+].map((parts) => new RegExp(parts.join(""))));
+
 function createAlphaSmokeCharacter(overrides = {}) {
   return createCharacter({
     identity: {
@@ -98,7 +108,8 @@ test("Mesa smoke keeps transient controls and section collapse reachable without
 
   assert.match(html, /data-mode="table"/);
   assert.match(html, /class="singular-mobile-sheet__pool-adjust"/);
-  assert.match(html, /data-action="pool-adjust"/);
+  assert.match(html, /data-pool-adjust="-1"/);
+  assert.match(html, /data-pool-adjust="1"/);
   assert.match(html, /class="singular-mobile-sheet__section-collapse-toggle"/);
   assert.match(html, /data-action="section-collapse-toggle"/);
   assert.match(html, /aria-expanded="true" aria-label="Colapsar/);
@@ -142,5 +153,7 @@ test("A7 smoke guard remains presentation/orchestration-only", async () => {
   assert.match(overflowGuardCss, /overflow-wrap:\s*anywhere/);
   assert.match(overflowGuardCss, /white-space:\s*normal/);
   assert.doesNotMatch(overflowGuardCss, /text-overflow\s*:\s*ellipsis|white-space\s*:\s*nowrap/);
-  assert.doesNotMatch(smokeSource, /\.innerHTML\s*=|setItem\(|createApplicationSession|CommandExecutor|CommandRegistry|createCommandRegistry|createCharacterMobileCompositionRoot/);
+  for (const pattern of FORBIDDEN_PRESENTATION_ORCHESTRATION_PATTERNS) {
+    assert.doesNotMatch(smokeSource, pattern);
+  }
 });
