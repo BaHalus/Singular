@@ -50,6 +50,7 @@ export function mountCharacterMobileEquipmentContainerSelector(app, options = {}
     get session() { return app.session; },
     get html() { return app.html; },
     get mode() { return app.mode; },
+    root,
     interactions: app.interactions,
     modeSync: app.modeSync,
     ui: app.ui,
