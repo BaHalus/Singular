@@ -8,7 +8,7 @@ Provar, em uma única capacidade A5, o fluxo completo de persistência do Alpha 
 
 1. Inicialização restaura a última sessão válida.
 2. Salvamento manual chama o coordenador canônico e atualiza a lista de salvamentos.
-3. Autosave preserva snapshot válido e aparece na listagem do coordenador.
+3. Sem autosave contínuo: esta aceitação respeita a ADR-0061 e não inventa registro de autosave fora do coordenador real.
 4. Lista de salvamentos distingue registros disponíveis e ilegíveis.
 5. Abrir salvamento troca a sessão ativa pelo coordenador.
 6. Excluir salvamento remove apenas o registro solicitado e mantém os demais registros válidos.
@@ -32,4 +32,5 @@ Provar, em uma única capacidade A5, o fluxo completo de persistência do Alpha 
 - reparar automaticamente registros corrompidos;
 - sincronização remota;
 - combinar sessões;
-- criar novo mecanismo de persistência.
+- criar novo mecanismo de persistência;
+- criar autosave contínuo enquanto a ADR-0061 mantiver essa capacidade fora da decisão.
