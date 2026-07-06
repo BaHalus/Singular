@@ -322,19 +322,25 @@ function createAlphaMobileCommands({ persistence, registry, runtime }) {
     addEquipment(input = {}) {
       requirePlainObject(input, "Alpha mobile equipment addition");
       const kind = input.kind === "container" ? "container" : "item";
-      return execute(EQUIPMENT_COMMAND_TYPES.ADD, {
-        item: {
-          id: input.id ?? generateId(runtime.idGenerator, "equipment"),
-          kind,
-          containerKind: kind === "container" ? "physical" : null,
-          name: input.name ?? "",
-          quantity: input.quantity ?? 1,
-          weightKg: input.weightKg ?? 0,
-          cost: input.cost ?? 0,
-          state: input.state ?? "carried",
-          notes: input.notes ?? "",
-        },
-      });
+      const item = {
+        id: input.id ?? generateId(runtime.idGenerator, "equipment"),
+        kind,
+        containerKind: kind === "container" ? "physical" : null,
+        name: input.name ?? "",
+        quantity: input.quantity ?? 1,
+        weightKg: input.weightKg ?? 0,
+        cost: input.cost ?? 0,
+        state: input.state ?? "carried",
+        notes: input.notes ?? "",
+      };
+      const containerId = normalizeOptionalText(input.containerId);
+      if (containerId !== null) {
+        return execute(EQUIPMENT_COMMAND_TYPES.ADD_CHILD, {
+          containerId,
+          item,
+        });
+      }
+      return execute(EQUIPMENT_COMMAND_TYPES.ADD, { item });
     },
     updateEquipment: run(EQUIPMENT_COMMAND_TYPES.UPDATE),
     renameEquipment: run(EQUIPMENT_COMMAND_TYPES.RENAME),
