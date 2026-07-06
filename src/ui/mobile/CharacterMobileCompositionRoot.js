@@ -6,6 +6,7 @@ import { mountCharacterMobileSkillTechniqueEditApp } from "./CharacterMobileSkil
 import { mountCharacterMobileLanguageCultureEditApp } from "./CharacterMobileLanguageCultureEditApp.js";
 import { mountCharacterMobileAttackEditApp } from "./CharacterMobileAttackEditApp.js";
 import { mountCharacterMobileEquipmentEditApp } from "./CharacterMobileEquipmentEditApp.js";
+import { mountCharacterMobileEquipmentContainerSelector } from "./CharacterMobileEquipmentContainerSelectorCompositionRoot.js";
 import { mountCharacterMobileSpellEditApp } from "./CharacterMobileSpellEditApp.js";
 import { mountCharacterMobilePowerEditApp } from "./CharacterMobilePowerEditApp.js";
 import { createCharacterMobilePostRenderLifecycle } from "./CharacterMobilePostRenderLifecycle.js";
@@ -45,6 +46,11 @@ export const CHARACTER_MOBILE_COMPOSITION_MODULES = Object.freeze([
     name: "equipment-edit",
     destroyKey: "equipmentEdit",
     mount: mountCharacterMobileEquipmentEditApp,
+  }),
+  Object.freeze({
+    name: "equipment-container-selector",
+    destroyKey: "equipmentContainerSelector",
+    mount: mountCharacterMobileEquipmentContainerSelector,
   }),
   Object.freeze({
     name: "spell-edit",
