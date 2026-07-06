@@ -17,6 +17,7 @@ test("composition root declares only independent mount modules", () => {
       "language-culture-edit",
       "attack-edit",
       "equipment-edit",
+      "equipment-container-selector",
       "spell-edit",
       "power-edit",
     ],
