@@ -42,8 +42,8 @@ function createCoordinator() {
     },
     async saveActiveSession() {
       calls.push(`saveActiveSession:${active.id}`);
-      saves = [summary(active), { id: "autosave-restored", characterName: "Autosave Restaurada", status: "available" }, ...saves.filter(save => save.id !== active.id && save.id !== "autosave-restored")];
-      return result("saved", { savedSessionId: active.id, autosaveSessionId: "autosave-restored" });
+      saves = [summary(active), ...saves.filter(save => save.id !== active.id)];
+      return result("saved", { savedSessionId: active.id });
     },
     async listSavedSessions() {
       calls.push("listSavedSessions");
@@ -119,7 +119,8 @@ test("Alpha A5 mounted flow accepts persistence capacity end to end", async () =
 
   await root.listener("click")({ target: target("persistence-save") });
   assert.match(root.innerHTML, /Sessão salva: session-restored/);
-  assert.ok(persistence.saveIds.includes("autosave-restored"));
+  assert.deepEqual(persistence.calls.filter(call => call.startsWith("saveActiveSession:")), ["saveActiveSession:session-restored"]);
+  assert.ok(persistence.saveIds.includes("session-restored"));
 
   await root.listener("click")({ target: target("persistence-refresh") });
   assert.match(root.innerHTML, /salvamento\(s\) encontrado\(s\)/);
@@ -129,6 +130,7 @@ test("Alpha A5 mounted flow accepts persistence capacity end to end", async () =
   assert.match(root.innerHTML, /Aberta/);
 
   await root.listener("click")({ target: target("persistence-remove", "bad-record") });
+  assert.ok(!persistence.saveIds.includes("bad-record"));
   assert.ok(persistence.saveIds.includes("session-restored"));
   assert.ok(persistence.saveIds.includes("session-opened"));
 
@@ -152,7 +154,7 @@ test("Alpha A5 mounted flow accepts persistence capacity end to end", async () =
 
 test("Alpha A5 full acceptance checklist keeps the capacity boundary explicit", () => {
   const checklist = readFileSync(CHECKLIST_PATH, "utf8");
-  for (const required of ["Salvamento manual", "Autosave", "Abrir salvamento", "Excluir salvamento", "Exportar formato SINGULAR", "Importar formato SINGULAR", "Documento corrompido", "sem apagar registros válidos", "Não cria storage paralelo"]) {
+  for (const required of ["Salvamento manual", "Sem autosave contínuo", "Abrir salvamento", "Excluir salvamento", "Exportar formato SINGULAR", "Importar formato SINGULAR", "Documento corrompido", "sem apagar registros válidos", "Não cria storage paralelo"]) {
     assert.match(checklist, new RegExp(required));
   }
 });
