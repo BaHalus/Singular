@@ -1,13 +1,4 @@
-import {
-  bootstrapCharacterMobileCompositionRoot as bootstrapBaseCharacterMobileCompositionRoot,
-} from "./CharacterMobileCompositionRoot.js";
-
 const MOBILE_ROOT_SELECTOR = "[data-singular-mobile-root]";
-
-export async function bootstrapCharacterMobileCompositionRoot(options = {}) {
-  const app = await bootstrapBaseCharacterMobileCompositionRoot(options);
-  return mountCharacterMobileEquipmentContainerSelector(app, options);
-}
 
 export function mountCharacterMobileEquipmentContainerSelector(app, options = {}) {
   const root = resolveOptionalMobileRoot(app, options);
