@@ -209,7 +209,7 @@ function assertContainerSelector(select, containerId) {
     value: option.value,
     text: option.textContent,
   })), [
-    { value: "", text: "Raiz do inventÃ¡rio" },
+    { value: "", text: "Raiz do inventário" },
     { value: containerId, text: "Mochila" },
   ]);
 }
