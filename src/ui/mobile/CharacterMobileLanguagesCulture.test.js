@@ -60,7 +60,7 @@ function createMulticulturalCharacter() {
 test("projects languages and cultural familiarities without calculating costs", () => {
   const projection = projectCharacterForMobileSheet(createMulticulturalCharacter());
 
-  assert.equal(projection.schemaVersion, 6);
+  assert.equal(projection.schemaVersion, 7);
   assert.deepEqual(projection.languages, [
     {
       id: "language_portuguese",
@@ -101,7 +101,7 @@ test("creates namespaced language and familiarity items in one mobile card", () 
   );
   const card = model.cards.find(candidate => candidate.id === "languages-culture");
 
-  assert.equal(model.schemaVersion, 5);
+  assert.equal(model.schemaVersion, 6);
   assert.equal(card.status, "declared-only");
   assert.deepEqual(
     card.items.map(item => [
@@ -127,7 +127,7 @@ test("renders fluency, nativities and imported costs explicitly", () => {
     { mode: "table" },
   );
 
-  assert.match(html, /data-schema-version="12"/);
+  assert.match(html, /data-schema-version="13"/);
   assert.match(html, /data-card="languages-culture" data-status="declared-only"/);
   assert.match(
     html,

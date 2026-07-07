@@ -51,18 +51,19 @@ test("creates the mobile render model with an empty equipment card", () => {
   );
   const equipment = model.cards.find(card => card.id === "equipment");
 
-  assert.equal(model.schemaVersion, 5);
+  assert.equal(model.schemaVersion, 6);
   assert.equal(model.schemaVersion, getCharacterMobileSheetRenderModelSchemaVersion());
   assert.equal(model.title, "Exploradora Mobile");
   assert.equal(model.summary.attributes.find(item => item.id === "DX").value, 12);
   assert.equal(model.summary.pools.find(item => item.id === "HP").current, 6);
   assert.equal(equipment.status, "empty");
-  assert.deepEqual(equipment.totals, {
-    quantity: 0,
-    weightKg: 0,
-    cost: 0,
-    authority: "engine.equipment",
-  });
+  assert.equal(equipment.totals.itemCount, 0);
+  assert.equal(equipment.totals.quantity, 0);
+  assert.equal(equipment.totals.weightKg, 0);
+  assert.equal(equipment.totals.loadWeightKg, 0);
+  assert.equal(equipment.totals.cost, 0);
+  assert.equal(equipment.totals.byState.carried.quantity, 0);
+  assert.equal(equipment.totals.authority, "engine.equipment");
   assert.equal(model.sections.find(section => section.id === "equipment").status, "empty");
   assert.equal(validateCharacterMobileSheetRenderModel(model), true);
 });
@@ -97,12 +98,25 @@ test("creates a hierarchical equipment card without recalculating totals", () =>
   const equipment = model.cards.find(card => card.id === "equipment");
 
   assert.equal(equipment.status, "declared-only");
-  assert.deepEqual(equipment.totals, {
-    quantity: 11,
-    weightKg: 1.1,
-    cost: 30,
-    authority: "engine.equipment",
+  assert.equal(equipment.totals.quantity, 11);
+  assert.equal(equipment.totals.weightKg, 1.1);
+  assert.equal(equipment.totals.loadWeightKg, 1.1);
+  assert.equal(equipment.totals.cost, 30);
+  assert.deepEqual(equipment.totals.byState.carried, {
+    itemCount: 1,
+    quantity: 1,
+    cost: 20,
+    weightKg: 1,
+    loadWeightKg: 1,
   });
+  assert.deepEqual(equipment.totals.byState.stored, {
+    itemCount: 1,
+    quantity: 10,
+    cost: 10,
+    weightKg: 0.1,
+    loadWeightKg: 0.1,
+  });
+  assert.equal(equipment.totals.authority, "engine.equipment");
   assert.deepEqual(
     equipment.items.map(item => [item.id, item.parentId, item.depth, item.state]),
     [

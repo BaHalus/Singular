@@ -199,7 +199,15 @@ function assertProjectionMatchesCharacter(projection, character) {
   assert.equal(projection.equipment.totals.authority, "engine.equipment");
   assert.equal(projection.equipment.totals.quantity, 2);
   assert.equal(projection.equipment.totals.weightKg, 3);
+  assert.equal(projection.equipment.totals.loadWeightKg, 3);
   assert.equal(projection.equipment.totals.cost, 20);
+  assert.deepEqual(projection.equipment.totals.byState.carried, {
+    itemCount: 1,
+    quantity: 2,
+    cost: 20,
+    weightKg: 3,
+    loadWeightKg: 3,
+  });
 }
 
 test("Alpha mobile-consumable projection matches authoritative Character snapshot", () => {

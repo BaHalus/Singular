@@ -17,7 +17,7 @@ import {
   serializeAttributeLevelsReport,
 } from "../../engine/attributes/AttributeLevelResolver.js";
 
-const MOBILE_PROJECTION_SCHEMA_VERSION = 6;
+const MOBILE_PROJECTION_SCHEMA_VERSION = 7;
 const ATTRIBUTE_KEYS = Object.freeze(["ST", "DX", "IQ", "HT"]);
 const SECONDARY_KEYS = Object.freeze([
   "HP",
@@ -39,6 +39,13 @@ const ATTACK_SOURCE_KINDS = Object.freeze([
   "other",
 ]);
 const MECHANICAL_RESULT_IDS = Object.freeze(["basic-speed", "basic-move", "dodge"]);
+const EQUIPMENT_STATES = Object.freeze([
+  "equipped",
+  "carried",
+  "stored",
+  "dropped",
+  "ignored",
+]);
 
 export function projectCharacterForMobileSheet(character) {
   const serializedCharacter = serializeCharacter(character);
@@ -268,9 +275,12 @@ function projectEquipment(equipment) {
   return {
     items: flattenEquipment(equipment),
     totals: {
+      itemCount: totalsProjection.totals.itemCount,
       quantity: totalsProjection.totals.quantity,
       weightKg: totalsProjection.totals.weightKg,
+      loadWeightKg: totalsProjection.totals.loadWeightKg,
       cost: totalsProjection.totals.cost,
+      byState: totalsProjection.totals.byState,
       authority: "engine.equipment",
     },
   };
@@ -594,9 +604,15 @@ function validateEquipmentProjection(equipment) {
   requirePlainObject(equipment, "Mobile equipment projection");
   requireArray(equipment.items, "Mobile equipment projection items");
   requirePlainObject(equipment.totals, "Mobile equipment projection totals");
+  requireNonNegativeFiniteNumber(equipment.totals.itemCount, "Mobile equipment total itemCount");
   requireNonNegativeFiniteNumber(equipment.totals.quantity, "Mobile equipment total quantity");
   requireNonNegativeFiniteNumber(equipment.totals.weightKg, "Mobile equipment total weightKg");
+  requireNonNegativeFiniteNumber(equipment.totals.loadWeightKg, "Mobile equipment total loadWeightKg");
   requireNonNegativeFiniteNumber(equipment.totals.cost, "Mobile equipment total cost");
+  requirePlainObject(equipment.totals.byState, "Mobile equipment totals byState");
+  for (const state of EQUIPMENT_STATES) {
+    validateEquipmentStateTotals(equipment.totals.byState[state], state);
+  }
   if (equipment.totals.authority !== "engine.equipment") {
     throw new Error("Mobile equipment totals authority is invalid");
   }
@@ -623,6 +639,15 @@ function validateEquipmentProjection(equipment) {
     requireText(item.notes, `Mobile equipment ${item.id} notes`);
     requireString(item.status, `Mobile equipment ${item.id} status`);
   }
+}
+
+function validateEquipmentStateTotals(totals, state) {
+  requirePlainObject(totals, `Mobile equipment totals byState ${state}`);
+  requireNonNegativeFiniteNumber(totals.itemCount, `Mobile equipment ${state} itemCount`);
+  requireNonNegativeFiniteNumber(totals.quantity, `Mobile equipment ${state} quantity`);
+  requireNonNegativeFiniteNumber(totals.weightKg, `Mobile equipment ${state} weightKg`);
+  requireNonNegativeFiniteNumber(totals.loadWeightKg, `Mobile equipment ${state} loadWeightKg`);
+  requireNonNegativeFiniteNumber(totals.cost, `Mobile equipment ${state} cost`);
 }
 
 function validateMechanicalResultsProjection(mechanicalResults) {

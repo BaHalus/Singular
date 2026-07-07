@@ -2,7 +2,7 @@ import {
   serializeCharacterMobileProjection,
 } from "./CharacterMobileProjection.js";
 
-const RENDER_MODEL_SCHEMA_VERSION = 5;
+const RENDER_MODEL_SCHEMA_VERSION = 6;
 const RENDER_MODEL_KEYS = Object.freeze([
   "schemaVersion",
   "title",
@@ -20,6 +20,13 @@ const CARD_STATUSES = Object.freeze([
   "empty",
 ]);
 const TOOLBAR_ACTION_STATUSES = Object.freeze(["pending"]);
+const EQUIPMENT_STATES = Object.freeze([
+  "equipped",
+  "carried",
+  "stored",
+  "dropped",
+  "ignored",
+]);
 
 export function createCharacterMobileSheetRenderModel(projection) {
   const serializedProjection = serializeCharacterMobileProjection(projection);
@@ -430,10 +437,14 @@ function validateAttacksCard(card) {
 
 function validateEquipmentCard(card) {
   requirePlainObject(card.totals, "Character mobile equipment totals");
-  for (const key of ["quantity", "weightKg", "cost"]) {
+  for (const key of ["itemCount", "quantity", "weightKg", "loadWeightKg", "cost"]) {
     if (!Number.isFinite(card.totals[key]) || card.totals[key] < 0) {
       throw new Error(`Character mobile equipment total ${key} is invalid`);
     }
+  }
+  requirePlainObject(card.totals.byState, "Character mobile equipment totals byState");
+  for (const state of EQUIPMENT_STATES) {
+    validateEquipmentStateTotals(card.totals.byState[state], state);
   }
   if (card.totals.authority !== "engine.equipment") {
     throw new Error("Character mobile equipment totals authority is invalid");
@@ -441,6 +452,15 @@ function validateEquipmentCard(card) {
   for (const item of card.items) {
     if (!Number.isInteger(item.depth) || item.depth < 0) {
       throw new Error(`Character mobile equipment item ${item.id} depth is invalid`);
+    }
+  }
+}
+
+function validateEquipmentStateTotals(totals, state) {
+  requirePlainObject(totals, `Character mobile equipment ${state} totals`);
+  for (const key of ["itemCount", "quantity", "weightKg", "loadWeightKg", "cost"]) {
+    if (!Number.isFinite(totals[key]) || totals[key] < 0) {
+      throw new Error(`Character mobile equipment ${state} total ${key} is invalid`);
     }
   }
 }

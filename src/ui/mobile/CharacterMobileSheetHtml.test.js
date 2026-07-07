@@ -60,8 +60,8 @@ function composedModel(overrides = {}) {
   }));
 }
 
-test("exposes the power-controls mobile sheet HTML schema version", () => {
-  assert.equal(getCharacterMobileSheetHtmlSchemaVersion(), 12);
+test("exposes the equipment-load mobile sheet HTML schema version", () => {
+  assert.equal(getCharacterMobileSheetHtmlSchemaVersion(), 13);
 });
 
 test("renders creation controls only in creation mode", () => {
@@ -91,7 +91,7 @@ test("renders creation controls only in creation mode", () => {
   const creation = renderCharacterMobileSheetHtml(character, { mode: "creation" });
   const table = renderCharacterMobileSheetHtml(character, { mode: "table" });
 
-  assert.match(creation, /data-schema-version="12"/);
+  assert.match(creation, /data-schema-version="13"/);
   assert.match(creation, /data-role="character-summary-editor"/);
   assert.match(creation, /data-attribute-key="ST" data-attribute-adjust="-1"/);
   assert.match(creation, /data-role="attack-editor"/);
@@ -282,7 +282,15 @@ test("renders equipment hierarchy, states and domain totals", () => {
   assert.match(html, /aria-label="Totais de equipamentos"/);
   assert.match(html, /<dt>Quantidade<\/dt><dd>5<\/dd>/);
   assert.match(html, /<dt>Peso<\/dt><dd>4\.5 kg<\/dd>/);
+  assert.match(html, /<dt>Carga<\/dt><dd>4\.5 kg<\/dd>/);
   assert.match(html, /<dt>Custo<\/dt><dd>\$ 466<\/dd>/);
+  assert.match(html, /aria-label="Carga por estado"/);
+  assert.match(html, /data-equipment-state-total="carried"/);
+  assert.match(html, /<dt>Carregado<\/dt><dd>1\.5 kg <small>1 un - carga 1\.5 kg - \$ 60<\/small><\/dd>/);
+  assert.match(html, /data-equipment-state-total="stored"/);
+  assert.match(html, /<dt>Guardado<\/dt><dd>1\.5 kg <small>3 un - carga 1\.5 kg - \$ 6<\/small><\/dd>/);
+  assert.match(html, /data-equipment-state-total="equipped"/);
+  assert.match(html, /<dt>Equipado<\/dt><dd>1\.5 kg <small>1 un - carga 1\.5 kg - \$ 400<\/small><\/dd>/);
   assert.match(html, /data-equipment-id="eq_mochila" data-equipment-state="carried" data-depth="0"/);
   assert.match(html, /↳ Tocha/);
   assert.match(html, /Qtd 3 · 0\.5 kg\/un · \$ 2\/un · Guardado/);

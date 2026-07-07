@@ -40,7 +40,7 @@ test("projects identity, attributes and pools for the mobile sheet", () => {
   const projection = projectCharacterForMobileSheet(character);
 
   assert.equal(validateCharacterMobileProjection(projection), true);
-  assert.equal(projection.schemaVersion, 6);
+  assert.equal(projection.schemaVersion, 7);
   assert.equal(projection.identity.name, "Aventureira Mobile");
   assert.equal(projection.attributes.ST.level, 12);
   assert.equal(projection.attributes.ST.source, "override");
@@ -174,11 +174,32 @@ test("projects equipment hierarchy and totals from the equipment engine", () => 
       ["eq_espada", null, 0],
     ],
   );
-  assert.deepEqual(projection.equipment.totals, {
-    quantity: 5,
-    weightKg: 4.5,
-    cost: 466,
-    authority: "engine.equipment",
+  assert.equal(projection.equipment.totals.itemCount, 3);
+  assert.equal(projection.equipment.totals.quantity, 5);
+  assert.equal(projection.equipment.totals.weightKg, 4.5);
+  assert.equal(projection.equipment.totals.loadWeightKg, 4.5);
+  assert.equal(projection.equipment.totals.cost, 466);
+  assert.equal(projection.equipment.totals.authority, "engine.equipment");
+  assert.deepEqual(projection.equipment.totals.byState.carried, {
+    itemCount: 1,
+    quantity: 1,
+    cost: 60,
+    weightKg: 1.5,
+    loadWeightKg: 1.5,
+  });
+  assert.deepEqual(projection.equipment.totals.byState.stored, {
+    itemCount: 1,
+    quantity: 3,
+    cost: 6,
+    weightKg: 1.5,
+    loadWeightKg: 1.5,
+  });
+  assert.deepEqual(projection.equipment.totals.byState.equipped, {
+    itemCount: 1,
+    quantity: 1,
+    cost: 400,
+    weightKg: 1.5,
+    loadWeightKg: 1.5,
   });
   assert.equal(
     projection.sections.find(section => section.id === "equipment").status,
@@ -214,12 +235,13 @@ test("excludes ignored semantic groups from totals while counting their children
   }));
 
   assert.equal(projection.equipment.items[0].state, "ignored");
-  assert.deepEqual(projection.equipment.totals, {
-    quantity: 3,
-    weightKg: 0.3,
-    cost: 6,
-    authority: "engine.equipment",
-  });
+  assert.equal(projection.equipment.totals.quantity, 3);
+  assert.equal(projection.equipment.totals.weightKg, 0.3);
+  assert.equal(projection.equipment.totals.loadWeightKg, 0.3);
+  assert.equal(projection.equipment.totals.cost, 6);
+  assert.equal(projection.equipment.totals.byState.ignored.itemCount, 1);
+  assert.equal(projection.equipment.totals.byState.ignored.weightKg, 9);
+  assert.equal(projection.equipment.totals.byState.carried.quantity, 3);
 });
 
 test("serializes the mobile projection without exposing mutable state", () => {
@@ -259,12 +281,13 @@ test("marks an empty canonical equipment collection as empty", () => {
   }));
 
   assert.deepEqual(projection.equipment.items, []);
-  assert.deepEqual(projection.equipment.totals, {
-    quantity: 0,
-    weightKg: 0,
-    cost: 0,
-    authority: "engine.equipment",
-  });
+  assert.equal(projection.equipment.totals.itemCount, 0);
+  assert.equal(projection.equipment.totals.quantity, 0);
+  assert.equal(projection.equipment.totals.weightKg, 0);
+  assert.equal(projection.equipment.totals.loadWeightKg, 0);
+  assert.equal(projection.equipment.totals.cost, 0);
+  assert.equal(projection.equipment.totals.byState.carried.weightKg, 0);
+  assert.equal(projection.equipment.totals.authority, "engine.equipment");
   assert.equal(
     projection.sections.find(section => section.id === "equipment").status,
     "empty",
