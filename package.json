@@ -7,6 +7,10 @@
     "node": "22.x"
   },
   "scripts": {
-    "test": "node --test"
+    "test": "node --test",
+    "test:mobile-smoke": "playwright test browser-tests/mobile-alpha-real.spec.js"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.61.1"
   }
 }
