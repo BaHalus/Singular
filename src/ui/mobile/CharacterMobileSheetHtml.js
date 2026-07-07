@@ -2,7 +2,14 @@ import {
   serializeCharacterMobileSheetRenderModel,
 } from "./CharacterMobileSheetRenderModel.js";
 
-const HTML_SHELL_SCHEMA_VERSION = 12;
+const HTML_SHELL_SCHEMA_VERSION = 13;
+const EQUIPMENT_STATES = Object.freeze([
+  "equipped",
+  "carried",
+  "stored",
+  "dropped",
+  "ignored",
+]);
 
 export function renderCharacterMobileSheetHtml(renderModel, options = {}) {
   const model = serializeCharacterMobileSheetRenderModel(renderModel);
@@ -366,9 +373,30 @@ function renderEquipmentCard(card, mode) {
     '<dl class="singular-mobile-sheet__equipment-totals" aria-label="Totais de equipamentos">',
     `<div><dt>Quantidade</dt><dd>${formatValue(card.totals.quantity)}</dd></div>`,
     `<div><dt>Peso</dt><dd>${formatValue(card.totals.weightKg)} kg</dd></div>`,
+    `<div><dt>Carga</dt><dd>${formatValue(card.totals.loadWeightKg)} kg</dd></div>`,
     `<div><dt>Custo</dt><dd>$ ${formatValue(card.totals.cost)}</dd></div>`,
     "</dl>",
+    renderEquipmentStateTotals(card.totals.byState),
     list,
+  ].join("");
+}
+
+function renderEquipmentStateTotals(byState) {
+  return [
+    '<dl class="singular-mobile-sheet__equipment-state-totals" aria-label="Carga por estado">',
+    EQUIPMENT_STATES
+      .map(state => renderEquipmentStateTotal(state, byState[state]))
+      .join(""),
+    "</dl>",
+  ].join("");
+}
+
+function renderEquipmentStateTotal(state, totals) {
+  return [
+    `<div data-equipment-state-total="${escapeAttribute(state)}">`,
+    `<dt>${localizedEquipmentState(state)}</dt>`,
+    `<dd>${formatValue(totals.weightKg)} kg <small>${formatValue(totals.quantity)} un - carga ${formatValue(totals.loadWeightKg)} kg - $ ${formatValue(totals.cost)}</small></dd>`,
+    "</div>",
   ].join("");
 }
 

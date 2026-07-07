@@ -266,6 +266,11 @@ test("A6 mobile equipment containers survive save, remount and load with visible
   assert.match(firstRoot.innerHTML, /data-depth="1"/);
   assert.match(firstRoot.innerHTML, /<dt>Quantidade<\/dt><dd>3<\/dd>/);
   assert.match(firstRoot.innerHTML, /<dt>Peso<\/dt><dd>3.5 kg<\/dd>/);
+  assert.match(firstRoot.innerHTML, /<dt>Carga<\/dt><dd>3.5 kg<\/dd>/);
+  assert.match(firstRoot.innerHTML, /data-equipment-state-total="carried"/);
+  assert.match(firstRoot.innerHTML, /<dt>Carregado<\/dt><dd>0.5 kg <small>1 un - carga 0.5 kg - \$ 60<\/small><\/dd>/);
+  assert.match(firstRoot.innerHTML, /data-equipment-state-total="stored"/);
+  assert.match(firstRoot.innerHTML, /<dt>Guardado<\/dt><dd>3 kg <small>2 un - carga 3 kg - \$ 60<\/small><\/dd>/);
   assert.match(firstRoot.innerHTML, /Guardado/);
 
   await firstRoot.dispatch("click", click("persistence-save"));
@@ -298,5 +303,7 @@ test("A6 mobile equipment containers survive save, remount and load with visible
   assert.match(remountRoot.innerHTML, /Corda 15 m/);
   assert.match(remountRoot.innerHTML, /data-depth="1"/);
   assert.match(remountRoot.innerHTML, /<dt>Peso<\/dt><dd>3.5 kg<\/dd>/);
+  assert.match(remountRoot.innerHTML, /<dt>Carga<\/dt><dd>3.5 kg<\/dd>/);
+  assert.match(remountRoot.innerHTML, /<dt>Guardado<\/dt><dd>3 kg <small>2 un - carga 3 kg - \$ 60<\/small><\/dd>/);
   assert.match(remountRoot.innerHTML, /<dt>Custo<\/dt><dd>\$ 120<\/dd>/);
 });
