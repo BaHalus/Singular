@@ -60,8 +60,8 @@ function composedModel(overrides = {}) {
   }));
 }
 
-test("exposes the equipment-load mobile sheet HTML schema version", () => {
-  assert.equal(getCharacterMobileSheetHtmlSchemaVersion(), 13);
+test("exposes the table-mode status mobile sheet HTML schema version", () => {
+  assert.equal(getCharacterMobileSheetHtmlSchemaVersion(), 14);
 });
 
 test("renders creation controls only in creation mode", () => {
@@ -91,7 +91,7 @@ test("renders creation controls only in creation mode", () => {
   const creation = renderCharacterMobileSheetHtml(character, { mode: "creation" });
   const table = renderCharacterMobileSheetHtml(character, { mode: "table" });
 
-  assert.match(creation, /data-schema-version="13"/);
+  assert.match(creation, /data-schema-version="14"/);
   assert.match(creation, /data-role="character-summary-editor"/);
   assert.match(creation, /data-attribute-key="ST" data-attribute-adjust="-1"/);
   assert.match(creation, /data-role="attack-editor"/);
@@ -347,9 +347,18 @@ test("renders empty languages, attacks and equipment while keeping PV/PF control
 
 test("marks the active table mode and rejects unsupported modes", () => {
   const html = renderCharacterMobileSheetHtml(renderModel(), { mode: "table" });
+  assert.match(html, /data-role="mode-status" aria-live="polite">Modo Mesa<\/p>/);
   assert.match(html, /data-action="mode-table" data-status="pending" aria-pressed="true"/);
   assert.throws(
     () => renderCharacterMobileSheetHtml(renderModel(), { mode: "print" }),
     /mode is invalid/,
   );
+});
+
+test("marks creation mode as the active structural editing context", () => {
+  const html = renderCharacterMobileSheetHtml(renderModel(), { mode: "creation" });
+
+  assert.match(html, /data-role="mode-status" aria-live="polite">Modo Criação<\/p>/);
+  assert.match(html, /data-action="mode-creation" data-status="pending" aria-pressed="true"/);
+  assert.doesNotMatch(html, /data-action="mode-table" data-status="pending" aria-pressed="true"/);
 });

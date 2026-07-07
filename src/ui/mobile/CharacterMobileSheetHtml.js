@@ -2,7 +2,7 @@ import {
   serializeCharacterMobileSheetRenderModel,
 } from "./CharacterMobileSheetRenderModel.js";
 
-const HTML_SHELL_SCHEMA_VERSION = 13;
+const HTML_SHELL_SCHEMA_VERSION = 14;
 const EQUIPMENT_STATES = Object.freeze([
   "equipped",
   "carried",
@@ -45,9 +45,15 @@ function renderToolbar(toolbar, mode) {
   return [
     "<header class=\"singular-mobile-sheet__toolbar\">",
     `<h1 class="singular-mobile-sheet__title">${escapeText(toolbar.title)}</h1>`,
+    `<p class="singular-mobile-sheet__mode-status" data-role="mode-status" aria-live="polite">Modo ${localizedMode(mode)}</p>`,
     `<nav class="singular-mobile-sheet__actions" aria-label="Ações da ficha">${actions}</nav>`,
     "</header>",
   ].join("");
+}
+
+function localizedMode(mode) {
+  if (mode === "table") return "Mesa";
+  return "Criação";
 }
 
 function renderSummary(summary, mode) {

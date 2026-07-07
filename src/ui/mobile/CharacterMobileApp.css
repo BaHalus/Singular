@@ -38,6 +38,14 @@ html, body {
   z-index: 10;
 }
 
+.singular-mobile-sheet__mode-status {
+  margin: 0 0 0.5rem;
+  color: #d2dae3;
+  font-size: 0.9rem;
+  font-weight: 800;
+  line-height: 1.25;
+}
+
 .singular-mobile-sheet__actions,
 .singular-mobile-sheet__attribute-strip,
 .singular-mobile-sheet__pool-strip,
