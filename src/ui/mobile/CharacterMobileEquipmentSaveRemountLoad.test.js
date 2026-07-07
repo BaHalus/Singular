@@ -53,14 +53,21 @@ function rootFixture() {
   const attributes = new Map();
   const listeners = new Map();
   const inputValues = new Map();
+  let innerHtml = "";
   const documentRef = {
     createElement(tagName) {
       return createElement(tagName, documentRef);
     },
   };
-  const equipmentEditor = createEquipmentEditor(documentRef);
+  let equipmentEditor = createEquipmentEditor(documentRef);
   return {
-    innerHTML: "",
+    get innerHTML() {
+      return innerHtml;
+    },
+    set innerHTML(value) {
+      innerHtml = String(value);
+      equipmentEditor = createEquipmentEditor(documentRef);
+    },
     ownerDocument: documentRef,
     setAttribute(name, value) {
       attributes.set(name, value);
@@ -80,9 +87,12 @@ function rootFixture() {
     },
     querySelector(selector) {
       if (selector === '[data-role="equipment-editor"]') {
-        return this.innerHTML.includes('data-role="equipment-editor"')
+        return innerHtml.includes('data-role="equipment-editor"')
           ? equipmentEditor
           : null;
+      }
+      if (selector === '[data-role="equipment-container-id"]') {
+        return equipmentEditor.querySelector(selector);
       }
       if (inputValues.has(selector)) return { value: inputValues.get(selector) };
       return null;
@@ -118,22 +128,25 @@ function createEquipmentEditor(documentRef) {
   const button = createElement("button", documentRef);
   const editor = createElement("div", documentRef);
   button.parentElement = editor;
-  let selectorInjected = false;
+  button.setAttribute("data-action", "equipment-add");
+  editor.children.push(button);
   editor.ownerDocument = documentRef;
   editor.querySelector = selector => {
     if (selector === '[data-role="equipment-container-id"]') {
-      return selectorInjected ? {} : null;
+      return findElementByAttribute(editor, "data-role", "equipment-container-id");
     }
     if (selector === '[data-action="equipment-add"]') return button;
     return null;
   };
-  editor.insertBefore = child => {
+  editor.insertBefore = (child, before) => {
     child.parentElement = editor;
-    selectorInjected = true;
+    const index = editor.children.indexOf(before);
+    if (index === -1) editor.children.push(child);
+    else editor.children.splice(index, 0, child);
   };
   editor.append = child => {
     child.parentElement = editor;
-    selectorInjected = true;
+    editor.children.push(child);
   };
   return editor;
 }
@@ -160,6 +173,15 @@ function createElement(tagName, documentRef) {
   };
 }
 
+function findElementByAttribute(element, name, value) {
+  if (element.attributes?.get(name) === value) return element;
+  for (const child of element.children ?? []) {
+    const match = findElementByAttribute(child, name, value);
+    if (match !== null) return match;
+  }
+  return null;
+}
+
 function click(action) {
   return {
     target: {
@@ -178,7 +200,18 @@ function fillEquipment(root, input) {
   root.setInput('[data-role="equipment-cost"]', String(input.cost));
   root.setInput('[data-role="equipment-state"]', input.state);
   root.setInput('[data-role="equipment-notes"]', input.notes);
-  root.setInput('[data-role="equipment-container-id"]', input.containerId ?? "");
+}
+
+function assertContainerSelector(select, containerId) {
+  assert.notEqual(select, null);
+  assert.equal(select.tagName, "select");
+  assert.deepEqual(select.children.map(option => ({
+    value: option.value,
+    text: option.textContent,
+  })), [
+    { value: "", text: "Raiz do inventÃ¡rio" },
+    { value: containerId, text: "Mochila" },
+  ]);
 }
 
 test("A6 mobile equipment containers survive save, remount and load with visible totals", async () => {
@@ -207,6 +240,10 @@ test("A6 mobile equipment containers survive save, remount and load with visible
   await firstRoot.dispatch("click", click("equipment-add"));
 
   const containerId = mounted.character.equipment[0].id;
+  const containerSelect = firstRoot.querySelector('[data-role="equipment-container-id"]');
+  assertContainerSelector(containerSelect, containerId);
+  containerSelect.value = containerId;
+
   fillEquipment(firstRoot, {
     name: "Corda 15 m",
     kind: "item",
@@ -215,7 +252,6 @@ test("A6 mobile equipment containers survive save, remount and load with visible
     cost: 30,
     state: "stored",
     notes: "Guardada dentro da mochila",
-    containerId,
   });
   await firstRoot.dispatch("click", click("equipment-add"));
 
