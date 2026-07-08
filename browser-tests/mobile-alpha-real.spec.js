@@ -34,6 +34,42 @@ async function expectCanonicalItem(page, selector, text, count = 1) {
   await expect(items.filter({ hasText: text })).toHaveCount(1);
 }
 
+async function createBrowserCharacterExport(page) {
+  return page.evaluate(async () => {
+    const [{ createCharacter }, { createSingularCharacterExport }] = await Promise.all([
+      import("../../src/domain/character/Character.js"),
+      import("../../src/infrastructure/persistence/browser/BrowserLocalPersistence.js"),
+    ]);
+    return JSON.stringify(createSingularCharacterExport(createCharacter({
+      identity: {
+        id: "character:browser-smoke-pools",
+        name: "Personagem com PV/PF",
+        concept: "Seed de teste real",
+      },
+      pools: {
+        HP: { current: 10, maximum: 10 },
+        FP: { current: 10, maximum: 10 },
+      },
+      metadata: {
+        createdAt: "2026-07-08T12:00:00.000Z",
+        updatedAt: "2026-07-08T12:00:00.000Z",
+        source: "browser-smoke",
+      },
+    }), {
+      exportedAt: "2026-07-08T12:00:00.000Z",
+    }));
+  });
+}
+
+function parsePoolText(text) {
+  const match = String(text).match(/(-?\d+)\s*\/\s*(-?\d+)/);
+  expect(match).not.toBeNull();
+  return {
+    current: Number(match[1]),
+    maximum: Number(match[2]),
+  };
+}
+
 test("real mobile composition edits, persists, changes mode and remounts without duplication", async ({ page }) => {
   const browserErrors = [];
   page.on("pageerror", error => browserErrors.push(error.message));
@@ -52,6 +88,13 @@ test("real mobile composition edits, persists, changes mode and remounts without
   expect(initialState.mounted).toBe(true);
   expect(initialState.clickListeners).toBeGreaterThan(0);
   expect(initialState.lifecycleSize).toBeGreaterThan(0);
+
+  await page.locator('[data-role="persistence-import-json"]').fill(
+    await createBrowserCharacterExport(page),
+  );
+  await page.locator('[data-action="persistence-import"]').click();
+  await expect(page.locator('.singular-alpha-mobile__feedback')).toContainText("Personagem importado");
+  await expectCreationSurface(page);
 
   await page.locator('[data-role="character-name"]').fill("Alda Navegante");
   await page.locator('[data-role="character-concept"]').fill("Exploradora da Alpha");
@@ -98,14 +141,42 @@ test("real mobile composition edits, persists, changes mode and remounts without
 
   await page.locator('[data-action="mode-table"]').click();
   await expect(root).toHaveAttribute("data-mode", "table");
+  await expect(page.locator('[data-role="mode-status"]')).toContainText("Modo Mesa");
+  await expect(page.locator('[data-role="table-mode-guidance"]')).toContainText("estrutura da ficha está bloqueada");
+  await expect(page.locator('[data-role="character-name"]')).toHaveCount(0);
+  await expect(page.locator('[data-attribute-adjust]')).toHaveCount(0);
   for (const role of creationEditors) {
     await expect(page.locator(`[data-role="${role}"]`)).toHaveCount(0);
   }
   await expectCharacterName(page, "Alda Navegante");
 
+  const tablePoolAdjusters = page.locator('[data-pool-adjust]');
+  expect(await tablePoolAdjusters.count()).toBeGreaterThan(0);
+  const transientPool = page
+    .locator('.singular-mobile-sheet__pool')
+    .filter({ hasText: /PV|PF/ })
+    .filter({ has: page.locator('[data-pool-adjust="-1"]') })
+    .first();
+  await expect(transientPool).toHaveCount(1);
+  const decrement = transientPool.locator('[data-pool-adjust="-1"]');
+  await expect(decrement).toBeEnabled();
+  const beforePool = parsePoolText(await transientPool.locator("dd").textContent());
+  expect(beforePool.current).toBeGreaterThan(0);
+  const beforePoolState = await readHarnessState(page);
+  await decrement.click();
+  await expect.poll(async () => {
+    const pool = parsePoolText(await transientPool.locator("dd").textContent());
+    const state = await readHarnessState(page);
+    return `${pool.current}/${pool.maximum}/${state.revision}`;
+  }).toBe(`${beforePool.current - 1}/${beforePool.maximum}/${beforePoolState.revision + 1}`);
+
   await page.locator('[data-action="mode-creation"]').click();
   await expect(root).toHaveAttribute("data-mode", "creation");
+  await expect(page.locator('[data-role="mode-status"]')).toContainText("Modo Criação");
+  await expect(page.locator('[data-role="table-mode-guidance"]')).toHaveCount(0);
   await expectCreationSurface(page);
+  await expect(page.locator('[data-role="character-name"]')).toHaveValue("Alda Navegante");
+  expect(await page.locator('[data-attribute-adjust]').count()).toBeGreaterThan(0);
 
   const beforeDestroy = await readHarnessState(page);
   expect(beforeDestroy.clickListeners).toBe(initialState.clickListeners);

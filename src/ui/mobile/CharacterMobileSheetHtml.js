@@ -59,10 +59,19 @@ function localizedMode(mode) {
 function renderSummary(summary, mode) {
   return [
     "<section class=\"singular-mobile-sheet__summary\" aria-label=\"Resumo\">",
+    mode === "table" ? renderTableModeGuidance() : "",
     renderIdentitySummary(summary.identity),
     renderAttributeStrip(summary.attributes, mode),
     renderPoolStrip(summary.pools),
     "</section>",
+  ].join("");
+}
+
+function renderTableModeGuidance() {
+  return [
+    '<p class="singular-mobile-sheet__table-mode-guidance" data-role="table-mode-guidance">',
+    "Modo Mesa: a estrutura da ficha está bloqueada; PV e PF atuais continuam editáveis.",
+    "</p>",
   ].join("");
 }
 
