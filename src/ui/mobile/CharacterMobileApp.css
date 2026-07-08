@@ -64,6 +64,9 @@ html, body {
 .singular-mobile-sheet__sections,
 .singular-mobile-sheet__summary-editor,
 .singular-mobile-sheet__attack-editor,
+.singular-mobile-sheet__equipment-editor,
+.singular-mobile-sheet__spell-editor,
+.singular-mobile-sheet__power-editor,
 .singular-mobile-sheet__trait-editor,
 .singular-mobile-sheet__skill-editor,
 .singular-mobile-sheet__technique-editor,
@@ -106,6 +109,14 @@ html, body {
 .singular-mobile-sheet__attack-editor input,
 .singular-mobile-sheet__attack-editor select,
 .singular-mobile-sheet__attack-editor button,
+.singular-mobile-sheet__equipment-editor input,
+.singular-mobile-sheet__equipment-editor select,
+.singular-mobile-sheet__equipment-editor button,
+.singular-mobile-sheet__spell-editor input,
+.singular-mobile-sheet__spell-editor select,
+.singular-mobile-sheet__spell-editor button,
+.singular-mobile-sheet__power-editor input,
+.singular-mobile-sheet__power-editor button,
 .singular-mobile-sheet__trait-editor input,
 .singular-mobile-sheet__trait-editor select,
 .singular-mobile-sheet__trait-editor button,
@@ -144,6 +155,9 @@ html, body {
 .singular-mobile-sheet__action,
 .singular-mobile-sheet__summary-editor button,
 .singular-mobile-sheet__attack-editor button,
+.singular-mobile-sheet__equipment-editor button,
+.singular-mobile-sheet__spell-editor button,
+.singular-mobile-sheet__power-editor button,
 .singular-mobile-sheet__trait-editor button,
 .singular-mobile-sheet__skill-editor button,
 .singular-mobile-sheet__technique-editor button,
@@ -196,6 +210,9 @@ html, body {
 
 .singular-mobile-sheet__summary-editor,
 .singular-mobile-sheet__attack-editor,
+.singular-mobile-sheet__equipment-editor,
+.singular-mobile-sheet__spell-editor,
+.singular-mobile-sheet__power-editor,
 .singular-mobile-sheet__trait-editor,
 .singular-mobile-sheet__skill-editor,
 .singular-mobile-sheet__technique-editor,
@@ -209,6 +226,9 @@ html, body {
 
 .singular-mobile-sheet__summary-editor label,
 .singular-mobile-sheet__attack-editor label,
+.singular-mobile-sheet__equipment-editor label,
+.singular-mobile-sheet__spell-editor label,
+.singular-mobile-sheet__power-editor label,
 .singular-mobile-sheet__trait-editor label,
 .singular-mobile-sheet__skill-editor label,
 .singular-mobile-sheet__technique-editor label,
@@ -226,6 +246,11 @@ html, body {
 .singular-mobile-sheet__summary-editor input,
 .singular-mobile-sheet__attack-editor input,
 .singular-mobile-sheet__attack-editor select,
+.singular-mobile-sheet__equipment-editor input,
+.singular-mobile-sheet__equipment-editor select,
+.singular-mobile-sheet__spell-editor input,
+.singular-mobile-sheet__spell-editor select,
+.singular-mobile-sheet__power-editor input,
 .singular-mobile-sheet__trait-editor input,
 .singular-mobile-sheet__trait-editor select,
 .singular-mobile-sheet__skill-editor input,
@@ -243,6 +268,9 @@ html, body {
 
 .singular-mobile-sheet__secondary-actions,
 .singular-mobile-sheet__attack-actions,
+.singular-mobile-sheet__equipment-actions,
+.singular-mobile-sheet__spell-actions,
+.singular-mobile-sheet__power-actions,
 .singular-mobile-sheet__trait-actions,
 .singular-mobile-sheet__skill-actions,
 .singular-mobile-sheet__technique-actions,
@@ -255,6 +283,9 @@ html, body {
 
 .singular-mobile-sheet__secondary-actions button,
 .singular-mobile-sheet__attack-actions button,
+.singular-mobile-sheet__equipment-actions button,
+.singular-mobile-sheet__spell-actions button,
+.singular-mobile-sheet__power-actions button,
 .singular-mobile-sheet__trait-actions button,
 .singular-mobile-sheet__skill-actions button,
 .singular-mobile-sheet__technique-actions button,
@@ -272,6 +303,7 @@ html, body {
 
 .singular-mobile-sheet__languages-culture-list,
 .singular-mobile-sheet__equipment-totals,
+.singular-mobile-sheet__equipment-state-totals,
 .singular-mobile-sheet__equipment-list,
 .singular-mobile-sheet__attack-list,
 .singular-mobile-sheet__trait-list,
@@ -311,7 +343,13 @@ html, body {
   margin-bottom: 0.5rem;
 }
 
+.singular-mobile-sheet__equipment-state-totals {
+  grid-template-columns: minmax(0, 1fr);
+  margin-bottom: 0.5rem;
+}
+
 .singular-mobile-sheet__equipment-totals > div,
+.singular-mobile-sheet__equipment-state-totals > div,
 .singular-mobile-sheet__equipment-list > div[data-depth="1"] {
   background: #1b2531;
 }
@@ -404,6 +442,9 @@ html, body {
 
 [data-mode="table"] .singular-mobile-sheet__summary-editor,
 [data-mode="table"] .singular-mobile-sheet__attack-editor,
+[data-mode="table"] .singular-mobile-sheet__equipment-editor,
+[data-mode="table"] .singular-mobile-sheet__spell-editor,
+[data-mode="table"] .singular-mobile-sheet__power-editor,
 .singular-mobile-sheet__summary-editor[aria-hidden="true"] {
   display: none;
 }
@@ -468,6 +509,7 @@ html, body {
   .singular-mobile-sheet__attribute-strip,
   .singular-mobile-sheet__pool-strip,
   .singular-mobile-sheet__equipment-totals,
+  .singular-mobile-sheet__equipment-state-totals,
   .singular-mobile-sheet__card[data-card="secondary-characteristics"] dl {
     grid-template-columns: minmax(0, 1fr);
   }
@@ -479,6 +521,9 @@ html, body {
   }
 
   .singular-mobile-sheet__attack-editor,
+  .singular-mobile-sheet__equipment-editor,
+  .singular-mobile-sheet__spell-editor,
+  .singular-mobile-sheet__power-editor,
   .singular-mobile-sheet__trait-editor,
   .singular-mobile-sheet__skill-editor,
   .singular-mobile-sheet__technique-editor,
@@ -490,6 +535,9 @@ html, body {
   }
 
   .singular-mobile-sheet__attack-editor > button,
+  .singular-mobile-sheet__equipment-editor > button,
+  .singular-mobile-sheet__spell-editor > button,
+  .singular-mobile-sheet__power-editor > button,
   .singular-mobile-sheet__trait-editor > button,
   .singular-mobile-sheet__skill-editor > button,
   .singular-mobile-sheet__technique-editor > button,

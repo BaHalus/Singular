@@ -49,7 +49,26 @@ test("touch target stylesheet hardens existing mobile actions without adding str
   assert.match(css, /min-width:\s*2\.75rem/);
   assert.match(css, /touch-action:\s*manipulation/);
   assert.match(css, /\.singular-mobile-sheet__section-collapse-toggle/);
+  assert.match(css, /\.singular-mobile-sheet__equipment-actions/);
+  assert.match(css, /\.singular-mobile-sheet__spell-actions/);
+  assert.match(css, /\.singular-mobile-sheet__power-actions/);
   assert.doesNotMatch(css, /data-action/);
+  assert.doesNotMatch(css, /CommandExecutor|CommandRegistry|ApplicationSession|createCharacter/);
+});
+
+test("canonical mobile stylesheet lays out visible equipment, spell and power controls", () => {
+  const css = readFileSync("src/ui/mobile/CharacterMobileApp.css", "utf8");
+
+  assert.match(css, /\.singular-mobile-sheet__equipment-editor/);
+  assert.match(css, /\.singular-mobile-sheet__spell-editor/);
+  assert.match(css, /\.singular-mobile-sheet__power-editor/);
+  assert.match(css, /\.singular-mobile-sheet__equipment-state-totals/);
+  assert.match(css, /\.singular-mobile-sheet__equipment-actions button/);
+  assert.match(css, /\.singular-mobile-sheet__spell-actions button/);
+  assert.match(css, /\.singular-mobile-sheet__power-actions button/);
+  assert.match(css, /\[data-mode="table"\] \.singular-mobile-sheet__equipment-editor/);
+  assert.match(css, /\[data-mode="table"\] \.singular-mobile-sheet__spell-editor/);
+  assert.match(css, /\[data-mode="table"\] \.singular-mobile-sheet__power-editor/);
   assert.doesNotMatch(css, /CommandExecutor|CommandRegistry|ApplicationSession|createCharacter/);
 });
 
