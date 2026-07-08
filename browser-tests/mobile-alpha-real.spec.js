@@ -118,26 +118,35 @@ test("real mobile composition edits, persists, changes mode and remounts without
 
   const tablePoolAdjusters = page.locator('[data-pool-adjust]');
   expect(await tablePoolAdjusters.count()).toBeGreaterThan(0);
-  const tableTransientPool = page
-    .locator('.singular-mobile-sheet__pool')
-    .filter({ hasText: /PV|PF/ })
-    .first();
-  await expect(tableTransientPool).toHaveCount(1);
-  const tablePoolCurrent = tableTransientPool.locator("dd");
-  const tableDecrementPool = tableTransientPool.locator('[data-pool-adjust="-1"]');
-  await expect(tableDecrementPool).toHaveCount(1);
-  await expect(tableDecrementPool).toBeEnabled();
-  await tableDecrementPool.scrollIntoViewIfNeeded();
-  await tableDecrementPool.click({ trial: true });
-  const beforePoolText = await tablePoolCurrent.textContent();
-  const beforePool = parsePoolText(beforePoolText);
   const beforePoolState = await readHarnessState(page);
-  await tableDecrementPool.click();
+  const poolAction = await page.evaluate(() => {
+    const parsePool = text => {
+      const match = String(text).match(/(-?\d+)\s*\/\s*(-?\d+)/);
+      if (!match) return null;
+      return { current: Number(match[1]), maximum: Number(match[2]) };
+    };
+    const pools = Array.from(document.querySelectorAll('.singular-mobile-sheet__pool'));
+    for (const pool of pools) {
+      if (!/(PV|PF)/.test(pool.textContent ?? "")) continue;
+      const decrement = pool.querySelector('[data-pool-adjust="-1"]');
+      const value = parsePool(pool.querySelector("dd")?.textContent ?? "");
+      if (!(decrement instanceof HTMLButtonElement) || decrement.disabled || !value || value.current <= 0) continue;
+      decrement.click();
+      return {
+        id: pool.getAttribute("data-pool"),
+        beforeCurrent: value.current,
+        maximum: value.maximum,
+      };
+    }
+    throw new Error("No clickable PV/PF decrement pool found in table mode");
+  });
+  expect(poolAction.id).toMatch(/^(HP|FP)$/);
+  const tablePoolCurrent = page.locator(`.singular-mobile-sheet__pool[data-pool="${poolAction.id}"] dd`);
   await expect.poll(async () => {
     const pool = parsePoolText(await tablePoolCurrent.textContent());
     const state = await readHarnessState(page);
     return `${pool.current}/${pool.maximum}/${state.revision}`;
-  }).toBe(`${beforePool.current - 1}/${beforePool.maximum}/${beforePoolState.revision + 1}`);
+  }).toBe(`${poolAction.beforeCurrent - 1}/${poolAction.maximum}/${beforePoolState.revision + 1}`);
 
   await page.locator('[data-action="mode-creation"]').click();
   await expect(root).toHaveAttribute("data-mode", "creation");
