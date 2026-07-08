@@ -143,7 +143,7 @@ test("real mobile composition edits, persists, changes mode and remounts without
   const remountedState = await page.evaluate(() => globalThis.__SINGULAR_ALPHA_HARNESS__.mount());
   expect(remountedState.mounted).toBe(true);
   expect(remountedState.clickListeners).toBe(initialState.clickListeners);
-  expect(remountedState.revision).toBe(beforeDestroy.revision);
+  expect(remountedState.revision).toBe(beforeSave.revision);
 
   await expectCreationSurface(page);
   await expectCharacterName(page, "Alda Navegante");
