@@ -33,6 +33,7 @@
 .singular-mobile-sheet__actions,
 .singular-mobile-sheet__attack-actions,
 .singular-mobile-sheet__equipment-actions,
+.singular-mobile-sheet__spell-actions,
 .singular-mobile-sheet__power-actions,
 .singular-mobile-sheet__trait-actions,
 .singular-mobile-sheet__skill-actions,
@@ -42,6 +43,7 @@
 }
 
 .singular-mobile-sheet__equipment-actions,
+.singular-mobile-sheet__spell-actions,
 .singular-mobile-sheet__power-actions {
   display: flex;
   flex-wrap: wrap;
@@ -49,6 +51,7 @@
 }
 
 .singular-mobile-sheet__equipment-actions button,
+.singular-mobile-sheet__spell-actions button,
 .singular-mobile-sheet__power-actions button {
   flex: 1 1 auto;
 }

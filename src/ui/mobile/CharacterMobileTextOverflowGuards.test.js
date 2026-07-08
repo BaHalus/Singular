@@ -81,6 +81,8 @@ test("text-overflow guards are presentation-only and avoid truncation primitives
   assert.match(css, /\.singular-mobile-sheet dt/);
   assert.match(css, /\.singular-mobile-sheet dd/);
   assert.match(css, /\.singular-mobile-sheet__section-collapse-toggle/);
+  assert.match(css, /\.singular-mobile-sheet__equipment-state-totals/);
+  assert.match(css, /\.singular-mobile-sheet__spell-actions button/);
   assert.match(css, /overflow-wrap:\s*anywhere/);
   assert.match(css, /white-space:\s*normal/);
   assert.match(css, /min-width:\s*0/);
