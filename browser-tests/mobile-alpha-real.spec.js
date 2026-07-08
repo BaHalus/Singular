@@ -96,13 +96,8 @@ test("real mobile composition edits, persists, changes mode and remounts without
   await expect(page.locator('.singular-alpha-mobile__feedback')).toContainText("Sessão salva");
   await expect(page.locator('.singular-alpha-mobile__save-list li')).toHaveCount(1);
 
-  const hpCurrent = page.locator('[data-pool="HP"] dd');
-  const incrementHp = page.locator('[data-pool-key="HP"][data-pool-adjust="1"]');
-  const decrementHp = page.locator('[data-pool-key="HP"][data-pool-adjust="-1"]');
-  await expect(incrementHp).toHaveCount(1);
-  await expect(decrementHp).toHaveCount(1);
-  await expect(decrementHp).toBeEnabled();
-  await incrementHp.click();
+  await expect(page.locator('[data-pool-key="HP"][data-pool-adjust="1"]')).toHaveCount(1);
+  await page.locator('[data-pool-key="HP"][data-pool-adjust="1"]').click();
   await expect(root).toHaveAttribute("data-last-command-status", /^(applied|no-op)$/);
 
   await page.locator('[data-action="mode-table"]').click();
@@ -116,13 +111,19 @@ test("real mobile composition edits, persists, changes mode and remounts without
   }
   await expectCharacterName(page, "Alda Navegante");
 
-  const beforePoolText = await hpCurrent.textContent();
+  const tablePoolAdjusters = page.locator('[data-pool-adjust]');
+  await expect(tablePoolAdjusters).not.toHaveCount(0);
+  const tableHpCurrent = page.locator('[data-pool="HP"] dd');
+  const tableDecrementHp = page.locator('[data-pool-key="HP"][data-pool-adjust="-1"]');
+  await expect(tableDecrementHp).toHaveCount(1);
+  await expect(tableDecrementHp).toBeEnabled();
+  await tableDecrementHp.scrollIntoViewIfNeeded();
+  const beforePoolText = await tableHpCurrent.textContent();
   const beforePoolState = await readHarnessState(page);
-  await decrementHp.click();
+  await tableDecrementHp.click();
   await expect(root).toHaveAttribute("data-last-command-status", "applied");
-  await expect(hpCurrent).not.toHaveText(beforePoolText ?? "");
-  const afterPoolState = await readHarnessState(page);
-  expect(afterPoolState.revision).toBe(beforePoolState.revision + 1);
+  await expect(tableHpCurrent).not.toHaveText(beforePoolText ?? "");
+  await expect.poll(async () => (await readHarnessState(page)).revision).toBe(beforePoolState.revision + 1);
 
   await page.locator('[data-action="mode-creation"]').click();
   await expect(root).toHaveAttribute("data-mode", "creation");
