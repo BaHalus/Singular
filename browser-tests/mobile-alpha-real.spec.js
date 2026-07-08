@@ -118,21 +118,26 @@ test("real mobile composition edits, persists, changes mode and remounts without
 
   const tablePoolAdjusters = page.locator('[data-pool-adjust]');
   expect(await tablePoolAdjusters.count()).toBeGreaterThan(0);
-  const tableHpCurrent = page.locator('[data-pool="HP"] dd');
-  const tableDecrementHp = page.locator('[data-pool-key="HP"][data-pool-adjust="-1"]');
-  await expect(tableDecrementHp).toHaveCount(1);
-  await expect(tableDecrementHp).toBeEnabled();
-  await tableDecrementHp.scrollIntoViewIfNeeded();
-  const beforePoolText = await tableHpCurrent.textContent();
+  const tableTransientPool = page
+    .locator('.singular-mobile-sheet__pool')
+    .filter({ hasText: /PV|PF/ })
+    .first();
+  await expect(tableTransientPool).toHaveCount(1);
+  const tablePoolCurrent = tableTransientPool.locator("dd");
+  const tableDecrementPool = tableTransientPool.locator('[data-pool-adjust="-1"]');
+  await expect(tableDecrementPool).toHaveCount(1);
+  await expect(tableDecrementPool).toBeEnabled();
+  await tableDecrementPool.scrollIntoViewIfNeeded();
+  const beforePoolText = await tablePoolCurrent.textContent();
   const beforePool = parsePoolText(beforePoolText);
   const beforePoolState = await readHarnessState(page);
-  await tableDecrementHp.click();
+  await tableDecrementPool.click();
   await expect(root).toHaveAttribute("data-last-command-status", "applied");
-  await expect(tableHpCurrent).toHaveText(`${beforePool.current - 1} / ${beforePool.maximum}`);
   await expect.poll(async () => {
+    const pool = parsePoolText(await tablePoolCurrent.textContent());
     const state = await readHarnessState(page);
-    return state.revision;
-  }).toBe(beforePoolState.revision + 1);
+    return `${pool.current}/${pool.maximum}/${state.revision}`;
+  }).toBe(`${beforePool.current - 1}/${beforePool.maximum}/${beforePoolState.revision + 1}`);
 
   await page.locator('[data-action="mode-creation"]').click();
   await expect(root).toHaveAttribute("data-mode", "creation");
