@@ -9,7 +9,7 @@ const ACCEPTANCE_CHECKLIST = Object.freeze([
   "Criação and Mesa modes render through the canonical mobile renderer",
   "Mesa exposes transient controls and keeps structural editors absent",
   "section collapse affordances remain reachable",
-  "empty states remain visible",
+  "empty states remain visible and contextual by mode",
   "touch target and text overflow guard styles are loaded together",
   "the guard does not introduce UI rules, mutations, or parallel roots",
 ]);
@@ -82,12 +82,19 @@ function assertNoParallelUiInfrastructure(label, source) {
   }
 }
 
+function assertContextualEmptyState(html, messagePattern, context, hintPattern) {
+  assert.match(html, new RegExp(
+    `class="singular-mobile-sheet__empty" data-empty-context="${context}"[^>]*>${messagePattern}`,
+  ));
+  assert.match(html, hintPattern);
+}
+
 test("A7 smoke checklist is explicit and covers the integrated mobile/table affordances", () => {
   assert.deepEqual(ACCEPTANCE_CHECKLIST, [
     "Criação and Mesa modes render through the canonical mobile renderer",
     "Mesa exposes transient controls and keeps structural editors absent",
     "section collapse affordances remain reachable",
-    "empty states remain visible",
+    "empty states remain visible and contextual by mode",
     "touch target and text overflow guard styles are loaded together",
     "the guard does not introduce UI rules, mutations, or parallel roots",
   ]);
@@ -121,7 +128,10 @@ test("Mesa smoke keeps transient controls and section collapse reachable without
   assert.match(html, /aria-expanded="true" aria-label="Colapsar/);
   assert.match(html, /data-card="traits" data-status="empty" data-section-collapsible="true" data-collapsed="false"/);
   assert.match(html, /data-card="equipment" data-status="empty" data-section-collapsible="true" data-collapsed="true"/);
-  assert.match(html, /Nenhum traço declarado\.|Nenhum equipamento declarado\.|Nenhuma perícia ou técnica declarada\./);
+  assert.match(html, /data-empty-context="table"/);
+  assertContextualEmptyState(html, /Nenhum traço declarado\./.source, "table", /Volte ao modo Cria/);
+  assertContextualEmptyState(html, /Nenhuma perícia ou técnica declarada\./.source, "table", /perícias e técnicas/);
+  assertContextualEmptyState(html, /Nenhum idioma ou familiaridade cultural declarado\./.source, "table", /idiomas e culturas/);
   assertNoStructuralEditorsInTableMode(html);
 });
 
@@ -144,8 +154,10 @@ test("Criação smoke keeps existing sections, empty states, and structural edit
   assert.match(html, /data-action="trait-add"/);
   assert.match(html, /data-action="skill-add"/);
   assert.match(html, /data-action="technique-add"/);
-  assert.match(html, /Nenhum traço declarado\./);
-  assert.match(html, /Nenhuma perícia ou técnica declarada\./);
+  assert.match(html, /data-empty-context="creation"/);
+  assertContextualEmptyState(html, /Nenhum traço declarado\./.source, "creation", /Use o formul/);
+  assertContextualEmptyState(html, /Nenhuma perícia ou técnica declarada\./.source, "creation", /formulários acima/);
+  assertContextualEmptyState(html, /Nenhum idioma ou familiaridade cultural declarado\./.source, "creation", /controles de Cria/);
 });
 
 test("A7 smoke guard remains presentation/orchestration-only", async () => {
@@ -160,4 +172,26 @@ test("A7 smoke guard remains presentation/orchestration-only", async () => {
   assert.doesNotMatch(overflowGuardCss, /text-overflow\s*:\s*ellipsis|white-space\s*:\s*nowrap/);
   assertNoParallelUiInfrastructure("touch target guard CSS", touchTargetCss);
   assertNoParallelUiInfrastructure("text overflow guard CSS", overflowGuardCss);
+});
+
+test("A7 final manual checklist records mobile acceptance without changing stage status", async () => {
+  const checklist = await readFile(
+    new URL("../Docs/alpha/A7_FINAL_MOBILE_ACCEPTANCE_CHECKLIST.md", import.meta.url),
+    "utf8",
+  );
+
+  for (const required of [
+    "cabecalho rapido",
+    "overflow horizontal critico",
+    "Modo Criacao",
+    "Modo Mesa",
+    "PV e PF atuais",
+    "Secoes colapsaveis",
+    "Salvar, desmontar/remontar e carregar",
+    "nao altera o status das etapas A1-A8",
+  ]) {
+    assert.match(checklist, new RegExp(required));
+  }
+
+  assertNoParallelUiInfrastructure("A7 manual checklist", checklist);
 });

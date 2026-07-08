@@ -152,7 +152,7 @@ function renderCard(card, mode) {
   if (card.id === "identity" && mode === "creation") {
     body = renderCharacterSummaryEditor(card);
   } else if (card.id === "languages-culture") {
-    body = renderLanguagesCultureCard(card);
+    body = renderLanguagesCultureCard(card, mode);
   } else if (card.id === "attacks") {
     body = renderAttacksCard(card, mode);
   } else if (card.id === "equipment") {
@@ -162,7 +162,7 @@ function renderCard(card, mode) {
   } else if (card.id === "powers") {
     body = renderPowersCard(card, mode);
   } else {
-    body = renderCardBody(card);
+    body = renderCardBody(card, mode);
   }
 
   return [
@@ -173,16 +173,30 @@ function renderCard(card, mode) {
   ].join("");
 }
 
-function renderCardBody(card) {
+function renderCardBody(card, mode) {
   if (card.items.length === 0) {
-    return "<p class=\"singular-mobile-sheet__empty\">Nenhum item declarado.</p>";
+    return renderEmptyState(
+      "Nenhum item declarado.",
+      mode,
+      {
+        creation: "Use os controles de Criação desta seção quando estiverem disponíveis.",
+        table: "Volte ao modo Criação para cadastrar itens permanentes.",
+      },
+    );
   }
   return ["<dl>", card.items.map(renderCardItem).join(""), "</dl>"].join("");
 }
 
-function renderLanguagesCultureCard(card) {
+function renderLanguagesCultureCard(card, mode) {
   if (card.items.length === 0) {
-    return "<p class=\"singular-mobile-sheet__empty\">Nenhum idioma ou familiaridade cultural declarado.</p>";
+    return renderEmptyState(
+      "Nenhum idioma ou familiaridade cultural declarado.",
+      mode,
+      {
+        creation: "Use os controles de Criação desta seção para declarar idiomas e culturas.",
+        table: "Volte ao modo Criação para cadastrar idiomas e culturas.",
+      },
+    );
   }
   return [
     '<dl class="singular-mobile-sheet__languages-culture-list">',
@@ -203,7 +217,14 @@ function renderLanguageCultureItem(item) {
 function renderAttacksCard(card, mode) {
   const editor = mode === "creation" ? renderAttackEditor() : "";
   const list = card.items.length === 0
-    ? "<p class=\"singular-mobile-sheet__empty\">Nenhum ataque declarado.</p>"
+    ? renderEmptyState(
+      "Nenhum ataque declarado.",
+      mode,
+      {
+        creation: "Use o formulário acima para adicionar um ataque.",
+        table: "Volte ao modo Criação para cadastrar ataques antes da sessão.",
+      },
+    )
     : [
       '<dl class="singular-mobile-sheet__attack-list">',
       card.items
@@ -262,7 +283,14 @@ function renderAttackControls(item, index, total) {
 function renderSpellsCard(card, mode) {
   const editor = mode === "creation" ? renderSpellEditor() : "";
   const list = card.items.length === 0
-    ? "<p class=\"singular-mobile-sheet__empty\">Nenhuma magia declarada.</p>"
+    ? renderEmptyState(
+      "Nenhuma magia declarada.",
+      mode,
+      {
+        creation: "Use o formulário acima para adicionar uma magia.",
+        table: "Volte ao modo Criação para cadastrar magias.",
+      },
+    )
     : [
       '<dl class="singular-mobile-sheet__spell-list">',
       card.items
@@ -323,7 +351,14 @@ function renderSpellControls(item, index, total) {
 function renderPowersCard(card, mode) {
   const editor = mode === "creation" ? renderPowerEditor() : "";
   const list = card.items.length === 0
-    ? "<p class=\"singular-mobile-sheet__empty\">Nenhum poder declarado.</p>"
+    ? renderEmptyState(
+      "Nenhum poder declarado.",
+      mode,
+      {
+        creation: "Use o formulário acima para adicionar um poder.",
+        table: "Volte ao modo Criação para cadastrar poderes.",
+      },
+    )
     : [
       '<dl class="singular-mobile-sheet__power-list">',
       card.items.map(item => renderPowerItem(item, mode)).join(""),
@@ -375,7 +410,14 @@ function renderEquipmentCard(card, mode) {
   const editor = mode === "creation" ? renderEquipmentEditor() : "";
   const siblingOrder = createEquipmentSiblingOrder(card.items);
   const list = card.items.length === 0
-    ? "<p class=\"singular-mobile-sheet__empty\">Nenhum equipamento declarado.</p>"
+    ? renderEmptyState(
+      "Nenhum equipamento declarado.",
+      mode,
+      {
+        creation: "Use o formulário acima para adicionar equipamento.",
+        table: "Volte ao modo Criação para cadastrar equipamento; PV/PF seguem operáveis em Mesa.",
+      },
+    )
     : [
       '<dl class="singular-mobile-sheet__equipment-list">',
       card.items
@@ -499,6 +541,16 @@ function renderCharacterSummaryEditor(card) {
     readOnlyItems.length === 0
       ? ""
       : ["<dl>", readOnlyItems.map(renderCardItem).join(""), "</dl>"].join(""),
+  ].join("");
+}
+
+function renderEmptyState(message, mode, hints) {
+  const hint = hints[mode] ?? "";
+  return [
+    `<p class="singular-mobile-sheet__empty" data-empty-context="${escapeAttribute(mode)}">`,
+    escapeText(message),
+    hint ? ` <span>${escapeText(hint)}</span>` : "",
+    "</p>",
   ].join("");
 }
 
