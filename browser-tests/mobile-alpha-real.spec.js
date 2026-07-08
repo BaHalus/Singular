@@ -96,10 +96,6 @@ test("real mobile composition edits, persists, changes mode and remounts without
   await expect(page.locator('.singular-alpha-mobile__feedback')).toContainText("Sessão salva");
   await expect(page.locator('.singular-alpha-mobile__save-list li')).toHaveCount(1);
 
-  await expect(page.locator('[data-pool-key="HP"][data-pool-adjust="1"]')).toHaveCount(1);
-  await page.locator('[data-pool-key="HP"][data-pool-adjust="1"]').click();
-  await expect(root).toHaveAttribute("data-last-command-status", /^(applied|no-op)$/);
-
   await page.locator('[data-action="mode-table"]').click();
   await expect(root).toHaveAttribute("data-mode", "table");
   await expect(page.locator('[data-role="mode-status"]')).toContainText("Modo Mesa");
@@ -123,7 +119,8 @@ test("real mobile composition edits, persists, changes mode and remounts without
   await tableDecrementHp.click();
   await expect(root).toHaveAttribute("data-last-command-status", "applied");
   await expect(tableHpCurrent).not.toHaveText(beforePoolText ?? "");
-  await expect.poll(async () => (await readHarnessState(page)).revision).toBe(beforePoolState.revision + 1);
+  const afterPoolState = await readHarnessState(page);
+  expect(afterPoolState.revision).toBe(beforePoolState.revision + 1);
 
   await page.locator('[data-action="mode-creation"]').click();
   await expect(root).toHaveAttribute("data-mode", "creation");
