@@ -349,6 +349,10 @@ html, body {
   color: #b7c1cc;
 }
 
+.singular-mobile-sheet__card[data-section-collapsible="true"][data-collapsed="true"] > :not(h2) {
+  display: none;
+}
+
 .singular-mobile-sheet__card[data-status="declared-only"] h2::after,
 .singular-mobile-sheet__section-marker[data-status="declared-only"] h2::after {
   content: "declarado";
