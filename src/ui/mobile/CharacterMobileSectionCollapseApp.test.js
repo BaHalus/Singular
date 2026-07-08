@@ -1,11 +1,14 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 
 import { createCharacter } from "../../domain/character/Character.js";
 import {
   bootstrapCharacterMobileApp,
   injectMobileSectionCollapseControls,
 } from "./CharacterMobileApp.js";
+
+const mobileCss = readFileSync(new URL("./CharacterMobileApp.css", import.meta.url), "utf8");
 
 function character() {
   return createCharacter({
@@ -123,6 +126,24 @@ test("injects section collapse controls without enabling structural table editor
   assert.match(injected, /aria-expanded="false"/);
   assert.doesNotMatch(injected, /data-action="equipment-remove"/);
   assert.doesNotMatch(injected, /data-role="equipment-editor"/);
+});
+
+test("collapsed mobile sections hide their body without hiding the touch target", () => {
+  assert.match(
+    mobileCss,
+    /\.singular-mobile-sheet__card\[data-section-collapsible="true"\]\[data-collapsed="true"\] > :not\(h2\) \{\s*display: none;\s*\}/,
+  );
+
+  const injected = injectMobileSectionCollapseControls([
+    '<section class="singular-mobile-sheet__card" data-card="equipment" data-status="declared-only">',
+    "<h2>Equipamentos</h2>",
+    '<dl><div data-equipment-id="eq_mochila"><dt>Item</dt><dd>Mochila</dd></div></dl>',
+    "</section>",
+  ].join(""), { equipment: true });
+
+  assert.match(injected, /<h2>Equipamentos<button type="button" class="singular-mobile-sheet__section-collapse-toggle"/);
+  assert.match(injected, /data-collapsed="true"/);
+  assert.match(injected, /<dl><div data-equipment-id="eq_mochila"/);
 });
 
 test("table mode toggles section collapse state, preserves character state and restores after remount", async () => {
