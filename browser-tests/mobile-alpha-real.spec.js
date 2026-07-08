@@ -132,7 +132,7 @@ test("real mobile composition edits, persists, changes mode and remounts without
   const beforePoolText = await tablePoolCurrent.textContent();
   const beforePool = parsePoolText(beforePoolText);
   const beforePoolState = await readHarnessState(page);
-  await tableDecrementPool.evaluate(button => button.click());
+  await tableDecrementPool.click();
   await expect.poll(async () => {
     const pool = parsePoolText(await tablePoolCurrent.textContent());
     const state = await readHarnessState(page);
