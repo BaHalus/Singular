@@ -96,6 +96,15 @@ test("real mobile composition edits, persists, changes mode and remounts without
   await expect(page.locator('.singular-alpha-mobile__feedback')).toContainText("Sessão salva");
   await expect(page.locator('.singular-alpha-mobile__save-list li')).toHaveCount(1);
 
+  const hpCurrent = page.locator('[data-pool="HP"] dd');
+  const incrementHp = page.locator('[data-pool-key="HP"][data-pool-adjust="1"]');
+  const decrementHp = page.locator('[data-pool-key="HP"][data-pool-adjust="-1"]');
+  await expect(incrementHp).toHaveCount(1);
+  await expect(decrementHp).toHaveCount(1);
+  await expect(decrementHp).toBeEnabled();
+  await incrementHp.click();
+  await expect(root).toHaveAttribute("data-last-command-status", /^(applied|no-op)$/);
+
   await page.locator('[data-action="mode-table"]').click();
   await expect(root).toHaveAttribute("data-mode", "table");
   await expect(page.locator('[data-role="mode-status"]')).toContainText("Modo Mesa");
@@ -107,10 +116,6 @@ test("real mobile composition edits, persists, changes mode and remounts without
   }
   await expectCharacterName(page, "Alda Navegante");
 
-  const hpCurrent = page.locator('[data-pool="HP"] dd');
-  const decrementHp = page.locator('[data-pool-key="HP"][data-pool-adjust="-1"]');
-  await expect(decrementHp).toHaveCount(1);
-  await expect(decrementHp).toBeEnabled();
   const beforePoolText = await hpCurrent.textContent();
   const beforePoolState = await readHarnessState(page);
   await decrementHp.click();
