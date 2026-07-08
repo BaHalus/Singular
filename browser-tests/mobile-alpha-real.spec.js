@@ -34,6 +34,33 @@ async function expectCanonicalItem(page, selector, text, count = 1) {
   await expect(items.filter({ hasText: text })).toHaveCount(1);
 }
 
+async function createBrowserCharacterExport(page) {
+  return page.evaluate(async () => {
+    const [{ createCharacter }, { createSingularCharacterExport }] = await Promise.all([
+      import("../../src/domain/character/Character.js"),
+      import("../../src/infrastructure/persistence/browser/BrowserLocalPersistence.js"),
+    ]);
+    return JSON.stringify(createSingularCharacterExport(createCharacter({
+      identity: {
+        id: "character:browser-smoke-pools",
+        name: "Personagem com PV/PF",
+        concept: "Seed de teste real",
+      },
+      pools: {
+        HP: { current: 10, maximum: 10 },
+        FP: { current: 10, maximum: 10 },
+      },
+      metadata: {
+        createdAt: "2026-07-08T12:00:00.000Z",
+        updatedAt: "2026-07-08T12:00:00.000Z",
+        source: "browser-smoke",
+      },
+    }), {
+      exportedAt: "2026-07-08T12:00:00.000Z",
+    }));
+  });
+}
+
 function parsePoolText(text) {
   const match = String(text).match(/(-?\d+)\s*\/\s*(-?\d+)/);
   expect(match).not.toBeNull();
@@ -61,6 +88,13 @@ test("real mobile composition edits, persists, changes mode and remounts without
   expect(initialState.mounted).toBe(true);
   expect(initialState.clickListeners).toBeGreaterThan(0);
   expect(initialState.lifecycleSize).toBeGreaterThan(0);
+
+  await page.locator('[data-role="persistence-import-json"]').fill(
+    await createBrowserCharacterExport(page),
+  );
+  await page.locator('[data-action="persistence-import"]').click();
+  await expect(page.locator('.singular-alpha-mobile__feedback')).toContainText("Personagem importado");
+  await expectCreationSurface(page);
 
   await page.locator('[data-role="character-name"]').fill("Alda Navegante");
   await page.locator('[data-role="character-concept"]').fill("Exploradora da Alpha");
