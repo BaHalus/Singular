@@ -98,14 +98,34 @@ test("real mobile composition edits, persists, changes mode and remounts without
 
   await page.locator('[data-action="mode-table"]').click();
   await expect(root).toHaveAttribute("data-mode", "table");
+  await expect(page.locator('[data-role="mode-status"]')).toContainText("Modo Mesa");
+  await expect(page.locator('[data-role="table-mode-guidance"]')).toContainText("estrutura da ficha está bloqueada");
+  await expect(page.locator('[data-role="character-name"]')).toHaveCount(0);
+  await expect(page.locator('[data-attribute-adjust]')).toHaveCount(0);
   for (const role of creationEditors) {
     await expect(page.locator(`[data-role="${role}"]`)).toHaveCount(0);
   }
   await expectCharacterName(page, "Alda Navegante");
 
+  const hpCurrent = page.locator('[data-pool="HP"] dd');
+  const decrementHp = page.locator('[data-pool-key="HP"][data-pool-adjust="-1"]');
+  await expect(decrementHp).toHaveCount(1);
+  await expect(decrementHp).toBeEnabled();
+  const beforePoolText = await hpCurrent.textContent();
+  const beforePoolState = await readHarnessState(page);
+  await decrementHp.click();
+  await expect(root).toHaveAttribute("data-last-command-status", "applied");
+  await expect(hpCurrent).not.toHaveText(beforePoolText ?? "");
+  const afterPoolState = await readHarnessState(page);
+  expect(afterPoolState.revision).toBe(beforePoolState.revision + 1);
+
   await page.locator('[data-action="mode-creation"]').click();
   await expect(root).toHaveAttribute("data-mode", "creation");
+  await expect(page.locator('[data-role="mode-status"]')).toContainText("Modo Criação");
+  await expect(page.locator('[data-role="table-mode-guidance"]')).toHaveCount(0);
   await expectCreationSurface(page);
+  await expect(page.locator('[data-role="character-name"]')).toHaveValue("Alda Navegante");
+  await expect(page.locator('[data-attribute-adjust]')).not.toHaveCount(0);
 
   const beforeDestroy = await readHarnessState(page);
   expect(beforeDestroy.clickListeners).toBe(initialState.clickListeners);
@@ -118,7 +138,7 @@ test("real mobile composition edits, persists, changes mode and remounts without
   const remountedState = await page.evaluate(() => globalThis.__SINGULAR_ALPHA_HARNESS__.mount());
   expect(remountedState.mounted).toBe(true);
   expect(remountedState.clickListeners).toBe(initialState.clickListeners);
-  expect(remountedState.revision).toBe(beforeSave.revision);
+  expect(remountedState.revision).toBe(beforeDestroy.revision);
 
   await expectCreationSurface(page);
   await expectCharacterName(page, "Alda Navegante");
