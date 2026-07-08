@@ -46,6 +46,17 @@ html, body {
   line-height: 1.25;
 }
 
+.singular-mobile-sheet__table-mode-guidance {
+  border: 1px dashed #42546a;
+  border-radius: 0.65rem;
+  margin: 0;
+  padding: 0.65rem;
+  color: #d2dae3;
+  font-size: 0.9rem;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
 .singular-mobile-sheet__actions,
 .singular-mobile-sheet__attribute-strip,
 .singular-mobile-sheet__pool-strip,
