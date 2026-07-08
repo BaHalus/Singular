@@ -82,6 +82,13 @@ function assertNoParallelUiInfrastructure(label, source) {
   }
 }
 
+function assertContextualEmptyState(html, messagePattern, context, hintPattern) {
+  assert.match(html, new RegExp(
+    `class="singular-mobile-sheet__empty" data-empty-context="${context}"[^>]*>${messagePattern}`,
+  ));
+  assert.match(html, hintPattern);
+}
+
 test("A7 smoke checklist is explicit and covers the integrated mobile/table affordances", () => {
   assert.deepEqual(ACCEPTANCE_CHECKLIST, [
     "Criação and Mesa modes render through the canonical mobile renderer",
@@ -122,8 +129,9 @@ test("Mesa smoke keeps transient controls and section collapse reachable without
   assert.match(html, /data-card="traits" data-status="empty" data-section-collapsible="true" data-collapsed="false"/);
   assert.match(html, /data-card="equipment" data-status="empty" data-section-collapsible="true" data-collapsed="true"/);
   assert.match(html, /data-empty-context="table"/);
-  assert.match(html, /Volte ao modo Cria/);
-  assert.match(html, /Nenhum traço declarado\.|Nenhum equipamento declarado\.|Nenhuma perícia ou técnica declarada\./);
+  assertContextualEmptyState(html, /Nenhum traço declarado\./.source, "table", /Volte ao modo Cria/);
+  assertContextualEmptyState(html, /Nenhuma perícia ou técnica declarada\./.source, "table", /perícias e técnicas/);
+  assertContextualEmptyState(html, /Nenhum idioma ou familiaridade cultural declarado\./.source, "table", /idiomas e culturas/);
   assertNoStructuralEditorsInTableMode(html);
 });
 
@@ -147,9 +155,9 @@ test("Criação smoke keeps existing sections, empty states, and structural edit
   assert.match(html, /data-action="skill-add"/);
   assert.match(html, /data-action="technique-add"/);
   assert.match(html, /data-empty-context="creation"/);
-  assert.match(html, /Use o formul/);
-  assert.match(html, /Nenhum traço declarado\./);
-  assert.match(html, /Nenhuma perícia ou técnica declarada\./);
+  assertContextualEmptyState(html, /Nenhum traço declarado\./.source, "creation", /Use o formul/);
+  assertContextualEmptyState(html, /Nenhuma perícia ou técnica declarada\./.source, "creation", /formulários acima/);
+  assertContextualEmptyState(html, /Nenhum idioma ou familiaridade cultural declarado\./.source, "creation", /controles de Cria/);
 });
 
 test("A7 smoke guard remains presentation/orchestration-only", async () => {

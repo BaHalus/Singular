@@ -152,7 +152,7 @@ function renderCard(card, mode) {
   if (card.id === "identity" && mode === "creation") {
     body = renderCharacterSummaryEditor(card);
   } else if (card.id === "languages-culture") {
-    body = renderLanguagesCultureCard(card);
+    body = renderLanguagesCultureCard(card, mode);
   } else if (card.id === "attacks") {
     body = renderAttacksCard(card, mode);
   } else if (card.id === "equipment") {
@@ -187,9 +187,16 @@ function renderCardBody(card, mode) {
   return ["<dl>", card.items.map(renderCardItem).join(""), "</dl>"].join("");
 }
 
-function renderLanguagesCultureCard(card) {
+function renderLanguagesCultureCard(card, mode) {
   if (card.items.length === 0) {
-    return "<p class=\"singular-mobile-sheet__empty\">Nenhum idioma ou familiaridade cultural declarado.</p>";
+    return renderEmptyState(
+      "Nenhum idioma ou familiaridade cultural declarado.",
+      mode,
+      {
+        creation: "Use os controles de Criação desta seção para declarar idiomas e culturas.",
+        table: "Volte ao modo Criação para cadastrar idiomas e culturas.",
+      },
+    );
   }
   return [
     '<dl class="singular-mobile-sheet__languages-culture-list">',
