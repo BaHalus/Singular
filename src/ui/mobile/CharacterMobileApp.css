@@ -432,6 +432,14 @@ html, body {
   font-weight: 700;
 }
 
+.singular-mobile-sheet__empty span {
+  display: block;
+  margin-top: 0.25rem;
+  color: #d2dae3;
+  font-size: 0.9rem;
+  line-height: 1.35;
+}
+
 .singular-mobile-sheet__attack-list dd,
 .singular-mobile-sheet__trait-list dd,
 .singular-mobile-sheet__skill-technique-list dd,

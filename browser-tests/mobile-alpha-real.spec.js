@@ -34,6 +34,14 @@ async function expectCanonicalItem(page, selector, text, count = 1) {
   await expect(items.filter({ hasText: text })).toHaveCount(1);
 }
 
+async function expectNoCriticalHorizontalOverflow(page) {
+  const overflow = await page.evaluate(() => ({
+    body: document.body.scrollWidth,
+    viewport: document.documentElement.clientWidth,
+  }));
+  expect(overflow.body).toBeLessThanOrEqual(overflow.viewport + 1);
+}
+
 async function createBrowserCharacterExport(page) {
   return page.evaluate(async () => {
     const [{ createCharacter }, { createSingularCharacterExport }] = await Promise.all([
@@ -131,6 +139,7 @@ test("real mobile composition edits, persists, changes mode and remounts without
     '.singular-mobile-sheet__equipment-list > div[data-equipment-id]',
     "Mochila de teste",
   );
+  await expectNoCriticalHorizontalOverflow(page);
 
   const beforeSave = await readHarnessState(page);
   expect(beforeSave.revision).toBeGreaterThanOrEqual(4);
@@ -143,6 +152,7 @@ test("real mobile composition edits, persists, changes mode and remounts without
   await expect(root).toHaveAttribute("data-mode", "table");
   await expect(page.locator('[data-role="mode-status"]')).toContainText("Modo Mesa");
   await expect(page.locator('[data-role="table-mode-guidance"]')).toContainText("estrutura da ficha está bloqueada");
+  await expect(page.locator('[data-empty-context="table"]').filter({ hasText: "Volte ao modo" })).not.toHaveCount(0);
   await expect(page.locator('[data-role="character-name"]')).toHaveCount(0);
   await expect(page.locator('[data-attribute-adjust]')).toHaveCount(0);
   for (const role of creationEditors) {
@@ -174,6 +184,7 @@ test("real mobile composition edits, persists, changes mode and remounts without
   await expect(root).toHaveAttribute("data-mode", "creation");
   await expect(page.locator('[data-role="mode-status"]')).toContainText("Modo Criação");
   await expect(page.locator('[data-role="table-mode-guidance"]')).toHaveCount(0);
+  await expect(page.locator('[data-empty-context="creation"]').filter({ hasText: "Use o formul" })).not.toHaveCount(0);
   await expectCreationSurface(page);
   await expect(page.locator('[data-role="character-name"]')).toHaveValue("Alda Navegante");
   expect(await page.locator('[data-attribute-adjust]').count()).toBeGreaterThan(0);
@@ -241,5 +252,14 @@ test("production mobile entrypoint boots at a phone viewport", async ({ page }) 
   await expect(page.locator(".singular-mobile-sheet__boot-error")).toHaveCount(0);
   await expect(page.locator('[data-action="mode-creation"]')).toHaveCount(1);
   await expect(page.locator('[data-action="mode-table"]')).toHaveCount(1);
+  await expectNoCriticalHorizontalOverflow(page);
+
+  const firstCollapse = page.locator('[data-action="section-collapse-toggle"]').first();
+  await expect(firstCollapse).toBeVisible();
+  await expect(firstCollapse).toHaveAttribute("aria-expanded", "true");
+  await firstCollapse.click();
+  await expect(firstCollapse).toHaveAttribute("aria-expanded", "false");
+  await expect(page.locator(".singular-mobile-sheet__toolbar")).toBeVisible();
+  await expectNoCriticalHorizontalOverflow(page);
   expect(browserErrors).toEqual([]);
 });
