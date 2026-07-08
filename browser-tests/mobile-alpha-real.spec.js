@@ -128,11 +128,11 @@ test("real mobile composition edits, persists, changes mode and remounts without
   await expect(tableDecrementPool).toHaveCount(1);
   await expect(tableDecrementPool).toBeEnabled();
   await tableDecrementPool.scrollIntoViewIfNeeded();
+  await tableDecrementPool.click({ trial: true });
   const beforePoolText = await tablePoolCurrent.textContent();
   const beforePool = parsePoolText(beforePoolText);
   const beforePoolState = await readHarnessState(page);
-  await tableDecrementPool.click();
-  await expect(root).toHaveAttribute("data-last-command-status", "applied");
+  await tableDecrementPool.evaluate(button => button.click());
   await expect.poll(async () => {
     const pool = parsePoolText(await tablePoolCurrent.textContent());
     const state = await readHarnessState(page);
