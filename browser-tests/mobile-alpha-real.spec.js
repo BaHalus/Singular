@@ -1,3 +1,5 @@
+import { readFile } from "node:fs/promises";
+
 import { test, expect } from "@playwright/test";
 
 const creationEditors = [
@@ -103,6 +105,7 @@ test("real mobile composition edits, persists, changes mode and remounts without
   await page.locator('[data-action="persistence-import"]').click();
   await expect(page.locator('.singular-alpha-mobile__feedback')).toContainText("Personagem importado");
   await expectCreationSurface(page);
+  await expect(page.locator('[data-empty-context="creation"]').filter({ hasText: "Use o formul" })).not.toHaveCount(0);
 
   await page.locator('[data-role="character-name"]').fill("Alda Navegante");
   await page.locator('[data-role="character-concept"]').fill("Exploradora da Alpha");
@@ -120,6 +123,31 @@ test("real mobile composition edits, persists, changes mode and remounts without
     "Destemida",
   );
 
+  await page.locator('[data-role="skill-name"]').fill("Navegacao");
+  await page.locator('[data-role="skill-specialization"]').fill("Costeira");
+  await page.locator('[data-role="skill-attribute"]').selectOption("IQ");
+  await page.locator('[data-role="skill-difficulty"]').selectOption("A");
+  await page.locator('[data-role="skill-points"]').fill("2");
+  await page.locator('[data-action="skill-add"]').click();
+  await expectCanonicalItem(
+    page,
+    '.singular-mobile-sheet__skill-technique-list > div[data-skill-id]',
+    "Navegacao",
+  );
+
+  await page.locator('[data-role="technique-name"]').fill("Rota Segura");
+  await page.locator('[data-role="technique-skill-name"]').fill("Navegacao");
+  await page.locator('[data-role="technique-difficulty"]').selectOption("H");
+  await page.locator('[data-role="technique-points"]').fill("1");
+  await page.locator('[data-role="technique-default-penalty"]').fill("-2");
+  await page.locator('[data-role="technique-maximum-relative-level"]').fill("0");
+  await page.locator('[data-action="technique-add"]').click();
+  await expectCanonicalItem(
+    page,
+    '.singular-mobile-sheet__skill-technique-list > div[data-technique-id]',
+    "Rota Segura",
+  );
+
   await page.locator('[data-role="attack-name"]').fill("Machado de teste");
   await page.locator('[data-role="attack-damage-value"]').fill("1d+2");
   await page.locator('[data-role="attack-damage-type"]').fill("cut");
@@ -128,6 +156,31 @@ test("real mobile composition edits, persists, changes mode and remounts without
     page,
     '.singular-mobile-sheet__attack-list > div[data-attack-id]',
     "Machado de teste",
+  );
+
+  await page.locator('[data-role="spell-name"]').fill("Luz de Teste");
+  await page.locator('[data-role="spell-attribute"]').fill("IQ");
+  await page.locator('[data-role="spell-difficulty"]').fill("H");
+  await page.locator('[data-role="spell-points"]').fill("1");
+  await page.locator('[data-role="spell-class"]').fill("Regular");
+  await page.locator('[data-role="spell-casting-cost"]').fill("1");
+  await page.locator('[data-action="spell-add"]').click();
+  await expectCanonicalItem(
+    page,
+    '.singular-mobile-sheet__spell-list > div[data-spell-id]',
+    "Luz de Teste",
+  );
+
+  await page.locator('[data-role="power-name"]').fill("Sorte Alpha");
+  await page.locator('[data-role="power-source"]').fill("Teste");
+  await page.locator('[data-role="power-modifier-name"]').fill("Alpha");
+  await page.locator('[data-role="power-modifier-value-percent"]').fill("-10");
+  await page.locator('[data-role="power-tags"]').fill("alpha");
+  await page.locator('[data-action="power-add"]').click();
+  await expectCanonicalItem(
+    page,
+    '.singular-mobile-sheet__power-list > div[data-power-id]',
+    "Sorte Alpha",
   );
 
   await page.locator('[data-role="equipment-name"]').fill("Mochila de teste");
@@ -147,6 +200,15 @@ test("real mobile composition edits, persists, changes mode and remounts without
   await page.locator('[data-action="persistence-save"]').click();
   await expect(page.locator('.singular-alpha-mobile__feedback')).toContainText("Sessão salva");
   await expect(page.locator('.singular-alpha-mobile__save-list li')).toHaveCount(1);
+
+  const downloadPromise = page.waitForEvent("download");
+  await page.locator('[data-action="persistence-export"]').click();
+  const exportedDownload = await downloadPromise;
+  const exportedPath = await exportedDownload.path();
+  expect(exportedPath).not.toBeNull();
+  const exportedJson = await readFile(exportedPath, "utf8");
+  expect(exportedJson).toContain("Alda Navegante");
+  expect(exportedJson).toContain("Sorte Alpha");
 
   await page.locator('[data-action="mode-table"]').click();
   await expect(root).toHaveAttribute("data-mode", "table");
@@ -184,7 +246,6 @@ test("real mobile composition edits, persists, changes mode and remounts without
   await expect(root).toHaveAttribute("data-mode", "creation");
   await expect(page.locator('[data-role="mode-status"]')).toContainText("Modo Criação");
   await expect(page.locator('[data-role="table-mode-guidance"]')).toHaveCount(0);
-  await expect(page.locator('[data-empty-context="creation"]').filter({ hasText: "Use o formul" })).not.toHaveCount(0);
   await expectCreationSurface(page);
   await expect(page.locator('[data-role="character-name"]')).toHaveValue("Alda Navegante");
   expect(await page.locator('[data-attribute-adjust]').count()).toBeGreaterThan(0);
@@ -234,6 +295,61 @@ test("real mobile composition edits, persists, changes mode and remounts without
   const afterSingleAction = await readHarnessState(page);
   expect(afterSingleAction.revision).toBe(remountedState.revision + 1);
   expect(afterSingleAction.clickListeners).toBe(initialState.clickListeners);
+
+  await expectCanonicalItem(
+    page,
+    '.singular-mobile-sheet__skill-technique-list > div[data-skill-id]',
+    "Navegacao",
+  );
+  await expectCanonicalItem(
+    page,
+    '.singular-mobile-sheet__skill-technique-list > div[data-technique-id]',
+    "Rota Segura",
+  );
+  await expectCanonicalItem(
+    page,
+    '.singular-mobile-sheet__spell-list > div[data-spell-id]',
+    "Luz de Teste",
+  );
+  await expectCanonicalItem(
+    page,
+    '.singular-mobile-sheet__power-list > div[data-power-id]',
+    "Sorte Alpha",
+  );
+
+  await page.locator('[data-role="persistence-import-json"]').fill(exportedJson);
+  await page.locator('[data-action="persistence-import"]').click();
+  await expect(page.locator('.singular-alpha-mobile__feedback')).toContainText("Personagem importado");
+  await expectCreationSurface(page);
+  await expectCharacterName(page, "Alda Navegante");
+  await expectCanonicalItem(
+    page,
+    '.singular-mobile-sheet__trait-list > div[data-trait-id]',
+    "Destemida",
+  );
+  await expect(
+    page.locator('.singular-mobile-sheet__trait-list > div[data-trait-id]').filter({ hasText: "Segundo traço" }),
+  ).toHaveCount(0);
+  await expectCanonicalItem(
+    page,
+    '.singular-mobile-sheet__skill-technique-list > div[data-skill-id]',
+    "Navegacao",
+  );
+  await expectCanonicalItem(
+    page,
+    '.singular-mobile-sheet__skill-technique-list > div[data-technique-id]',
+    "Rota Segura",
+  );
+  await expectCanonicalItem(
+    page,
+    '.singular-mobile-sheet__spell-list > div[data-spell-id]',
+    "Luz de Teste",
+  );
+  await expectCanonicalItem(
+    page,
+    '.singular-mobile-sheet__power-list > div[data-power-id]',
+    "Sorte Alpha",
+  );
 
   expect(browserErrors).toEqual([]);
 });
