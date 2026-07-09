@@ -3,6 +3,7 @@ import { mountCharacterMobileLanguageCultureApp } from "./CharacterMobileLanguag
 import { mountCharacterMobileSecondaryNotesApp } from "./CharacterMobileSecondaryNotesApp.js";
 import { mountCharacterMobileTraitEditApp } from "./CharacterMobileTraitEditApp.js";
 import { mountCharacterMobileSkillTechniqueEditApp } from "./CharacterMobileSkillTechniqueEditApp.js";
+import { mountCharacterMobileSkillTechniqueMechanicsProjection } from "./CharacterMobileSkillTechniqueMechanicsProjection.js";
 import { mountCharacterMobileLanguageCultureEditApp } from "./CharacterMobileLanguageCultureEditApp.js";
 import { mountCharacterMobileAttackEditApp } from "./CharacterMobileAttackEditApp.js";
 import { mountCharacterMobileEquipmentEditApp } from "./CharacterMobileEquipmentEditApp.js";
@@ -31,6 +32,11 @@ export const CHARACTER_MOBILE_COMPOSITION_MODULES = Object.freeze([
     name: "skill-technique-edit",
     destroyKey: "skillTechniqueEdit",
     mount: mountCharacterMobileSkillTechniqueEditApp,
+  }),
+  Object.freeze({
+    name: "skill-technique-mechanics-projection",
+    destroyKey: "skillTechniqueMechanicsProjection",
+    mount: mountCharacterMobileSkillTechniqueMechanicsProjection,
   }),
   Object.freeze({
     name: "language-culture-edit",
