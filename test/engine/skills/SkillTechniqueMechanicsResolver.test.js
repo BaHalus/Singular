@@ -38,6 +38,28 @@ describe("resolveSkillTechniqueMechanics", () => {
     });
   });
 
+  it("resolves mobile character attribute bases without UI formulas", () => {
+    const report = resolveSkillTechniqueMechanics({
+      attributes: {
+        IQ: { base: 10, override: null },
+      },
+      skills: [
+        {
+          id: "skill-navigation",
+          name: "Navegacao",
+          specialization: "Costeira",
+          attribute: "IQ",
+          difficulty: "A",
+          points: 2,
+        },
+      ],
+    });
+
+    assert.equal(report.skills[0].status, "resolved");
+    assert.equal(report.skills[0].level, 10);
+    assert.equal(report.skills[0].relativeLevel, 0);
+  });
+
   it("advances trained skills linearly after the four point threshold", () => {
     const report = resolveSkillTechniqueMechanics({
       attributes: {
