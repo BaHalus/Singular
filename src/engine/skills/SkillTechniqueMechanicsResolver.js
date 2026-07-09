@@ -12,7 +12,7 @@ export function resolveSkillTechniqueMechanics({
     secondaryCharacteristics,
   }));
   const skillById = new Map(skillResults.map(result => [result.id, result]));
-  const skillByName = new Map(skillResults.map(result => [skillLookupKey(result), result]));
+  const skillByName = new Map(skills.map((skill, index) => [skillLookupKey(skill), skillResults[index]]));
   const techniqueResults = techniques.map(technique => resolveTechniqueMechanics(technique, {
     skillById,
     skillByName,
