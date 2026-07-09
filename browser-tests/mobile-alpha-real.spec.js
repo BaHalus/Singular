@@ -105,6 +105,7 @@ test("real mobile composition edits, persists, changes mode and remounts without
   await page.locator('[data-action="persistence-import"]').click();
   await expect(page.locator('.singular-alpha-mobile__feedback')).toContainText("Personagem importado");
   await expectCreationSurface(page);
+  await expect(page.locator('[data-empty-context="creation"]').filter({ hasText: "Use o formul" })).not.toHaveCount(0);
 
   await page.locator('[data-role="character-name"]').fill("Alda Navegante");
   await page.locator('[data-role="character-concept"]').fill("Exploradora da Alpha");
@@ -245,7 +246,6 @@ test("real mobile composition edits, persists, changes mode and remounts without
   await expect(root).toHaveAttribute("data-mode", "creation");
   await expect(page.locator('[data-role="mode-status"]')).toContainText("Modo Criação");
   await expect(page.locator('[data-role="table-mode-guidance"]')).toHaveCount(0);
-  await expect(page.locator('[data-empty-context="creation"]').filter({ hasText: "Use o formul" })).not.toHaveCount(0);
   await expectCreationSurface(page);
   await expect(page.locator('[data-role="character-name"]')).toHaveValue("Alda Navegante");
   expect(await page.locator('[data-attribute-adjust]').count()).toBeGreaterThan(0);
@@ -292,6 +292,10 @@ test("real mobile composition edits, persists, changes mode and remounts without
     2,
   );
 
+  const afterSingleAction = await readHarnessState(page);
+  expect(afterSingleAction.revision).toBe(remountedState.revision + 1);
+  expect(afterSingleAction.clickListeners).toBe(initialState.clickListeners);
+
   await expectCanonicalItem(
     page,
     '.singular-mobile-sheet__skill-technique-list > div[data-skill-id]',
@@ -320,13 +324,32 @@ test("real mobile composition edits, persists, changes mode and remounts without
   await expectCharacterName(page, "Alda Navegante");
   await expectCanonicalItem(
     page,
+    '.singular-mobile-sheet__trait-list > div[data-trait-id]',
+    "Destemida",
+  );
+  await expect(
+    page.locator('.singular-mobile-sheet__trait-list > div[data-trait-id]').filter({ hasText: "Segundo traço" }),
+  ).toHaveCount(0);
+  await expectCanonicalItem(
+    page,
+    '.singular-mobile-sheet__skill-technique-list > div[data-skill-id]',
+    "Navegacao",
+  );
+  await expectCanonicalItem(
+    page,
+    '.singular-mobile-sheet__skill-technique-list > div[data-technique-id]',
+    "Rota Segura",
+  );
+  await expectCanonicalItem(
+    page,
+    '.singular-mobile-sheet__spell-list > div[data-spell-id]',
+    "Luz de Teste",
+  );
+  await expectCanonicalItem(
+    page,
     '.singular-mobile-sheet__power-list > div[data-power-id]',
     "Sorte Alpha",
   );
-
-  const afterSingleAction = await readHarnessState(page);
-  expect(afterSingleAction.revision).toBeGreaterThanOrEqual(remountedState.revision);
-  expect(afterSingleAction.clickListeners).toBe(initialState.clickListeners);
 
   expect(browserErrors).toEqual([]);
 });
