@@ -14,6 +14,7 @@ test("composition root declares only independent mount modules", () => {
       "secondary-notes",
       "trait-edit",
       "skill-technique-edit",
+      "skill-technique-mechanics-projection",
       "language-culture-edit",
       "attack-edit",
       "equipment-edit",
@@ -107,7 +108,7 @@ function createModule(name, destroyKey, calls) {
     name,
     destroyKey,
     mount(app) {
-      calls.push(`mount:${name}`);
+      calls.push("mount:" + name);
       return Object.freeze({
         get character() {
           return app.character;
@@ -131,7 +132,7 @@ function createModule(name, destroyKey, calls) {
         render: app.render,
         [destroyKey]: Object.freeze({
           destroy() {
-            calls.push(`destroy:${name}`);
+            calls.push("destroy:" + name);
           },
         }),
       });
