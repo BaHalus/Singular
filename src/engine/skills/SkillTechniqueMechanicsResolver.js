@@ -1,6 +1,5 @@
 const ATTRIBUTE_KEYS = Object.freeze(["ST", "DX", "IQ", "HT", "Will", "Per"]);
 const SKILL_DIFFICULTY_OFFSETS = Object.freeze({ E: 0, A: -1, H: -2, VH: -3 });
-const TECHNIQUE_DIFFICULTY_FIRST_POINT_BONUS = Object.freeze({ A: 0, H: 1 });
 
 export function resolveSkillTechniqueMechanics({
   attributes = {},
@@ -31,14 +30,13 @@ export function serializeSkillTechniqueMechanicsReport(report) {
 }
 
 function resolveSkillMechanics(skill, { attributes, secondaryCharacteristics }) {
-  const imported = resolveImportedLevel(skill, "skill");
-  if (imported !== null) return imported;
-
   const attribute = normalizeText(skill.attribute);
   const difficulty = normalizeText(skill.difficulty);
   const baseLevel = resolveBaseLevel(attribute, attributes, secondaryCharacteristics);
   const difficultyOffset = SKILL_DIFFICULTY_OFFSETS[difficulty];
   const pointOffset = resolveSkillPointOffset(skill.points);
+  const importedLevel = normalizeNullableNumber(skill.importedLevel);
+  const importedRelativeLevel = normalizeNullableNumber(skill.importedRelativeLevel);
   const diagnostics = [];
 
   if (attribute === "" || !ATTRIBUTE_KEYS.includes(attribute)) diagnostics.push("missing-skill-attribute");
@@ -47,7 +45,10 @@ function resolveSkillMechanics(skill, { attributes, secondaryCharacteristics }) 
   if (pointOffset === null) diagnostics.push("missing-skill-point-investment");
 
   if (diagnostics.length > 0) {
-    return createBlockedResult(skill.id, "skill", diagnostics);
+    return createBlockedResult(skill.id, "skill", diagnostics, {
+      importedLevel,
+      importedRelativeLevel,
+    });
   }
 
   const relativeLevel = difficultyOffset + pointOffset;
@@ -59,18 +60,25 @@ function resolveSkillMechanics(skill, { attributes, secondaryCharacteristics }) 
     relativeLevel,
     base: attribute,
     source: "calculated",
-    diagnostics: Object.freeze([]),
+    importedLevel,
+    importedRelativeLevel,
+    diagnostics: Object.freeze(createImportedDiagnostics({
+      level: baseLevel + relativeLevel,
+      relativeLevel,
+      importedLevel,
+      importedRelativeLevel,
+      kind: "skill",
+    })),
   });
 }
 
 function resolveTechniqueMechanics(technique, { skillById, skillByName }) {
-  const imported = resolveImportedLevel(technique, "technique");
-  if (imported !== null) return imported;
-
   const baseSkill = resolveTechniqueBaseSkill(technique, { skillById, skillByName });
   const defaultPenalty = normalizeNullableNumber(technique.defaultPenalty);
   const maximumRelativeLevel = normalizeNullableNumber(technique.maximumRelativeLevel);
   const pointOffset = resolveTechniquePointOffset(technique.points, technique.difficulty);
+  const importedLevel = normalizeNullableNumber(technique.importedLevel);
+  const importedRelativeLevel = normalizeNullableNumber(technique.importedRelativeLevel);
   const diagnostics = [];
 
   if (baseSkill === null) diagnostics.push("missing-technique-base-skill");
@@ -79,38 +87,35 @@ function resolveTechniqueMechanics(technique, { skillById, skillByName }) {
 
   if (diagnostics.length > 0 || baseSkill?.status !== "resolved") {
     if (baseSkill?.status === "blocked") diagnostics.push("blocked-technique-base-skill");
-    return createBlockedResult(technique.id, "technique", diagnostics);
+    return createBlockedResult(technique.id, "technique", diagnostics, {
+      importedLevel,
+      importedRelativeLevel,
+    });
   }
 
   const uncappedRelativeLevel = defaultPenalty + pointOffset;
   const relativeLevel = maximumRelativeLevel === null
     ? uncappedRelativeLevel
     : Math.min(uncappedRelativeLevel, maximumRelativeLevel);
+  const level = baseSkill.level + relativeLevel;
 
   return Object.freeze({
     id: technique.id,
     kind: "technique",
     status: "resolved",
-    level: baseSkill.level + relativeLevel,
+    level,
     relativeLevel,
     base: baseSkill.id,
     source: "calculated",
-    diagnostics: Object.freeze([]),
-  });
-}
-
-function resolveImportedLevel(item, kind) {
-  const importedLevel = normalizeNullableNumber(item.importedLevel);
-  if (importedLevel === null) return null;
-  return Object.freeze({
-    id: item.id,
-    kind,
-    status: "resolved",
-    level: importedLevel,
-    relativeLevel: normalizeNullableNumber(item.importedRelativeLevel),
-    base: "imported",
-    source: "imported",
-    diagnostics: Object.freeze([]),
+    importedLevel,
+    importedRelativeLevel,
+    diagnostics: Object.freeze(createImportedDiagnostics({
+      level,
+      relativeLevel,
+      importedLevel,
+      importedRelativeLevel,
+      kind: "technique",
+    })),
   });
 }
 
@@ -134,16 +139,23 @@ function resolveSkillPointOffset(points) {
   if (normalizedPoints <= 1) return 0;
   if (normalizedPoints <= 2) return 1;
   if (normalizedPoints <= 4) return 2;
-  return 2 + Math.floor(Math.log2(normalizedPoints / 4));
+  return 2 + Math.floor((normalizedPoints - 4) / 4);
 }
 
 function resolveTechniquePointOffset(points, difficulty) {
   const normalizedPoints = normalizeNullableNumber(points);
-  if (normalizedPoints === null || normalizedPoints <= 0) return null;
-  const firstPointBonus = TECHNIQUE_DIFFICULTY_FIRST_POINT_BONUS[normalizeText(difficulty)];
-  if (firstPointBonus === undefined) return null;
-  if (normalizedPoints <= 1) return firstPointBonus;
-  return firstPointBonus + Math.floor(normalizedPoints / 2);
+  if (normalizedPoints === null || normalizedPoints < 0) return null;
+
+  switch (normalizeText(difficulty)) {
+    case "A":
+      return Math.floor(normalizedPoints);
+    case "H":
+      if (normalizedPoints === 1) return null;
+      if (normalizedPoints === 0) return 0;
+      return Math.floor(normalizedPoints) - 1;
+    default:
+      return null;
+  }
 }
 
 function resolveTechniqueBaseSkill(technique, { skillById, skillByName }) {
@@ -160,7 +172,7 @@ function skillLookupKey(skill) {
   return `${normalizeText(skill.name).toLocaleLowerCase("pt-BR")}::${normalizeText(skill.specialization).toLocaleLowerCase("pt-BR")}`;
 }
 
-function createBlockedResult(id, kind, diagnostics) {
+function createBlockedResult(id, kind, diagnostics, imported = {}) {
   return Object.freeze({
     id,
     kind,
@@ -169,8 +181,25 @@ function createBlockedResult(id, kind, diagnostics) {
     relativeLevel: null,
     base: null,
     source: "diagnostic",
+    importedLevel: imported.importedLevel ?? null,
+    importedRelativeLevel: imported.importedRelativeLevel ?? null,
     diagnostics: Object.freeze([...new Set(diagnostics)]),
   });
+}
+
+function createImportedDiagnostics({
+  level,
+  relativeLevel,
+  importedLevel,
+  importedRelativeLevel,
+  kind,
+}) {
+  const diagnostics = [];
+  if (importedLevel !== null && importedLevel !== level) diagnostics.push(`imported-${kind}-level-differs`);
+  if (importedRelativeLevel !== null && importedRelativeLevel !== relativeLevel) {
+    diagnostics.push(`imported-${kind}-relative-level-differs`);
+  }
+  return diagnostics;
 }
 
 function normalizeText(value) {
