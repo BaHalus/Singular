@@ -121,7 +121,11 @@ function resolveTechniqueMechanics(technique, { skillById, skillByName }) {
 
 function resolveBaseLevel(attribute, attributes, secondaryCharacteristics) {
   if (["ST", "DX", "IQ", "HT"].includes(attribute)) {
-    return normalizeNullableNumber(attributes?.[attribute]?.level ?? attributes?.[attribute]?.value ?? attributes?.[attribute]);
+    const attributeValue = attributes?.[attribute];
+    if (attributeValue === undefined) return null;
+    const override = normalizeNullableNumber(attributeValue.override);
+    if (override !== null) return override;
+    return normalizeNullableNumber(attributeValue.level ?? attributeValue.value ?? attributeValue.base ?? attributeValue);
   }
   if (["Will", "Per"].includes(attribute)) {
     const characteristic = secondaryCharacteristics?.[attribute];
