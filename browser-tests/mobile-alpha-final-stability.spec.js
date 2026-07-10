@@ -97,18 +97,16 @@ async function runFinalMobileGate(page, iteration) {
   await expect(page.locator('[data-role="character-name"]')).toHaveCount(0);
   await expect(page.locator('[data-role="trait-editor"]')).toHaveCount(0);
 
-  const transientPool = page
-    .locator(".singular-mobile-sheet__pool")
-    .filter({ hasText: /PV|PF/ })
-    .filter({ has: page.locator('[data-pool-adjust="-1"]') })
-    .first();
-  await expect(transientPool).toHaveCount(1);
-  const beforePool = parsePoolText(await transientPool.locator("dd").textContent());
-  const decrement = transientPool.locator('[data-pool-adjust="-1"]');
-  await expect(decrement).toBeEnabled();
-  await decrement.click();
-  await expect.poll(async () => parsePoolText(await transientPool.locator("dd").textContent()).current)
-    .toBe(beforePool.current - 1);
+  for (const poolCode of ["HP", "FP"]) {
+    const transientPool = page.locator(`.singular-mobile-sheet__pool[data-pool="${poolCode}"]`);
+    await expect(transientPool).toHaveCount(1);
+    const beforePool = parsePoolText(await transientPool.locator("dd").textContent());
+    const decrement = transientPool.locator('[data-pool-adjust="-1"]');
+    await expect(decrement).toBeEnabled();
+    await decrement.click();
+    await expect.poll(async () => parsePoolText(await transientPool.locator("dd").textContent()).current)
+      .toBe(beforePool.current - 1);
+  }
 
   await expectNoCriticalHorizontalOverflow(page);
   expect(browserErrors).toEqual([]);
