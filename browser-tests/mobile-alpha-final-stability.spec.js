@@ -68,7 +68,7 @@ async function runFinalMobileGate(page, iteration) {
   await expect(page.locator(".singular-alpha-mobile__feedback")).toContainText("Personagem importado");
 
   await page.locator('[data-role="character-name"]').fill(`Personagem A9.3 ${iteration}`);
-  await page.locator('[data-role="character-concept"]').fill("Gate mobile repetível");
+  await page.locator('[data-role="character-concept"]').fill(`Gate mobile repetível ${iteration}`);
   await page.locator('[data-action="character-summary-save"]').click();
   await expect(root).toHaveAttribute("data-last-command-status", "applied");
 
