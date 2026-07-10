@@ -1,5 +1,32 @@
 import { test, expect } from "@playwright/test";
 
+async function createCharacterWithPoolsExport(page, iteration) {
+  return page.evaluate(async currentIteration => {
+    const [{ createCharacter }, { createSingularCharacterExport }] = await Promise.all([
+      import("../../src/domain/character/Character.js"),
+      import("../../src/infrastructure/persistence/browser/BrowserLocalPersistence.js"),
+    ]);
+    return JSON.stringify(createSingularCharacterExport(createCharacter({
+      identity: {
+        id: `character:a9-final-${currentIteration}`,
+        name: `Personagem A9.3 ${currentIteration}`,
+        concept: "Gate mobile repetível",
+      },
+      pools: {
+        HP: { current: 10, maximum: 10 },
+        FP: { current: 10, maximum: 10 },
+      },
+      metadata: {
+        createdAt: "2026-07-10T12:00:00.000Z",
+        updatedAt: "2026-07-10T12:00:00.000Z",
+        source: "a9-final-mobile-stability",
+      },
+    }), {
+      exportedAt: "2026-07-10T12:00:00.000Z",
+    }));
+  }, iteration);
+}
+
 function parsePoolText(text) {
   const match = String(text).match(/(-?\d+)\s*\/\s*(-?\d+)/);
   expect(match).not.toBeNull();
@@ -33,6 +60,12 @@ async function runFinalMobileGate(page, iteration) {
   await expect(root).toHaveAttribute("data-singular-mounted", "true");
   await expect(root).toHaveAttribute("data-mode", "creation");
   await expect(page.locator('[data-role="mode-status"]')).toContainText("Modo Criação");
+
+  await page.locator('[data-role="persistence-import-json"]').fill(
+    await createCharacterWithPoolsExport(page, iteration),
+  );
+  await page.locator('[data-action="persistence-import"]').click();
+  await expect(page.locator(".singular-alpha-mobile__feedback")).toContainText("Personagem importado");
 
   await page.locator('[data-role="character-name"]').fill(`Personagem A9.3 ${iteration}`);
   await page.locator('[data-role="character-concept"]').fill("Gate mobile repetível");
