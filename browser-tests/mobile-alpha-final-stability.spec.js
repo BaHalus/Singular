@@ -54,7 +54,7 @@ async function runFinalMobileGate(page, iteration) {
     hasText: `Personagem A9.3 ${iteration}`,
   });
   await expect(savedCharacter).toHaveCount(1);
-  await expect(savedCharacter.locator('[data-action="persistence-load"]')).toBeVisible();
+  await expect(savedCharacter.locator('[data-action="persistence-open"]')).toBeVisible();
 
   await expectNoCriticalHorizontalOverflow(page);
 
