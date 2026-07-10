@@ -77,7 +77,7 @@ test("persistence survives local corruption and import replaces the active snaps
 
   await page.locator('[data-action="persistence-refresh"]').click();
   await expect(page.locator('.singular-alpha-mobile__save-list li[data-save-status="available"]')).toContainText(original.name);
-  await expect(page.locator('.singular-alpha-mobile__save-list li[data-save-status="invalid"]')).toHaveCount(1);
+  await expect(page.locator('.singular-alpha-mobile__save-list li[data-save-status="unreadable"]')).toHaveCount(1);
 
   const replacement = {
     id: "character:a9-persistence-replacement",
