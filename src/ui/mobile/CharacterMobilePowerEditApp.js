@@ -219,7 +219,7 @@ function renderEditor(power) {
     `<label>Talento <input type="text" data-role="power-edit-talent-${id}" value="${escapeAttribute(power.talentTraitId ?? "")}" autocomplete="off"></label>`,
     `<label>Membros <input type="text" data-role="power-edit-members-${id}" value="${escapeAttribute((power.memberTraitIds ?? []).join(", "))}" autocomplete="off"></label>`,
     `<label>Tags <input type="text" data-role="power-edit-tags-${id}" value="${escapeAttribute((power.tags ?? []).join(", "))}" autocomplete="off"></label>`,
-    `<label class="singular-mobile-sheet__power-inline-editor-notes">Notas <textarea data-role="power-edit-notes-${id}" autocomplete="off">${escapeTextContent(power.notes ?? "")}</textarea></label>`,
+    `<label class="singular-mobile-sheet__power-inline-editor-notes">Notas <textarea data-role="power-edit-notes-${id}" autocomplete="off">\n${escapeTextContent(power.notes ?? "")}</textarea></label>`,
     `<div class="singular-mobile-sheet__power-inline-editor-actions">`,
     `<button type="button" data-action="power-move" data-move-delta="-1" data-power-id="${id}" aria-label="Mover poder acima">↑</button>`,
     `<button type="button" data-action="power-move" data-move-delta="1" data-power-id="${id}" aria-label="Mover poder abaixo">↓</button>`,
