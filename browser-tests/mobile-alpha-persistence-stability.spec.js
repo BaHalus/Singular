@@ -65,11 +65,14 @@ test("persistence survives local corruption and import replaces the active snaps
   const validSessionId = await page.locator("[data-singular-mobile-root]").getAttribute("data-session-id");
   await page.evaluate(() => {
     const namespace = "singular.alpha.browser-smoke";
-    const indexKey = `${namespace}:index:session`;
-    const ids = JSON.parse(localStorage.getItem(indexKey));
+    const indexKey = `${namespace}:v1:session:index`;
+    const ids = JSON.parse(localStorage.getItem(indexKey) ?? "[]");
     const corruptId = "session:a9-corrupt";
     localStorage.setItem(indexKey, JSON.stringify([...ids, corruptId]));
-    localStorage.setItem(`${namespace}:record:session:${corruptId}`, "{not-json");
+    localStorage.setItem(
+      `${namespace}:v1:session:record:${encodeURIComponent(corruptId)}`,
+      "{not-json",
+    );
   });
 
   await page.locator('[data-action="persistence-refresh"]').click();
