@@ -65,6 +65,8 @@ export const ALPHA_EDITING_CONTRACT_FAMILIES = Object.freeze([
     family: "Powers",
     types: Object.freeze([
       "power.add",
+      "power.update",
+      "power.reorder",
       "power.rename",
       "power.source.set",
       "power.modifier.set",

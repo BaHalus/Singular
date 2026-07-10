@@ -30,6 +30,37 @@ export function renamePower(powers, powerId, name) {
   }));
 }
 
+export function updatePowerFields(powers, powerId, patch) {
+  requirePlainObject(patch, "Power patch");
+  return updatePower(powers, powerId, power => ({
+    ...power,
+    name: patch.name,
+    source: patch.source,
+    powerModifier: patch.powerModifier,
+    talentTraitId: patch.talentTraitId,
+    memberTraitIds: patch.memberTraitIds,
+    tags: patch.tags,
+    notes: patch.notes,
+  }));
+}
+
+export function reorderPower(powers, powerId, targetIndex) {
+  validatePowers(powers);
+  const id = normalizeId(powerId, "Power id");
+  if (!Number.isInteger(targetIndex)) {
+    throw new Error("Power targetIndex must be an integer");
+  }
+  const sourceIndex = powers.findIndex(power => power.id === id);
+  if (sourceIndex === -1) throw new Error("Power not found");
+  if (targetIndex < 0 || targetIndex >= powers.length) {
+    throw new Error("Power targetIndex is out of bounds");
+  }
+  const serialized = powers.map(serializePower);
+  const [moved] = serialized.splice(sourceIndex, 1);
+  serialized.splice(targetIndex, 0, moved);
+  return createPowers(serialized);
+}
+
 export function updatePowerNotes(powers, powerId, notes) {
   return updatePower(powers, powerId, power => ({
     ...power,
@@ -119,4 +150,14 @@ function normalizeString(value, label) {
     throw new Error(`${label} must be a string`);
   }
   return value;
+}
+
+function requirePlainObject(value, label) {
+  if (value === null || typeof value !== "object" || Array.isArray(value)) {
+    throw new Error(`${label} must be a plain object`);
+  }
+  const prototype = Object.getPrototypeOf(value);
+  if (prototype !== Object.prototype && prototype !== null) {
+    throw new Error(`${label} must be a plain object`);
+  }
 }

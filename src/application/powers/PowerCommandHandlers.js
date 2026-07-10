@@ -11,14 +11,18 @@ import {
   removePowerMemberTrait,
   removePowerTag,
   renamePower,
+  reorderPower,
   setPowerModifier,
   setPowerSource,
   setPowerTalentTrait,
+  updatePowerFields,
   updatePowerNotes,
 } from "../../domain/character/PowersOperations.js";
 
 export const POWER_COMMAND_TYPES = Object.freeze({
   ADD: "power.add",
+  UPDATE: "power.update",
+  REORDER: "power.reorder",
   RENAME: "power.rename",
   SET_SOURCE: "power.source.set",
   SET_MODIFIER: "power.modifier.set",
@@ -34,6 +38,8 @@ export const POWER_COMMAND_TYPES = Object.freeze({
 export function createPowerCommandHandlerEntries() {
   return Object.freeze([
     entry(POWER_COMMAND_TYPES.ADD, handleAddPowerCommand),
+    entry(POWER_COMMAND_TYPES.UPDATE, handleUpdatePowerCommand),
+    entry(POWER_COMMAND_TYPES.REORDER, handleReorderPowerCommand),
     entry(POWER_COMMAND_TYPES.RENAME, handleRenamePowerCommand),
     entry(POWER_COMMAND_TYPES.SET_SOURCE, handleSetPowerSourceCommand),
     entry(POWER_COMMAND_TYPES.SET_MODIFIER, handleSetPowerModifierCommand),
@@ -57,6 +63,49 @@ export function handleAddPowerCommand(context) {
     operation: "add-power",
     powerId: added.id,
     index: nextPowers.length - 1,
+  });
+}
+
+export function handleUpdatePowerCommand(context) {
+  const { session, command } = validateCommandContext(context, POWER_COMMAND_TYPES.UPDATE);
+  validateExactPayloadKeys(command.payload, ["powerId", "patch"]);
+  const powerId = normalizePowerId(command.payload.powerId, "powerId");
+  const previous = requirePower(session.character.powers, powerId);
+  validateExactPayloadKeys(command.payload.patch, [
+    "name",
+    "source",
+    "powerModifier",
+    "talentTraitId",
+    "memberTraitIds",
+    "tags",
+    "notes",
+  ]);
+  const nextPowers = updatePowerFields(session.character.powers, powerId, command.payload.patch);
+  return appliedOrNoOp(
+    session.character,
+    nextPowers,
+    previous,
+    powerId,
+    "update-power",
+    "unchanged-power",
+    power => serializePowers([power])[0],
+  );
+}
+
+export function handleReorderPowerCommand(context) {
+  const { session, command } = validateCommandContext(context, POWER_COMMAND_TYPES.REORDER);
+  validateExactPayloadKeys(command.payload, ["powerId", "targetIndex"]);
+  const powerId = normalizePowerId(command.payload.powerId, "powerId");
+  const previousIndex = findPowerIndex(session.character.powers, powerId);
+  const nextPowers = reorderPower(session.character.powers, powerId, command.payload.targetIndex);
+  if (previousIndex === command.payload.targetIndex) {
+    return noOpResult("reorder-power-no-op", powerId, "unchanged-index");
+  }
+  return appliedResult(session.character, nextPowers, {
+    operation: "reorder-power",
+    powerId,
+    previousIndex,
+    targetIndex: command.payload.targetIndex,
   });
 }
 
@@ -109,7 +158,7 @@ export function handleUpdatePowerNotesCommand(context) {
 export function handleAddPowerMemberTraitCommand(context) {
   const { session, command } = validateCommandContext(context, POWER_COMMAND_TYPES.ADD_MEMBER_TRAIT);
   validateExactPayloadKeys(command.payload, ["powerId", "traitId"]);
-  return applySimpleMembership(context, addPowerMemberTrait, "add-power-member-trait", "unchanged-member-traits");
+  return applySimpleMembership({ session, command }, addPowerMemberTrait, "add-power-member-trait", "unchanged-member-traits");
 }
 
 export function handleRemovePowerMemberTraitCommand(context) {
@@ -199,6 +248,7 @@ function validateCommandContext(context, expectedType) {
 }
 
 function validateExactPayloadKeys(payload, expectedKeys) {
+  requirePlainObject(payload, "Power command payload");
   const keys = Reflect.ownKeys(payload);
   if (keys.length !== expectedKeys.length || keys.some(key => typeof key !== "string" || !expectedKeys.includes(key))) {
     throw new Error("Power command payload contains unsupported properties");

@@ -37,6 +37,8 @@ const EXPECTED_ALPHA_COMMAND_TYPES = Object.freeze([
   "spell.remove",
   "spell.reorder",
   "power.add",
+  "power.update",
+  "power.reorder",
   "power.rename",
   "power.source.set",
   "power.modifier.set",
