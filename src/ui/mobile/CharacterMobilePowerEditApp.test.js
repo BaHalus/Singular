@@ -176,7 +176,7 @@ test("injects mobile power inline controls only in creation mode", () => {
   assert.match(creation, /power-edit-source-power:psi/);
   assert.match(creation, /trait:telepathy, trait:tk/);
   assert.match(creation, /<textarea data-role="power-edit-notes-power:psi"/);
-  assert.match(creation, /<textarea data-role="power-edit-notes-power:psi" autocomplete="off">\nlinha de poderes psíquicos\ncom nota longa<\/textarea>/);
+  assert.match(creation, /<textarea data-role="power-edit-notes-power:psi" autocomplete="off">\n\nlinha de poderes psíquicos\ncom nota longa<\/textarea>/);
 
   const table = injectMobilePowerEditControls(html, character(), "table");
   assert.doesNotMatch(table, /data-role="power-inline-editor"/);
@@ -234,7 +234,7 @@ test("persists existing mobile power field patch and reorder through canonical s
   root.setInput('[data-role="power-edit-talent-power:psi"]', "");
   root.setInput('[data-role="power-edit-members-power:psi"]', "trait:tk");
   root.setInput('[data-role="power-edit-tags-power:psi"]', "psi, alpha-final");
-  root.setInput('[data-role="power-edit-notes-power:psi"]', "núcleo psíquico revisado");
+  root.setInput('[data-role="power-edit-notes-power:psi"]', "\nnúcleo psíquico revisado");
   await root.dispatch("click", click("power-update", { powerId: "power:psi" }));
 
   assert.equal(root.getAttribute("data-last-command-status"), "applied");
@@ -249,7 +249,7 @@ test("persists existing mobile power field patch and reorder through canonical s
   assert.equal(mounted.character.powers[0].talentTraitId, null);
   assert.deepEqual(mounted.character.powers[0].memberTraitIds, ["trait:tk"]);
   assert.deepEqual(mounted.character.powers[0].tags, ["psi", "alpha-final"]);
-  assert.equal(mounted.character.powers[0].notes, "núcleo psíquico revisado");
+  assert.equal(mounted.character.powers[0].notes, "\nnúcleo psíquico revisado");
   assert.match(root.innerHTML, /Telepatia Alpha/);
 
   await root.dispatch("click", click("power-move", { powerId: "power:psi", moveDelta: "1" }));
@@ -270,6 +270,7 @@ test("persists existing mobile power field patch and reorder through canonical s
     valuePercent: -15,
     notes: "bloqueio alpha",
   });
+  assert.equal(saved.character.powers[1].notes, "\nnúcleo psíquico revisado");
   assert.deepEqual(saved.character.powers[1].memberTraitIds, ["trait:tk"]);
   assert.deepEqual(saved.character.powers[1].tags, ["psi", "alpha-final"]);
 
@@ -286,6 +287,7 @@ test("persists existing mobile power field patch and reorder through canonical s
 
   assert.match(remountRoot.innerHTML, /Telepatia Alpha/);
   assert.match(remountRoot.innerHTML, /Psíquico Alpha/);
+  assert.match(remountRoot.innerHTML, /<textarea data-role="power-edit-notes-power:psi" autocomplete="off">\n\nnúcleo psíquico revisado<\/textarea>/);
   assert.ok(remountRoot.innerHTML.indexOf("Sorte") < remountRoot.innerHTML.indexOf("Telepatia Alpha"));
 });
 
