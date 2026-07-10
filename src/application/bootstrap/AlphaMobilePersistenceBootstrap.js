@@ -429,6 +429,15 @@ function createAlphaMobileCommands({ persistence, registry, runtime }) {
         name: input.name ?? "",
       });
     },
+    updatePower: run(POWER_COMMAND_TYPES.UPDATE),
+
+    reorderPower(input = {}) {
+      requirePlainObject(input, "Alpha mobile power reorder");
+      return execute(POWER_COMMAND_TYPES.REORDER, {
+        powerId: input.powerId,
+        targetIndex: input.targetIndex,
+      });
+    },
 
     removePower(input = {}) {
       requirePlainObject(input, "Alpha mobile power removal");

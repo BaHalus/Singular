@@ -25,6 +25,16 @@ function character() {
         tags: ["psionics", "alpha"],
         notes: "\nlinha de poderes psíquicos\ncom nota longa",
       },
+      {
+        id: "power:luck",
+        name: "Sorte",
+        source: "manual",
+        powerModifier: null,
+        talentTraitId: null,
+        memberTraitIds: [],
+        tags: ["mundano"],
+        notes: "",
+      },
     ],
   };
 }
@@ -166,7 +176,7 @@ test("injects mobile power inline controls only in creation mode", () => {
   assert.match(creation, /power-edit-source-power:psi/);
   assert.match(creation, /trait:telepathy, trait:tk/);
   assert.match(creation, /<textarea data-role="power-edit-notes-power:psi"/);
-  assert.match(creation, /<textarea data-role="power-edit-notes-power:psi" autocomplete="off" disabled>\n\nlinha de poderes psíquicos\ncom nota longa<\/textarea>/);
+  assert.match(creation, /<textarea data-role="power-edit-notes-power:psi" autocomplete="off">\nlinha de poderes psíquicos\ncom nota longa<\/textarea>/);
 
   const table = injectMobilePowerEditControls(html, character(), "table");
   assert.doesNotMatch(table, /data-role="power-inline-editor"/);
@@ -199,13 +209,14 @@ test("normalizes power edit values for canonical command payloads", () => {
   });
 });
 
-test("persists existing mobile power rename through canonical session save", async () => {
+test("persists existing mobile power field patch and reorder through canonical session save and remount", async () => {
   const root = rootFixture();
+  const storage = createMemoryStorage();
   const mounted = await bootstrapCharacterMobilePowerEditApp({
     root,
     character: fullCharacter(),
     sessionId: "session-mobile-power-edit",
-    storage: createMemoryStorage(),
+    storage,
     namespace: "test.mobile.power-edit",
     runtime: runtime(),
     mode: "creation",
@@ -213,24 +224,69 @@ test("persists existing mobile power rename through canonical session save", asy
 
   assert.match(root.innerHTML, /data-action="power-update"/);
   assert.match(root.innerHTML, /Psiquismo/);
+  assert.match(root.innerHTML, /Sorte/);
 
   root.setInput('[data-role="power-edit-name-power:psi"]', "Telepatia Alpha");
+  root.setInput('[data-role="power-edit-source-power:psi"]', "Powers");
+  root.setInput('[data-role="power-edit-modifier-name-power:psi"]', "Psíquico Alpha");
+  root.setInput('[data-role="power-edit-modifier-value-power:psi"]', "-15");
+  root.setInput('[data-role="power-edit-modifier-notes-power:psi"]', "bloqueio alpha");
+  root.setInput('[data-role="power-edit-talent-power:psi"]', "");
+  root.setInput('[data-role="power-edit-members-power:psi"]', "trait:tk");
+  root.setInput('[data-role="power-edit-tags-power:psi"]', "psi, alpha-final");
+  root.setInput('[data-role="power-edit-notes-power:psi"]', "núcleo psíquico revisado");
   await root.dispatch("click", click("power-update", { powerId: "power:psi" }));
 
   assert.equal(root.getAttribute("data-last-command-status"), "applied");
-  assert.equal(mounted.session.history[0].commandType, "power.rename");
+  assert.equal(mounted.session.history[0].commandType, "power.update");
   assert.equal(mounted.character.powers[0].name, "Telepatia Alpha");
+  assert.equal(mounted.character.powers[0].source, "Powers");
+  assert.deepEqual(mounted.character.powers[0].powerModifier, {
+    name: "Psíquico Alpha",
+    valuePercent: -15,
+    notes: "bloqueio alpha",
+  });
+  assert.equal(mounted.character.powers[0].talentTraitId, null);
+  assert.deepEqual(mounted.character.powers[0].memberTraitIds, ["trait:tk"]);
+  assert.deepEqual(mounted.character.powers[0].tags, ["psi", "alpha-final"]);
+  assert.equal(mounted.character.powers[0].notes, "núcleo psíquico revisado");
   assert.match(root.innerHTML, /Telepatia Alpha/);
+
+  await root.dispatch("click", click("power-move", { powerId: "power:psi", moveDelta: "1" }));
+
+  assert.equal(root.getAttribute("data-last-command-status"), "applied");
+  assert.equal(mounted.session.history[1].commandType, "power.reorder");
+  assert.deepEqual(mounted.character.powers.map(power => power.id), ["power:luck", "power:psi"]);
 
   await root.dispatch("click", click("persistence-save"));
   const saved = await mounted.repositories.session.load("session-mobile-power-edit");
 
-  assert.equal(saved.revision, 1);
-  assert.equal(saved.character.powers[0].id, "power:psi");
-  assert.equal(saved.character.powers[0].name, "Telepatia Alpha");
-  assert.equal(saved.character.powers[0].source, "manual");
-  assert.deepEqual(saved.character.powers[0].memberTraitIds, ["trait:telepathy", "trait:tk"]);
-  assert.deepEqual(saved.character.powers[0].tags, ["psionics", "alpha"]);
+  assert.equal(saved.revision, 2);
+  assert.deepEqual(saved.character.powers.map(power => power.id), ["power:luck", "power:psi"]);
+  assert.equal(saved.character.powers[1].name, "Telepatia Alpha");
+  assert.equal(saved.character.powers[1].source, "Powers");
+  assert.deepEqual(saved.character.powers[1].powerModifier, {
+    name: "Psíquico Alpha",
+    valuePercent: -15,
+    notes: "bloqueio alpha",
+  });
+  assert.deepEqual(saved.character.powers[1].memberTraitIds, ["trait:tk"]);
+  assert.deepEqual(saved.character.powers[1].tags, ["psi", "alpha-final"]);
+
+  const remountRoot = rootFixture();
+  await bootstrapCharacterMobilePowerEditApp({
+    root: remountRoot,
+    character: saved.character,
+    sessionId: saved.id,
+    storage,
+    namespace: "test.mobile.power-edit",
+    runtime: runtime(),
+    mode: "creation",
+  });
+
+  assert.match(remountRoot.innerHTML, /Telepatia Alpha/);
+  assert.match(remountRoot.innerHTML, /Psíquico Alpha/);
+  assert.ok(remountRoot.innerHTML.indexOf("Sorte") < remountRoot.innerHTML.indexOf("Telepatia Alpha"));
 });
 
 test("blocks mobile power structural edit in table mode", async () => {
