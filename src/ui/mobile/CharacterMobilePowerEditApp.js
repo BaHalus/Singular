@@ -94,7 +94,7 @@ export function mountCharacterMobilePowerEditApp(app, options = {}) {
   const handleClick = event => {
     const target = findDataTarget(event?.target, "action");
     const action = target === null ? null : readDataset(target, "action");
-    if (action !== "power-update") return null;
+    if (!["power-update", "power-move"].includes(action)) return null;
     event.preventDefault?.();
     if (lifecycleApp.mode !== "creation") {
       root.setAttribute?.("data-last-command-status", "blocked-by-mode");
@@ -106,17 +106,26 @@ export function mountCharacterMobilePowerEditApp(app, options = {}) {
     }
 
     const powerId = readDataset(target, "powerId");
-    const patch = readPowerPatch(root, powerId);
-    const current = lifecycleApp.character.powers.find(power => power.id === powerId);
-    if (current === undefined) {
+    const powers = lifecycleApp.character.powers ?? [];
+    const currentIndex = powers.findIndex(power => power.id === powerId);
+    if (currentIndex === -1) {
       root.setAttribute?.("data-last-command-status", "rejected");
       return Object.freeze({ status: "rejected" });
     }
-    if (patch.name === current.name) {
-      root.setAttribute?.("data-last-command-status", "no-op");
-      return Object.freeze({ status: "no-op" });
+
+    let result;
+    if (action === "power-move") {
+      const delta = Number(readDataset(target, "moveDelta"));
+      const targetIndex = Math.max(0, Math.min(powers.length - 1, currentIndex + delta));
+      result = lifecycleApp.commands.reorderPower({ powerId, targetIndex });
+    } else {
+      const patch = readPowerPatch(root, powerId);
+      result = lifecycleApp.commands.updatePower({
+        powerId,
+        patch: toPowerCommandPatch(patch),
+      });
     }
-    const result = lifecycleApp.commands.renamePower({ powerId, name: patch.name });
+
     root.setAttribute?.("data-last-command-status", result.status);
     if (["applied", "no-op"].includes(result.status)) render();
     return result;
@@ -203,16 +212,19 @@ function renderEditor(power) {
   return [
     `<div class="singular-mobile-sheet__power-inline-editor" data-role="power-inline-editor" data-power-id="${id}">`,
     `<label>Nome <input type="text" data-role="power-edit-name-${id}" value="${escapeAttribute(power.name ?? "")}" autocomplete="off"></label>`,
-    `<label>Fonte <input type="text" data-role="power-edit-source-${id}" value="${escapeAttribute(power.source ?? "")}" autocomplete="off" disabled></label>`,
-    `<label>Modificador <input type="text" data-role="power-edit-modifier-name-${id}" value="${escapeAttribute(power.powerModifier?.name ?? "")}" autocomplete="off" disabled></label>`,
-    `<label>% Mod. <input type="number" step="1" data-role="power-edit-modifier-value-${id}" value="${escapeAttribute(power.powerModifier?.valuePercent ?? "")}" disabled></label>`,
-    `<label>Notas mod. <input type="text" data-role="power-edit-modifier-notes-${id}" value="${escapeAttribute(power.powerModifier?.notes ?? "")}" autocomplete="off" disabled></label>`,
-    `<label>Talento <input type="text" data-role="power-edit-talent-${id}" value="${escapeAttribute(power.talentTraitId ?? "")}" autocomplete="off" disabled></label>`,
-    `<label>Membros <input type="text" data-role="power-edit-members-${id}" value="${escapeAttribute((power.memberTraitIds ?? []).join(", "))}" autocomplete="off" disabled></label>`,
-    `<label>Tags <input type="text" data-role="power-edit-tags-${id}" value="${escapeAttribute((power.tags ?? []).join(", "))}" autocomplete="off" disabled></label>`,
-    `<label class="singular-mobile-sheet__power-inline-editor-notes">Notas <textarea data-role="power-edit-notes-${id}" autocomplete="off" disabled>
-${escapeTextContent(power.notes ?? "")}</textarea></label>`,
+    `<label>Fonte <input type="text" data-role="power-edit-source-${id}" value="${escapeAttribute(power.source ?? "")}" autocomplete="off"></label>`,
+    `<label>Modificador <input type="text" data-role="power-edit-modifier-name-${id}" value="${escapeAttribute(power.powerModifier?.name ?? "")}" autocomplete="off"></label>`,
+    `<label>% Mod. <input type="number" step="1" data-role="power-edit-modifier-value-${id}" value="${escapeAttribute(power.powerModifier?.valuePercent ?? "")}"></label>`,
+    `<label>Notas mod. <input type="text" data-role="power-edit-modifier-notes-${id}" value="${escapeAttribute(power.powerModifier?.notes ?? "")}" autocomplete="off"></label>`,
+    `<label>Talento <input type="text" data-role="power-edit-talent-${id}" value="${escapeAttribute(power.talentTraitId ?? "")}" autocomplete="off"></label>`,
+    `<label>Membros <input type="text" data-role="power-edit-members-${id}" value="${escapeAttribute((power.memberTraitIds ?? []).join(", "))}" autocomplete="off"></label>`,
+    `<label>Tags <input type="text" data-role="power-edit-tags-${id}" value="${escapeAttribute((power.tags ?? []).join(", "))}" autocomplete="off"></label>`,
+    `<label class="singular-mobile-sheet__power-inline-editor-notes">Notas <textarea data-role="power-edit-notes-${id}" autocomplete="off">${escapeTextContent(power.notes ?? "")}</textarea></label>`,
+    `<div class="singular-mobile-sheet__power-inline-editor-actions">`,
+    `<button type="button" data-action="power-move" data-move-delta="-1" data-power-id="${id}" aria-label="Mover poder acima">↑</button>`,
+    `<button type="button" data-action="power-move" data-move-delta="1" data-power-id="${id}" aria-label="Mover poder abaixo">↓</button>`,
     `<button type="button" data-action="power-update" data-power-id="${id}">Salvar poder</button>`,
+    `</div>`,
     "</div>",
   ].join("");
 }
@@ -230,6 +242,25 @@ function readPowerPatch(root, powerId) {
     tags: readInputValue(root, `[data-role="power-edit-tags-${suffix}"]`),
     notes: readInputValue(root, `[data-role="power-edit-notes-${suffix}"]`),
   });
+}
+
+function toPowerCommandPatch(patch) {
+  const modifierIsEmpty = patch.powerModifierName === ""
+    && patch.powerModifierValuePercent === null
+    && patch.powerModifierNotes === "";
+  return {
+    name: patch.name,
+    source: patch.source,
+    powerModifier: modifierIsEmpty ? null : {
+      name: patch.powerModifierName,
+      valuePercent: patch.powerModifierValuePercent,
+      notes: patch.powerModifierNotes,
+    },
+    talentTraitId: patch.talentTraitId,
+    memberTraitIds: patch.memberTraitIds,
+    tags: patch.tags,
+    notes: patch.notes,
+  };
 }
 
 function canMountPowerControlsWithDom(root, character) {
