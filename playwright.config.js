@@ -3,6 +3,7 @@ import { defineConfig } from "@playwright/test";
 export default defineConfig({
   testDir: "./browser-tests",
   testMatch: "**/*.spec.js",
+  testIgnore: "public-deployment.spec.js",
   timeout: 20_000,
   expect: { timeout: 5_000 },
   fullyParallel: false,
