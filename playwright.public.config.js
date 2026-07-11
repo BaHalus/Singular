@@ -16,7 +16,7 @@ export default defineConfig({
     screenshot: "only-on-failure",
   },
   webServer: {
-    command: "npm run build:public && rm -rf .public-smoke && mkdir -p .public-smoke/Singular && cp -R dist/. .public-smoke/Singular/ && cd .public-smoke && PORT=4174 SINGULAR_SMOKE_SERVER_IDLE_MS=120000 node ../browser-tests/static-server.mjs",
+    command: "npm run build:public && rm -rf .public-smoke && mkdir -p .public-smoke/Singular && cp -R dist/. .public-smoke/Singular/ && PORT=4174 SINGULAR_SMOKE_ROOT=.public-smoke SINGULAR_SMOKE_SERVER_IDLE_MS=120000 node browser-tests/static-server.mjs",
     url: "http://127.0.0.1:4174/Singular/mobile.html",
     reuseExistingServer: !process.env.CI,
     timeout: 20_000,
