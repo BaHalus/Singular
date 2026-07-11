@@ -39,6 +39,24 @@ self.addEventListener("activate", event => {
   );
 });
 
+self.addEventListener("message", event => {
+  if (event.data?.type !== "CACHE_LOADED_RESOURCES") return;
+
+  const resources = Array.isArray(event.data.resources)
+    ? event.data.resources.filter(resourceUrl => {
+      try {
+        return new URL(resourceUrl).origin === self.location.origin;
+      } catch {
+        return false;
+      }
+    })
+    : [];
+
+  event.waitUntil(
+    caches.open(CACHE_NAME).then(cache => cache.addAll(resources))
+  );
+});
+
 self.addEventListener("fetch", event => {
   const { request } = event;
   if (request.method !== "GET") return;
