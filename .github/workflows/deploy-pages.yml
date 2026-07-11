@@ -59,3 +59,25 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+
+  verify-public-deployment:
+    if: github.event_name != 'pull_request'
+    needs: deploy
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Verify HTTPS page and manifest
+        env:
+          PUBLIC_URL: https://bahalus.github.io/Singular/mobile.html
+          MANIFEST_URL: https://bahalus.github.io/Singular/manifest.webmanifest
+        run: |
+          curl --fail --silent --show-error --location --retry 12 --retry-delay 5 --retry-all-errors "$PUBLIC_URL" --output mobile.html
+          grep -F 'rel="manifest"' mobile.html
+          curl --fail --silent --show-error --location --retry 12 --retry-delay 5 --retry-all-errors "$MANIFEST_URL" --output manifest.webmanifest
+          node --input-type=module <<'NODE'
+          import { readFile } from "node:fs/promises";
+          const manifest = JSON.parse(await readFile("manifest.webmanifest", "utf8"));
+          if (manifest.start_url !== "./mobile.html") throw new Error(`unexpected start_url: ${manifest.start_url}`);
+          if (manifest.scope !== "./") throw new Error(`unexpected scope: ${manifest.scope}`);
+          if (manifest.display !== "standalone") throw new Error(`unexpected display: ${manifest.display}`);
+          NODE
