@@ -76,7 +76,14 @@ jobs:
         shell: bash
         run: |
           set +e
-          timeout 180s npx playwright test --config=playwright.config.js > browser-smoke-output.log 2>&1
+          {
+            timeout 180s npx playwright test --config=playwright.config.js
+            general_status=$?
+            if [ "$general_status" -ne 0 ]; then
+              exit "$general_status"
+            fi
+            timeout 180s npx playwright test --config=playwright.public.config.js
+          } > browser-smoke-output.log 2>&1
           status=$?
           cat browser-smoke-output.log
           exit "$status"
