@@ -8,7 +8,9 @@
   },
   "scripts": {
     "test": "node --test",
-    "test:mobile-smoke": "playwright test browser-tests/mobile-alpha-real.spec.js browser-tests/pwa-installable.spec.js"
+    "build:public": "node scripts/build-public-site.mjs",
+    "test:mobile-smoke": "playwright test browser-tests/mobile-alpha-real.spec.js browser-tests/pwa-installable.spec.js",
+    "test:public-deployment": "playwright test --config=playwright.public.config.js"
   },
   "devDependencies": {
     "@playwright/test": "1.61.1"
