@@ -1,7 +1,8 @@
 const CACHE_PREFIX = "singular-alpha-shell";
-const CACHE_VERSION = "v1";
+const CACHE_VERSION = "v2";
 const CACHE_NAME = `${CACHE_PREFIX}-${CACHE_VERSION}`;
 
+const MODULE_ENTRYPOINT = "./src/ui/mobile/CharacterMobileCompositionRoot.js";
 const APP_SHELL = [
   "./mobile.html",
   "./manifest.webmanifest",
@@ -18,12 +19,15 @@ const APP_SHELL = [
   "./src/ui/mobile/CharacterMobileEquipmentEditApp.css",
   "./src/ui/mobile/CharacterMobileSpellEditApp.css",
   "./src/ui/mobile/CharacterMobilePowerEditApp.css",
-  "./src/ui/mobile/CharacterMobileCompositionRoot.js"
+  MODULE_ENTRYPOINT,
 ];
 
 self.addEventListener("install", event => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then(cache => cache.addAll(APP_SHELL))
+    caches.open(CACHE_NAME).then(async cache => {
+      await cache.addAll(APP_SHELL);
+      await cacheModuleGraph(cache, new URL(MODULE_ENTRYPOINT, self.registration.scope));
+    })
   );
 });
 
@@ -85,3 +89,44 @@ self.addEventListener("fetch", event => {
     })
   );
 });
+
+async function cacheModuleGraph(cache, entrypointUrl) {
+  const visited = new Set();
+
+  async function visit(moduleUrl) {
+    const canonicalUrl = moduleUrl.href;
+    if (visited.has(canonicalUrl)) return;
+    visited.add(canonicalUrl);
+
+    const response = await fetch(new Request(canonicalUrl, { cache: "reload" }));
+    if (!response.ok) {
+      throw new Error(`Falha ao preparar módulo offline: ${moduleUrl.pathname}`);
+    }
+
+    const source = await response.clone().text();
+    await cache.put(canonicalUrl, response);
+
+    const dependencies = readModuleSpecifiers(source)
+      .filter(specifier => specifier.startsWith(".") || specifier.startsWith("/"))
+      .map(specifier => new URL(specifier, moduleUrl))
+      .filter(dependencyUrl => dependencyUrl.origin === self.location.origin);
+
+    await Promise.all(dependencies.map(visit));
+  }
+
+  await visit(entrypointUrl);
+}
+
+function readModuleSpecifiers(source) {
+  const specifiers = new Set();
+  const staticPattern = /\b(?:import|export)\s+(?:[^"'()]*?\s+from\s*)?["']([^"']+)["']/g;
+  const dynamicPattern = /\bimport\s*\(\s*["']([^"']+)["']\s*\)/g;
+
+  for (const pattern of [staticPattern, dynamicPattern]) {
+    for (const match of source.matchAll(pattern)) {
+      specifiers.add(match[1]);
+    }
+  }
+
+  return [...specifiers];
+}
