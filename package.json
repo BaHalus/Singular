@@ -8,7 +8,7 @@
   },
   "scripts": {
     "test": "node --test",
-    "test:mobile-smoke": "playwright test browser-tests/mobile-alpha-real.spec.js"
+    "test:mobile-smoke": "playwright test browser-tests/mobile-alpha-real.spec.js browser-tests/pwa-installable.spec.js"
   },
   "devDependencies": {
     "@playwright/test": "1.61.1"
