@@ -1,6 +1,6 @@
 {
   "name": "singular",
-  "version": "0.1.0",
+  "version": "0.9.0-alpha.1",
   "description": "Ficha GURPS 4e Mobile First",
   "type": "module",
   "engines": {
