@@ -137,6 +137,7 @@ export function evaluateTraitModifierCost(trait, options = {}) {
     calculationBreakdown: createCalculationBreakdown({
       baseCost,
       modifiers,
+      policy,
       rawPoints,
       calculatedPoints,
       rounding,
@@ -402,6 +403,7 @@ function evaluateComponent(component, percentageMode) {
 function createCalculationBreakdown({
   baseCost,
   modifiers,
+  policy,
   rawPoints,
   calculatedPoints,
   rounding,
@@ -423,17 +425,28 @@ function createCalculationBreakdown({
         total + (modifier.value * modifier.levelMultiplier)
       ), 0),
   );
-  const limitationsEffectivePercent = Math.max(
-    limitationsGrossPercent,
-    normalizeArithmetic(LIMITATION_FLOOR_PERCENT - enhancementsPercent),
-  );
-  const netModifierPercent = Math.max(
-    LIMITATION_FLOOR_PERCENT,
-    normalizeArithmetic(enhancementsPercent + limitationsGrossPercent),
-  );
+  const limitationsEffectivePercent = policy.percentageMode === "multiplicative"
+    ? Math.max(limitationsGrossPercent, LIMITATION_FLOOR_PERCENT)
+    : Math.max(
+      limitationsGrossPercent,
+      normalizeArithmetic(LIMITATION_FLOOR_PERCENT - enhancementsPercent),
+    );
+  const netModifierPercent = policy.percentageMode === "multiplicative"
+    ? normalizeArithmetic(
+      (
+        (1 + (enhancementsPercent / 100)) *
+        (1 + (limitationsEffectivePercent / 100)) -
+        1
+      ) * 100,
+    )
+    : Math.max(
+      LIMITATION_FLOOR_PERCENT,
+      normalizeArithmetic(enhancementsPercent + limitationsGrossPercent),
+    );
 
   return {
     basePoints: baseCost.rawPoints,
+    percentageMode: policy.percentageMode,
     enhancementsPercent,
     limitationsGrossPercent,
     limitationsEffectivePercent,
@@ -461,6 +474,9 @@ function validateCalculationBreakdown(breakdown, result) {
       value,
       `Trait modifier calculationBreakdown ${field} must be finite number`,
     );
+  }
+  if (!PERCENTAGE_MODES.includes(breakdown.percentageMode)) {
+    throw new Error("Trait modifier calculationBreakdown percentageMode is invalid");
   }
   if (breakdown.limitationsGrossPercent > 0) {
     throw new Error("Trait modifier gross limitations cannot be positive");
