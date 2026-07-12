@@ -138,3 +138,35 @@ test("preserves pre-M1 opaque imported modifiers without heuristic migration", (
   assert.deepEqual(serializeTrait(trait).modifiers, [legacyModifier]);
   assert.equal(isCanonicalPercentageModifier(trait.modifiers[0]), false);
 });
+
+test("preserves opaque imported modifiers with zero and negative value fields", () => {
+  const legacyModifiers = [
+    {
+      id: "legacy-zero",
+      name: "Imported zero value",
+      value: 0,
+      notes: "Legacy field, not canonical percentage",
+    },
+    {
+      id: "legacy-negative",
+      name: "Imported negative value",
+      value: -10,
+      notes: "Legacy field, not canonical percentage",
+    },
+  ];
+  const character = createCharacter({
+    traits: [{
+      id: "trait-imported-values",
+      role: "advantage",
+      name: "Importado com value",
+      modifiers: legacyModifiers,
+    }],
+  });
+  const serialized = serializeCharacter(character);
+  const restored = createCharacter(structuredClone(serialized));
+
+  assert.deepEqual(serialized.traits[0].modifiers, legacyModifiers);
+  assert.deepEqual(serializeCharacter(restored), serialized);
+  assert.equal(isCanonicalPercentageModifier(restored.traits[0].modifiers[0]), false);
+  assert.equal(isCanonicalPercentageModifier(restored.traits[0].modifiers[1]), false);
+});
