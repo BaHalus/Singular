@@ -91,9 +91,7 @@ export function isCanonicalPercentageModifier(modifier) {
 function isCanonicalPercentageModifierInput(input) {
   return hasOwn(input, "kind") ||
     hasOwn(input, "valueType") ||
-    hasOwn(input, "value") ||
-    hasOwn(input, "source") ||
-    hasOwn(input, "notes");
+    hasOwn(input, "value");
 }
 
 function normalizeKind(value) {
