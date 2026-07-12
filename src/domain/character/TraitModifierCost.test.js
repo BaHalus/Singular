@@ -63,6 +63,7 @@ test("evaluates canonical enhancement and limitation with an auditable breakdown
   );
   assert.deepEqual(result.calculationBreakdown, {
     basePoints: 100,
+    percentageMode: "additive",
     enhancementsPercent: 50,
     limitationsGrossPercent: -20,
     limitationsEffectivePercent: -20,
@@ -199,8 +200,15 @@ test("supports additive and multiplicative percentage policies explicitly", () =
   });
 
   assert.equal(additive.calculatedPoints, 130);
+  assert.equal(additive.calculationBreakdown.percentageMode, "additive");
+  assert.equal(additive.calculationBreakdown.netModifierPercent, 30);
   assert.equal(multiplicative.calculatedPoints, 120);
   assert.equal(multiplicative.components.base.appliedPercent, 20);
+  assert.equal(
+    multiplicative.calculationBreakdown.percentageMode,
+    "multiplicative",
+  );
+  assert.equal(multiplicative.calculationBreakdown.netModifierPercent, 20);
 });
 
 test("rounds final positive and negative costs according to the declared policy", () => {
