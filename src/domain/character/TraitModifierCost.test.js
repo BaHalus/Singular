@@ -19,6 +19,114 @@ function fixedTrait({ points = 100, modifiers = [], pointValue = null } = {}) {
   });
 }
 
+test("evaluates canonical enhancement and limitation with an auditable breakdown", () => {
+  const trait = fixedTrait({
+    modifiers: [
+      {
+        id: "canonical-enhancement",
+        name: "Ampliação",
+        kind: "enhancement",
+        valueType: "percentage",
+        value: 50,
+      },
+      {
+        id: "canonical-limitation",
+        name: "Limitação",
+        kind: "limitation",
+        valueType: "percentage",
+        value: 20,
+      },
+    ],
+  });
+
+  const result = evaluateTraitModifierCost(trait);
+
+  assert.equal(result.status, "ready");
+  assert.deepEqual(
+    result.modifiers.map(modifier => ({
+      kind: modifier.kind,
+      value: modifier.value,
+      sourceFormat: modifier.sourceFormat,
+    })),
+    [
+      {
+        kind: "percentage",
+        value: 50,
+        sourceFormat: "canonical-percentage",
+      },
+      {
+        kind: "percentage",
+        value: -20,
+        sourceFormat: "canonical-percentage",
+      },
+    ],
+  );
+  assert.deepEqual(result.calculationBreakdown, {
+    basePoints: 100,
+    enhancementsPercent: 50,
+    limitationsGrossPercent: -20,
+    limitationsEffectivePercent: -20,
+    netModifierPercent: 30,
+    beforeRounding: 130,
+    rounding: {
+      policy: "up",
+      applied: false,
+      input: 130,
+      output: 130,
+      difference: 0,
+    },
+    finalPoints: 130,
+  });
+});
+
+test("caps the canonical net modifier at -80 percent and exposes effective limitation", () => {
+  const trait = fixedTrait({
+    modifiers: [
+      {
+        id: "canonical-enhancement",
+        name: "Ampliação",
+        kind: "enhancement",
+        valueType: "percentage",
+        value: 50,
+      },
+      {
+        id: "canonical-limitation",
+        name: "Limitação extrema",
+        kind: "limitation",
+        valueType: "percentage",
+        value: 200,
+      },
+    ],
+  });
+
+  const result = evaluateTraitModifierCost(trait);
+
+  assert.equal(result.calculationBreakdown.limitationsGrossPercent, -200);
+  assert.equal(result.calculationBreakdown.limitationsEffectivePercent, -130);
+  assert.equal(result.calculationBreakdown.netModifierPercent, -80);
+  assert.equal(result.calculationBreakdown.finalPoints, 20);
+});
+
+test("rounds canonical percentage cost upward to the next integer", () => {
+  const trait = fixedTrait({
+    points: 10,
+    modifiers: [{
+      id: "canonical-limitation",
+      name: "Limitação",
+      kind: "limitation",
+      valueType: "percentage",
+      value: 25,
+    }],
+  });
+
+  const result = evaluateTraitModifierCost(trait);
+
+  assert.equal(result.calculationBreakdown.beforeRounding, 7.5);
+  assert.equal(result.calculationBreakdown.rounding.policy, "up");
+  assert.equal(result.calculationBreakdown.rounding.applied, true);
+  assert.equal(result.calculationBreakdown.finalPoints, 8);
+});
+
 test("applies additive percentages and caps total limitations at -80 percent", () => {
   const trait = fixedTrait({
     modifiers: [
