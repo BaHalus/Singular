@@ -5,7 +5,7 @@ import path from "node:path";
 
 const port = Number.parseInt(process.env.PORT ?? process.argv[2] ?? "4173", 10);
 const host = process.env.HOST ?? "127.0.0.1";
-const root = process.cwd();
+const root = path.resolve(process.env.SINGULAR_SMOKE_ROOT ?? process.cwd());
 const idleTimeoutMs = Number.parseInt(process.env.SINGULAR_SMOKE_SERVER_IDLE_MS ?? "30000", 10);
 let idleTimer = null;
 const activeSockets = new Set();
@@ -91,7 +91,7 @@ function shutdown() {
 }
 
 server.listen(port, host, () => {
-  console.log(`SINGULAR mobile smoke server listening at http://${host}:${port}`);
+  console.log(`SINGULAR mobile smoke server listening at http://${host}:${port} from ${root}`);
   scheduleIdleShutdown();
 });
 
