@@ -185,7 +185,7 @@ test("ignores disabled and textual modifiers mechanically while preserving them"
     modifiers: [
       { id: "disabled", cost_adj: "+100%", disabled: true },
       { id: "text", name: "Somente descrição", notes: "Sem efeito mecânico" },
-      "anotação textual",
+      { id: "text-annotation", name: "Anotação textual" },
     ],
   });
 
