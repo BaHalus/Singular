@@ -11,6 +11,11 @@ import {
   validateTraitFrequency,
   validateTraitSelfControl,
 } from "./TraitControl.js";
+import {
+  createTraitModifiers,
+  serializeTraitModifiers,
+  validateTraitModifiers,
+} from "./TraitModifiers.js";
 
 export function createTraitRecord(input = {}, generateId) {
   const selfControlInput = hasOwn(input, "selfControl")
@@ -47,7 +52,7 @@ export function createTraitRecord(input = {}, generateId) {
     roundCostDown: normalizeBoolean(roundCostDownInput, false),
     choices: createTraitChoices(choicesInput),
 
-    modifiers: normalizeArray(input.modifiers, "Trait modifiers must be array"),
+    modifiers: createTraitModifiers(input.modifiers),
     features: normalizeArray(input.features, "Trait features must be array"),
     weapons: normalizeArray(input.weapons, "Trait weapons must be array"),
     prereqs: input.prereqs ?? null,
@@ -89,10 +94,7 @@ export function validateTraitRecord(record, label) {
   validateNullableNumber(record.points, `${label} points must be number or null`);
   validateNullableNumber(record.levels, `${label} levels must be number or null`);
   validateControlFields(record, label);
-
-  if (!Array.isArray(record.modifiers)) {
-    throw new Error(`${label} modifiers must be array`);
-  }
+  validateTraitModifiers(record.modifiers);
 
   if (!Array.isArray(record.features)) {
     throw new Error(`${label} features must be array`);
@@ -158,7 +160,7 @@ export function serializeTraitRecord(record, label) {
       ? { choices: serializeTraitChoices(record.choices) }
       : {}),
 
-    modifiers: [...record.modifiers],
+    modifiers: serializeTraitModifiers(record.modifiers),
     features: [...record.features],
     weapons: [...record.weapons],
     prereqs: record.prereqs,
