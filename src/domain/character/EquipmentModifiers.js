@@ -28,7 +28,7 @@ export function createEquipmentModifierList(input = {}) {
       "Equipment modifier list version must be non-negative finite number or null",
     ),
     rows: createEquipmentModifierNodes(input.rows ?? [], context, "rows"),
-    source: createSource({
+    source: normalizeSource(input.source, {
       type: input.type,
       version: input.version,
     }),
@@ -149,13 +149,31 @@ function createEquipmentModifierContainer(input, context, label) {
       context,
       `${label}.children`,
     ),
-    source: createSource({ type: input.type }),
+    source: normalizeSource(input.source, { type: input.type }),
     raw: clonePortableNullableValue(input, "Equipment modifier container raw"),
   };
 }
 
 function createEquipmentModifierLeaf(input) {
   const features = clonePortableArray(input.features, "Equipment modifier features");
+  const costAdjustment = normalizeEquipmentAdjustment(
+    input.costAdjustment,
+    {
+      type: input.cost_type ?? input.costType,
+      expression: input.cost,
+      target: "baseCost",
+    },
+    "Equipment modifier costAdjustment",
+  );
+  const weightAdjustment = normalizeEquipmentAdjustment(
+    input.weightAdjustment,
+    {
+      type: input.weight_type ?? input.weightType,
+      expression: input.weight,
+      target: "baseWeight",
+    },
+    "Equipment modifier weightAdjustment",
+  );
   return {
     schemaVersion: EQUIPMENT_MODIFIER_SCHEMA_VERSION,
     kind: "modifier",
@@ -167,19 +185,11 @@ function createEquipmentModifierLeaf(input) {
     reference: normalizeNullableString(input.reference),
     notes: normalizeString(input.notes),
     enabled: isEnabled(input),
-    costAdjustment: normalizeAdjustment({
-      type: input.cost_type ?? input.costType,
-      expression: input.cost,
-      target: "baseCost",
-    }),
-    weightAdjustment: normalizeAdjustment({
-      type: input.weight_type ?? input.weightType,
-      expression: input.weight,
-      target: "baseWeight",
-    }),
+    costAdjustment,
+    weightAdjustment,
     features,
     applicability: normalizeApplicability(input, features),
-    source: createSource({
+    source: normalizeSource(input.source, {
       type: input.type,
       costType: input.cost_type ?? input.costType,
       costExpression: input.cost,
@@ -270,6 +280,19 @@ function normalizeAdjustment({ type, expression, target }) {
   };
 }
 
+function normalizeEquipmentAdjustment(canonicalAdjustment, sourceAdjustment, label) {
+  if (canonicalAdjustment !== undefined) {
+    const adjustment = clonePortableNullableValue(canonicalAdjustment, label);
+    validateAdjustment(adjustment, label, true);
+    if (adjustment !== null && adjustment.target !== sourceAdjustment.target) {
+      throw new Error(`${label} target is invalid`);
+    }
+    return adjustment;
+  }
+
+  return normalizeAdjustment(sourceAdjustment);
+}
+
 function parseAdjustmentExpression(expression) {
   if (expression === null || expression.trim() === "") {
     return unsupportedAdjustment();
@@ -351,6 +374,15 @@ function validateAdjustment(adjustment, label, nullable = false) {
 }
 
 function normalizeApplicability(input, features) {
+  if (input.applicability !== undefined) {
+    const applicability = cloneEquipmentPortableValue(
+      input.applicability,
+      "Equipment modifier applicability",
+    );
+    validateApplicability(applicability, "Equipment modifier applicability");
+    return applicability;
+  }
+
   const featureSelectionType = features
     .map(feature => feature?.selection_type ?? feature?.selectionType)
     .find(value => typeof value === "string" && value.trim() !== "");
@@ -388,6 +420,16 @@ function createSource({
     weightType: normalizeNullableString(weightType),
     weightExpression: normalizeNullableString(weightExpression),
   };
+}
+
+function normalizeSource(source, fallback) {
+  if (source !== undefined) {
+    const normalized = cloneEquipmentPortableValue(source, "Equipment modifier source");
+    validateSource(normalized, "Equipment modifier source");
+    return normalized;
+  }
+
+  return createSource(fallback);
 }
 
 function validateSource(source, label) {
