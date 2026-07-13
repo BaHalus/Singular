@@ -19,6 +19,169 @@ function fixedTrait({ points = 100, modifiers = [], pointValue = null } = {}) {
   });
 }
 
+test("evaluates canonical enhancement and limitation with an auditable breakdown", () => {
+  const trait = fixedTrait({
+    modifiers: [
+      {
+        id: "canonical-enhancement",
+        name: "Ampliação",
+        kind: "enhancement",
+        valueType: "percentage",
+        value: 50,
+      },
+      {
+        id: "canonical-limitation",
+        name: "Limitação",
+        kind: "limitation",
+        valueType: "percentage",
+        value: 20,
+      },
+    ],
+  });
+
+  const result = evaluateTraitModifierCost(trait);
+
+  assert.equal(result.status, "ready");
+  assert.deepEqual(
+    result.modifiers.map(modifier => ({
+      kind: modifier.kind,
+      value: modifier.value,
+      sourceFormat: modifier.sourceFormat,
+    })),
+    [
+      {
+        kind: "percentage",
+        value: 50,
+        sourceFormat: "canonical-percentage",
+      },
+      {
+        kind: "percentage",
+        value: -20,
+        sourceFormat: "canonical-percentage",
+      },
+    ],
+  );
+  assert.deepEqual(result.calculationBreakdown, {
+    basePoints: 100,
+    percentageMode: "additive",
+    enhancementsPercent: 50,
+    limitationsGrossPercent: -20,
+    limitationsEffectivePercent: -20,
+    netModifierPercent: 30,
+    components: {
+      base: {
+        beforePercentage: 100,
+        enhancementsPercent: 50,
+        limitationsGrossPercent: -20,
+        limitationsEffectivePercent: -20,
+        netModifierPercent: 30,
+        afterPercentage: 130,
+      },
+      levels: {
+        beforePercentage: 0,
+        enhancementsPercent: 50,
+        limitationsGrossPercent: -20,
+        limitationsEffectivePercent: -20,
+        netModifierPercent: 30,
+        afterPercentage: 0,
+      },
+    },
+    beforeMultiplier: 130,
+    multiplier: 1,
+    beforeRounding: 130,
+    rounding: {
+      policy: "up",
+      applied: false,
+      input: 130,
+      output: 130,
+      difference: 0,
+    },
+    finalPoints: 130,
+  });
+});
+
+test("caps the canonical net modifier at -80 percent and exposes effective limitation", () => {
+  const trait = fixedTrait({
+    modifiers: [
+      {
+        id: "canonical-enhancement",
+        name: "Ampliação",
+        kind: "enhancement",
+        valueType: "percentage",
+        value: 50,
+      },
+      {
+        id: "canonical-limitation",
+        name: "Limitação extrema",
+        kind: "limitation",
+        valueType: "percentage",
+        value: 200,
+      },
+    ],
+  });
+
+  const result = evaluateTraitModifierCost(trait);
+
+  assert.equal(result.calculationBreakdown.limitationsGrossPercent, -200);
+  assert.equal(result.calculationBreakdown.limitationsEffectivePercent, -130);
+  assert.equal(result.calculationBreakdown.netModifierPercent, -80);
+  assert.equal(result.calculationBreakdown.finalPoints, 20);
+});
+
+test("rounds canonical percentage cost upward to the next integer", () => {
+  const trait = fixedTrait({
+    points: 10,
+    modifiers: [{
+      id: "canonical-limitation",
+      name: "Limitação",
+      kind: "limitation",
+      valueType: "percentage",
+      value: 25,
+    }],
+  });
+
+  const result = evaluateTraitModifierCost(trait);
+
+  assert.equal(result.calculationBreakdown.beforeRounding, 7.5);
+  assert.equal(result.calculationBreakdown.rounding.policy, "up");
+  assert.equal(result.calculationBreakdown.rounding.applied, true);
+  assert.equal(result.calculationBreakdown.finalPoints, 8);
+});
+
+test("ignores disabled canonical percentage modifiers", () => {
+  const trait = {
+    ...fixedTrait({ points: 10 }),
+    modifiers: [
+      {
+        id: "disabled-canonical-limitation",
+        name: "Limitação desativada",
+        kind: "limitation",
+        valueType: "percentage",
+        value: 50,
+        disabled: true,
+      },
+      {
+        id: "enabled-false-canonical-enhancement",
+        name: "Ampliação desativada",
+        kind: "enhancement",
+        valueType: "percentage",
+        value: 100,
+        enabled: false,
+      },
+    ],
+  };
+
+  const result = evaluateTraitModifierCost(trait);
+
+  assert.deepEqual(
+    result.modifiers.map(modifier => modifier.enabled),
+    [false, false],
+  );
+  assert.equal(result.calculationBreakdown.enhancementsPercent, 0);
+  assert.equal(result.calculationBreakdown.limitationsGrossPercent, 0);
+  assert.equal(result.calculationBreakdown.finalPoints, 10);
+});
+
 test("applies additive percentages and caps total limitations at -80 percent", () => {
   const trait = fixedTrait({
     modifiers: [
@@ -58,6 +221,26 @@ test("keeps base-only and levels-only adjustments separated", () => {
   assert.equal(result.components.base.afterPercentage, 18);
   assert.equal(result.components.levels.beforePercentage, 14);
   assert.equal(result.components.levels.afterPercentage, 7);
+  assert.deepEqual(result.calculationBreakdown.components, {
+    base: {
+      beforePercentage: 15,
+      enhancementsPercent: 20,
+      limitationsGrossPercent: 0,
+      limitationsEffectivePercent: 0,
+      netModifierPercent: 20,
+      afterPercentage: 18,
+    },
+    levels: {
+      beforePercentage: 14,
+      enhancementsPercent: 0,
+      limitationsGrossPercent: -50,
+      limitationsEffectivePercent: -50,
+      netModifierPercent: -50,
+      afterPercentage: 7,
+    },
+  });
+  assert.equal(result.calculationBreakdown.beforeMultiplier, 25);
+  assert.equal(result.calculationBreakdown.beforeRounding, 25);
   assert.equal(result.calculatedPoints, 25);
 });
 
@@ -91,8 +274,15 @@ test("supports additive and multiplicative percentage policies explicitly", () =
   });
 
   assert.equal(additive.calculatedPoints, 130);
+  assert.equal(additive.calculationBreakdown.percentageMode, "additive");
+  assert.equal(additive.calculationBreakdown.netModifierPercent, 30);
   assert.equal(multiplicative.calculatedPoints, 120);
   assert.equal(multiplicative.components.base.appliedPercent, 20);
+  assert.equal(
+    multiplicative.calculationBreakdown.percentageMode,
+    "multiplicative",
+  );
+  assert.equal(multiplicative.calculationBreakdown.netModifierPercent, 20);
 });
 
 test("rounds final positive and negative costs according to the declared policy", () => {

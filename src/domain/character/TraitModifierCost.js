@@ -3,6 +3,7 @@ import {
   serializeTraitBaseCost,
 } from "./TraitBaseCost.js";
 import { validateTrait } from "./Traits.js";
+import { isCanonicalPercentageModifier } from "./TraitModifiers.js";
 
 const MODIFIER_COST_STATUSES = [
   "ready",
@@ -133,6 +134,20 @@ export function evaluateTraitModifierCost(trait, options = {}) {
     rawPoints,
     calculatedPoints,
     rounding,
+    calculationBreakdown: createCalculationBreakdown({
+      baseCost,
+      modifiers,
+      policy,
+      components: {
+        base: baseEvaluation,
+        levels: levelEvaluation,
+      },
+      beforeMultiplier,
+      multiplier,
+      rawPoints,
+      calculatedPoints,
+      rounding,
+    }),
     diagnostics: [],
   };
 
@@ -187,6 +202,7 @@ export function validateTraitModifierCost(result) {
       "Trait modifier calculatedPoints must be finite number",
     );
     validateRounding(result.rounding);
+    validateCalculationBreakdown(result.calculationBreakdown, result);
   } else {
     for (const field of [
       "components",
@@ -195,6 +211,7 @@ export function validateTraitModifierCost(result) {
       "rawPoints",
       "calculatedPoints",
       "rounding",
+      "calculationBreakdown",
     ]) {
       if (result[field] !== null) {
         throw new Error(`Non-ready Trait modifier cost ${field} must be null`);
@@ -259,6 +276,7 @@ function createPendingResult({
     rawPoints: null,
     calculatedPoints: null,
     rounding: null,
+    calculationBreakdown: null,
     diagnostics: cloneValue(diagnostics),
   };
   validateTraitModifierCost(result);
@@ -388,6 +406,182 @@ function evaluateComponent(component, percentageMode) {
   };
 }
 
+function createCalculationBreakdown({
+  baseCost,
+  modifiers,
+  policy,
+  components,
+  beforeMultiplier,
+  multiplier,
+  rawPoints,
+  calculatedPoints,
+  rounding,
+}) {
+  const activePercentages = modifiers.filter(modifier => (
+    modifier.enabled && modifier.kind === "percentage"
+  ));
+  const enhancementsPercent = normalizeArithmetic(
+    activePercentages
+      .filter(modifier => modifier.value >= 0)
+      .reduce((total, modifier) => (
+        total + (modifier.value * modifier.levelMultiplier)
+      ), 0),
+  );
+  const limitationsGrossPercent = normalizeArithmetic(
+    activePercentages
+      .filter(modifier => modifier.value < 0)
+      .reduce((total, modifier) => (
+        total + (modifier.value * modifier.levelMultiplier)
+      ), 0),
+  );
+  const limitationsEffectivePercent = policy.percentageMode === "multiplicative"
+    ? Math.max(limitationsGrossPercent, LIMITATION_FLOOR_PERCENT)
+    : Math.max(
+      limitationsGrossPercent,
+      normalizeArithmetic(LIMITATION_FLOOR_PERCENT - enhancementsPercent),
+    );
+  const netModifierPercent = policy.percentageMode === "multiplicative"
+    ? normalizeArithmetic(
+      (
+        (1 + (enhancementsPercent / 100)) *
+        (1 + (limitationsEffectivePercent / 100)) -
+        1
+      ) * 100,
+    )
+    : Math.max(
+      LIMITATION_FLOOR_PERCENT,
+      normalizeArithmetic(enhancementsPercent + limitationsGrossPercent),
+    );
+
+  return {
+    basePoints: baseCost.rawPoints,
+    percentageMode: policy.percentageMode,
+    enhancementsPercent,
+    limitationsGrossPercent,
+    limitationsEffectivePercent,
+    netModifierPercent,
+    components: {
+      base: createCalculationComponentBreakdown(components.base, policy),
+      levels: createCalculationComponentBreakdown(components.levels, policy),
+    },
+    beforeMultiplier,
+    multiplier,
+    beforeRounding: rawPoints,
+    rounding: cloneValue(rounding),
+    finalPoints: calculatedPoints,
+  };
+}
+
+function createCalculationComponentBreakdown(component, policy) {
+  const limitationsEffectivePercent = policy.percentageMode === "multiplicative"
+    ? component.cappedLimitationPercent
+    : normalizeArithmetic(
+      component.appliedPercent - component.enhancementPercent,
+    );
+
+  return {
+    beforePercentage: component.beforePercentage,
+    enhancementsPercent: component.enhancementPercent,
+    limitationsGrossPercent: component.limitationPercent,
+    limitationsEffectivePercent,
+    netModifierPercent: component.appliedPercent,
+    afterPercentage: component.afterPercentage,
+  };
+}
+
+function validateCalculationBreakdown(breakdown, result) {
+  if (!isPlainObject(breakdown)) {
+    throw new Error("Trait modifier calculationBreakdown must be object");
+  }
+  for (const [field, value] of Object.entries({
+    basePoints: breakdown.basePoints,
+    enhancementsPercent: breakdown.enhancementsPercent,
+    limitationsGrossPercent: breakdown.limitationsGrossPercent,
+    limitationsEffectivePercent: breakdown.limitationsEffectivePercent,
+    netModifierPercent: breakdown.netModifierPercent,
+    beforeMultiplier: breakdown.beforeMultiplier,
+    multiplier: breakdown.multiplier,
+    beforeRounding: breakdown.beforeRounding,
+    finalPoints: breakdown.finalPoints,
+  })) {
+    validateFiniteNumber(
+      value,
+      `Trait modifier calculationBreakdown ${field} must be finite number`,
+    );
+  }
+  if (!PERCENTAGE_MODES.includes(breakdown.percentageMode)) {
+    throw new Error("Trait modifier calculationBreakdown percentageMode is invalid");
+  }
+  if (breakdown.limitationsGrossPercent > 0) {
+    throw new Error("Trait modifier gross limitations cannot be positive");
+  }
+  if (breakdown.limitationsEffectivePercent > 0) {
+    throw new Error("Trait modifier effective limitations cannot be positive");
+  }
+  if (breakdown.netModifierPercent < LIMITATION_FLOOR_PERCENT) {
+    throw new Error("Trait modifier net percentage cannot be below -80");
+  }
+  if (!isPlainObject(breakdown.components)) {
+    throw new Error("Trait modifier calculationBreakdown components must be object");
+  }
+  validateCalculationBreakdownComponent(breakdown.components.base, "base");
+  validateCalculationBreakdownComponent(breakdown.components.levels, "levels");
+  const reconstructedBeforeMultiplier = normalizeArithmetic(
+    breakdown.components.base.afterPercentage +
+    breakdown.components.levels.afterPercentage,
+  );
+  if (!Object.is(breakdown.beforeMultiplier, reconstructedBeforeMultiplier)) {
+    throw new Error("Trait modifier calculationBreakdown components do not sum");
+  }
+  const reconstructedRawPoints = normalizeArithmetic(
+    breakdown.beforeMultiplier * breakdown.multiplier,
+  );
+  if (!Object.is(breakdown.beforeRounding, reconstructedRawPoints)) {
+    throw new Error("Trait modifier calculationBreakdown multiplier is inconsistent");
+  }
+  if (!Object.is(breakdown.beforeRounding, result.rawPoints)) {
+    throw new Error("Trait modifier calculationBreakdown raw cost is inconsistent");
+  }
+  if (!Object.is(breakdown.finalPoints, result.calculatedPoints)) {
+    throw new Error("Trait modifier calculationBreakdown final cost is inconsistent");
+  }
+  validateRounding(breakdown.rounding);
+}
+
+function validateCalculationBreakdownComponent(component, label) {
+  if (!isPlainObject(component)) {
+    throw new Error(`Trait modifier calculationBreakdown ${label} must be object`);
+  }
+  for (const [field, value] of Object.entries({
+    beforePercentage: component.beforePercentage,
+    enhancementsPercent: component.enhancementsPercent,
+    limitationsGrossPercent: component.limitationsGrossPercent,
+    limitationsEffectivePercent: component.limitationsEffectivePercent,
+    netModifierPercent: component.netModifierPercent,
+    afterPercentage: component.afterPercentage,
+  })) {
+    validateFiniteNumber(
+      value,
+      `Trait modifier calculationBreakdown ${label}.${field} must be finite number`,
+    );
+  }
+  if (component.limitationsGrossPercent > 0) {
+    throw new Error(`Trait modifier calculationBreakdown ${label} gross limitations cannot be positive`);
+  }
+  if (component.limitationsEffectivePercent > 0) {
+    throw new Error(`Trait modifier calculationBreakdown ${label} effective limitations cannot be positive`);
+  }
+  if (component.netModifierPercent < LIMITATION_FLOOR_PERCENT) {
+    throw new Error(`Trait modifier calculationBreakdown ${label} net percentage cannot be below -80`);
+  }
+  const reconstructedAfterPercentage = normalizeArithmetic(
+    component.beforePercentage * (1 + (component.netModifierPercent / 100)),
+  );
+  if (!Object.is(component.afterPercentage, reconstructedAfterPercentage)) {
+    throw new Error(`Trait modifier calculationBreakdown ${label} percentage is inconsistent`);
+  }
+}
+
 function flattenModifiers(
   modifiers,
   trait,
@@ -469,6 +663,26 @@ function normalizeModifier(modifier, trait, path, ancestorEnabled = true) {
       affects: "total",
       levelMultiplier: 1,
       sourceFormat: "unsupported",
+      raw: modifier,
+    });
+  }
+
+  if (isCanonicalPercentageModifier(modifier)) {
+    return createProjection({
+      source: modifier,
+      path,
+      parsed: {
+        kind: "percentage",
+        value: modifier.kind === "limitation"
+          ? -modifier.value
+          : modifier.value,
+        costExpression: null,
+      },
+      name: modifier.name,
+      enabled: ancestorEnabled && isModifierEnabled(modifier),
+      affects: normalizeAffects(modifier.affects),
+      levelMultiplier: 1,
+      sourceFormat: "canonical-percentage",
       raw: modifier,
     });
   }
