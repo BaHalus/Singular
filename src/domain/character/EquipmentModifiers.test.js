@@ -175,6 +175,45 @@ test("serializes equipment modifier lists as independent portable clones", () =>
   assert.equal(Object.isFrozen(list.rows[0].children[0].features), true);
 });
 
+test("rehydrates serialized equipment modifier lists without dropping canonical fields", () => {
+  const list = createEquipmentModifierList({
+    type: "eqp_modifier_list",
+    version: 2,
+    id: "roundtrip-list",
+    rows: [
+      {
+        type: "eqp_modifier",
+        id: "roundtrip-modifier",
+        name: "Leve e Superior",
+        cost_type: "to_base_cost",
+        cost: "x4",
+        weight_type: "to_base_weight",
+        weight: "x0.5",
+        features: [
+          {
+            type: "weapon_bonus",
+            amount: 1,
+            selection_type: "this_weapon",
+          },
+        ],
+      },
+    ],
+  });
+
+  const serialized = serializeEquipmentModifierList(list);
+  const rehydrated = createEquipmentModifierList(serialized);
+  const [modifier] = rehydrated.rows;
+
+  assert.deepEqual(modifier.costAdjustment, list.rows[0].costAdjustment);
+  assert.deepEqual(modifier.weightAdjustment, list.rows[0].weightAdjustment);
+  assert.deepEqual(modifier.applicability, {
+    selectionType: "this_weapon",
+    notes: null,
+  });
+  assert.deepEqual(modifier.source, list.rows[0].source);
+  assert.equal(validateEquipmentModifierList(rehydrated), true);
+});
+
 test("serializes standalone equipment modifier", () => {
   const modifier = createEquipmentModifier({
     type: "eqp_modifier",
