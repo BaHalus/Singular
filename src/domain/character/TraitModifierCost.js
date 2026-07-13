@@ -867,7 +867,7 @@ function parseCostExpression(expression) {
   }
 
   const percentage = normalized.match(
-    /^([+-]?(?:\d+(?:\.\d+)?|\.\d+))\s*$/,
+    /^([+-]?(?:\d+(?:\.\d+)?|\.\d+))\s*%$/,
   );
   if (percentage) {
     return {
