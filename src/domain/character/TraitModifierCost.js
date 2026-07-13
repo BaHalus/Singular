@@ -68,34 +68,28 @@ export function evaluateTraitModifierCost(trait, options = {}) {
   }
 
   const components = createBaseComponents(baseCost);
-  let multiplier = 1;
+  const activeMechanicalModifiers = modifiers.filter(modifier => (
+    modifier.enabled && !["container", "textual"].includes(modifier.kind)
+  ));
 
-  for (const modifier of modifiers) {
-    if (!modifier.enabled || ["container", "textual"].includes(modifier.kind)) {
-      continue;
-    }
-
-    const value = normalizeArithmetic(
-      modifier.value * modifier.levelMultiplier,
-    );
-
-    switch (modifier.kind) {
-      case "addition":
-        applyAddition(components, modifier.affects, value);
-        break;
-      case "percentage":
-        applyPercentage(components, modifier.affects, value);
-        break;
-      case "percentage-multiplier":
-        multiplier = normalizeArithmetic(multiplier * (value / 100));
-        break;
-      case "multiplier":
-        multiplier = normalizeArithmetic(multiplier * value);
-        break;
-      default:
-        throw new Error(`Unhandled Trait modifier kind: ${modifier.kind}`);
-    }
-  }
+  applyModifierStage(
+    components,
+    activeMechanicalModifiers,
+    ["addition"],
+    applyAddition,
+  );
+  applyModifierStage(
+    components,
+    activeMechanicalModifiers,
+    ["multiplier", "percentage-multiplier"],
+    applyOrderedMultiplier,
+  );
+  applyModifierStage(
+    components,
+    activeMechanicalModifiers,
+    ["percentage"],
+    applyPercentage,
+  );
 
   const baseEvaluation = evaluateComponent(
     components.base,
@@ -108,7 +102,8 @@ export function evaluateTraitModifierCost(trait, options = {}) {
   const beforeMultiplier = normalizeArithmetic(
     baseEvaluation.afterPercentage + levelEvaluation.afterPercentage,
   );
-  const rawPoints = normalizeArithmetic(beforeMultiplier * multiplier);
+  const multiplier = 1;
+  const rawPoints = beforeMultiplier;
   const calculatedPoints = applyRounding(rawPoints, policy.rounding);
   const rounding = {
     policy: policy.rounding,
@@ -313,9 +308,27 @@ function createComponent() {
     unitValue: 0,
     levels: 0,
     addition: 0,
+    multiplier: 1,
     enhancementPercent: 0,
     limitationPercent: 0,
   };
+}
+
+function applyModifierStage(components, modifiers, kinds, apply) {
+  for (const modifier of modifiers) {
+    if (!kinds.includes(modifier.kind)) continue;
+    const value = normalizeModifierStageValue(modifier);
+    apply(components, modifier.affects, value);
+  }
+}
+
+function normalizeModifierStageValue(modifier) {
+  const value = normalizeArithmetic(
+    modifier.value * modifier.levelMultiplier,
+  );
+  return modifier.kind === "percentage-multiplier"
+    ? normalizeArithmetic(value / 100)
+    : value;
 }
 
 function applyAddition(components, affects, value) {
@@ -353,13 +366,30 @@ function addPercentage(component, value) {
   );
 }
 
+function applyOrderedMultiplier(components, affects, value) {
+  if (affects === "total" || affects === "base") {
+    components.base.multiplier = normalizeArithmetic(
+      components.base.multiplier * value,
+    );
+  }
+  if (affects === "total" || affects === "levels") {
+    components.levels.multiplier = normalizeArithmetic(
+      components.levels.multiplier * value,
+    );
+  }
+}
+
 function evaluateComponent(component, percentageMode) {
-  const beforePercentage = component.levels === 0
+  const beforeComponentMultiplier = component.levels === 0
     ? normalizeArithmetic(component.baseValue + component.addition)
     : normalizeArithmetic(
       component.baseValue +
       ((component.unitValue + component.addition) * component.levels),
     );
+  const afterComponentMultiplier = normalizeArithmetic(
+    beforeComponentMultiplier * component.multiplier,
+  );
+  const beforePercentage = afterComponentMultiplier;
   const cappedLimitationPercent = Math.max(
     LIMITATION_FLOOR_PERCENT,
     component.limitationPercent,
@@ -397,6 +427,9 @@ function evaluateComponent(component, percentageMode) {
     unitValue: component.unitValue,
     levels: component.levels,
     addition: component.addition,
+    beforeMultiplier: beforeComponentMultiplier,
+    multiplier: component.multiplier,
+    afterMultiplier: afterComponentMultiplier,
     beforePercentage,
     enhancementPercent: component.enhancementPercent,
     limitationPercent: component.limitationPercent,
@@ -480,6 +513,9 @@ function createCalculationComponentBreakdown(component, policy) {
     );
 
   return {
+    beforeMultiplier: component.beforeMultiplier,
+    multiplier: component.multiplier,
+    afterMultiplier: component.afterMultiplier,
     beforePercentage: component.beforePercentage,
     enhancementsPercent: component.enhancementPercent,
     limitationsGrossPercent: component.limitationPercent,
@@ -553,6 +589,9 @@ function validateCalculationBreakdownComponent(component, label) {
     throw new Error(`Trait modifier calculationBreakdown ${label} must be object`);
   }
   for (const [field, value] of Object.entries({
+    beforeMultiplier: component.beforeMultiplier,
+    multiplier: component.multiplier,
+    afterMultiplier: component.afterMultiplier,
     beforePercentage: component.beforePercentage,
     enhancementsPercent: component.enhancementsPercent,
     limitationsGrossPercent: component.limitationsGrossPercent,
@@ -573,6 +612,15 @@ function validateCalculationBreakdownComponent(component, label) {
   }
   if (component.netModifierPercent < LIMITATION_FLOOR_PERCENT) {
     throw new Error(`Trait modifier calculationBreakdown ${label} net percentage cannot be below -80`);
+  }
+  const reconstructedAfterMultiplier = normalizeArithmetic(
+    component.beforeMultiplier * component.multiplier,
+  );
+  if (!Object.is(component.afterMultiplier, reconstructedAfterMultiplier)) {
+    throw new Error(`Trait modifier calculationBreakdown ${label} multiplier is inconsistent`);
+  }
+  if (!Object.is(component.beforePercentage, component.afterMultiplier)) {
+    throw new Error(`Trait modifier calculationBreakdown ${label} ordered stages are inconsistent`);
   }
   const reconstructedAfterPercentage = normalizeArithmetic(
     component.beforePercentage * (1 + (component.netModifierPercent / 100)),
@@ -739,7 +787,7 @@ function normalizeModifier(modifier, trait, path, ancestorEnabled = true) {
     affects: normalizeAffects(modifier.affects),
     levelMultiplier,
     sourceFormat,
-    raw: modifier,
+    raw: cloneValue(modifier),
   });
 }
 
@@ -800,6 +848,24 @@ function parseCostExpression(expression) {
     };
   }
 
+  const fractionalMultiplier = normalized.match(
+    /^[x×*]\s*([+-]?(?:\d+(?:\.\d+)?|\.\d+))\s*\/\s*([+-]?(?:\d+(?:\.\d+)?|\.\d+))$/i,
+  );
+  if (fractionalMultiplier) {
+    return parseDivisorExpression(
+      Number(fractionalMultiplier[2]),
+      expression,
+      Number(fractionalMultiplier[1]),
+    );
+  }
+
+  const divisor = normalized.match(
+    /^[/÷]\s*([+-]?(?:\d+(?:\.\d+)?|\.\d+))$/i,
+  );
+  if (divisor) {
+    return parseDivisorExpression(Number(divisor[1]), expression);
+  }
+
   const percentage = normalized.match(
     /^([+-]?(?:\d+(?:\.\d+)?|\.\d+))\s*%$/,
   );
@@ -829,6 +895,22 @@ function parseCostExpression(expression) {
   };
 }
 
+function parseDivisorExpression(divisor, expression, numerator = 1) {
+  if (!Number.isFinite(divisor) || divisor === 0) {
+    return {
+      kind: "unsupported",
+      value: null,
+      costExpression: expression,
+    };
+  }
+
+  return {
+    kind: "multiplier",
+    value: normalizeArithmetic(numerator / divisor),
+    costExpression: expression,
+  };
+}
+
 function parseExplicitModifier(kind, value) {
   if (kind === undefined && value === undefined) {
     return { kind: "textual", value: null, costExpression: null };
@@ -848,6 +930,9 @@ function parseExplicitModifier(kind, value) {
     "percentage-adder": "percentage",
     multiplier: "multiplier",
     multiply: "multiplier",
+    divisor: "divisor",
+    divide: "divisor",
+    division: "divisor",
     "percentage-multiplier": "percentage-multiplier",
     "percent-multiplier": "percentage-multiplier",
     textual: "textual",
@@ -861,6 +946,13 @@ function parseExplicitModifier(kind, value) {
 
   const numericValue = normalizeFiniteNumber(value);
   if (mappedKind && numericValue !== null) {
+    if (mappedKind === "divisor") {
+      return parseDivisorExpression(
+        numericValue,
+        `${kind}:${value}`,
+      );
+    }
+
     return {
       kind: mappedKind,
       value: numericValue,
@@ -962,6 +1054,9 @@ function validateComponentEvaluation(component, label) {
     "unitValue",
     "levels",
     "addition",
+    "beforeMultiplier",
+    "multiplier",
+    "afterMultiplier",
     "beforePercentage",
     "enhancementPercent",
     "limitationPercent",

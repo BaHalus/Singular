@@ -70,6 +70,9 @@ test("evaluates canonical enhancement and limitation with an auditable breakdown
     netModifierPercent: 30,
     components: {
       base: {
+        beforeMultiplier: 100,
+        multiplier: 1,
+        afterMultiplier: 100,
         beforePercentage: 100,
         enhancementsPercent: 50,
         limitationsGrossPercent: -20,
@@ -78,6 +81,9 @@ test("evaluates canonical enhancement and limitation with an auditable breakdown
         afterPercentage: 130,
       },
       levels: {
+        beforeMultiplier: 0,
+        multiplier: 1,
+        afterMultiplier: 0,
         beforePercentage: 0,
         enhancementsPercent: 50,
         limitationsGrossPercent: -20,
@@ -223,6 +229,9 @@ test("keeps base-only and levels-only adjustments separated", () => {
   assert.equal(result.components.levels.afterPercentage, 7);
   assert.deepEqual(result.calculationBreakdown.components, {
     base: {
+      beforeMultiplier: 15,
+      multiplier: 1,
+      afterMultiplier: 15,
       beforePercentage: 15,
       enhancementsPercent: 20,
       limitationsGrossPercent: 0,
@@ -231,6 +240,9 @@ test("keeps base-only and levels-only adjustments separated", () => {
       afterPercentage: 18,
     },
     levels: {
+      beforeMultiplier: 14,
+      multiplier: 1,
+      afterMultiplier: 14,
       beforePercentage: 14,
       enhancementsPercent: 0,
       limitationsGrossPercent: -50,
@@ -244,20 +256,103 @@ test("keeps base-only and levels-only adjustments separated", () => {
   assert.equal(result.calculatedPoints, 25);
 });
 
-test("applies multipliers after percentage adjustments", () => {
+test("applies exclusive adjustments in additive multiplier percentage order", () => {
   const trait = fixedTrait({
+    points: 20,
     modifiers: [
-      { id: "enhancement", cost_adj: "+20%" },
+      { id: "flat", cost_adj: "+10" },
       { id: "double", cost_adj: "x2" },
-      { id: "half", cost_adj: "x50%" },
+      { id: "enhancement", cost_adj: "+25%" },
     ],
   });
 
   const result = evaluateTraitModifierCost(trait);
 
-  assert.equal(result.beforeMultiplier, 120);
+  assert.equal(result.components.base.beforeMultiplier, 30);
+  assert.equal(result.components.base.multiplier, 2);
+  assert.equal(result.components.base.afterMultiplier, 60);
+  assert.equal(result.components.base.beforePercentage, 60);
+  assert.equal(result.components.base.afterPercentage, 75);
+  assert.equal(result.calculationBreakdown.components.base.beforeMultiplier, 30);
+  assert.equal(result.calculationBreakdown.components.base.afterMultiplier, 60);
+  assert.equal(result.beforeMultiplier, 75);
   assert.equal(result.multiplier, 1);
-  assert.equal(result.calculatedPoints, 120);
+  assert.equal(result.calculatedPoints, 75);
+});
+
+test("parses divisor equivalents and applies them in the multiplier stage", () => {
+  const trait = fixedTrait({
+    points: 40,
+    modifiers: [
+      { id: "flat", cost_adj: "+10" },
+      { id: "double", cost_adj: "x2" },
+      { id: "quarter", cost_adj: "/4" },
+      { id: "half", cost_adj: "x1/2" },
+      { id: "enhancement", cost_adj: "+50%" },
+    ],
+  });
+
+  const projected = projectTraitCostModifiers(trait);
+  const result = evaluateTraitModifierCost(trait);
+
+  assert.deepEqual(
+    projected.slice(1, 4).map(modifier => modifier.value),
+    [2, 0.25, 0.5],
+  );
+  assert.equal(result.components.base.beforeMultiplier, 50);
+  assert.equal(result.components.base.multiplier, 0.25);
+  assert.equal(result.components.base.afterMultiplier, 12.5);
+  assert.equal(result.rawPoints, 18.75);
+  assert.equal(result.calculatedPoints, 19);
+});
+
+test("keeps the -80 percent floor limited to the percentage stage", () => {
+  const trait = fixedTrait({
+    points: 100,
+    modifiers: [
+      { id: "negative-flat", cost_adj: "-300" },
+      { id: "double", cost_adj: "x2" },
+      { id: "severe-limitation", cost_adj: "-200%" },
+    ],
+  });
+
+  const result = evaluateTraitModifierCost(trait);
+
+  assert.equal(result.components.base.beforeMultiplier, -200);
+  assert.equal(result.components.base.afterMultiplier, -400);
+  assert.equal(result.components.base.appliedPercent, -80);
+  assert.equal(result.rawPoints, -80);
+  assert.equal(result.calculatedPoints, -80);
+});
+
+test("sums exclusive and canonical percentages in the same percentage stage", () => {
+  const trait = fixedTrait({
+    points: 50,
+    modifiers: [
+      { id: "exclusive-enhancement", cost_adj: "+10%" },
+      {
+        id: "general-enhancement",
+        name: "Ampliação geral",
+        kind: "enhancement",
+        valueType: "percentage",
+        value: 20,
+      },
+      {
+        id: "general-limitation",
+        name: "Limitação geral",
+        kind: "limitation",
+        valueType: "percentage",
+        value: 5,
+      },
+    ],
+  });
+
+  const result = evaluateTraitModifierCost(trait);
+
+  assert.equal(result.components.base.enhancementPercent, 30);
+  assert.equal(result.components.base.limitationPercent, -5);
+  assert.equal(result.components.base.appliedPercent, 25);
+  assert.equal(result.calculatedPoints, 63);
 });
 
 test("supports additive and multiplicative percentage policies explicitly", () => {
@@ -367,6 +462,24 @@ test("parses legacy cost and cost_type modifier data", () => {
     "multiplier",
   ]);
   assert.equal(result.calculatedPoints, 36);
+});
+
+test("parses legacy divisor modifier data", () => {
+  const trait = fixedTrait({
+    points: 40,
+    modifiers: [
+      { id: "legacy-divisor", cost: 4, cost_type: "divisor" },
+      { id: "enhancement", cost: 50, cost_type: "percentage" },
+    ],
+  });
+
+  const projected = projectTraitCostModifiers(trait);
+  const result = evaluateTraitModifierCost(trait);
+
+  assert.equal(projected[0].kind, "multiplier");
+  assert.equal(projected[0].value, 0.25);
+  assert.equal(result.components.base.afterMultiplier, 10);
+  assert.equal(result.calculatedPoints, 15);
 });
 
 test("ignores disabled and textual modifiers mechanically while preserving them", () => {
