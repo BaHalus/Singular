@@ -32,7 +32,10 @@ export function createEquipmentModifierList(input = {}) {
       type: input.type,
       version: input.version,
     }),
-    raw: clonePortableNullableValue(input, "Equipment modifier list raw"),
+    raw: clonePortableNullableValue(
+      getCanonicalRawInput(input),
+      "Equipment modifier list raw",
+    ),
   };
 
   validateEquipmentModifierList(list);
@@ -150,7 +153,10 @@ function createEquipmentModifierContainer(input, context, label) {
       `${label}.children`,
     ),
     source: normalizeSource(input.source, { type: input.type }),
-    raw: clonePortableNullableValue(input, "Equipment modifier container raw"),
+    raw: clonePortableNullableValue(
+      getCanonicalRawInput(input),
+      "Equipment modifier container raw",
+    ),
   };
 }
 
@@ -196,7 +202,10 @@ function createEquipmentModifierLeaf(input) {
       weightType: input.weight_type ?? input.weightType,
       weightExpression: input.weight,
     }),
-    raw: clonePortableNullableValue(input, "Equipment modifier raw"),
+    raw: clonePortableNullableValue(
+      getCanonicalRawInput(input),
+      "Equipment modifier raw",
+    ),
   };
 }
 
@@ -447,6 +456,16 @@ function validateSource(source, label) {
 
 function isEnabled(input) {
   return input.disabled !== true && input.enabled !== false;
+}
+
+function getCanonicalRawInput(input) {
+  if (
+    input.schemaVersion === EQUIPMENT_MODIFIER_SCHEMA_VERSION &&
+    Object.prototype.hasOwnProperty.call(input, "raw")
+  ) {
+    return input.raw;
+  }
+  return input;
 }
 
 function clonePortableNullableValue(value, label) {
