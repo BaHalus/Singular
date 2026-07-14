@@ -70,6 +70,28 @@ test("updates total base points without mutating the source", () => {
   assert.equal(Object.isFrozen(result.pointValue), true);
 });
 
+test("clears stale final cost authority when invalidating calculated points", () => {
+  const authority = {
+    characterId: "character-with-authority",
+    traitId: "trait-cost-basis-commands",
+    contributionPoints: 10,
+  };
+  const source = createSource({
+    pointValue: {
+      mode: "total",
+      basePoints: 10,
+      calculatedPoints: 10,
+      finalCostAuthority: authority,
+    },
+  });
+
+  const result = setTraitBasePoints(source, 20);
+
+  assert.equal(result.pointValue.calculatedPoints, null);
+  assert.equal(result.pointValue.finalCostAuthority, null);
+  assert.deepEqual(source.pointValue.finalCostAuthority, authority);
+});
+
 test("transitions atomically from total to per-level cost", () => {
   const source = createSource();
   const result = applyTraitCostBasisCommands(source, [
