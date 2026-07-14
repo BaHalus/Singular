@@ -4,6 +4,7 @@ import {
   deepFreezeEngineValue,
   validateEngineDenseArray,
 } from "../EnginePortableValue.js";
+import { createEquipmentModifierList } from "../../domain/character/EquipmentModifiers.js";
 
 const SCHEMA_VERSION = 1;
 const LOAD_STATES = new Set(["equipped", "carried", "stored"]);
@@ -229,36 +230,22 @@ function resolveEquipmentModifierPipelines({
   itemId,
   diagnostics,
 }) {
-  const modifiers = item.modifiers ?? [];
+  const modifiers = normalizeEquipmentModifierRows(
+    item.modifiers ?? [],
+    path,
+    itemId,
+    diagnostics,
+  );
   const orderedModifiers = [];
 
-  if (!Array.isArray(modifiers)) {
-    diagnostics.push(createDiagnostic(
-      "equipment.modifiers.invalid",
-      "Equipment modifiers must be an array",
-      path,
-      itemId,
-    ));
-  } else {
-    try {
-      validateEngineDenseArray(modifiers, "Equipment modifiers");
-      collectEquipmentModifiers(
-        modifiers,
-        true,
-        orderedModifiers,
-        path,
-        itemId,
-        diagnostics,
-      );
-    } catch (error) {
-      diagnostics.push(createDiagnostic(
-        "equipment.modifiers.invalid",
-        error.message,
-        path,
-        itemId,
-      ));
-    }
-  }
+  collectEquipmentModifiers(
+    modifiers,
+    true,
+    orderedModifiers,
+    path,
+    itemId,
+    diagnostics,
+  );
 
   const counted = COUNTED_STATES.has(state);
   return {
@@ -287,6 +274,42 @@ function resolveEquipmentModifierPipelines({
       diagnostics,
     }),
   };
+}
+
+function normalizeEquipmentModifierRows(modifiers, path, itemId, diagnostics) {
+  if (!Array.isArray(modifiers)) {
+    diagnostics.push(createDiagnostic(
+      "equipment.modifiers.invalid",
+      "Equipment modifiers must be an array",
+      path,
+      itemId,
+    ));
+    return [];
+  }
+
+  try {
+    validateEngineDenseArray(modifiers, "Equipment modifiers");
+    return createEquipmentModifierList({
+      type: "eqp_modifier_list",
+      id: createEquipmentModifierListId(path, itemId),
+      rows: modifiers,
+    }).rows;
+  } catch (error) {
+    diagnostics.push(createDiagnostic(
+      "equipment.modifiers.invalid",
+      error.message,
+      path,
+      itemId,
+    ));
+    return [];
+  }
+}
+
+function createEquipmentModifierListId(path, itemId) {
+  if (typeof itemId === "string" && itemId.trim() !== "") {
+    return `${itemId}:modifiers`;
+  }
+  return `equipment-${path.join("-") || "root"}-modifiers`;
 }
 
 function collectEquipmentModifiers(
