@@ -9,6 +9,10 @@ import {
 import { createPerks } from "./Perks.js";
 import { createDisadvantages } from "./Disadvantages.js";
 import { createQuirks } from "./Quirks.js";
+import {
+  createTraitRecord,
+  serializeTraitRecord,
+} from "./TraitFields.js";
 
 test("preserves rich GCS trait fields in advantages", () => {
   const raw = { id: "adv-001", name: "Ataque Inato" };
@@ -110,4 +114,48 @@ test("rejects invalid rich trait fields", () => {
       },
     ]);
   });
+});
+
+test("rejects cyclic rich fields instead of creating cyclic snapshots", () => {
+  const raw = { source: "gcs" };
+  raw.self = raw;
+  const trait = createTraitRecord(
+    { id: "trait-cycle", name: "Cycle", raw },
+    () => "unused",
+  );
+
+  assert.throws(
+    () => serializeTraitRecord(trait, "Trait"),
+    /Trait raw\.self must not contain cycles/,
+  );
+});
+
+test("rejects unsupported rich field object types instead of erasing them", () => {
+  const trait = createTraitRecord(
+    { id: "trait-date", name: "Date", raw: new Date("2026-07-14T00:00:00Z") },
+    () => "unused",
+  );
+
+  assert.throws(
+    () => serializeTraitRecord(trait, "Trait"),
+    /Trait raw must be JSON portable/,
+  );
+});
+
+test("rejects sparse rich field arrays instead of silently normalizing them", () => {
+  const sparse = [];
+  sparse[1] = "gcs-id";
+  const trait = createTraitRecord(
+    {
+      id: "trait-sparse",
+      name: "Sparse",
+      externalIds: { aliases: sparse },
+    },
+    () => "unused",
+  );
+
+  assert.throws(
+    () => serializeTraitRecord(trait, "Trait"),
+    /Trait externalIds\.aliases must be a dense JSON array/,
+  );
 });
