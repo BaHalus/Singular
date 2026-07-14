@@ -8,8 +8,8 @@ executável pela suíte `npm test`:
 
 ## Inventário da árvore real
 
-A `main` usada para criar a guarda foi
-`debecc992f17c121f4f0777ba6a5c4a86ecc7008`. A produção JavaScript está
+A `main` usada para validar a guarda foi
+`cf6365217f8047c2763baf108e8f75a3eccf1897`. A produção JavaScript está
 organizada assim:
 
 - `src/domain/**`: entidades, operações, importação de dados e serviços de
