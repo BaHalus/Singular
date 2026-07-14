@@ -66,7 +66,7 @@ function command(type, expectedRevision, payload, id) {
   };
 }
 
-test("exposes nine immutable equipment command entries", () => {
+test("exposes immutable equipment and modifier command entries", () => {
   const entries = createEquipmentCommandHandlerEntries();
   assert.equal(Object.isFrozen(entries), true);
   assert.deepEqual(entries.map(entry => entry.type), [
@@ -79,6 +79,11 @@ test("exposes nine immutable equipment command entries", () => {
     "equipment.remove",
     "equipment.move",
     "equipment.reorder",
+    "equipment.modifier.add",
+    "equipment.modifier.edit",
+    "equipment.modifier.remove",
+    "equipment.modifier.reorder",
+    "equipment.modifier.enabled.set",
   ]);
   assert.equal(entries.every(entry => Object.isFrozen(entry)), true);
 });
