@@ -139,7 +139,7 @@ export function serializeTraitRecord(record, label) {
 
   return {
     id: record.id,
-    externalIds: { ...record.externalIds },
+    externalIds: clonePortableValue(record.externalIds, `${label} externalIds`),
     name: record.name,
     notes: record.notes,
     tags: [...record.tags],
@@ -161,16 +161,16 @@ export function serializeTraitRecord(record, label) {
       : {}),
 
     modifiers: serializeTraitModifiers(record.modifiers),
-    features: [...record.features],
-    weapons: [...record.weapons],
-    prereqs: record.prereqs,
+    features: clonePortableValue(record.features, `${label} features`),
+    weapons: clonePortableValue(record.weapons, `${label} weapons`),
+    prereqs: clonePortableValue(record.prereqs, `${label} prereqs`),
 
-    importMeta: record.importMeta,
-    power: record.power,
+    importMeta: clonePortableValue(record.importMeta, `${label} importMeta`),
+    power: clonePortableValue(record.power, `${label} power`),
     alternateGroupId: record.alternateGroupId,
     isPrimaryAlternative: record.isPrimaryAlternative,
 
-    raw: record.raw,
+    raw: clonePortableValue(record.raw, `${label} raw`),
   };
 }
 
@@ -272,6 +272,77 @@ function validateNullableNumber(value, errorMessage) {
 
 function hasOwn(value, key) {
   return Object.prototype.hasOwnProperty.call(value, key);
+}
+
+function clonePortableValue(value, label, ancestors = new WeakSet()) {
+  if (value === null || typeof value === "string" || typeof value === "boolean") {
+    return value;
+  }
+
+  if (typeof value === "number") {
+    if (Number.isFinite(value)) return value;
+    throw new Error(`${label} must be JSON portable`);
+  }
+
+  if (typeof value !== "object") {
+    throw new Error(`${label} must be JSON portable`);
+  }
+
+  if (ancestors.has(value)) {
+    throw new Error(`${label} must not contain cycles`);
+  }
+
+  ancestors.add(value);
+
+  try {
+    if (Array.isArray(value)) {
+      const ownKeys = Reflect.ownKeys(value);
+      const expectedKeys = new Set([
+        "length",
+        ...Array.from({ length: value.length }, (_, index) => String(index)),
+      ]);
+
+      if (
+        ownKeys.length !== expectedKeys.size ||
+        ownKeys.some(key => typeof key !== "string" || !expectedKeys.has(key))
+      ) {
+        throw new Error(`${label} must be a dense JSON array`);
+      }
+
+      return value.map((item, index) =>
+        clonePortableValue(item, `${label}[${index}]`, ancestors));
+    }
+
+    if (!isPortablePlainObject(value)) {
+      throw new Error(`${label} must be JSON portable`);
+    }
+
+    const entries = Reflect.ownKeys(value).map(key => {
+      const descriptor = Object.getOwnPropertyDescriptor(value, key);
+
+      if (
+        typeof key !== "string" ||
+        !descriptor?.enumerable ||
+        !("value" in descriptor)
+      ) {
+        throw new Error(`${label} must be JSON portable`);
+      }
+
+      return [
+        key,
+        clonePortableValue(descriptor.value, `${label}.${key}`, ancestors),
+      ];
+    });
+
+    return Object.fromEntries(entries);
+  } finally {
+    ancestors.delete(value);
+  }
+}
+
+function isPortablePlainObject(value) {
+  const prototype = Object.getPrototypeOf(value);
+  return prototype === Object.prototype || prototype === null;
 }
 
 function isPlainObject(value) {
