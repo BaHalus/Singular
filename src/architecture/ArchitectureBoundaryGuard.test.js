@@ -116,8 +116,10 @@ test("ignores regex literal text without confusing division or real imports", ()
     String.raw`const characterClass = /[\/"']import\("..\/ui\/View.js"\)/;`,
     String.raw`if (ready) /import\("..\/..\/ui\/View.js"\)/.test(value);`,
     String.raw`while (check(ready)) /import\("..\/ui\/View.js"\)/.test(value);`,
+    String.raw`if (ready) {} /import\("..\/ui\/View.js"\)/.test(value);`,
     "const ratio = total / divisor;",
     "const groupedRatio = (total) / divisor;",
+    "const objectRatio = {} / divisor;",
     "const lazy = import('../../ui/View.js');",
   ].join("\n"));
 

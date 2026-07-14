@@ -482,6 +482,9 @@ function isRegexLiteralStart(source, slashIndex, lowerBound = 0) {
   if (previous === ")" && followsControlHeader(source, index, lowerBound)) {
     return true;
   }
+  if (previous === "}" && followsControlBlock(source, index, lowerBound)) {
+    return true;
+  }
 
   if (isIdentifierPart(previous)) {
     const end = index + 1;
@@ -490,6 +493,25 @@ function isRegexLiteralStart(source, slashIndex, lowerBound = 0) {
   }
 
   return false;
+}
+
+function followsControlBlock(source, closeBraceIndex, lowerBound) {
+  let depth = 1;
+  let index = closeBraceIndex - 1;
+
+  while (index >= lowerBound && depth > 0) {
+    if (source[index] === "}") {
+      depth += 1;
+    } else if (source[index] === "{") {
+      depth -= 1;
+    }
+    index -= 1;
+  }
+
+  if (depth !== 0) return false;
+  while (index >= lowerBound && isWhitespace(source[index])) index -= 1;
+  return source[index] === ")"
+    && followsControlHeader(source, index, lowerBound);
 }
 
 const REGEX_STATEMENT_CONTROL_KEYWORDS = new Set([
