@@ -131,6 +131,56 @@ test("applies command batches atomically and rejects invalid intermediate state"
   ]);
 });
 
+test("preserves mechanical affects metadata while applying commands", () => {
+  const source = createTraitModifiers([{
+    ...enhancement("levels-only", 50),
+    affects: "levels",
+  }]);
+  const traitBase = {
+    id: "trait-command-affects",
+    role: "advantage",
+    name: "Comandos com affects",
+    pointValue: {
+      mode: "base-plus-levels",
+      basePoints: 10,
+      pointsPerLevel: 5,
+      levels: 2,
+    },
+  };
+
+  const before = evaluateTraitModifierCost(createTrait({
+    ...traitBase,
+    modifiers: source,
+  }));
+  const emptyBatch = applyTraitModifierCommands(source, []);
+  const reordered = applyTraitModifierCommands(source, [{
+    type: "reorder",
+    id: "levels-only",
+    toIndex: 0,
+  }]);
+
+  assert.equal(emptyBatch[0].affects, "levels");
+  assert.equal(reordered[0].affects, "levels");
+  assert.equal(source[0].affects, "levels");
+  assert.equal(Object.isFrozen(emptyBatch), true);
+  assert.equal(Object.isFrozen(emptyBatch[0]), true);
+  assert.equal(before.calculatedPoints, 25);
+  assert.equal(
+    evaluateTraitModifierCost(createTrait({
+      ...traitBase,
+      modifiers: emptyBatch,
+    })).calculatedPoints,
+    before.calculatedPoints,
+  );
+  assert.equal(
+    evaluateTraitModifierCost(createTrait({
+      ...traitBase,
+      modifiers: reordered,
+    })).calculatedPoints,
+    before.calculatedPoints,
+  );
+});
+
 test("rejects missing ids, invalid indexes and invalid command payloads", () => {
   const source = createTraitModifiers([enhancement("only")]);
 
