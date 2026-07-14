@@ -430,3 +430,172 @@ test("normalizes imported raw equipment modifiers before resolving totals", () =
     [["light", true, 2, 1]],
   );
 });
+
+test("applies declared this-weapon bonuses and records their modifier origin", () => {
+  const report = resolveEquipmentTotals(createEquipment([{
+    id: "eq-fine-sword",
+    name: "Espada superior",
+    quantity: 1,
+    cost: 500,
+    weightKg: 1.5,
+    weapons: [
+      { type: "melee_weapon", usage: "Balanço" },
+      { type: "melee_weapon", usage: "Estocada" },
+    ],
+    modifierList: {
+      type: "eqp_modifier_list",
+      id: "eq-fine-sword:modifiers",
+      rows: [{
+        type: "eqp_modifier",
+        id: "fine-quality",
+        name: "Qualidade superior",
+        features: [{
+          type: "weapon_bonus",
+          amount: 1,
+          selection_type: "this_weapon",
+        }, {
+          type: "future_feature",
+          amount: 99,
+          selection_type: "this_weapon",
+        }],
+      }, {
+        type: "eqp_modifier",
+        id: "poor-balance",
+        name: "Equilíbrio ruim",
+        features: [{
+          type: "weapon_bonus",
+          amount: -2,
+          selection_type: "this_weapon",
+        }],
+      }],
+    },
+  }]));
+
+  const features = report.entries[0].adjustmentBreakdown.features;
+  assert.deepEqual(features.weaponBonuses, [
+    { weaponIndex: 0, modifierBonus: -1 },
+    { weaponIndex: 1, modifierBonus: -1 },
+  ]);
+  assert.deepEqual(
+    features.steps.map(step => ({
+      modifierId: step.modifierId,
+      type: step.type,
+      applied: step.applied,
+      reason: step.reason,
+      before: step.before,
+      after: step.after,
+    })),
+    [{
+      modifierId: "fine-quality",
+      type: "weapon_bonus",
+      applied: true,
+      reason: null,
+      before: [0, 0],
+      after: [1, 1],
+    }, {
+      modifierId: "fine-quality",
+      type: "future_feature",
+      applied: false,
+      reason: "unsupported",
+      before: [1, 1],
+      after: [1, 1],
+    }, {
+      modifierId: "poor-balance",
+      type: "weapon_bonus",
+      applied: true,
+      reason: null,
+      before: [1, 1],
+      after: [-1, -1],
+    }],
+  );
+  assert.equal(report.totals.cost, 500);
+  assert.equal(report.totals.weightKg, 1.5);
+});
+
+test("keeps disabled and non-applicable weapon features auditable", () => {
+  const report = resolveEquipmentTotals(createEquipment([{
+    id: "eq-tool",
+    name: "Ferramenta",
+    quantity: 1,
+    cost: 20,
+    weightKg: 1,
+    modifierList: {
+      type: "eqp_modifier_list",
+      id: "eq-tool:modifiers",
+      rows: [{
+        type: "eqp_modifier_container",
+        id: "disabled-features",
+        name: "Desabilitado",
+        disabled: true,
+        children: [{
+          type: "eqp_modifier",
+          id: "disabled-bonus",
+          name: "Bônus desabilitado",
+          features: [{
+            type: "weapon_bonus",
+            amount: 2,
+            selection_type: "this_weapon",
+          }],
+        }],
+      }, {
+        type: "eqp_modifier",
+        id: "non-applicable-bonus",
+        name: "Bônus sem arma",
+        features: [{
+          type: "weapon_bonus",
+          amount: 1,
+          selection_type: "this_weapon",
+        }],
+      }],
+    },
+  }]));
+
+  const features = report.entries[0].adjustmentBreakdown.features;
+  assert.deepEqual(features.weaponBonuses, []);
+  assert.deepEqual(
+    features.steps.map(step => [step.modifierId, step.applied, step.reason]),
+    [
+      ["disabled-bonus", false, "disabled"],
+      ["non-applicable-bonus", false, "notApplicable"],
+    ],
+  );
+  assert.equal(report.status, "resolved");
+  assert.equal(report.totals.cost, 20);
+});
+
+test("does not corrupt totals for malformed supported feature amounts", () => {
+  const report = resolveEquipmentTotals(createEquipment([{
+    id: "eq-invalid-bonus",
+    name: "Arma com bônus inválido",
+    quantity: 2,
+    cost: 100,
+    weightKg: 3,
+    weapons: [{ type: "melee_weapon" }],
+    modifierList: {
+      type: "eqp_modifier_list",
+      id: "eq-invalid-bonus:modifiers",
+      rows: [{
+        type: "eqp_modifier",
+        id: "invalid-bonus",
+        name: "Bônus inválido",
+        features: [{
+          type: "weapon_bonus",
+          amount: "one",
+          selection_type: "this_weapon",
+        }],
+      }],
+    },
+  }]));
+
+  const features = report.entries[0].adjustmentBreakdown.features;
+  assert.deepEqual(features.weaponBonuses, [
+    { weaponIndex: 0, modifierBonus: 0 },
+  ]);
+  assert.deepEqual(
+    features.steps.map(step => [step.modifierId, step.applied, step.reason]),
+    [["invalid-bonus", false, "invalidAmount"]],
+  );
+  assert.equal(report.status, "resolved");
+  assert.equal(report.totals.cost, 200);
+  assert.equal(report.totals.weightKg, 6);
+});

@@ -273,7 +273,75 @@ function resolveEquipmentModifierPipelines({
       itemId,
       diagnostics,
     }),
+    features: resolveEquipmentFeaturePipeline({
+      item,
+      orderedModifiers,
+    }),
   };
+}
+
+function resolveEquipmentFeaturePipeline({ item, orderedModifiers }) {
+  const weaponCount = Array.isArray(item.weapons) ? item.weapons.length : 0;
+  const weaponBonuses = Array.from({ length: weaponCount }, (_, weaponIndex) => ({
+    weaponIndex,
+    modifierBonus: 0,
+  }));
+  const steps = [];
+
+  for (const { modifier, enabled } of orderedModifiers) {
+    for (const [featureIndex, feature] of modifier.features.entries()) {
+      const before = weaponBonuses.map(value => value.modifierBonus);
+      const type = typeof feature?.type === "string" ? feature.type : null;
+      const selectionType = getFeatureSelectionType(feature, modifier);
+      let reason = enabled ? null : "disabled";
+
+      if (reason === null && type !== "weapon_bonus") {
+        reason = "unsupported";
+      }
+      if (reason === null && selectionType !== "this_weapon") {
+        reason = "unsupportedSelection";
+      }
+      if (reason === null && weaponCount === 0) {
+        reason = "notApplicable";
+      }
+
+      const amount = feature?.amount;
+      if (reason === null && (typeof amount !== "number" || !Number.isFinite(amount))) {
+        reason = "invalidAmount";
+      }
+
+      if (reason === null) {
+        for (const weaponBonus of weaponBonuses) {
+          weaponBonus.modifierBonus = roundMetric(
+            weaponBonus.modifierBonus + amount,
+          );
+        }
+      }
+
+      steps.push({
+        modifierId: typeof modifier.id === "string" ? modifier.id : null,
+        modifierName: typeof modifier.name === "string" ? modifier.name : "",
+        featureIndex,
+        type,
+        selectionType,
+        amount: typeof amount === "number" && Number.isFinite(amount)
+          ? amount
+          : null,
+        before,
+        after: weaponBonuses.map(value => value.modifierBonus),
+        applied: reason === null,
+        reason,
+      });
+    }
+  }
+
+  return { weaponBonuses, steps };
+}
+
+function getFeatureSelectionType(feature, modifier) {
+  const selectionType = feature?.selection_type ?? feature?.selectionType ??
+    modifier.applicability?.selectionType ?? null;
+  return typeof selectionType === "string" ? selectionType : null;
 }
 
 function normalizeEquipmentModifierRows(item, path, itemId, diagnostics) {
@@ -506,7 +574,29 @@ function validateAdjustmentBreakdown(breakdown, label) {
     validateEngineDenseArray(value.steps, `${label}.${pipeline}.steps`);
     assertEnginePortableValue(value.steps, `${label}.${pipeline}.steps`);
   }
+  validateFeatureBreakdown(breakdown.features, `${label}.features`);
   return true;
+}
+
+function validateFeatureBreakdown(breakdown, label) {
+  if (!breakdown || typeof breakdown !== "object" || Array.isArray(breakdown)) {
+    throw new Error(`${label} must be an object`);
+  }
+  validateEngineDenseArray(breakdown.weaponBonuses, `${label}.weaponBonuses`);
+  breakdown.weaponBonuses.forEach((weaponBonus, index) => {
+    if (!weaponBonus || typeof weaponBonus !== "object" || Array.isArray(weaponBonus)) {
+      throw new Error(`${label}.weaponBonuses[${index}] must be an object`);
+    }
+    if (!Number.isInteger(weaponBonus.weaponIndex) || weaponBonus.weaponIndex < 0) {
+      throw new Error(`${label}.weaponBonuses[${index}].weaponIndex is invalid`);
+    }
+    validateFiniteMetric(
+      weaponBonus.modifierBonus,
+      `${label}.weaponBonuses[${index}].modifierBonus`,
+    );
+  });
+  validateEngineDenseArray(breakdown.steps, `${label}.steps`);
+  assertEnginePortableValue(breakdown, label);
 }
 
 function createEmptyAdjustmentBreakdown() {
@@ -525,6 +615,10 @@ function createEmptyAdjustmentBreakdown() {
       quantity: 0,
       baseTotal: 0,
       finalTotal: 0,
+      steps: [],
+    },
+    features: {
+      weaponBonuses: [],
       steps: [],
     },
   };
@@ -748,6 +842,13 @@ function normalizeState(state, path, itemId, diagnostics) {
 function normalizeMetric(value, label) {
   if (typeof value !== "number" || !Number.isFinite(value) || value < 0) {
     throw new Error(`${label} must be non-negative finite number`);
+  }
+  return Object.is(value, -0) ? 0 : roundMetric(value);
+}
+
+function validateFiniteMetric(value, label) {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    throw new Error(`${label} must be finite number`);
   }
   return Object.is(value, -0) ? 0 : roundMetric(value);
 }
