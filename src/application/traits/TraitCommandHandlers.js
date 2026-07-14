@@ -4,6 +4,13 @@ import {
 } from "../../domain/character/Character.js";
 import { serializeTraits } from "../../domain/character/Traits.js";
 import {
+  applyTraitCostBasisCommands,
+} from "../../domain/character/TraitCostBasisCommands.js";
+import {
+  applyTraitModifierCommands,
+} from "../../domain/character/TraitModifierCommands.js";
+import { serializeTraitModifiers } from "../../domain/character/TraitModifiers.js";
+import {
   addTrait,
   findTraitById,
   removeTrait,
@@ -16,6 +23,15 @@ export const TRAIT_COMMAND_TYPES = Object.freeze({
   UPDATE: "trait.update",
   REMOVE: "trait.remove",
   REORDER: "trait.reorder",
+  ADD_MODIFIER: "trait.modifier.add",
+  EDIT_MODIFIER: "trait.modifier.edit",
+  REMOVE_MODIFIER: "trait.modifier.remove",
+  REORDER_MODIFIER: "trait.modifier.reorder",
+  SET_MODIFIER_ENABLED: "trait.modifier.enabled.set",
+  SET_COST_BASIS_MODE: "trait.cost-basis.mode.set",
+  SET_BASE_POINTS: "trait.cost-basis.base-points.set",
+  SET_POINTS_PER_LEVEL: "trait.cost-basis.points-per-level.set",
+  SET_COST_BASIS_LEVELS: "trait.cost-basis.levels.set",
 });
 
 export function createTraitCommandHandlerEntries() {
@@ -36,7 +52,71 @@ export function createTraitCommandHandlerEntries() {
       type: TRAIT_COMMAND_TYPES.REORDER,
       handler: handleReorderTraitCommand,
     }),
+    entry(TRAIT_COMMAND_TYPES.ADD_MODIFIER, payloadHandler(
+      TRAIT_COMMAND_TYPES.ADD_MODIFIER,
+      ["traitId", "modifier", "index"],
+      payload => ({ type: "add", modifier: payload.modifier, index: payload.index }),
+      "modifier",
+    )),
+    entry(TRAIT_COMMAND_TYPES.EDIT_MODIFIER, payloadHandler(
+      TRAIT_COMMAND_TYPES.EDIT_MODIFIER,
+      ["traitId", "modifierId", "patch"],
+      payload => ({ type: "edit", id: payload.modifierId, patch: payload.patch }),
+      "modifier",
+    )),
+    entry(TRAIT_COMMAND_TYPES.REMOVE_MODIFIER, payloadHandler(
+      TRAIT_COMMAND_TYPES.REMOVE_MODIFIER,
+      ["traitId", "modifierId"],
+      payload => ({ type: "remove", id: payload.modifierId }),
+      "modifier",
+    )),
+    entry(TRAIT_COMMAND_TYPES.REORDER_MODIFIER, payloadHandler(
+      TRAIT_COMMAND_TYPES.REORDER_MODIFIER,
+      ["traitId", "modifierId", "toIndex"],
+      payload => ({ type: "reorder", id: payload.modifierId, toIndex: payload.toIndex }),
+      "modifier",
+    )),
+    entry(TRAIT_COMMAND_TYPES.SET_MODIFIER_ENABLED, payloadHandler(
+      TRAIT_COMMAND_TYPES.SET_MODIFIER_ENABLED,
+      ["traitId", "modifierId", "enabled"],
+      payload => ({ type: "set-enabled", id: payload.modifierId, enabled: payload.enabled }),
+      "modifier",
+    )),
+    entry(TRAIT_COMMAND_TYPES.SET_COST_BASIS_MODE, payloadHandler(
+      TRAIT_COMMAND_TYPES.SET_COST_BASIS_MODE,
+      ["traitId", "mode"],
+      payload => ({ type: "set-mode", mode: payload.mode }),
+      "cost-basis",
+    )),
+    entry(TRAIT_COMMAND_TYPES.SET_BASE_POINTS, payloadHandler(
+      TRAIT_COMMAND_TYPES.SET_BASE_POINTS,
+      ["traitId", "value"],
+      payload => ({ type: "set-base-points", value: payload.value }),
+      "cost-basis",
+    )),
+    entry(TRAIT_COMMAND_TYPES.SET_POINTS_PER_LEVEL, payloadHandler(
+      TRAIT_COMMAND_TYPES.SET_POINTS_PER_LEVEL,
+      ["traitId", "value"],
+      payload => ({ type: "set-points-per-level", value: payload.value }),
+      "cost-basis",
+    )),
+    entry(TRAIT_COMMAND_TYPES.SET_COST_BASIS_LEVELS, payloadHandler(
+      TRAIT_COMMAND_TYPES.SET_COST_BASIS_LEVELS,
+      ["traitId", "value"],
+      payload => ({ type: "set-levels", value: payload.value }),
+      "cost-basis",
+    )),
   ]);
+}
+
+function payloadHandler(expectedType, payloadKeys, createDomainCommand, family) {
+  return context => handleTraitDetailCommand(
+    context,
+    expectedType,
+    payloadKeys,
+    createDomainCommand,
+    family,
+  );
 }
 
 export function handleAddTraitCommand(context) {
@@ -132,6 +212,56 @@ export function handleReorderTraitCommand(context) {
   });
 }
 
+function handleTraitDetailCommand(
+  context,
+  expectedType,
+  payloadKeys,
+  createDomainCommand,
+  family,
+) {
+  const { session, command } = validateCommandContext(context, expectedType);
+  validateExactPayloadKeys(command.payload, payloadKeys);
+  const traitId = normalizeTraitId(command.payload.traitId);
+  const previous = findTraitById(session.character.traits, traitId);
+  if (previous === null) throw new Error("Trait not found");
+  const domainCommand = createDomainCommand(command.payload);
+  const current = family === "modifier"
+    ? updateTraitWithModifierCommand(previous, domainCommand)
+    : applyTraitCostBasisCommands(previous, [domainCommand]);
+
+  if (portableEqual(previous, current)) {
+    return noOpResult(`${expectedType}-no-op`, traitId, "unchanged-trait-detail");
+  }
+
+  const patch = family === "modifier"
+    ? {
+        modifiers: serializeTraitModifiers(current.modifiers),
+        pointValue: current.pointValue,
+      }
+    : { pointValue: current.pointValue };
+  const nextTraits = updateTrait(session.character.traits, traitId, patch);
+  return appliedResult(session.character, nextTraits, {
+    operation: expectedType,
+    traitId,
+    family,
+    detailId: domainCommand.id ?? null,
+    domainCommandType: domainCommand.type,
+  });
+}
+
+function updateTraitWithModifierCommand(trait, domainCommand) {
+  const modifiers = applyTraitModifierCommands(trait.modifiers, [domainCommand]);
+  if (portableEqual(trait.modifiers, modifiers)) return trait;
+  return updateTrait([trait], trait.id, {
+    modifiers: serializeTraitModifiers(modifiers),
+    pointValue: {
+      ...trait.pointValue,
+      calculatedPoints: null,
+      finalCostAuthority: null,
+    },
+  })[0];
+}
+
 function appliedResult(character, traits, receipt) {
   const snapshot = serializeCharacter(character);
   delete snapshot.advantages;
@@ -156,6 +286,10 @@ function noOpResult(operation, traitId, reason) {
     receipt: { operation, traitId, reason },
     diagnostics: [],
   };
+}
+
+function entry(type, handler) {
+  return Object.freeze({ type, handler });
 }
 
 function validateCommandContext(context, expectedType) {
