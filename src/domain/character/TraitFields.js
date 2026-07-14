@@ -139,7 +139,7 @@ export function serializeTraitRecord(record, label) {
 
   return {
     id: record.id,
-    externalIds: { ...record.externalIds },
+    externalIds: cloneValue(record.externalIds),
     name: record.name,
     notes: record.notes,
     tags: [...record.tags],
@@ -161,16 +161,16 @@ export function serializeTraitRecord(record, label) {
       : {}),
 
     modifiers: serializeTraitModifiers(record.modifiers),
-    features: [...record.features],
-    weapons: [...record.weapons],
-    prereqs: record.prereqs,
+    features: cloneValue(record.features),
+    weapons: cloneValue(record.weapons),
+    prereqs: cloneValue(record.prereqs),
 
-    importMeta: record.importMeta,
-    power: record.power,
+    importMeta: cloneValue(record.importMeta),
+    power: cloneValue(record.power),
     alternateGroupId: record.alternateGroupId,
     isPrimaryAlternative: record.isPrimaryAlternative,
 
-    raw: record.raw,
+    raw: cloneValue(record.raw),
   };
 }
 
@@ -272,6 +272,18 @@ function validateNullableNumber(value, errorMessage) {
 
 function hasOwn(value, key) {
   return Object.prototype.hasOwnProperty.call(value, key);
+}
+
+function cloneValue(value, seen = new WeakMap()) {
+  if (value === null || typeof value !== "object") return value;
+  if (seen.has(value)) return seen.get(value);
+
+  const clone = Array.isArray(value) ? [] : {};
+  seen.set(value, clone);
+  Object.entries(value).forEach(([key, item]) => {
+    clone[key] = cloneValue(item, seen);
+  });
+  return clone;
 }
 
 function isPlainObject(value) {
