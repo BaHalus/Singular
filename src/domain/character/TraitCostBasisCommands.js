@@ -68,6 +68,7 @@ function applyCommand(trait, command) {
   const pointValue = {
     ...trait.pointValue,
     calculatedPoints: null,
+    finalCostAuthority: null,
   };
 
   switch (command.type) {
