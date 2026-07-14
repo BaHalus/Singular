@@ -95,6 +95,7 @@ test("recognizes import() inside template expressions but ignores template text"
     "src/domain/model/TemplateView.js": [
       "const documentation = `import('../../ui/View.js')`;",
       "export const loadView = () => `${import('../../ui/View.js')}`;",
+      "export const guardedLoad = value => `${/}/.test(value) ? import('../../ui/View.js') : null}`;",
     ].join("\n"),
     "src/ui/View.js": "export const view = true;",
   });
@@ -102,6 +103,23 @@ test("recognizes import() inside template expressions but ignores template text"
   const violations = scanArchitectureBoundaries(root);
   assert.deepEqual(
     violations.map(violation => [violation.form, violation.specifier]),
+    [
+      ["import()", "../../ui/View.js"],
+      ["import()", "../../ui/View.js"],
+    ],
+  );
+});
+
+test("ignores regex literal text without confusing division or real imports", () => {
+  const references = extractRelativeModuleReferences([
+    String.raw`const documented = /import\("..\/..\/ui\/View.js"\)/giu;`,
+    String.raw`const characterClass = /[\/"']import\("..\/ui\/View.js"\)/;`,
+    "const ratio = total / divisor;",
+    "const lazy = import('../../ui/View.js');",
+  ].join("\n"));
+
+  assert.deepEqual(
+    references.map(reference => [reference.form, reference.specifier]),
     [["import()", "../../ui/View.js"]],
   );
 });

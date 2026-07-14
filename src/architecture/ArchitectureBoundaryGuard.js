@@ -297,6 +297,12 @@ function tokenizeJavaScript(source) {
       continue;
     }
 
+    if (character === "/" && isRegexLiteralStart(source, index)) {
+      const regexEnd = skipRegexLiteral(source, index);
+      while (index < regexEnd) advance();
+      continue;
+    }
+
     if (character === "\"" || character === "'") {
       const quote = advance();
       const tokenLine = line;
@@ -416,6 +422,10 @@ function findTemplateExpressionEnd(source, startIndex) {
       index += 2;
       continue;
     }
+    if (character === "/" && isRegexLiteralStart(source, index, startIndex)) {
+      index = skipRegexLiteral(source, index);
+      continue;
+    }
     if (character === "{") {
       braceDepth += 1;
     } else if (character === "}") {
@@ -460,6 +470,67 @@ function skipTemplateText(source, startIndex) {
   }
 
   return index;
+}
+
+function isRegexLiteralStart(source, slashIndex, lowerBound = 0) {
+  let index = slashIndex - 1;
+  while (index >= lowerBound && isWhitespace(source[index])) index -= 1;
+  if (index < lowerBound) return true;
+
+  const previous = source[index];
+  if ("([{:;,=!?&|+-*%^~<>".includes(previous)) return true;
+
+  if (isIdentifierPart(previous)) {
+    const end = index + 1;
+    while (index >= lowerBound && isIdentifierPart(source[index])) index -= 1;
+    return REGEX_PREFIX_KEYWORDS.has(source.slice(index + 1, end));
+  }
+
+  return false;
+}
+
+const REGEX_PREFIX_KEYWORDS = new Set([
+  "await",
+  "case",
+  "delete",
+  "do",
+  "else",
+  "in",
+  "instanceof",
+  "of",
+  "return",
+  "throw",
+  "typeof",
+  "void",
+  "yield",
+]);
+
+function skipRegexLiteral(source, startIndex) {
+  let index = startIndex + 1;
+  let escaped = false;
+  let inCharacterClass = false;
+
+  while (index < source.length) {
+    const character = source[index];
+    if (escaped) {
+      escaped = false;
+    } else if (character === "\\") {
+      escaped = true;
+    } else if (character === "[") {
+      inCharacterClass = true;
+    } else if (character === "]" && inCharacterClass) {
+      inCharacterClass = false;
+    } else if (character === "/" && !inCharacterClass) {
+      index += 1;
+      while (index < source.length && isIdentifierPart(source[index])) index += 1;
+      return index;
+    } else if (character === "\n" || character === "\r") {
+      return startIndex + 1;
+    }
+    index += 1;
+  }
+
+  return startIndex + 1;
 }
 
 function isWhitespace(character) {
