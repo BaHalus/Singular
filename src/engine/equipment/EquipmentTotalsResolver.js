@@ -4,6 +4,7 @@ import {
   deepFreezeEngineValue,
   validateEngineDenseArray,
 } from "../EnginePortableValue.js";
+import { createEquipmentModifierList } from "../../domain/character/EquipmentModifiers.js";
 
 const SCHEMA_VERSION = 1;
 const LOAD_STATES = new Set(["equipped", "carried", "stored"]);
@@ -146,6 +147,16 @@ function resolveEquipmentEntry(item, context, path) {
     diagnostics,
   );
   const state = normalizeState(item.state, path, id, diagnostics);
+  const adjustmentBreakdown = resolveEquipmentModifierPipelines({
+    item,
+    baseCost: cost ?? 0,
+    baseWeightKg: weightKg ?? 0,
+    quantity: quantity ?? 0,
+    state,
+    path,
+    itemId: id,
+    diagnostics,
+  });
 
   const childrenInput = Array.isArray(item.children) ? item.children : [];
   if (!Array.isArray(item.children)) {
@@ -178,7 +189,12 @@ function resolveEquipmentEntry(item, context, path) {
 
   const status = diagnostics.length > 0 ? "blocked" : "resolved";
   const selfTotals = status === "resolved"
-    ? calculateSelfTotals({ quantity, cost, weightKg, state })
+    ? calculateSelfTotals({
+      quantity,
+      cost: adjustmentBreakdown.cost.finalUnitValue,
+      weightKg: adjustmentBreakdown.weight.finalUnitValue,
+      state,
+    })
     : createEmptyTotals();
   const childrenTotals = sumEntryTotals(children);
   const totals = addTotals(selfTotals, childrenTotals);
@@ -192,6 +208,7 @@ function resolveEquipmentEntry(item, context, path) {
     quantity: quantity ?? null,
     unitCost: cost ?? null,
     unitWeightKg: weightKg ?? null,
+    adjustmentBreakdown,
     selfTotals,
     totals,
     children,
@@ -200,6 +217,302 @@ function resolveEquipmentEntry(item, context, path) {
 
   validateEquipmentEntryReport(entry, "Equipment totals entry");
   return deepFreezeEngineValue(entry);
+}
+
+
+function resolveEquipmentModifierPipelines({
+  item,
+  baseCost,
+  baseWeightKg,
+  quantity,
+  state,
+  path,
+  itemId,
+  diagnostics,
+}) {
+  const modifiers = normalizeEquipmentModifierRows(
+    item.modifiers ?? [],
+    path,
+    itemId,
+    diagnostics,
+  );
+  const orderedModifiers = [];
+
+  collectEquipmentModifiers(
+    modifiers,
+    true,
+    orderedModifiers,
+    path,
+    itemId,
+    diagnostics,
+  );
+
+  const counted = COUNTED_STATES.has(state);
+  return {
+    cost: resolveAdjustmentPipeline({
+      baseUnitValue: baseCost,
+      quantity,
+      counted,
+      orderedModifiers,
+      adjustmentField: "costAdjustment",
+      expectedTarget: "baseCost",
+      item,
+      path,
+      itemId,
+      diagnostics,
+    }),
+    weight: resolveAdjustmentPipeline({
+      baseUnitValue: baseWeightKg,
+      quantity,
+      counted,
+      orderedModifiers,
+      adjustmentField: "weightAdjustment",
+      expectedTarget: "baseWeight",
+      item,
+      path,
+      itemId,
+      diagnostics,
+    }),
+  };
+}
+
+function normalizeEquipmentModifierRows(modifiers, path, itemId, diagnostics) {
+  if (!Array.isArray(modifiers)) {
+    diagnostics.push(createDiagnostic(
+      "equipment.modifiers.invalid",
+      "Equipment modifiers must be an array",
+      path,
+      itemId,
+    ));
+    return [];
+  }
+
+  try {
+    validateEngineDenseArray(modifiers, "Equipment modifiers");
+    return createEquipmentModifierList({
+      type: "eqp_modifier_list",
+      id: createEquipmentModifierListId(path, itemId),
+      rows: modifiers,
+    }).rows;
+  } catch (error) {
+    diagnostics.push(createDiagnostic(
+      "equipment.modifiers.invalid",
+      error.message,
+      path,
+      itemId,
+    ));
+    return [];
+  }
+}
+
+function createEquipmentModifierListId(path, itemId) {
+  if (typeof itemId === "string" && itemId.trim() !== "") {
+    return `${itemId}:modifiers`;
+  }
+  return `equipment-${path.join("-") || "root"}-modifiers`;
+}
+
+function collectEquipmentModifiers(
+  nodes,
+  ancestorsEnabled,
+  orderedModifiers,
+  path,
+  itemId,
+  diagnostics,
+) {
+  for (const [index, node] of nodes.entries()) {
+    if (!node || typeof node !== "object" || Array.isArray(node)) {
+      diagnostics.push(createDiagnostic(
+        "equipment.modifier.invalid",
+        "Equipment modifier node must be an object",
+        [...path, "modifiers", `${index}`],
+        itemId,
+      ));
+      continue;
+    }
+
+    const enabled = ancestorsEnabled && node.enabled !== false;
+    if (node.kind === "container") {
+      if (!Array.isArray(node.children)) {
+        diagnostics.push(createDiagnostic(
+          "equipment.modifier.children.invalid",
+          "Equipment modifier container children must be an array",
+          [...path, "modifiers", `${index}`, "children"],
+          itemId,
+        ));
+        continue;
+      }
+      try {
+        validateEngineDenseArray(node.children, "Equipment modifier children");
+      } catch (error) {
+        diagnostics.push(createDiagnostic(
+          "equipment.modifier.children.invalid",
+          error.message,
+          [...path, "modifiers", `${index}`, "children"],
+          itemId,
+        ));
+        continue;
+      }
+      collectEquipmentModifiers(
+        node.children,
+        enabled,
+        orderedModifiers,
+        [...path, "modifiers", `${index}`, "children"],
+        itemId,
+        diagnostics,
+      );
+      continue;
+    }
+
+    if (node.kind !== "modifier") {
+      diagnostics.push(createDiagnostic(
+        "equipment.modifier.kind.invalid",
+        "Equipment modifier kind must be modifier or container",
+        [...path, "modifiers", `${index}`],
+        itemId,
+      ));
+      continue;
+    }
+
+    orderedModifiers.push({ modifier: node, enabled });
+  }
+}
+
+function resolveAdjustmentPipeline({
+  baseUnitValue,
+  quantity,
+  counted,
+  orderedModifiers,
+  adjustmentField,
+  expectedTarget,
+  item,
+  path,
+  itemId,
+  diagnostics,
+}) {
+  let current = baseUnitValue;
+  const steps = [];
+
+  for (const { modifier, enabled } of orderedModifiers) {
+    const adjustment = modifier[adjustmentField];
+    if (adjustment === null || adjustment === undefined) continue;
+
+    const before = current;
+    let reason = enabled ? getApplicabilityReason(modifier, item) : "disabled";
+
+    if (reason === null && adjustment.target !== expectedTarget) {
+      reason = "incompatibleTarget";
+    }
+    if (reason === null && adjustment.kind === "unsupported") {
+      reason = "unsupported";
+    }
+
+    let after = before;
+    if (reason === null) {
+      after = applyEquipmentAdjustment(before, adjustment);
+      if (!Number.isFinite(after) || after < 0) {
+        diagnostics.push(createDiagnostic(
+          "equipment.modifier.adjustment.invalidResult",
+          "Equipment modifier adjustment must produce non-negative finite total",
+          path,
+          itemId,
+        ));
+        after = before;
+        reason = "invalidResult";
+      } else {
+        after = roundMetric(after);
+        current = after;
+      }
+    }
+
+    steps.push({
+      modifierId: typeof modifier.id === "string" ? modifier.id : null,
+      modifierName: typeof modifier.name === "string" ? modifier.name : "",
+      kind: typeof adjustment.kind === "string" ? adjustment.kind : "unsupported",
+      target: typeof adjustment.target === "string" ? adjustment.target : null,
+      expression: typeof adjustment.expression === "string"
+        ? adjustment.expression
+        : null,
+      before,
+      after,
+      applied: reason === null,
+      reason,
+    });
+  }
+
+  return {
+    baseUnitValue,
+    finalUnitValue: current,
+    quantity,
+    baseTotal: counted ? roundMetric(baseUnitValue * quantity) : 0,
+    finalTotal: counted ? roundMetric(current * quantity) : 0,
+    steps,
+  };
+}
+
+function getApplicabilityReason(modifier, item) {
+  const selectionType = modifier.applicability?.selectionType ?? null;
+  if (selectionType === null || selectionType === "this_equipment") return null;
+  if (selectionType === "this_weapon") {
+    return Array.isArray(item.weapons) && item.weapons.length > 0
+      ? null
+      : "notApplicable";
+  }
+  return "notApplicable";
+}
+
+function applyEquipmentAdjustment(value, adjustment) {
+  if (adjustment.kind === "multiplier") return value * adjustment.factor;
+  if (adjustment.kind === "addition") return value + adjustment.amount;
+  if (adjustment.kind === "percentage") {
+    return value * (1 + adjustment.percent / 100);
+  }
+  return value;
+}
+
+function validateAdjustmentBreakdown(breakdown, label) {
+  if (!breakdown || typeof breakdown !== "object" || Array.isArray(breakdown)) {
+    throw new Error(`${label} must be an object`);
+  }
+  for (const pipeline of ["cost", "weight"]) {
+    const value = breakdown[pipeline];
+    if (!value || typeof value !== "object" || Array.isArray(value)) {
+      throw new Error(`${label}.${pipeline} must be an object`);
+    }
+    for (const field of [
+      "baseUnitValue",
+      "finalUnitValue",
+      "quantity",
+      "baseTotal",
+      "finalTotal",
+    ]) {
+      normalizeMetric(value[field], `${label}.${pipeline}.${field}`);
+    }
+    validateEngineDenseArray(value.steps, `${label}.${pipeline}.steps`);
+    assertEnginePortableValue(value.steps, `${label}.${pipeline}.steps`);
+  }
+  return true;
+}
+
+function createEmptyAdjustmentBreakdown() {
+  return {
+    cost: {
+      baseUnitValue: 0,
+      finalUnitValue: 0,
+      quantity: 0,
+      baseTotal: 0,
+      finalTotal: 0,
+      steps: [],
+    },
+    weight: {
+      baseUnitValue: 0,
+      finalUnitValue: 0,
+      quantity: 0,
+      baseTotal: 0,
+      finalTotal: 0,
+      steps: [],
+    },
+  };
 }
 
 function calculateSelfTotals({ quantity, cost, weightKg, state }) {
@@ -350,6 +663,10 @@ function validateEquipmentEntryReport(entry, label) {
   for (const field of ["quantity", "unitCost", "unitWeightKg"]) {
     if (entry[field] !== null) normalizeMetric(entry[field], `${label}.${field}`);
   }
+  validateAdjustmentBreakdown(
+    entry.adjustmentBreakdown,
+    `${label}.adjustmentBreakdown`,
+  );
   validateTotals(entry.selfTotals, `${label}.selfTotals`);
   validateTotals(entry.totals, `${label}.totals`);
   validateEngineDenseArray(entry.children, `${label}.children`);
@@ -443,6 +760,7 @@ function createBlockedEntry(path, itemId, diagnostics) {
     quantity: null,
     unitCost: null,
     unitWeightKg: null,
+    adjustmentBreakdown: createEmptyAdjustmentBreakdown(),
     selfTotals: createEmptyTotals(),
     totals: createEmptyTotals(),
     children: [],

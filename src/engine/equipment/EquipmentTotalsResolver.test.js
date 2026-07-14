@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { createEquipment } from "../../domain/character/Equipment.js";
+import { createEquipmentModifierList } from "../../domain/character/EquipmentModifiers.js";
 import {
   resolveEquipmentTotals,
   serializeEquipmentTotalsReport,
@@ -192,4 +193,201 @@ test("validates, serializes and freezes reports", () => {
   assert.throws(() => {
     report.totals.cost = 999;
   }, TypeError);
+});
+
+
+function createModifierRows(rows) {
+  return createEquipmentModifierList({
+    type: "eqp_modifier_list",
+    id: "equipment-modifiers-e1-2",
+    version: 2,
+    rows,
+  }).rows;
+}
+
+test("applies ordered cost and weight adjustments in separate pipelines", () => {
+  const modifiers = createModifierRows([
+    {
+      type: "eqp_modifier_container",
+      id: "quality",
+      name: "Qualidade",
+      children: [
+        {
+          type: "eqp_modifier",
+          id: "cost-x2",
+          name: "Custo x2",
+          cost_type: "to_base_cost",
+          cost: "x2",
+        },
+        {
+          type: "eqp_modifier",
+          id: "weight-plus-5",
+          name: "Peso +5",
+          weight_type: "to_base_weight",
+          weight: "5",
+        },
+        {
+          type: "eqp_modifier",
+          id: "cost-plus-10",
+          name: "Custo +10",
+          cost_type: "to_base_cost",
+          cost: "10",
+        },
+      ],
+    },
+  ]);
+  const report = resolveEquipmentTotals(createEquipment([
+    {
+      id: "eq-ordered",
+      name: "Equipamento ajustado",
+      quantity: 2,
+      cost: 100,
+      weightKg: 10,
+      modifiers,
+    },
+  ]));
+
+  const entry = report.entries[0];
+  assert.equal(report.status, "resolved");
+  assert.equal(entry.selfTotals.cost, 420);
+  assert.equal(entry.selfTotals.weightKg, 30);
+  assert.equal(entry.adjustmentBreakdown.cost.baseTotal, 200);
+  assert.equal(entry.adjustmentBreakdown.cost.finalTotal, 420);
+  assert.deepEqual(
+    entry.adjustmentBreakdown.cost.steps.map(step => [step.modifierId, step.before, step.after]),
+    [["cost-x2", 100, 200], ["cost-plus-10", 200, 210]],
+  );
+  assert.equal(entry.adjustmentBreakdown.weight.baseTotal, 20);
+  assert.equal(entry.adjustmentBreakdown.weight.finalTotal, 30);
+});
+
+test("ignores disabled containers and non-applicable weapon modifiers", () => {
+  const modifiers = createModifierRows([
+    {
+      type: "eqp_modifier_container",
+      id: "disabled-container",
+      name: "Desabilitado",
+      disabled: true,
+      children: [
+        {
+          type: "eqp_modifier",
+          id: "disabled-cost",
+          name: "Custo x10",
+          cost_type: "to_base_cost",
+          cost: "x10",
+        },
+      ],
+    },
+    {
+      type: "eqp_modifier",
+      id: "weapon-only",
+      name: "Somente arma",
+      cost_type: "to_base_cost",
+      cost: "x3",
+      applicability: { selectionType: "this_weapon", notes: null },
+    },
+  ]);
+  const report = resolveEquipmentTotals(createEquipment([
+    {
+      id: "eq-non-weapon",
+      name: "Item comum",
+      cost: 100,
+      weightKg: 1,
+      modifiers,
+    },
+  ]));
+
+  const steps = report.entries[0].adjustmentBreakdown.cost.steps;
+  assert.equal(report.totals.cost, 100);
+  assert.deepEqual(
+    steps.map(step => [step.modifierId, step.applied, step.reason]),
+    [
+      ["disabled-cost", false, "disabled"],
+      ["weapon-only", false, "notApplicable"],
+    ],
+  );
+});
+
+test("applies equipment percentages without the trait minus eighty percent floor", () => {
+  const modifiers = createModifierRows([
+    {
+      type: "eqp_modifier",
+      id: "free-equipment",
+      name: "Sem custo",
+      cost_type: "to_base_cost",
+      cost: "-100%",
+    },
+  ]);
+  const report = resolveEquipmentTotals(createEquipment([
+    {
+      id: "eq-free",
+      name: "Equipamento gratuito",
+      cost: 100,
+      weightKg: 1,
+      modifiers,
+    },
+  ]));
+
+  assert.equal(report.totals.cost, 0);
+  assert.equal(report.entries[0].adjustmentBreakdown.cost.finalUnitValue, 0);
+  assert.equal(report.entries[0].adjustmentBreakdown.cost.steps[0].applied, true);
+});
+
+test("normalizes imported raw equipment modifiers before resolving totals", () => {
+  const report = resolveEquipmentTotals(createEquipment([
+    {
+      id: "eq-imported-sword",
+      name: "Espada importada",
+      quantity: 1,
+      cost: 100,
+      weightKg: 2,
+      weapons: [{ type: "melee_weapon" }],
+      modifiers: [
+        {
+          type: "eqp_modifier_container",
+          id: "quality-container",
+          name: "Qualidade",
+          children: [
+            {
+              type: "eqp_modifier",
+              id: "fine",
+              name: "Superior",
+              cost_type: "to_base_cost",
+              cost: "x4",
+            },
+            {
+              type: "eqp_modifier",
+              id: "light",
+              name: "Leve",
+              weight_type: "to_base_weight",
+              weight: "x0.5",
+            },
+          ],
+        },
+      ],
+    },
+  ]));
+
+  assert.equal(report.status, "resolved");
+  assert.deepEqual(report.diagnostics, []);
+  assert.equal(report.totals.cost, 400);
+  assert.equal(report.totals.weightKg, 1);
+  assert.deepEqual(
+    report.entries[0].adjustmentBreakdown.cost.steps.map(step => [
+      step.modifierId,
+      step.applied,
+      step.before,
+      step.after,
+    ]),
+    [["fine", true, 100, 400]],
+  );
+  assert.deepEqual(
+    report.entries[0].adjustmentBreakdown.weight.steps.map(step => [
+      step.modifierId,
+      step.applied,
+      step.before,
+      step.after,
+    ]),
+    [["light", true, 2, 1]],
+  );
 });
