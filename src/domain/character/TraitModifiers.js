@@ -1,4 +1,5 @@
 const PERCENTAGE_KINDS = new Set(["enhancement", "limitation"]);
+const MODIFIER_AFFECTS = new Set(["total", "base", "levels"]);
 
 export function createTraitModifiers(input = []) {
   if (input === undefined || input === null) return deepFreeze([]);
@@ -29,6 +30,12 @@ export function createTraitModifier(input = {}) {
     source: normalizeSource(input.source),
     notes: normalizeNotes(input.notes),
   };
+  if (hasOwn(input, "enabled") || hasOwn(input, "disabled")) {
+    modifier.enabled = normalizeEnabled(input);
+  }
+  if (hasOwn(input, "affects")) {
+    modifier.affects = normalizeAffects(input.affects);
+  }
 
   validateTraitModifier(modifier);
   return deepFreeze(modifier);
@@ -69,6 +76,12 @@ export function validateTraitModifier(modifier) {
   normalizePercentage(modifier.value);
   normalizeSource(modifier.source);
   normalizeNotes(modifier.notes);
+  if (hasOwn(modifier, "enabled") && typeof modifier.enabled !== "boolean") {
+    throw new Error("Trait modifier enabled must be boolean");
+  }
+  if (hasOwn(modifier, "affects")) {
+    normalizeAffects(modifier.affects);
+  }
   return true;
 }
 
@@ -125,6 +138,23 @@ function normalizeNotes(value) {
   if (value === undefined || value === null) return "";
   if (typeof value !== "string") {
     throw new Error("Trait modifier notes must be string");
+  }
+  return value;
+}
+
+function normalizeEnabled(input) {
+  if (hasOwn(input, "enabled") && typeof input.enabled !== "boolean") {
+    throw new Error("Trait modifier enabled must be boolean");
+  }
+  if (hasOwn(input, "disabled") && typeof input.disabled !== "boolean") {
+    throw new Error("Trait modifier disabled must be boolean");
+  }
+  return input.enabled !== false && input.disabled !== true;
+}
+
+function normalizeAffects(value) {
+  if (!MODIFIER_AFFECTS.has(value)) {
+    throw new Error("Trait modifier affects must be total, base or levels");
   }
   return value;
 }
