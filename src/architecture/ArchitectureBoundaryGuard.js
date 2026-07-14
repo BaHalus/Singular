@@ -331,13 +331,38 @@ function tokenizeJavaScript(source) {
       advance();
       let escaped = false;
       while (index < source.length) {
-        const templateCharacter = advance();
+        const templateCharacter = source[index];
         if (escaped) {
+          advance();
           escaped = false;
         } else if (templateCharacter === "\\") {
+          advance();
           escaped = true;
         } else if (templateCharacter === "`") {
+          advance();
           break;
+        } else if (templateCharacter === "$" && source[index + 1] === "{") {
+          advance();
+          advance();
+          const expressionStart = index;
+          const expressionLine = line;
+          const expressionColumn = column;
+          const expressionEnd = findTemplateExpressionEnd(source, expressionStart);
+          const expressionTokens = tokenizeJavaScript(source.slice(expressionStart, expressionEnd));
+
+          for (const token of expressionTokens) {
+            tokens.push({
+              ...token,
+              line: expressionLine + token.line - 1,
+              column: token.line === 1
+                ? expressionColumn + token.column - 1
+                : token.column,
+            });
+          }
+
+          while (index <= expressionEnd) advance();
+        } else {
+          advance();
         }
       }
       continue;
@@ -358,6 +383,83 @@ function tokenizeJavaScript(source) {
   }
 
   return tokens;
+}
+
+function findTemplateExpressionEnd(source, startIndex) {
+  let index = startIndex;
+  let braceDepth = 1;
+
+  while (index < source.length) {
+    const character = source[index];
+
+    if (character === "\"" || character === "'") {
+      index = skipQuotedText(source, index, character);
+      continue;
+    }
+    if (character === "`") {
+      index = skipTemplateText(source, index);
+      continue;
+    }
+    if (character === "/" && source[index + 1] === "/") {
+      index += 2;
+      while (index < source.length && source[index] !== "\n") index += 1;
+      continue;
+    }
+    if (character === "/" && source[index + 1] === "*") {
+      index += 2;
+      while (
+        index < source.length
+        && !(source[index] === "*" && source[index + 1] === "/")
+      ) {
+        index += 1;
+      }
+      index += 2;
+      continue;
+    }
+    if (character === "{") {
+      braceDepth += 1;
+    } else if (character === "}") {
+      braceDepth -= 1;
+      if (braceDepth === 0) return index;
+    }
+    index += 1;
+  }
+
+  throw new SyntaxError("Unterminated template expression");
+}
+
+function skipQuotedText(source, startIndex, quote) {
+  let index = startIndex + 1;
+
+  while (index < source.length) {
+    if (source[index] === "\\") {
+      index += 2;
+    } else if (source[index] === quote) {
+      return index + 1;
+    } else {
+      index += 1;
+    }
+  }
+
+  return index;
+}
+
+function skipTemplateText(source, startIndex) {
+  let index = startIndex + 1;
+
+  while (index < source.length) {
+    if (source[index] === "\\") {
+      index += 2;
+    } else if (source[index] === "`") {
+      return index + 1;
+    } else if (source[index] === "$" && source[index + 1] === "{") {
+      index = findTemplateExpressionEnd(source, index + 2) + 1;
+    } else {
+      index += 1;
+    }
+  }
+
+  return index;
 }
 
 function isWhitespace(character) {

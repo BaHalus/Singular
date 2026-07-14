@@ -90,6 +90,22 @@ test("recognizes static imports, re-exports, import(), dot and dot-dot paths", t
   ]);
 });
 
+test("recognizes import() inside template expressions but ignores template text", t => {
+  const root = createProject(t, {
+    "src/domain/model/TemplateView.js": [
+      "const documentation = `import('../../ui/View.js')`;",
+      "export const loadView = () => `${import('../../ui/View.js')}`;",
+    ].join("\n"),
+    "src/ui/View.js": "export const view = true;",
+  });
+
+  const violations = scanArchitectureBoundaries(root);
+  assert.deepEqual(
+    violations.map(violation => [violation.form, violation.specifier]),
+    [["import()", "../../ui/View.js"]],
+  );
+});
+
 test("ignores tests, fixtures, documentation, build scripts and commented examples", t => {
   const root = createProject(t, {
     "docs/example.js": "import '../src/ui/View.js';",
