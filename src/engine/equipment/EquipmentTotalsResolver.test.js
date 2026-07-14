@@ -261,6 +261,45 @@ test("applies ordered cost and weight adjustments in separate pipelines", () => 
   assert.equal(entry.adjustmentBreakdown.weight.finalTotal, 30);
 });
 
+test("uses the item-owned canonical modifier list as the totals source", () => {
+  const modifierList = createEquipmentModifierList({
+    id: "eq-linked:modifiers",
+    rows: [{
+      type: "eqp_modifier",
+      id: "linked-cost-x2",
+      name: "Custo x2",
+      cost_type: "to_base_cost",
+      cost: "x2",
+    }],
+  });
+  const conflictingCompatibilityRows = createModifierRows([{
+    type: "eqp_modifier",
+    id: "compatibility-cost-x10",
+    name: "Custo x10",
+    cost_type: "to_base_cost",
+    cost: "x10",
+  }]);
+
+  const report = resolveEquipmentTotals([{
+    id: "eq-linked",
+    name: "Item vinculado",
+    quantity: 1,
+    cost: 100,
+    weightKg: 1,
+    state: "carried",
+    modifierList,
+    modifiers: conflictingCompatibilityRows,
+    children: [],
+  }]);
+
+  assert.equal(report.status, "resolved");
+  assert.equal(report.totals.cost, 200);
+  assert.deepEqual(
+    report.entries[0].adjustmentBreakdown.cost.steps.map(step => step.modifierId),
+    ["linked-cost-x2"],
+  );
+});
+
 test("ignores disabled containers and non-applicable weapon modifiers", () => {
   const modifiers = createModifierRows([
     {

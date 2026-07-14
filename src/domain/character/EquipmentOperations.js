@@ -22,6 +22,7 @@ const EQUIPMENT_PATCH_KEYS = Object.freeze([
   "tags",
   "weapons",
   "features",
+  "modifierList",
   "modifiers",
   "prereqs",
   "calc",
@@ -45,14 +46,21 @@ export function updateEquipment(equipment, itemId, patch = {}) {
     throw new Error("Equipment item not found");
   }
 
-  const nextItem = createEquipmentItem({
+  const source = {
     ...current,
     ...patch,
     id: current.id,
     kind: current.kind,
     containerKind: current.containerKind,
     children: current.children,
-  });
+  };
+  if (Object.hasOwn(patch, "modifiers") && !Object.hasOwn(patch, "modifierList")) {
+    delete source.modifierList;
+  }
+  if (Object.hasOwn(patch, "modifierList") && !Object.hasOwn(patch, "modifiers")) {
+    delete source.modifiers;
+  }
+  const nextItem = createEquipmentItem(source);
 
   return createEquipment(updateItemRecursive(
     equipment,

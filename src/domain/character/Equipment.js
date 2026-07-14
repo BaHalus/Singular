@@ -4,6 +4,11 @@ import {
   requireEquipmentPlainObject,
   validateEquipmentDenseArray,
 } from "./EquipmentPortableValue.js";
+import {
+  createEquipmentModifierList,
+  serializeEquipmentModifierList,
+  validateEquipmentModifierList,
+} from "./EquipmentModifiers.js";
 
 const EQUIPMENT_KINDS = ["item", "container"];
 const CONTAINER_KINDS = ["physical", "group"];
@@ -63,11 +68,13 @@ function createEquipmentItemInternal(input, ancestors) {
 
   const kind = input.kind ?? inferKind(input);
   const containerKind = normalizeContainerKind(input.containerKind, kind);
+  const id = normalizeRequiredString(
+    input.id ?? generateEquipmentId(),
+    "Equipment item id must be non-empty string",
+  );
+  const modifierLink = normalizeModifierLink(input);
   const item = {
-    id: normalizeRequiredString(
-      input.id ?? generateEquipmentId(),
-      "Equipment item id must be non-empty string",
-    ),
+    id,
     externalIds: normalizePortableObject(
       input.externalIds,
       "Equipment externalIds must be object",
@@ -107,10 +114,11 @@ function createEquipmentItemInternal(input, ancestors) {
       input.features,
       "Equipment features must be array",
     ),
-    modifiers: normalizePortableArray(
-      input.modifiers,
-      "Equipment modifiers must be array",
-    ),
+    modifierList: modifierLink.modifierList,
+    // Compatibility view for imported snapshots and the existing command surface.
+    // modifierList is the canonical owner of the tree and both fields are validated
+    // to remain identical.
+    modifiers: modifierLink.modifiers,
     prereqs: normalizePortableNullableValue(input.prereqs, "Equipment prereqs"),
     calc: normalizePortableNullableValue(input.calc, "Equipment calc"),
     importMeta: normalizePortableNullableObject(
@@ -210,7 +218,16 @@ function validateEquipmentItemInternal(item, context, label) {
   validatePortableArray(item.tags, "Equipment tags must be array");
   validatePortableArray(item.weapons, "Equipment weapons must be array");
   validatePortableArray(item.features, "Equipment features must be array");
+  if (item.modifierList !== null) {
+    validateEquipmentModifierList(item.modifierList);
+  }
   validatePortableArray(item.modifiers, "Equipment modifiers must be array");
+  if (item.modifierList !== null && !portableEqual(
+    item.modifiers,
+    serializeEquipmentModifierList(item.modifierList).rows,
+  )) {
+    throw new Error("Equipment modifiers must match modifierList rows");
+  }
   validatePortableNullableValue(item.prereqs, "Equipment prereqs");
   validatePortableNullableValue(item.calc, "Equipment calc");
   validatePortableNullableObject(
@@ -245,6 +262,31 @@ function normalizeContainerKind(containerKind, kind) {
 function inferState(kind, containerKind) {
   if (kind === "container" && containerKind === "group") return "ignored";
   return "carried";
+}
+
+function normalizeModifierLink(input) {
+  const hasList = input.modifierList !== undefined && input.modifierList !== null;
+  const hasRows = input.modifiers !== undefined && input.modifiers !== null;
+  if (!hasList && !hasRows) {
+    return { modifierList: null, modifiers: [] };
+  }
+
+  const rows = hasRows
+    ? normalizePortableArray(input.modifiers, "Equipment modifiers must be array")
+    : null;
+  if (hasList) {
+    const modifierList = createEquipmentModifierList(input.modifierList);
+    const canonicalRows = serializeEquipmentModifierList(modifierList).rows;
+    if (rows !== null && !portableEqual(rows, canonicalRows)) {
+      throw new Error("Equipment modifiers must match modifierList rows");
+    }
+    return { modifierList, modifiers: canonicalRows };
+  }
+
+  // Rows alone are the legacy compatibility surface. Ownership is explicit:
+  // callers attach modifierList when the item has adopted the canonical tree.
+  // E2.2 owns migration of persisted legacy rows.
+  return { modifierList: null, modifiers: rows };
 }
 
 function normalizePortableObject(value, errorMessage) {
@@ -369,6 +411,23 @@ function isPortablePlainObject(value) {
   }
   const prototype = Object.getPrototypeOf(value);
   return prototype === Object.prototype || prototype === null;
+}
+
+function portableEqual(left, right) {
+  if (Object.is(left, right)) return true;
+  if (left === null || right === null) return false;
+  if (typeof left !== "object" || typeof right !== "object") return false;
+  if (Array.isArray(left) || Array.isArray(right)) {
+    return Array.isArray(left) && Array.isArray(right) &&
+      left.length === right.length &&
+      left.every((item, index) => portableEqual(item, right[index]));
+  }
+  const leftKeys = Object.keys(left).sort();
+  const rightKeys = Object.keys(right).sort();
+  return leftKeys.length === rightKeys.length &&
+    leftKeys.every((key, index) =>
+      key === rightKeys[index] && portableEqual(left[key], right[key]),
+    );
 }
 
 function generateEquipmentId() {
