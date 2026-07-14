@@ -332,3 +332,62 @@ test("applies equipment percentages without the trait minus eighty percent floor
   assert.equal(report.entries[0].adjustmentBreakdown.cost.finalUnitValue, 0);
   assert.equal(report.entries[0].adjustmentBreakdown.cost.steps[0].applied, true);
 });
+
+test("normalizes imported raw equipment modifiers before resolving totals", () => {
+  const report = resolveEquipmentTotals(createEquipment([
+    {
+      id: "eq-imported-sword",
+      name: "Espada importada",
+      quantity: 1,
+      cost: 100,
+      weightKg: 2,
+      weapons: [{ type: "melee_weapon" }],
+      modifiers: [
+        {
+          type: "eqp_modifier_container",
+          id: "quality-container",
+          name: "Qualidade",
+          children: [
+            {
+              type: "eqp_modifier",
+              id: "fine",
+              name: "Superior",
+              cost_type: "to_base_cost",
+              cost: "x4",
+            },
+            {
+              type: "eqp_modifier",
+              id: "light",
+              name: "Leve",
+              weight_type: "to_base_weight",
+              weight: "x0.5",
+            },
+          ],
+        },
+      ],
+    },
+  ]));
+
+  assert.equal(report.status, "resolved");
+  assert.deepEqual(report.diagnostics, []);
+  assert.equal(report.totals.cost, 400);
+  assert.equal(report.totals.weightKg, 1);
+  assert.deepEqual(
+    report.entries[0].adjustmentBreakdown.cost.steps.map(step => [
+      step.modifierId,
+      step.applied,
+      step.before,
+      step.after,
+    ]),
+    [["fine", true, 100, 400]],
+  );
+  assert.deepEqual(
+    report.entries[0].adjustmentBreakdown.weight.steps.map(step => [
+      step.modifierId,
+      step.applied,
+      step.before,
+      step.after,
+    ]),
+    [["light", true, 2, 1]],
+  );
+});
