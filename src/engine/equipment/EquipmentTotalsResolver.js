@@ -231,7 +231,7 @@ function resolveEquipmentModifierPipelines({
   diagnostics,
 }) {
   const modifiers = normalizeEquipmentModifierRows(
-    item.modifiers ?? [],
+    item,
     path,
     itemId,
     diagnostics,
@@ -276,7 +276,22 @@ function resolveEquipmentModifierPipelines({
   };
 }
 
-function normalizeEquipmentModifierRows(modifiers, path, itemId, diagnostics) {
+function normalizeEquipmentModifierRows(item, path, itemId, diagnostics) {
+  const modifierList = item.modifierList ?? null;
+  const modifiers = item.modifiers ?? [];
+  if (modifierList !== null) {
+    try {
+      return createEquipmentModifierList(modifierList).rows;
+    } catch (error) {
+      diagnostics.push(createDiagnostic(
+        "equipment.modifierList.invalid",
+        error.message,
+        path,
+        itemId,
+      ));
+      return [];
+    }
+  }
   if (!Array.isArray(modifiers)) {
     diagnostics.push(createDiagnostic(
       "equipment.modifiers.invalid",

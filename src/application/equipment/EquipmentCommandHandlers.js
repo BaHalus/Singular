@@ -354,7 +354,7 @@ function handleEquipmentModifierCommand(
   validateExactPayloadKeys(command.payload, payloadKeys);
   const itemId = normalizeItemId(command.payload.itemId, "itemId");
   const previous = requireItem(session.character.equipment, itemId);
-  const previousList = createEquipmentModifierList({
+  const previousList = createEquipmentModifierList(previous.modifierList ?? {
     id: `${itemId}:modifiers`,
     rows: previous.modifiers,
   });
@@ -376,7 +376,7 @@ function handleEquipmentModifierCommand(
   const nextEquipment = updateEquipment(
     session.character.equipment,
     itemId,
-    { modifiers: nextRows },
+    { modifierList: nextList },
   );
   const domainCommand = createDomainCommand(command.payload);
   return appliedResult(session.character, nextEquipment, {
