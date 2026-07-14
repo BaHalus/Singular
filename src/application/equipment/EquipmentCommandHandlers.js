@@ -4,6 +4,13 @@ import {
 } from "../../domain/character/Character.js";
 import { serializeEquipment } from "../../domain/character/Equipment.js";
 import {
+  applyEquipmentModifierCommands,
+} from "../../domain/character/EquipmentModifierCommands.js";
+import {
+  createEquipmentModifierList,
+  serializeEquipmentModifierList,
+} from "../../domain/character/EquipmentModifiers.js";
+import {
   addChildEquipment,
   addEquipment,
   findEquipmentItem,
@@ -26,6 +33,11 @@ export const EQUIPMENT_COMMAND_TYPES = Object.freeze({
   REMOVE: "equipment.remove",
   MOVE: "equipment.move",
   REORDER: "equipment.reorder",
+  ADD_MODIFIER: "equipment.modifier.add",
+  EDIT_MODIFIER: "equipment.modifier.edit",
+  REMOVE_MODIFIER: "equipment.modifier.remove",
+  REORDER_MODIFIER: "equipment.modifier.reorder",
+  SET_MODIFIER_ENABLED: "equipment.modifier.enabled.set",
 });
 
 export function createEquipmentCommandHandlerEntries() {
@@ -39,7 +51,71 @@ export function createEquipmentCommandHandlerEntries() {
     entry(EQUIPMENT_COMMAND_TYPES.REMOVE, handleRemoveEquipmentCommand),
     entry(EQUIPMENT_COMMAND_TYPES.MOVE, handleMoveEquipmentCommand),
     entry(EQUIPMENT_COMMAND_TYPES.REORDER, handleReorderEquipmentCommand),
+    entry(EQUIPMENT_COMMAND_TYPES.ADD_MODIFIER, handleAddEquipmentModifierCommand),
+    entry(EQUIPMENT_COMMAND_TYPES.EDIT_MODIFIER, handleEditEquipmentModifierCommand),
+    entry(EQUIPMENT_COMMAND_TYPES.REMOVE_MODIFIER, handleRemoveEquipmentModifierCommand),
+    entry(EQUIPMENT_COMMAND_TYPES.REORDER_MODIFIER, handleReorderEquipmentModifierCommand),
+    entry(EQUIPMENT_COMMAND_TYPES.SET_MODIFIER_ENABLED, handleSetEquipmentModifierEnabledCommand),
   ]);
+}
+
+export function handleAddEquipmentModifierCommand(context) {
+  return handleEquipmentModifierCommand(
+    context,
+    EQUIPMENT_COMMAND_TYPES.ADD_MODIFIER,
+    ["itemId", "node", "parentId", "index"],
+    payload => ({
+      type: "add",
+      node: payload.node,
+      parentId: payload.parentId,
+      index: payload.index,
+    }),
+  );
+}
+
+export function handleEditEquipmentModifierCommand(context) {
+  return handleEquipmentModifierCommand(
+    context,
+    EQUIPMENT_COMMAND_TYPES.EDIT_MODIFIER,
+    ["itemId", "modifierId", "patch"],
+    payload => ({ type: "edit", id: payload.modifierId, patch: payload.patch }),
+  );
+}
+
+export function handleRemoveEquipmentModifierCommand(context) {
+  return handleEquipmentModifierCommand(
+    context,
+    EQUIPMENT_COMMAND_TYPES.REMOVE_MODIFIER,
+    ["itemId", "modifierId"],
+    payload => ({ type: "remove", id: payload.modifierId }),
+  );
+}
+
+export function handleReorderEquipmentModifierCommand(context) {
+  return handleEquipmentModifierCommand(
+    context,
+    EQUIPMENT_COMMAND_TYPES.REORDER_MODIFIER,
+    ["itemId", "modifierId", "parentId", "toIndex"],
+    payload => ({
+      type: "reorder",
+      id: payload.modifierId,
+      parentId: payload.parentId,
+      toIndex: payload.toIndex,
+    }),
+  );
+}
+
+export function handleSetEquipmentModifierEnabledCommand(context) {
+  return handleEquipmentModifierCommand(
+    context,
+    EQUIPMENT_COMMAND_TYPES.SET_MODIFIER_ENABLED,
+    ["itemId", "modifierId", "enabled"],
+    payload => ({
+      type: "set-enabled",
+      id: payload.modifierId,
+      enabled: payload.enabled,
+    }),
+  );
 }
 
 export function handleAddEquipmentCommand(context) {
@@ -265,6 +341,49 @@ export function handleReorderEquipmentCommand(context) {
     containerId: nextLocation.containerId,
     previousIndex: previousLocation.index,
     targetIndex: nextLocation.index,
+  });
+}
+
+function handleEquipmentModifierCommand(
+  context,
+  expectedType,
+  payloadKeys,
+  createDomainCommand,
+) {
+  const { session, command } = validateCommandContext(context, expectedType);
+  validateExactPayloadKeys(command.payload, payloadKeys);
+  const itemId = normalizeItemId(command.payload.itemId, "itemId");
+  const previous = requireItem(session.character.equipment, itemId);
+  const previousList = createEquipmentModifierList({
+    id: `${itemId}:modifiers`,
+    rows: previous.modifiers,
+  });
+  const nextList = applyEquipmentModifierCommands(
+    previousList,
+    [createDomainCommand(command.payload)],
+  );
+  const previousRows = serializeEquipmentModifierList(previousList).rows;
+  const nextRows = serializeEquipmentModifierList(nextList).rows;
+
+  if (portableEqual(previousRows, nextRows)) {
+    return noOpResult(
+      `${expectedType}-no-op`,
+      itemId,
+      "unchanged-equipment-modifiers",
+    );
+  }
+
+  const nextEquipment = updateEquipment(
+    session.character.equipment,
+    itemId,
+    { modifiers: nextRows },
+  );
+  const domainCommand = createDomainCommand(command.payload);
+  return appliedResult(session.character, nextEquipment, {
+    operation: expectedType,
+    itemId,
+    modifierId: domainCommand.id ?? domainCommand.node.id,
+    modifierCommandType: domainCommand.type,
   });
 }
 
