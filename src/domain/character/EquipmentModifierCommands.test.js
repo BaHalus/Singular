@@ -238,6 +238,14 @@ test("rejects cycles and structural type changes", () => {
     () => applyEquipmentModifierCommands(nested, [{
       type: "edit",
       id: "fine",
+      patch: { type: "eqp_modifier_container" },
+    }]),
+    /cannot change type/,
+  );
+  assert.throws(
+    () => applyEquipmentModifierCommands(nested, [{
+      type: "edit",
+      id: "fine",
       patch: { kind: "container" },
     }]),
     /cannot change kind/,

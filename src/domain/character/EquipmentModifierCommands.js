@@ -13,6 +13,7 @@ const COMMAND_TYPES = new Set([
 
 const STRUCTURAL_PATCH_FIELDS = new Set([
   "schemaVersion",
+  "type",
   "kind",
   "id",
   "children",
