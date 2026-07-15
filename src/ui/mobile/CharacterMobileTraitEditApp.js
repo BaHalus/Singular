@@ -2,6 +2,9 @@ import {
   bootstrapCharacterMobileSecondaryNotesApp,
   injectMobileSecondaryNotesControls,
 } from "./CharacterMobileSecondaryNotesApp.js";
+import {
+  createTraitModifierReadProjection,
+} from "../../application/projections/TraitModifierReadProjection.js";
 import { injectLanguageCultureCreationControls } from "./CharacterMobileLanguageCultureApp.js";
 import {
   createCharacterMobilePostRenderLifecycle,
@@ -236,12 +239,19 @@ function setMobileRootAttributes(root, session, mode) {
 }
 
 function renderTraitBody(traits, mode) {
+  const modifierReadModels = createTraitModifierReadProjection(traits);
   const editor = mode === "creation" ? renderTraitCreationEditor() : "";
   const list = traits.length === 0
     ? '<p class="singular-mobile-sheet__empty">Nenhum traço declarado.</p>'
     : [
       '<dl class="singular-mobile-sheet__trait-list">',
-      traits.map((trait, index) => renderTraitItem(trait, mode, index, traits.length)).join(""),
+      traits.map((trait, index) => renderTraitItem(
+        trait,
+        modifierReadModels[index],
+        mode,
+        index,
+        traits.length,
+      )).join(""),
       "</dl>",
     ].join("");
   return `${editor}${list}`;
@@ -261,16 +271,98 @@ function renderTraitCreationEditor() {
   ].join("");
 }
 
-function renderTraitItem(trait, mode, index, total) {
+function renderTraitItem(trait, modifierReadModel, mode, index, total) {
   const id = escapeAttribute(trait.id);
   const controls = mode === "creation" ? renderTraitControls(trait, index, total) : "";
   const editor = mode === "creation" ? renderTraitInlineEditor(trait) : "";
   return [
     `<div data-trait-id="${id}" data-trait-role="${escapeAttribute(trait.role ?? "trait")}">`,
     `<dt>${escapeText(localizedTraitRole(trait.role))}</dt>`,
-    `<dd>${escapeText(trait.name ?? "Traço sem nome")}${renderTraitDetails(trait)}${controls}${editor}</dd>`,
+    `<dd>${escapeText(trait.name ?? "Traço sem nome")}${renderTraitDetails(trait)}${renderTraitModifierReadModel(modifierReadModel)}${controls}${editor}</dd>`,
     "</div>",
   ].join("");
+}
+
+function renderTraitModifierReadModel(model) {
+  if (model.status !== "ready") {
+    return [
+      `<section class="singular-mobile-sheet__trait-cost" data-role="trait-cost-breakdown" data-status="${escapeAttribute(model.status)}">`,
+      `<p>Custo canônico indisponível: ${escapeText(localizedCostStatus(model.status))}.</p>`,
+      renderModifierList(model.modifiers),
+      "</section>",
+    ].join("");
+  }
+
+  const breakdown = model.breakdown;
+  return [
+    '<section class="singular-mobile-sheet__trait-cost" data-role="trait-cost-breakdown" data-status="ready">',
+    '<dl class="singular-mobile-sheet__trait-cost-summary">',
+    `<div><dt>Custo base</dt><dd>${formatPoints(model.baseCost.points)}</dd></div>`,
+    `<div><dt>Custo final</dt><dd>${formatPoints(model.finalCost.points)}</dd></div>`,
+    `<div><dt>Modificador líquido</dt><dd>${formatSignedPercent(breakdown.netModifierPercent)}</dd></div>`,
+    "</dl>",
+    renderModifierList(model.modifiers),
+    '<details class="singular-mobile-sheet__trait-cost-details">',
+    "<summary>Detalhes do cálculo</summary>",
+    "<dl>",
+    `<div><dt>Ampliações</dt><dd>${formatSignedPercent(breakdown.enhancementsPercent)}</dd></div>`,
+    `<div><dt>Limitações declaradas</dt><dd>${formatSignedPercent(breakdown.limitationsGrossPercent)}</dd></div>`,
+    `<div><dt>Limitações efetivas</dt><dd>${formatSignedPercent(breakdown.limitationsEffectivePercent)}</dd></div>`,
+    `<div><dt>Antes do arredondamento</dt><dd>${formatPoints(breakdown.beforeRounding)}</dd></div>`,
+    `<div><dt>Arredondamento</dt><dd>${escapeText(localizedRounding(breakdown.rounding))}</dd></div>`,
+    "</dl>",
+    "</details>",
+    "</section>",
+  ].join("");
+}
+
+function renderModifierList(modifiers) {
+  if (modifiers.length === 0) {
+    return '<p class="singular-mobile-sheet__trait-modifiers-empty">Sem modificadores.</p>';
+  }
+
+  return [
+    '<ul class="singular-mobile-sheet__trait-modifiers" aria-label="Modificadores do traço">',
+    modifiers.map(modifier => [
+      `<li data-modifier-id="${escapeAttribute(modifier.id)}" data-enabled="${modifier.enabled}">`,
+      `<span>${escapeText(modifier.name)}</span>`,
+      `<strong>${formatModifierValue(modifier)}</strong>`,
+      modifier.enabled ? "" : "<em>Desativado</em>",
+      "</li>",
+    ].join("")).join(""),
+    "</ul>",
+  ].join("");
+}
+
+function formatModifierValue(modifier) {
+  if (modifier.kind === "percentage" || modifier.kind === "percentage-multiplier") {
+    return formatSignedPercent(modifier.value * modifier.levelMultiplier);
+  }
+  if (typeof modifier.value === "number") {
+    const value = modifier.value * modifier.levelMultiplier;
+    return escapeText(`${value >= 0 ? "+" : ""}${formatValue(value)} pts`);
+  }
+  return escapeText(modifier.kind === "textual" ? "Textual" : "Não suportado");
+}
+
+function formatSignedPercent(value) {
+  return escapeText(`${value >= 0 ? "+" : ""}${formatValue(value)}%`);
+}
+
+function formatPoints(value) {
+  return escapeText(`${formatValue(value)} pts`);
+}
+
+function localizedRounding(rounding) {
+  if (!rounding.applied) return "não aplicado";
+  return `${formatValue(rounding.input)} → ${formatValue(rounding.output)}`;
+}
+
+function localizedCostStatus(status) {
+  if (status === "incomplete") return "dados incompletos";
+  if (status === "conflict") return "autoridades em conflito";
+  if (status === "unsupported") return "regra não suportada";
+  return status;
 }
 
 function renderTraitControls(trait, index, total) {
