@@ -23,6 +23,8 @@ function projectTrait(trait) {
     finalCost: {
       status: finalCost.status,
       points: finalCost.calculatedPoints,
+      rawPoints: finalCost.rawPoints,
+      rounding: cloneValue(finalCost.rounding),
     },
     modifiers: modifierCost.modifiers.map(modifier => ({
       id: modifier.id,
@@ -32,6 +34,7 @@ function projectTrait(trait) {
       affects: modifier.affects,
       enabled: modifier.enabled,
       levelMultiplier: modifier.levelMultiplier,
+      costExpression: modifier.costExpression,
       sourceFormat: modifier.sourceFormat,
     })),
     breakdown: modifierCost.calculationBreakdown === null

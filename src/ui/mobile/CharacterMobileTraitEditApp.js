@@ -308,8 +308,8 @@ function renderTraitModifierReadModel(model) {
     `<div><dt>Ampliações</dt><dd>${formatSignedPercent(breakdown.enhancementsPercent)}</dd></div>`,
     `<div><dt>Limitações declaradas</dt><dd>${formatSignedPercent(breakdown.limitationsGrossPercent)}</dd></div>`,
     `<div><dt>Limitações efetivas</dt><dd>${formatSignedPercent(breakdown.limitationsEffectivePercent)}</dd></div>`,
-    `<div><dt>Antes do arredondamento</dt><dd>${formatPoints(breakdown.beforeRounding)}</dd></div>`,
-    `<div><dt>Arredondamento</dt><dd>${escapeText(localizedRounding(breakdown.rounding))}</dd></div>`,
+    `<div><dt>Antes do arredondamento</dt><dd>${formatPoints(model.finalCost.rawPoints)}</dd></div>`,
+    `<div><dt>Arredondamento</dt><dd>${escapeText(localizedRounding(model.finalCost.rounding))}</dd></div>`,
     "</dl>",
     "</details>",
     "</section>",
@@ -337,6 +337,14 @@ function renderModifierList(modifiers) {
 function formatModifierValue(modifier) {
   if (modifier.kind === "percentage" || modifier.kind === "percentage-multiplier") {
     return formatSignedPercent(modifier.value * modifier.levelMultiplier);
+  }
+  if (modifier.kind === "multiplier") {
+    const importedExpression = modifier.sourceFormat === "gcs-cost-adj" &&
+        typeof modifier.costExpression === "string"
+      ? modifier.costExpression.trim()
+      : null;
+    return escapeText(importedExpression ||
+      `×${formatValue(modifier.value * modifier.levelMultiplier)}`);
   }
   if (typeof modifier.value === "number") {
     const value = modifier.value * modifier.levelMultiplier;
