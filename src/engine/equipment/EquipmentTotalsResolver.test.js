@@ -563,6 +563,47 @@ test("keeps disabled and non-applicable weapon features auditable", () => {
   assert.equal(report.totals.cost, 20);
 });
 
+test("keeps predicated weapon bonuses unsupported instead of applying them to every usage", () => {
+  const report = resolveEquipmentTotals(createEquipment([{
+    id: "eq-predicated-sword",
+    name: "Espada versátil",
+    quantity: 1,
+    cost: 500,
+    weightKg: 1.5,
+    weapons: [
+      { type: "melee_weapon", usage: "Balanço" },
+      { type: "melee_weapon", usage: "Estocada" },
+    ],
+    modifierList: {
+      type: "eqp_modifier_list",
+      id: "eq-predicated-sword:modifiers",
+      rows: [{
+        type: "eqp_modifier",
+        id: "balanced-swing",
+        name: "Balanceada para balanço",
+        features: [{
+          type: "weapon_bonus",
+          amount: 2,
+          selection_type: "this_weapon",
+          name: "Balanço",
+        }],
+      }],
+    },
+  }]));
+
+  const features = report.entries[0].adjustmentBreakdown.features;
+  assert.deepEqual(features.weaponBonuses, [
+    { weaponIndex: 0, modifierBonus: 0 },
+    { weaponIndex: 1, modifierBonus: 0 },
+  ]);
+  assert.deepEqual(
+    features.steps.map(step => [step.modifierId, step.applied, step.reason]),
+    [["balanced-swing", false, "unsupportedPredicate"]],
+  );
+  assert.equal(report.totals.cost, 500);
+  assert.equal(report.totals.weightKg, 1.5);
+});
+
 test("does not corrupt totals for malformed supported feature amounts", () => {
   const report = resolveEquipmentTotals(createEquipment([{
     id: "eq-invalid-bonus",

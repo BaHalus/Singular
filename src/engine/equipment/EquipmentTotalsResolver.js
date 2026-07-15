@@ -301,6 +301,9 @@ function resolveEquipmentFeaturePipeline({ item, orderedModifiers }) {
       if (reason === null && selectionType !== "this_weapon") {
         reason = "unsupportedSelection";
       }
+      if (reason === null && hasWeaponFeaturePredicates(feature)) {
+        reason = "unsupportedPredicate";
+      }
       if (reason === null && weaponCount === 0) {
         reason = "notApplicable";
       }
@@ -342,6 +345,13 @@ function getFeatureSelectionType(feature, modifier) {
   const selectionType = feature?.selection_type ?? feature?.selectionType ??
     modifier.applicability?.selectionType ?? null;
   return typeof selectionType === "string" ? selectionType : null;
+}
+
+function hasWeaponFeaturePredicates(feature) {
+  return ["name", "specialization", "level"].some(
+    predicate => feature?.[predicate] !== undefined &&
+      feature[predicate] !== null,
+  );
 }
 
 function normalizeEquipmentModifierRows(item, path, itemId, diagnostics) {
