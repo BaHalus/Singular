@@ -61,7 +61,7 @@ function composedModel(overrides = {}) {
 }
 
 test("exposes the table-mode status mobile sheet HTML schema version", () => {
-  assert.equal(getCharacterMobileSheetHtmlSchemaVersion(), 14);
+  assert.equal(getCharacterMobileSheetHtmlSchemaVersion(), 15);
 });
 
 test("renders creation controls only in creation mode", () => {
@@ -91,7 +91,7 @@ test("renders creation controls only in creation mode", () => {
   const creation = renderCharacterMobileSheetHtml(character, { mode: "creation" });
   const table = renderCharacterMobileSheetHtml(character, { mode: "table" });
 
-  assert.match(creation, /data-schema-version="14"/);
+  assert.match(creation, /data-schema-version="15"/);
   assert.match(creation, /data-role="character-summary-editor"/);
   assert.match(creation, /data-attribute-key="ST" data-attribute-adjust="-1"/);
   assert.match(creation, /data-role="attack-editor"/);
@@ -112,6 +112,55 @@ test("renders creation controls only in creation mode", () => {
   assert.doesNotMatch(table, /data-action="equipment-reorder"/);
   assert.doesNotMatch(table, /data-action="equipment-state-set"/);
   assert.match(table, /<dt>Nome<\/dt><dd>Ayla &lt;Exploradora&gt;<\/dd>/);
+});
+
+test("renders canonical equipment modifiers and adjusted totals in both mobile modes", () => {
+  const model = composedModel({
+    equipment: [{
+      id: "eq-fine-sword",
+      kind: "item",
+      name: "Espada superior",
+      quantity: 2,
+      weightKg: 1.5,
+      cost: 500,
+      state: "carried",
+      weapons: [{ type: "melee_weapon", usage: "Balanço" }],
+      modifierList: {
+        type: "eqp_modifier_list",
+        id: "eq-fine-sword:modifiers",
+        rows: [{
+          type: "eqp_modifier",
+          id: "fine",
+          name: "Qualidade superior",
+          cost_type: "to_base_cost",
+          cost: "x2",
+          weight_type: "to_base_weight",
+          weight: "-20%",
+          features: [{
+            type: "weapon_bonus",
+            amount: 1,
+            selection_type: "this_weapon",
+          }],
+        }],
+      },
+    }],
+  });
+
+  const creation = renderCharacterMobileSheetHtml(model, { mode: "creation" });
+  const table = renderCharacterMobileSheetHtml(model, { mode: "table" });
+
+  for (const html of [creation, table]) {
+    assert.match(html, /data-role="equipment-modifier-readonly"/);
+    assert.match(html, /data-authority="engine\.equipment"/);
+    assert.match(html, /Qualidade superior/);
+    assert.match(html, /\$ 500 → \$ 1000/);
+    assert.match(html, /1\.5 kg → 1\.2 kg/);
+    assert.match(html, /Custo total<\/dt><dd>\$ 2000/);
+    assert.match(html, /data-breakdown="custo"/);
+    assert.match(html, /data-breakdown="peso"/);
+    assert.match(html, /data-breakdown="features"/);
+  }
+  assert.doesNotMatch(table, /data-action="equipment-modifier/);
 });
 
 test("renders spell controls only in creation mode", () => {
