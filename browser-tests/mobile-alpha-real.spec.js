@@ -305,7 +305,7 @@ test("real mobile composition edits, persists, changes mode and remounts without
     '.singular-mobile-sheet__trait-list > div[data-trait-id]',
     "Destemida",
   );
-  await expect(page.locator('[data-role="trait-modifier-editor"]')).toContainText("Uso limitado");
+  await expect(page.locator('.singular-mobile-sheet__trait-modifiers')).toContainText("Uso limitado");
   await expectCanonicalItem(
     page,
     '.singular-mobile-sheet__attack-list > div[data-attack-id]',
