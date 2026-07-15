@@ -503,23 +503,48 @@ function renderEquipmentItem(item, mode, siblingOrder) {
 
 function renderEquipmentModifierRead(read) {
   if (!read || read.modifiers.length === 0) return "";
+  const totals = read.status === "resolved"
+    ? [
+      '<dl class="singular-mobile-sheet__equipment-adjusted-totals">',
+      renderAdjustedMetric("Custo/un", read.baseUnitCost, read.adjustedUnitCost, "$ "),
+      renderAdjustedMetric("Peso/un", read.baseUnitWeightKg, read.adjustedUnitWeightKg, "", " kg"),
+      `<div><dt>Custo total</dt><dd>$ ${formatValue(read.selfTotals.cost)}</dd></div>`,
+      `<div><dt>Peso total</dt><dd>${formatValue(read.selfTotals.weightKg)} kg</dd></div>`,
+      "</dl>",
+    ].join("")
+    : renderEquipmentModifierBlockedNotice(read.diagnostics);
   return [
     '<section class="singular-mobile-sheet__equipment-modifier-read" data-role="equipment-modifier-readonly"',
-    ` data-authority="${escapeAttribute(read.authority)}">`,
+    ` data-authority="${escapeAttribute(read.authority)}" data-status="${escapeAttribute(read.status)}">`,
     '<h3>Modificadores e totais ajustados</h3>',
-    '<dl class="singular-mobile-sheet__equipment-adjusted-totals">',
-    renderAdjustedMetric("Custo/un", read.baseUnitCost, read.adjustedUnitCost, "$ "),
-    renderAdjustedMetric("Peso/un", read.baseUnitWeightKg, read.adjustedUnitWeightKg, "", " kg"),
-    `<div><dt>Custo total</dt><dd>$ ${formatValue(read.selfTotals.cost)}</dd></div>`,
-    `<div><dt>Peso total</dt><dd>${formatValue(read.selfTotals.weightKg)} kg</dd></div>`,
-    "</dl>",
+    totals,
     '<ol class="singular-mobile-sheet__equipment-modifier-tree" aria-label="Árvore de modificadores">',
     read.modifiers.map(renderEquipmentModifierNode).join(""),
     "</ol>",
-    renderEquipmentAdjustmentBreakdown("Custo", read.breakdown.cost),
-    renderEquipmentAdjustmentBreakdown("Peso", read.breakdown.weight),
-    renderEquipmentFeatureBreakdown(read.breakdown.features),
+    read.status === "resolved"
+      ? renderEquipmentAdjustmentBreakdown("Custo", read.breakdown.cost)
+      : "",
+    read.status === "resolved"
+      ? renderEquipmentAdjustmentBreakdown("Peso", read.breakdown.weight)
+      : "",
+    read.status === "resolved"
+      ? renderEquipmentFeatureBreakdown(read.breakdown.features)
+      : "",
     "</section>",
+  ].join("");
+}
+
+function renderEquipmentModifierBlockedNotice(diagnostics) {
+  const messages = diagnostics
+    .map(diagnostic => diagnostic.message)
+    .filter(message => typeof message === "string" && message.length > 0);
+  return [
+    '<div class="singular-mobile-sheet__equipment-modifier-blocked" data-role="equipment-modifier-blocked">',
+    "<p>Totais ajustados indisponíveis: o motor bloqueou este cálculo.</p>",
+    messages.length === 0
+      ? ""
+      : `<ul>${messages.map(message => `<li>${escapeText(message)}</li>`).join("")}</ul>`,
+    "</div>",
   ].join("");
 }
 

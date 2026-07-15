@@ -163,6 +163,41 @@ test("renders canonical equipment modifiers and adjusted totals in both mobile m
   assert.doesNotMatch(table, /data-action="equipment-modifier/);
 });
 
+test("does not present blocked Equipment modifier fallback totals as real totals", () => {
+  const model = composedModel({
+    equipment: [{
+      id: "eq-invalid-adjustment",
+      kind: "item",
+      name: "Item com ajuste inválido",
+      quantity: 1,
+      weightKg: 2,
+      cost: 100,
+      state: "carried",
+      modifierList: {
+        type: "eqp_modifier_list",
+        id: "eq-invalid-adjustment:modifiers",
+        rows: [{
+          type: "eqp_modifier",
+          id: "invalid-cost",
+          name: "Custo impossível",
+          cost_type: "to_base_cost",
+          cost: "-200%",
+        }],
+      },
+    }],
+  });
+
+  const html = renderCharacterMobileSheetHtml(model, { mode: "table" });
+
+  assert.match(html, /data-role="equipment-modifier-readonly"[^>]*data-status="blocked"/);
+  assert.match(html, /data-role="equipment-modifier-blocked"/);
+  assert.match(html, /Totais ajustados indisponíveis: o motor bloqueou este cálculo/);
+  assert.match(html, /Equipment modifier adjustment must produce non-negative finite total/);
+  assert.doesNotMatch(html, /Custo total<\/dt>/);
+  assert.doesNotMatch(html, /Peso total<\/dt>/);
+  assert.doesNotMatch(html, /data-breakdown="(?:custo|peso|features)"/);
+});
+
 test("renders spell controls only in creation mode", () => {
   const character = composedModel({
     spells: [
