@@ -147,7 +147,7 @@ test("real mobile composition edits, persists, changes mode and remounts without
   await firstModifierEditor.locator('[data-role^="trait-modifier-edit-name-"]').fill("Área ampliada");
   await firstModifierEditor.locator('[data-role^="trait-modifier-edit-value-"]').fill("60");
   await firstModifierEditor.locator('[data-action="trait-modifier-update"]').click();
-  await expect(traitCard.locator('[data-role="trait-modifier-editor"]')).toContainText("Área ampliada");
+  await expect(traitCard.locator('.singular-mobile-sheet__trait-modifiers')).toContainText("Área ampliada");
 
   await traitCard.locator('[data-action="trait-modifier-enabled-set"]').first().click();
   await expect(traitCard.locator('.singular-mobile-sheet__trait-modifiers li[data-enabled="false"]')).toHaveCount(1);
