@@ -32,6 +32,11 @@ const PRICING_RULES = new Set([
   "alternative-ability",
 ]);
 const PRICING_SCOPES = new Set(["trait", "trait-group"]);
+const PRICING_RULE_SCOPES = Object.freeze({
+  "one-use": "trait",
+  "character-point-activation": "trait",
+  "alternative-ability": "trait-group",
+});
 const BREAKDOWN_STAGES = new Set(["construction", "pricing"]);
 const ROUNDING_POLICIES = new Set(["none", "ceil"]);
 
@@ -173,6 +178,7 @@ export function createPricingRule(input = {}) {
     PRICING_SCOPES,
     "Pricing rule scope",
   );
+  requirePricingRuleScope(rule, scope);
   if (input.domain === "equipment") {
     throw new Error("Equipment cannot use character-point pricing rules");
   }
@@ -204,8 +210,17 @@ export function validatePricingRule(rule) {
   requireObject(rule, "Pricing rule");
   requireVersion(rule.schemaVersion);
   requireString(rule.id, "Pricing rule id");
-  requireMember(rule.rule, PRICING_RULES, "Pricing rule kind");
-  requireMember(rule.scope, PRICING_SCOPES, "Pricing rule scope");
+  const ruleKind = requireMember(
+    rule.rule,
+    PRICING_RULES,
+    "Pricing rule kind",
+  );
+  const scope = requireMember(
+    rule.scope,
+    PRICING_SCOPES,
+    "Pricing rule scope",
+  );
+  requirePricingRuleScope(ruleKind, scope);
   if (rule.domain !== "trait") {
     throw new Error("Pricing rule domain must be trait");
   }
@@ -285,7 +300,15 @@ export function validateModifierBreakdownStep(step) {
   if (typeof step.applied !== "boolean") {
     throw new Error("Modifier breakdown applied must be boolean");
   }
-  normalizeNullableString(step.reason);
+  const reason = normalizeNullableString(step.reason);
+  if (!step.applied && reason === null) {
+    throw new Error(
+      "Unapplied modifier breakdown step must include a non-empty reason",
+    );
+  }
+  if (!step.applied) {
+    requireString(reason, "Unapplied modifier breakdown reason");
+  }
   normalizeRounding(step.rounding, step.stage);
   assertPortable(step.source, "Modifier breakdown source");
   assertPortable(step, "Modifier breakdown step");
@@ -301,6 +324,23 @@ export function createModifierBreakdown(input = {}) {
   steps.forEach((step, index) => {
     if (step.sequence !== index) {
       throw new Error("Modifier breakdown sequence must be dense and ordered");
+    }
+    if (index === 0) return;
+    const previous = steps[index - 1];
+    const previousStage = previous.stage === "construction" ? 0 : 1;
+    const currentStage = step.stage === "construction" ? 0 : 1;
+    if (currentStage < previousStage) {
+      throw new Error("Modifier breakdown stages must preserve canonical order");
+    }
+    if (currentStage === previousStage) {
+      const phases = step.stage === "construction"
+        ? CONSTRUCTION_PHASES
+        : PRICING_PHASES;
+      if (phases.indexOf(step.phase) < phases.indexOf(previous.phase)) {
+        throw new Error(
+          "Modifier breakdown phases must preserve canonical order",
+        );
+      }
     }
   });
   const breakdown = {
@@ -335,6 +375,12 @@ function normalizeRounding(value, stage) {
     throw new Error("Non-rounding step cannot name a rounding mechanism");
   }
   return { policy, mechanism };
+}
+
+function requirePricingRuleScope(rule, scope) {
+  if (PRICING_RULE_SCOPES[rule] !== scope) {
+    throw new Error(`Pricing rule ${rule} requires scope ${PRICING_RULE_SCOPES[rule]}`);
+  }
 }
 
 function requireVersion(value) {
