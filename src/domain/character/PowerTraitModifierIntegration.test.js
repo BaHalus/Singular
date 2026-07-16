@@ -123,3 +123,17 @@ test("reports overlapping global Power modifiers instead of double-applying", ()
   );
   assert.equal(analysis.groups.contributions[0].individualPoints, 100);
 });
+
+test("ignores inherited object members for Trait ids without Power modifiers", () => {
+  const character = createCharacter({
+    identity: { id: "prototype-trait-id", name: "Prototype Trait id" },
+    traits: [trait("toString", 25)],
+  });
+
+  const analysis = analyzeTraitCostAuthority(character);
+
+  assert.equal(analysis.status, "ready");
+  assert.equal(analysis.groups.contributions[0].traitId, "toString");
+  assert.equal(analysis.groups.contributions[0].individualPoints, 25);
+  assert.equal(analysis.groups.totalPoints, 25);
+});

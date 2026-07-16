@@ -26,7 +26,12 @@ export function evaluateTraitAlternativeGroups(traits = [], options = {}) {
       trait.id,
       evaluateTraitFinalCost(trait, {
         percentageMode,
-        externalModifiers: externalModifiersByTraitId[trait.id] ?? [],
+        externalModifiers: Object.hasOwn(
+          externalModifiersByTraitId,
+          trait.id,
+        )
+          ? externalModifiersByTraitId[trait.id]
+          : [],
       }),
     ]),
   );
