@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { createLibraryAdapterRegistry } from "./LibraryAdapter.js";
+import { createLibraryDefinition } from "./LibraryDefinition.js";
 import { orchestrateLibraryInstantiation } from "./LibraryInstantiationOrchestrator.js";
 import {
   createTraitModifierLibraryAdapter,
@@ -189,6 +190,61 @@ test("supports an explicit unrestricted declaration without compatibility heuris
   });
 
   assert.equal(result.status, "completed");
+});
+
+test("accepts sparse compatibility through the generic portable definition path", () => {
+  const canonicalModifier = libraryDefinition().payload.modifier;
+  const sparseDeclarations = [
+    {
+      compatibility: { mode: "unrestricted" },
+      targetTrait: {
+        id: "trait-any",
+        role: "quirk",
+        tags: [],
+      },
+    },
+    {
+      compatibility: {
+        mode: "declared",
+        traitRoles: ["advantage"],
+      },
+      targetTrait: {
+        id: "trait-advantage",
+        role: "advantage",
+        tags: [],
+      },
+    },
+  ];
+
+  for (const [index, declaration] of sparseDeclarations.entries()) {
+    const definition = createLibraryDefinition({
+      id: `generic-trait-modifier-${index}`,
+      domain: TRAIT_MODIFIER_LIBRARY_DOMAIN,
+      name: `Generic modifier ${index}`,
+      payload: {
+        modifier: canonicalModifier,
+        compatibility: declaration.compatibility,
+      },
+    });
+    const result = orchestrateLibraryInstantiation({
+      adapterRegistry: registry(),
+      definitions: [definition],
+      rootDefinitionIds: [definition.id],
+      context: { targetTrait: declaration.targetTrait },
+    });
+
+    assert.equal(result.status, "completed");
+    assert.deepEqual(
+      result.execution.actionResults[0].result.compatibility,
+      {
+        mode: declaration.compatibility.mode,
+        traitRoles: declaration.compatibility.traitRoles ?? [],
+        traitIds: [],
+        requiredTags: [],
+        excludedTags: [],
+      },
+    );
+  }
 });
 
 test("rejects missing, contradictory or invalid compatibility declarations", () => {
