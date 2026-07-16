@@ -61,6 +61,7 @@ function flattenModifierRows(rows, parentId = null, depth = 0, parentEnabled = t
       depth,
       kind: row.kind,
       name: row.name,
+      notes: row.notes,
       enabled: row.enabled,
       effectiveEnabled,
       costAdjustment: row.kind === "modifier" ? cloneValue(row.costAdjustment) : null,

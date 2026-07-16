@@ -148,6 +148,26 @@ export async function bootstrapCharacterMobileApp(options = {}) {
         notes: readInputValue(root, '[data-role="equipment-notes"]'),
       };
     },
+    readEquipmentModifierDraft(itemId) {
+      const suffix = escapeSelectorValue(itemId);
+      return {
+        name: readInputValue(root, `[data-role="equipment-modifier-add-name-${suffix}"]`),
+        kind: readInputValue(root, `[data-role="equipment-modifier-add-kind-${suffix}"]`) || "modifier",
+        parentId: readInputValue(root, `[data-role="equipment-modifier-add-parent-${suffix}"]`) || null,
+        costExpression: readInputValue(root, `[data-role="equipment-modifier-add-cost-${suffix}"]`),
+        weightExpression: readInputValue(root, `[data-role="equipment-modifier-add-weight-${suffix}"]`),
+        notes: readInputValue(root, `[data-role="equipment-modifier-add-notes-${suffix}"]`),
+      };
+    },
+    readEquipmentModifierEdit(itemId, modifierId) {
+      const suffix = `${escapeSelectorValue(itemId)}-${escapeSelectorValue(modifierId)}`;
+      return {
+        name: readInputValue(root, `[data-role="equipment-modifier-edit-name-${suffix}"]`),
+        costExpression: readInputValue(root, `[data-role="equipment-modifier-edit-cost-${suffix}"]`),
+        weightExpression: readInputValue(root, `[data-role="equipment-modifier-edit-weight-${suffix}"]`),
+        notes: readInputValue(root, `[data-role="equipment-modifier-edit-notes-${suffix}"]`),
+      };
+    },
     readSpellDraft() {
       return {
         name: readInputValue(root, '[data-role="spell-name"]'),

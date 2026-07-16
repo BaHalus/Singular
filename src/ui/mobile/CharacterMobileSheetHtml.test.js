@@ -61,7 +61,7 @@ function composedModel(overrides = {}) {
 }
 
 test("exposes the table-mode status mobile sheet HTML schema version", () => {
-  assert.equal(getCharacterMobileSheetHtmlSchemaVersion(), 15);
+  assert.equal(getCharacterMobileSheetHtmlSchemaVersion(), 16);
 });
 
 test("renders creation controls only in creation mode", () => {
@@ -91,7 +91,7 @@ test("renders creation controls only in creation mode", () => {
   const creation = renderCharacterMobileSheetHtml(character, { mode: "creation" });
   const table = renderCharacterMobileSheetHtml(character, { mode: "table" });
 
-  assert.match(creation, /data-schema-version="15"/);
+  assert.match(creation, /data-schema-version="16"/);
   assert.match(creation, /data-role="character-summary-editor"/);
   assert.match(creation, /data-attribute-key="ST" data-attribute-adjust="-1"/);
   assert.match(creation, /data-role="attack-editor"/);

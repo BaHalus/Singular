@@ -140,6 +140,51 @@ test("real mobile equipment cards show canonical modifier totals in both modes",
   await expectNoCriticalHorizontalOverflow(page);
 });
 
+test("real mobile equipment editor applies canonical modifier intentions and persists them", async ({ page }) => {
+  await page.goto("/test/browser/mobile-alpha-harness.html?reset=1");
+  await page.evaluate(() => globalThis.__SINGULAR_ALPHA_HARNESS_READY__);
+  await page.locator('[data-role="persistence-import-json"]').fill(
+    await createModifiedEquipmentExport(page),
+  );
+  await page.locator('[data-action="persistence-import"]').click();
+
+  const item = page.locator('[data-equipment-id="equipment:fine-sword"]');
+  const initialRevision = (await readHarnessState(page)).revision;
+  await expect(item.locator('[data-role="equipment-modifier-editor"]')).toHaveCount(1);
+  await item.locator('[data-role="equipment-modifier-add-name-equipment:fine-sword"]').fill("Leve");
+  await item.locator('[data-role="equipment-modifier-add-cost-equipment:fine-sword"]').fill("-10%");
+  await item.locator('[data-role="equipment-modifier-add-weight-equipment:fine-sword"]').fill("x0.5");
+  await item.locator('[data-role="equipment-modifier-add-notes-equipment:fine-sword"]').fill("Uso móvel");
+  await item.locator('[data-action="equipment-modifier-add"]').click();
+  await expect(item.locator('[data-action="equipment-modifier-update"]')).toHaveCount(2);
+  await expect.poll(async () => (await readHarnessState(page)).revision).toBe(initialRevision + 1);
+
+  const added = item.locator('.singular-mobile-sheet__equipment-modifier-form')
+    .filter({ has: page.locator('[data-action="equipment-modifier-update"]') })
+    .filter({ hasText: "Leve" });
+  await added.locator('[data-role^="equipment-modifier-edit-name-"]').fill("Muito leve");
+  await added.locator('[data-role^="equipment-modifier-edit-weight-"]').fill("x0.4");
+  await added.locator('[data-action="equipment-modifier-update"]').click();
+  await expect(item.locator('[data-role="equipment-modifier-readonly"]')).toContainText("Muito leve");
+
+  await item.locator('[data-action="equipment-modifier-enabled-set"]').filter({ hasText: "Desativar" }).last().click();
+  await expect(item.locator('[data-role="equipment-modifier-readonly"] li[data-enabled="false"]')).toHaveCount(1);
+  await item.getByRole("button", { name: "Mover Muito leve para cima" }).click();
+  await expect(item.locator('[data-role="equipment-modifier-readonly"] li').first()).toContainText("Muito leve");
+  await expect.poll(async () => (await readHarnessState(page)).revision).toBe(initialRevision + 4);
+
+  await page.locator('[data-action="persistence-save"]').click();
+  await page.locator('[data-action="mode-table"]').click();
+  await expect(item.locator('[data-role="equipment-modifier-editor"]')).toHaveCount(0);
+  await expect(item.locator('[data-action^="equipment-modifier-"]')).toHaveCount(0);
+  await expect(item.locator('[data-role="equipment-modifier-readonly"]')).toContainText("Muito leve");
+
+  await page.locator('[data-action="mode-creation"]').click();
+  await expect(item.locator('[data-role="equipment-modifier-editor"]')).toHaveCount(1);
+  await item.locator('[data-action="equipment-modifier-remove"]').last().click();
+  await expect(item.locator('[data-action="equipment-modifier-update"]')).toHaveCount(1);
+});
+
 test("real mobile composition edits, persists, changes mode and remounts without duplication", async ({ page }) => {
   const browserErrors = [];
   page.on("pageerror", error => browserErrors.push(error.message));
