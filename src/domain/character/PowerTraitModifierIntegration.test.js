@@ -137,3 +137,24 @@ test("ignores inherited object members for Trait ids without Power modifiers", (
   assert.equal(analysis.groups.contributions[0].individualPoints, 25);
   assert.equal(analysis.groups.totalPoints, 25);
 });
+
+test("applies a Power modifier to a Trait whose id is __proto__", () => {
+  const character = createCharacter({
+    identity: { id: "proto-power-member", name: "Proto Power member" },
+    traits: [trait("__proto__", 100)],
+    powers: [power("proto-power", ["__proto__"], -10)],
+  });
+
+  const integration = projectPowerTraitModifierIntegration(character);
+  const analysis = analyzeTraitCostAuthority(character);
+
+  assert.equal(integration.status, "ready");
+  assert.equal(
+    Object.hasOwn(integration.externalModifiersByTraitId, "__proto__"),
+    true,
+  );
+  assert.equal(integration.externalModifiersByTraitId.__proto__.length, 1);
+  assert.equal(analysis.status, "ready");
+  assert.equal(analysis.groups.contributions[0].individualPoints, 90);
+  assert.equal(analysis.groups.totalPoints, 90);
+});

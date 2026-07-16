@@ -33,7 +33,12 @@ export function projectPowerTraitModifierIntegration(character) {
     if (matches.length === 0) continue;
 
     const [{ power, modifier }] = matches;
-    externalModifiersByTraitId[trait.id] = [modifier];
+    Object.defineProperty(externalModifiersByTraitId, trait.id, {
+      value: [modifier],
+      enumerable: true,
+      configurable: false,
+      writable: false,
+    });
     applications.push({
       traitId: trait.id,
       powerId: power.id,
