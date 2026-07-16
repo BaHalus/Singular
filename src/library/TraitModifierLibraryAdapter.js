@@ -56,7 +56,7 @@ export function validateTraitModifierLibraryPayload(payload) {
   requirePlainObject(payload, "Trait modifier Library payload");
   validateTraitModifier(payload.modifier);
   requireCanonicalModifier(payload.modifier);
-  validateCompatibility(payload.compatibility);
+  normalizeCompatibility(payload.compatibility);
   return true;
 }
 
@@ -65,7 +65,7 @@ export function serializeTraitModifierLibraryPayload(payload) {
   return {
     modifier: serializeTraitModifier(payload.modifier),
     compatibility: clonePortableValue(
-      payload.compatibility,
+      normalizeCompatibility(payload.compatibility),
       "Trait modifier Library compatibility",
     ),
   };
@@ -269,27 +269,27 @@ function readTargetTrait(context) {
 }
 
 function findCompatibilityMismatches(compatibility, trait) {
-  validateCompatibility(compatibility);
-  if (compatibility.mode === "unrestricted") return [];
+  const normalizedCompatibility = normalizeCompatibility(compatibility);
+  if (normalizedCompatibility.mode === "unrestricted") return [];
   const tags = new Set(trait.tags);
   const mismatches = [];
 
   if (
-    compatibility.traitRoles.length > 0 &&
-    !compatibility.traitRoles.includes(trait.role)
+    normalizedCompatibility.traitRoles.length > 0 &&
+    !normalizedCompatibility.traitRoles.includes(trait.role)
   ) {
     mismatches.push("trait-modifier-incompatible-role");
   }
   if (
-    compatibility.traitIds.length > 0 &&
-    !compatibility.traitIds.includes(trait.id)
+    normalizedCompatibility.traitIds.length > 0 &&
+    !normalizedCompatibility.traitIds.includes(trait.id)
   ) {
     mismatches.push("trait-modifier-incompatible-trait");
   }
-  if (compatibility.requiredTags.some(tag => !tags.has(tag))) {
+  if (normalizedCompatibility.requiredTags.some(tag => !tags.has(tag))) {
     mismatches.push("trait-modifier-missing-required-tag");
   }
-  if (compatibility.excludedTags.some(tag => tags.has(tag))) {
+  if (normalizedCompatibility.excludedTags.some(tag => tags.has(tag))) {
     mismatches.push("trait-modifier-excluded-tag");
   }
   return mismatches;
