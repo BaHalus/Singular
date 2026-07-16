@@ -18,10 +18,21 @@ export function evaluateTraitAlternativeGroups(traits = [], options = {}) {
   traits.forEach(validateTrait);
   const percentageMode = options.percentageMode ?? "additive";
   const policies = normalizePolicies(options.groupPolicies);
+  const externalModifiersByTraitId = normalizeExternalModifiersByTraitId(
+    options.externalModifiersByTraitId,
+  );
   const evaluations = new Map(
     traits.map(trait => [
       trait.id,
-      evaluateTraitFinalCost(trait, { percentageMode }),
+      evaluateTraitFinalCost(trait, {
+        percentageMode,
+        externalModifiers: Object.hasOwn(
+          externalModifiersByTraitId,
+          trait.id,
+        )
+          ? externalModifiersByTraitId[trait.id]
+          : [],
+      }),
     ]),
   );
 
@@ -363,6 +374,19 @@ function normalizePolicies(input) {
       normalizePolicy(policy),
     ]),
   );
+}
+
+function normalizeExternalModifiersByTraitId(input) {
+  if (input === undefined || input === null) return {};
+  if (!isPlainObject(input)) {
+    throw new Error("Trait external modifiers by trait id must be object");
+  }
+  for (const [traitId, modifiers] of Object.entries(input)) {
+    if (traitId === "" || !Array.isArray(modifiers)) {
+      throw new Error("Trait external modifiers entry is invalid");
+    }
+  }
+  return input;
 }
 
 function normalizePolicy(input = {}) {

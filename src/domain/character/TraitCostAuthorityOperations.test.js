@@ -193,6 +193,39 @@ test("rejects a stale plan when a mechanical source changes", () => {
   assert.ok(character.traits.every(item => item.pointValue.calculatedPoints === null));
 });
 
+test("rejects a stale plan when a global Power modifier changes", () => {
+  const character = createCharacter({
+    identity: { id: "power-stale", name: "Power stale" },
+    traits: [trait("member", 20)],
+    powers: [{
+      id: "power",
+      name: "Power",
+      memberTraitIds: ["member"],
+      powerModifier: { name: "Global", valuePercent: -10, notes: "" },
+    }],
+  });
+  const plan = planTraitCostAuthority(character, {
+    now: PLANNED_AT,
+    operationId: "operation-stale-power",
+    planId: "plan-stale-power",
+  });
+  const input = structuredClone(serializeCharacter(character));
+  input.powers[0].powerModifier.valuePercent = -20;
+  input.advantages = null;
+  input.perks = null;
+  input.disadvantages = null;
+  input.quirks = null;
+  const changed = createCharacter(input);
+
+  assert.throws(
+    () => executeTraitCostAuthorityPlan(changed, plan, { now: EXECUTED_AT }),
+    error => (
+      error instanceof TraitCostAuthorityExecutionError &&
+      error.code === "PLAN_STALE"
+    ),
+  );
+});
+
 test("rejects a stale plan when only the target authority changes", () => {
   const character = readyCharacter();
   const plan = planTraitCostAuthority(character, {
