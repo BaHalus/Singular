@@ -109,7 +109,7 @@ export function mountCharacterMobileTraitEditApp(app, options = {}) {
     const actionTarget = findDataTarget(event?.target, "action");
     const action = actionTarget === null ? null : readDataset(actionTarget, "action");
 
-    if (action !== "trait-update") return null;
+    if (!isTraitDetailAction(action)) return null;
     event.preventDefault?.();
 
     if (lifecycleApp.mode !== "creation") {
@@ -121,10 +121,11 @@ export function mountCharacterMobileTraitEditApp(app, options = {}) {
       return null;
     }
 
-    const traitId = readDataset(actionTarget, "traitId");
-    const result = lifecycleApp.commands.updateTrait({
-      traitId,
-      patch: readTraitPatch(root, traitId, lifecycleApp.persistence.getActiveSession().character),
+    const result = executeTraitDetailAction({
+      action,
+      actionTarget,
+      root,
+      lifecycleApp,
     });
     root.setAttribute?.("data-last-command-status", result.status);
     if (["applied", "no-op"].includes(result.status)) render();
@@ -278,7 +279,7 @@ function renderTraitItem(trait, modifierReadModel, mode, index, total) {
   return [
     `<div data-trait-id="${id}" data-trait-role="${escapeAttribute(trait.role ?? "trait")}">`,
     `<dt>${escapeText(localizedTraitRole(trait.role))}</dt>`,
-    `<dd>${escapeText(trait.name ?? "Traço sem nome")}${renderTraitDetails(trait)}${renderTraitModifierReadModel(modifierReadModel)}${controls}${editor}</dd>`,
+    `<dd>${escapeText(trait.name ?? "Traço sem nome")}${renderTraitDetails(trait)}${renderTraitModifierReadModel(modifierReadModel)}${mode === "creation" ? renderTraitModifierEditor(trait) : ""}${controls}${editor}</dd>`,
     "</div>",
   ].join("");
 }
@@ -332,6 +333,84 @@ function renderModifierList(modifiers) {
     ].join("")).join(""),
     "</ul>",
   ].join("");
+}
+
+function renderTraitModifierEditor(trait) {
+  const traitId = escapeAttribute(trait.id);
+  const modifiers = Array.isArray(trait.modifiers) ? trait.modifiers : [];
+  return [
+    `<section class="singular-mobile-sheet__trait-modifier-editor" data-role="trait-modifier-editor" data-trait-id="${traitId}">`,
+    "<h3>Editar modificadores</h3>",
+    modifiers.map((modifier, index) => renderTraitModifierInlineEditor(
+      trait.id,
+      modifier,
+      index,
+      modifiers.length,
+    )).join(""),
+    `<div class="singular-mobile-sheet__trait-modifier-form" data-role="trait-modifier-add-${traitId}">`,
+    `<label>Nome <input type="text" data-role="trait-modifier-add-name-${traitId}" autocomplete="off"></label>`,
+    `<label>Tipo <select data-role="trait-modifier-add-kind-${traitId}">${renderModifierKindOptions("enhancement")}</select></label>`,
+    `<label>Percentual <input type="number" min="0.01" step="0.01" inputmode="decimal" data-role="trait-modifier-add-value-${traitId}"></label>`,
+    `<label>Afeta <select data-role="trait-modifier-add-affects-${traitId}">${renderModifierAffectsOptions("total")}</select></label>`,
+    `<label>Notas <textarea data-role="trait-modifier-add-notes-${traitId}" autocomplete="off"></textarea></label>`,
+    `<button type="button" data-action="trait-modifier-add" data-trait-id="${traitId}">Adicionar modificador</button>`,
+    "</div>",
+    "</section>",
+  ].join("");
+}
+
+function renderTraitModifierInlineEditor(traitId, modifier, index, total) {
+  if (!isEditablePercentageModifier(modifier)) {
+    return `<p class="singular-mobile-sheet__trait-modifier-opaque">${escapeText(modifier.name ?? modifier.id ?? "Modificador importado")} é somente leitura.</p>`;
+  }
+  const traitSuffix = escapeAttribute(traitId);
+  const modifierSuffix = escapeAttribute(modifier.id);
+  const rolePrefix = `trait-modifier-edit-${traitSuffix}-${modifierSuffix}`;
+  const fieldSuffix = `${traitSuffix}-${modifierSuffix}`;
+  const up = index > 0
+    ? `<button type="button" data-action="trait-modifier-reorder" data-trait-id="${traitSuffix}" data-modifier-id="${modifierSuffix}" data-target-index="${index - 1}" aria-label="Mover ${escapeAttribute(modifier.name)} para cima">↑</button>`
+    : "";
+  const down = index < total - 1
+    ? `<button type="button" data-action="trait-modifier-reorder" data-trait-id="${traitSuffix}" data-modifier-id="${modifierSuffix}" data-target-index="${index + 1}" aria-label="Mover ${escapeAttribute(modifier.name)} para baixo">↓</button>`
+    : "";
+  return [
+    `<div class="singular-mobile-sheet__trait-modifier-form" data-role="${rolePrefix}">`,
+    `<label>Nome <input type="text" data-role="trait-modifier-edit-name-${fieldSuffix}" value="${escapeAttribute(modifier.name)}" autocomplete="off"></label>`,
+    `<label>Tipo <select data-role="trait-modifier-edit-kind-${fieldSuffix}">${renderModifierKindOptions(modifier.kind)}</select></label>`,
+    `<label>Percentual <input type="number" min="0.01" step="0.01" inputmode="decimal" data-role="trait-modifier-edit-value-${fieldSuffix}" value="${escapeAttribute(modifier.value)}"></label>`,
+    `<label>Afeta <select data-role="trait-modifier-edit-affects-${fieldSuffix}">${renderModifierAffectsOptions(modifier.affects ?? "total")}</select></label>`,
+    `<label>Notas <textarea data-role="trait-modifier-edit-notes-${fieldSuffix}" autocomplete="off">${renderTextareaText(modifier.notes ?? "")}</textarea></label>`,
+    '<span class="singular-mobile-sheet__trait-modifier-actions">',
+    up,
+    down,
+    `<button type="button" data-action="trait-modifier-enabled-set" data-trait-id="${traitSuffix}" data-modifier-id="${modifierSuffix}" data-enabled="${modifier.enabled !== false}">${modifier.enabled === false ? "Ativar" : "Desativar"}</button>`,
+    `<button type="button" data-action="trait-modifier-remove" data-trait-id="${traitSuffix}" data-modifier-id="${modifierSuffix}">Excluir</button>`,
+    "</span>",
+    `<button type="button" data-action="trait-modifier-update" data-trait-id="${traitSuffix}" data-modifier-id="${modifierSuffix}">Salvar modificador</button>`,
+    "</div>",
+  ].join("");
+}
+
+function renderModifierKindOptions(activeKind) {
+  return [
+    ["enhancement", "Ampliação"],
+    ["limitation", "Limitação"],
+  ].map(([value, label]) => `<option value="${value}"${value === activeKind ? " selected" : ""}>${label}</option>`).join("");
+}
+
+function renderModifierAffectsOptions(activeAffects) {
+  return [
+    ["total", "Custo total"],
+    ["base", "Custo base"],
+    ["levels", "Níveis"],
+  ].map(([value, label]) => `<option value="${value}"${value === activeAffects ? " selected" : ""}>${label}</option>`).join("");
+}
+
+function isEditablePercentageModifier(modifier) {
+  return modifier !== null &&
+    typeof modifier === "object" &&
+    ["enhancement", "limitation"].includes(modifier.kind) &&
+    modifier.valueType === "percentage";
 }
 
 function formatModifierValue(modifier) {
@@ -454,6 +533,68 @@ function readTraitPatch(root, traitId, character) {
   if (Array.isArray(existingTrait?.choices)) patch.choices = [...existingTrait.choices];
 
   return patch;
+}
+
+function isTraitDetailAction(action) {
+  return [
+    "trait-update",
+    "trait-modifier-add",
+    "trait-modifier-update",
+    "trait-modifier-remove",
+    "trait-modifier-reorder",
+    "trait-modifier-enabled-set",
+  ].includes(action);
+}
+
+function executeTraitDetailAction({ action, actionTarget, root, lifecycleApp }) {
+  const traitId = readDataset(actionTarget, "traitId");
+  if (action === "trait-update") {
+    return lifecycleApp.commands.updateTrait({
+      traitId,
+      patch: readTraitPatch(root, traitId, lifecycleApp.persistence.getActiveSession().character),
+    });
+  }
+
+  const modifierId = readDataset(actionTarget, "modifierId");
+  if (action === "trait-modifier-add") {
+    return lifecycleApp.commands.addTraitModifier({
+      traitId,
+      ...readTraitModifierFields(root, "trait-modifier-add", traitId),
+    });
+  }
+  if (action === "trait-modifier-update") {
+    return lifecycleApp.commands.editTraitModifier({
+      traitId,
+      modifierId,
+      patch: readTraitModifierFields(root, "trait-modifier-edit", traitId, modifierId),
+    });
+  }
+  if (action === "trait-modifier-remove") {
+    return lifecycleApp.commands.removeTraitModifier({ traitId, modifierId });
+  }
+  if (action === "trait-modifier-reorder") {
+    return lifecycleApp.commands.reorderTraitModifier({
+      traitId,
+      modifierId,
+      toIndex: Number(readDataset(actionTarget, "targetIndex")),
+    });
+  }
+  return lifecycleApp.commands.setTraitModifierEnabled({
+    traitId,
+    modifierId,
+    enabled: readDataset(actionTarget, "enabled") !== "true",
+  });
+}
+
+function readTraitModifierFields(root, prefix, traitId, modifierId = null) {
+  const suffix = [traitId, modifierId].filter(value => value !== null).map(escapeSelectorValue).join("-");
+  return {
+    name: readInputValue(root, `[data-role="${prefix}-name-${suffix}"]`),
+    kind: readInputValue(root, `[data-role="${prefix}-kind-${suffix}"]`) || "enhancement",
+    value: readInputNumber(root, `[data-role="${prefix}-value-${suffix}"]`, null),
+    affects: readInputValue(root, `[data-role="${prefix}-affects-${suffix}"]`) || "total",
+    notes: readInputValue(root, `[data-role="${prefix}-notes-${suffix}"]`),
+  };
 }
 
 function preserveExistingTraitField(patch, trait, field) {

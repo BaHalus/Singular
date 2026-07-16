@@ -450,6 +450,30 @@ function createAlphaMobileCommands({ persistence, registry, runtime }) {
     updateTrait: run(TRAIT_COMMAND_TYPES.UPDATE),
     removeTrait: run(TRAIT_COMMAND_TYPES.REMOVE),
     reorderTrait: run(TRAIT_COMMAND_TYPES.REORDER),
+    addTraitModifier(input = {}) {
+      requirePlainObject(input, "Alpha mobile Trait modifier addition");
+      const trait = persistence.getActiveSession().character.traits
+        .find(item => item.id === input.traitId);
+      return execute(TRAIT_COMMAND_TYPES.ADD_MODIFIER, {
+        traitId: input.traitId,
+        modifier: {
+          id: input.id ?? generateId(runtime.idGenerator, "trait-modifier"),
+          name: input.name ?? "",
+          kind: input.kind ?? "enhancement",
+          valueType: "percentage",
+          value: input.value,
+          source: input.source ?? null,
+          notes: input.notes ?? "",
+          enabled: input.enabled ?? true,
+          affects: input.affects ?? "total",
+        },
+        index: input.index ?? trait?.modifiers?.length ?? 0,
+      });
+    },
+    editTraitModifier: run(TRAIT_COMMAND_TYPES.EDIT_MODIFIER),
+    removeTraitModifier: run(TRAIT_COMMAND_TYPES.REMOVE_MODIFIER),
+    reorderTraitModifier: run(TRAIT_COMMAND_TYPES.REORDER_MODIFIER),
+    setTraitModifierEnabled: run(TRAIT_COMMAND_TYPES.SET_MODIFIER_ENABLED),
     addSkill: run(SKILL_COMMAND_TYPES.ADD_SKILL),
     updateSkill: run(SKILL_COMMAND_TYPES.UPDATE_SKILL),
     removeSkill: run(SKILL_COMMAND_TYPES.REMOVE_SKILL),

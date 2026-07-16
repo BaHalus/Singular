@@ -1,5 +1,6 @@
 .singular-mobile-sheet__trait-editor,
-.singular-mobile-sheet__trait-inline-editor {
+.singular-mobile-sheet__trait-inline-editor,
+.singular-mobile-sheet__trait-modifier-form {
   display: grid;
   gap: 0.5rem;
 }
@@ -73,8 +74,43 @@
   padding-top: 0.65rem;
 }
 
+.singular-mobile-sheet__trait-modifier-editor {
+  min-width: 0;
+  margin-top: 0.65rem;
+  border: 1px solid #344457;
+  border-radius: 0.65rem;
+  padding: 0.65rem;
+}
+
+.singular-mobile-sheet__trait-modifier-editor h3 {
+  margin: 0 0 0.65rem;
+  font-size: 1rem;
+}
+
+.singular-mobile-sheet__trait-modifier-form + .singular-mobile-sheet__trait-modifier-form {
+  border-top: 1px solid #344457;
+  margin-top: 0.65rem;
+  padding-top: 0.65rem;
+}
+
+.singular-mobile-sheet__trait-modifier-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+
+.singular-mobile-sheet__trait-modifier-opaque {
+  overflow-wrap: anywhere;
+}
+
 .singular-mobile-sheet__trait-editor label,
 .singular-mobile-sheet__trait-inline-editor label {
+  display: grid;
+  gap: 0.25rem;
+  font-weight: 700;
+}
+
+.singular-mobile-sheet__trait-modifier-form label {
   display: grid;
   gap: 0.25rem;
   font-weight: 700;
@@ -98,6 +134,25 @@
   padding: 0.55rem;
 }
 
+.singular-mobile-sheet__trait-modifier-form input,
+.singular-mobile-sheet__trait-modifier-form select,
+.singular-mobile-sheet__trait-modifier-form textarea,
+.singular-mobile-sheet__trait-modifier-form button {
+  width: 100%;
+  min-height: 2.75rem;
+  border: 1px solid #344457;
+  border-radius: 0.65rem;
+  background: #202b38;
+  color: inherit;
+  font: inherit;
+  padding: 0.55rem;
+}
+
+.singular-mobile-sheet__trait-modifier-form textarea {
+  min-height: 5.5rem;
+  resize: vertical;
+}
+
 .singular-mobile-sheet__trait-editor textarea,
 .singular-mobile-sheet__trait-inline-editor textarea {
   min-height: 5.5rem;
@@ -113,6 +168,15 @@
   .singular-mobile-sheet__trait-editor,
   .singular-mobile-sheet__trait-inline-editor {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .singular-mobile-sheet__trait-modifier-form {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .singular-mobile-sheet__trait-modifier-form > button,
+  .singular-mobile-sheet__trait-modifier-form > .singular-mobile-sheet__trait-modifier-actions {
+    grid-column: 1 / -1;
   }
 
   .singular-mobile-sheet__trait-editor > button,

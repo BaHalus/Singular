@@ -183,6 +183,39 @@ test("real mobile composition edits, persists, changes mode and remounts without
     "Destemida",
   );
 
+  const traitCard = page
+    .locator('.singular-mobile-sheet__trait-list > div[data-trait-id]')
+    .filter({ hasText: "Destemida" });
+  const traitId = await traitCard.getAttribute("data-trait-id");
+  expect(traitId).not.toBeNull();
+  const addModifier = async ({ name, kind, value, notes }) => {
+    await traitCard.locator(`[data-role="trait-modifier-add-name-${traitId}"]`).fill(name);
+    await traitCard.locator(`[data-role="trait-modifier-add-kind-${traitId}"]`).selectOption(kind);
+    await traitCard.locator(`[data-role="trait-modifier-add-value-${traitId}"]`).fill(String(value));
+    await traitCard.locator(`[data-role="trait-modifier-add-notes-${traitId}"]`).fill(notes);
+    await traitCard.locator('[data-action="trait-modifier-add"]').click();
+  };
+
+  await addModifier({ name: "Área", kind: "enhancement", value: 50, notes: "Cone amplo" });
+  await addModifier({ name: "Uso limitado", kind: "limitation", value: 20, notes: "Três vezes" });
+  await expect(traitCard.locator('[data-action="trait-modifier-update"]')).toHaveCount(2);
+
+  const firstModifierEditor = traitCard
+    .locator('.singular-mobile-sheet__trait-modifier-form')
+    .filter({ has: page.locator('[data-action="trait-modifier-update"]') })
+    .first();
+  await firstModifierEditor.locator('[data-role^="trait-modifier-edit-name-"]').fill("Área ampliada");
+  await firstModifierEditor.locator('[data-role^="trait-modifier-edit-value-"]').fill("60");
+  await firstModifierEditor.locator('[data-action="trait-modifier-update"]').click();
+  await expect(traitCard.locator('.singular-mobile-sheet__trait-modifiers')).toContainText("Área ampliada");
+
+  await traitCard.locator('[data-action="trait-modifier-enabled-set"]').first().click();
+  await expect(traitCard.locator('.singular-mobile-sheet__trait-modifiers li[data-enabled="false"]')).toHaveCount(1);
+  await traitCard.getByRole("button", { name: "Mover Uso limitado para cima" }).click();
+  await expect(traitCard.locator('.singular-mobile-sheet__trait-modifiers li').first()).toContainText("Uso limitado");
+  await traitCard.locator('[data-action="trait-modifier-remove"]').filter({ hasText: "Excluir" }).last().click();
+  await expect(traitCard.locator('[data-action="trait-modifier-update"]')).toHaveCount(1);
+
   await page.locator('[data-role="skill-name"]').fill("Navegacao");
   await page.locator('[data-role="skill-specialization"]').fill("Costeira");
   await page.locator('[data-role="skill-attribute"]').selectOption("IQ");
@@ -280,6 +313,7 @@ test("real mobile composition edits, persists, changes mode and remounts without
   for (const role of creationEditors) {
     await expect(page.locator(`[data-role="${role}"]`)).toHaveCount(0);
   }
+  await expect(page.locator('[data-role="trait-modifier-editor"]')).toHaveCount(0);
   await expectCharacterName(page, "Alda Navegante");
 
   const tablePoolAdjusters = page.locator('[data-pool-adjust]');
@@ -331,6 +365,7 @@ test("real mobile composition edits, persists, changes mode and remounts without
     '.singular-mobile-sheet__trait-list > div[data-trait-id]',
     "Destemida",
   );
+  await expect(page.locator('.singular-mobile-sheet__trait-modifiers')).toContainText("Uso limitado");
   await expectCanonicalItem(
     page,
     '.singular-mobile-sheet__attack-list > div[data-attack-id]',
