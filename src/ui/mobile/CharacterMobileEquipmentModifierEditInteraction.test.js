@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { createCharacter } from "../../domain/character/Character.js";
+import { resolveEquipmentTotals } from "../../engine/equipment/EquipmentTotalsResolver.js";
 import { bootstrapCharacterMobileApp } from "./CharacterMobileApp.js";
 
 function character() {
@@ -81,6 +82,62 @@ function modifierRows(mounted) {
   const item = mounted.character.equipment[0];
   return item.modifierList?.rows ?? item.modifiers;
 }
+
+test("edits legacy eqp_modifier adjustments before a modifierList exists", async () => {
+  const root = rootFixture();
+  const mounted = await bootstrapCharacterMobileApp({
+    root,
+    character: character(),
+    sessionId: "session-equipment-legacy-modifier",
+    storage: createMemoryStorage(),
+    namespace: "test.mobile.equipment-legacy-modifier",
+    runtime: runtime(),
+    mode: "creation",
+  });
+
+  assert.equal(mounted.character.equipment[0].modifierList, null);
+  assert.equal(
+    resolveEquipmentTotals(mounted.character.equipment).totals.cost,
+    400,
+  );
+  setDraft(root, "equipment-modifier-edit", "sword-fine", {
+    name: "Superior ajustada",
+    cost: "x2",
+    weight: "x0.5",
+    notes: "Linha legada normalizada na edição",
+  });
+  await root.dispatch("click", click("equipment-modifier-update", {
+    equipmentId: "sword",
+    modifierId: "fine",
+    modifierKind: "modifier",
+  }));
+
+  const edited = modifierRows(mounted)[0];
+  const totals = resolveEquipmentTotals(mounted.character.equipment).totals;
+  assert.equal(root.getAttribute("data-last-command-status"), "applied");
+  assert.equal(mounted.session.revision, 1);
+  assert.notEqual(mounted.character.equipment[0].modifierList, null);
+  assert.equal(edited.name, "Superior ajustada");
+  assert.equal(edited.costAdjustment.expression, "x2");
+  assert.equal(edited.weightAdjustment.expression, "x0.5");
+  assert.equal(totals.cost, 200);
+  assert.equal(totals.weightKg, 1);
+
+  const savedResult = await mounted.persistence.saveActiveSession();
+  assert.equal(savedResult.status, "saved", JSON.stringify(savedResult));
+  const saved = await mounted.repositories.session.load(
+    "session-equipment-legacy-modifier",
+  );
+  assert.equal(
+    saved.character.equipment[0].modifierList.rows[0]
+      .costAdjustment.expression,
+    "x2",
+  );
+  assert.equal(
+    resolveEquipmentTotals(saved.character.equipment).totals.weightKg,
+    1,
+  );
+});
 
 test("edits canonical Equipment modifiers through one application revision per mobile intention", async () => {
   const root = rootFixture();

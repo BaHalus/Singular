@@ -406,7 +406,10 @@ function createAlphaMobileCommands({ persistence, registry, runtime }) {
         name: input.name ?? modifier.name,
         notes: input.notes ?? modifier.notes,
       };
-      if (modifier.kind === "modifier") {
+      if (
+        modifier.kind === "modifier" ||
+        modifier.type === "eqp_modifier"
+      ) {
         const normalized = createEquipmentModifier(createEquipmentModifierInput({
           ...input,
           id: modifier.id,
