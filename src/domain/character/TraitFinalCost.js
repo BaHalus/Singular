@@ -27,6 +27,7 @@ export function evaluateTraitFinalCost(trait, options = {}) {
   const modifierCost = evaluateTraitModifierCost(trait, {
     percentageMode: policy.percentageMode,
     rounding: "none",
+    externalModifiers: options.externalModifiers ?? [],
   });
 
   if (modifierCost.status !== "ready") {

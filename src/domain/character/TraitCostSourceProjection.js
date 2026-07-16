@@ -10,6 +10,12 @@ export function createTraitCostSourceProjection(character, options = {}) {
     characterId: character.identity.id,
     percentageMode: options.percentageMode ?? "additive",
     traits: character.traits.map(projectTraitSource),
+    powers: character.powers.map(power => ({
+      id: power.id,
+      name: power.name,
+      powerModifier: cloneValue(power.powerModifier),
+      memberTraitIds: [...power.memberTraitIds],
+    })),
     groupPolicies: projectTraitAlternativeGroupPolicies(
       character.traitAlternativeGroups,
     ),

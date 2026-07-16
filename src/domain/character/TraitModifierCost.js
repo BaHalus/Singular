@@ -3,7 +3,10 @@ import {
   serializeTraitBaseCost,
 } from "./TraitBaseCost.js";
 import { validateTrait } from "./Traits.js";
-import { isCanonicalPercentageModifier } from "./TraitModifiers.js";
+import {
+  isCanonicalPercentageModifier,
+  validateTraitModifiers,
+} from "./TraitModifiers.js";
 
 const MODIFIER_COST_STATUSES = [
   "ready",
@@ -32,7 +35,10 @@ export function evaluateTraitModifierCost(trait, options = {}) {
   validateTrait(trait);
   const policy = normalizePolicy(options);
   const baseCost = evaluateTraitBaseCost(trait);
-  const modifiers = projectTraitCostModifiers(trait);
+  const modifiers = projectTraitCostModifiers(
+    trait,
+    options.externalModifiers ?? [],
+  );
 
   if (baseCost.status !== "ready") {
     return deepFreeze(createPendingResult({
@@ -150,10 +156,18 @@ export function evaluateTraitModifierCost(trait, options = {}) {
   return deepFreeze(result);
 }
 
-export function projectTraitCostModifiers(trait) {
+export function projectTraitCostModifiers(trait, externalModifiers = []) {
   validateTrait(trait);
+  validateTraitModifiers(externalModifiers);
   const projected = [];
   flattenModifiers(trait.modifiers, trait, [], projected, true);
+  flattenModifiers(
+    externalModifiers,
+    trait,
+    ["external"],
+    projected,
+    true,
+  );
   return deepFreeze(projected);
 }
 

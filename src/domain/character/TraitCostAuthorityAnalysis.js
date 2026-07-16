@@ -8,6 +8,11 @@ import {
   projectTraitAlternativeGroupPolicies,
 } from "./TraitAlternativeGroupPolicies.js";
 import {
+  projectPowerTraitModifierIntegration,
+  serializePowerTraitModifierIntegration,
+  validatePowerTraitModifierIntegration,
+} from "./PowerTraitModifierIntegration.js";
+import {
   evaluateTraitChoices,
   validateTraitChoicesEvaluation,
 } from "./TraitChoices.js";
@@ -32,14 +37,22 @@ export function analyzeTraitCostAuthority(character, options = {}) {
     traitId: trait.id,
     evaluation: evaluateTraitChoices(trait.choices),
   }));
+  const powerModifierIntegration = projectPowerTraitModifierIntegration(
+    character,
+  );
   const groups = evaluateTraitAlternativeGroups(character.traits, {
     percentageMode,
     groupPolicies: projectTraitAlternativeGroupPolicies(
       character.traitAlternativeGroups,
     ),
+    externalModifiersByTraitId:
+      powerModifierIntegration.externalModifiersByTraitId,
   });
 
   let status = groups.status;
+  if (powerModifierIntegration.status === "conflict") {
+    status = "conflict";
+  }
   if (
     choices.some(item => item.evaluation.status === "incomplete") &&
     !["conflict", "unsupported"].includes(status)
@@ -53,6 +66,7 @@ export function analyzeTraitCostAuthority(character, options = {}) {
 
   const diagnostics = [
     ...groups.diagnostics,
+    ...powerModifierIntegration.diagnostics,
     ...choices
       .filter(item => item.evaluation.status === "incomplete")
       .map(item => ({
@@ -70,6 +84,9 @@ export function analyzeTraitCostAuthority(character, options = {}) {
     sourceFingerprint,
     targetFingerprint,
     choices,
+    powerModifierIntegration: serializePowerTraitModifierIntegration(
+      powerModifierIntegration,
+    ),
     groups: serializeTraitAlternativeGroupsEvaluation(groups),
     diagnostics,
   };
@@ -116,6 +133,7 @@ export function validateTraitCostAuthorityAnalysis(value) {
     validateTraitChoicesEvaluation(item.evaluation);
   }
   validateTraitAlternativeGroupsEvaluation(value.groups);
+  validatePowerTraitModifierIntegration(value.powerModifierIntegration);
   const expected = createTraitCostFingerprint(projectAnalysisFingerprint(value));
   if (value.analysisFingerprint !== expected) {
     throw new Error("Trait cost authority analysis fingerprint is inconsistent");
@@ -135,6 +153,7 @@ function projectAnalysisFingerprint(value) {
     sourceFingerprint: value.sourceFingerprint,
     targetFingerprint: value.targetFingerprint,
     choices: value.choices,
+    powerModifierIntegration: value.powerModifierIntegration,
     groups: value.groups,
     diagnostics: value.diagnostics,
   };
