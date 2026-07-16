@@ -1,6 +1,9 @@
 import {
   createAttackReadProjection,
 } from "../../application/projections/AttackReadProjection.js";
+import {
+  createEquipmentModifierReadProjection,
+} from "../../application/projections/EquipmentModifierReadProjection.js";
 import { serializeCharacter } from "../../domain/character/Character.js";
 import {
   resolveDerivedDefenseMovement,
@@ -17,7 +20,7 @@ import {
   serializeAttributeLevelsReport,
 } from "../../engine/attributes/AttributeLevelResolver.js";
 
-const MOBILE_PROJECTION_SCHEMA_VERSION = 7;
+const MOBILE_PROJECTION_SCHEMA_VERSION = 8;
 const ATTRIBUTE_KEYS = Object.freeze(["ST", "DX", "IQ", "HT"]);
 const SECONDARY_KEYS = Object.freeze([
   "HP",
@@ -272,8 +275,15 @@ function projectEquipment(equipment) {
   const totalsProjection = createEquipmentMvpProjection(
     resolveEquipmentTotals(equipment),
   );
+  const modifierProjection = new Map(
+    createEquipmentModifierReadProjection(equipment)
+      .map(item => [item.itemId, item]),
+  );
   return {
-    items: flattenEquipment(equipment),
+    items: flattenEquipment(equipment).map(item => ({
+      ...item,
+      modifierRead: modifierProjection.get(item.id),
+    })),
     totals: {
       itemCount: totalsProjection.totals.itemCount,
       quantity: totalsProjection.totals.quantity,
@@ -638,6 +648,15 @@ function validateEquipmentProjection(equipment) {
     requireNullableNonNegativeFiniteNumber(item.maxUses, `Mobile equipment ${item.id} maxUses`);
     requireText(item.notes, `Mobile equipment ${item.id} notes`);
     requireString(item.status, `Mobile equipment ${item.id} status`);
+    requirePlainObject(item.modifierRead, `Mobile equipment ${item.id} modifierRead`);
+    if (item.modifierRead.itemId !== item.id) {
+      throw new Error(`Mobile equipment ${item.id} modifierRead itemId mismatch`);
+    }
+    if (item.modifierRead.authority !== "engine.equipment") {
+      throw new Error(`Mobile equipment ${item.id} modifierRead authority is invalid`);
+    }
+    requireArray(item.modifierRead.modifiers, `Mobile equipment ${item.id} modifiers`);
+    requirePlainObject(item.modifierRead.breakdown, `Mobile equipment ${item.id} breakdown`);
   }
 }
 
