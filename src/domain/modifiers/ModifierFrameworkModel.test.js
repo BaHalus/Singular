@@ -10,7 +10,9 @@ import {
   getModifierFrameworkSchemaVersion,
   serializeConstructionModifier,
   serializePricingRule,
+  validateModifierBreakdownStep,
   validateModifierFrameworkContract,
+  validatePricingRule,
 } from "./ModifierFrameworkModel.js";
 
 test("publishes the versioned Construction/Pricing contract in canonical order", () => {
@@ -111,6 +113,28 @@ test("keeps each structural pricing mechanism local and trait-only", () => {
   );
   assert.throws(
     () => createPricingRule({
+      id: "wrong-alternative-scope",
+      rule: "alternative-ability",
+      scope: "trait",
+    }),
+    /requires scope trait-group/,
+  );
+  assert.throws(
+    () => validatePricingRule({
+      schemaVersion: 1,
+      id: "wrong-one-use-scope",
+      rule: "one-use",
+      scope: "trait-group",
+      domain: "trait",
+      divisor: 5,
+      rounding: "ceil",
+      enabled: true,
+      source: null,
+    }),
+    /requires scope trait/,
+  );
+  assert.throws(
+    () => createPricingRule({
       id: "global-rounder",
       rule: "one-use",
       scope: "trait",
@@ -166,6 +190,71 @@ test("breakdown identifies every transformation and local rounding owner", () =>
   assert.equal(breakdown.steps[1].rounding.mechanism, "one-use");
   assert.equal(breakdown.steps[2].rounding.mechanism, "alternative-ability");
   assert.equal(Object.isFrozen(breakdown), true);
+});
+
+test("rejects noncanonical stage and phase ordering in breakdowns", () => {
+  const step = (sequence, stage, phase) => ({
+    sequence,
+    stage,
+    phase,
+    ruleId: `${stage}:${phase}`,
+    inputValue: 10,
+    outputValue: 10,
+  });
+
+  assert.throws(
+    () => createModifierBreakdown({
+      normalCost: 10,
+      paidCost: 10,
+      steps: [
+        step(0, "pricing", "normal-cost"),
+        step(1, "construction", "normal-cost"),
+      ],
+    }),
+    /stages must preserve canonical order/,
+  );
+  assert.throws(
+    () => createModifierBreakdown({
+      normalCost: 10,
+      paidCost: null,
+      steps: [
+        step(0, "construction", "percentage"),
+        step(1, "construction", "additive"),
+      ],
+    }),
+    /phases must preserve canonical order/,
+  );
+});
+
+test("requires a reason whenever a breakdown step is not applied", () => {
+  assert.throws(
+    () => createModifierBreakdownStep({
+      sequence: 0,
+      stage: "construction",
+      phase: "additive",
+      ruleId: "skipped",
+      inputValue: 10,
+      outputValue: 10,
+      applied: false,
+    }),
+    /must include a non-empty reason/,
+  );
+  assert.throws(
+    () => validateModifierBreakdownStep({
+      schemaVersion: 1,
+      sequence: 0,
+      stage: "construction",
+      phase: "additive",
+      ruleId: "skipped",
+      inputValue: 10,
+      outputValue: 10,
+      applied: false,
+      reason: "   ",
+      rounding: { policy: "none", mechanism: null },
+      source: null,
+    }),
+    /must be non-empty string/,
+  );
 });
 
 test("rejects global or misplaced structural rounding", () => {
