@@ -20,6 +20,9 @@ import {
   EQUIPMENT_COMMAND_TYPES,
 } from "../equipment/EquipmentCommandHandlers.js";
 import {
+  createEquipmentModifier,
+} from "../../domain/character/EquipmentModifiers.js";
+import {
   LANGUAGE_CULTURE_COMMAND_TYPES,
 } from "../languages/LanguageCultureCommandHandlers.js";
 import {
@@ -368,6 +371,64 @@ function createAlphaMobileCommands({ persistence, registry, runtime }) {
         targetIndex: input.targetIndex,
       });
     },
+    addEquipmentModifier(input = {}) {
+      requirePlainObject(input, "Alpha mobile Equipment modifier addition");
+      const item = findEquipment(input.itemId, persistence.getActiveSession().character.equipment);
+      const parentId = normalizeOptionalText(input.parentId);
+      const parent = parentId === null
+        ? null
+        : requireEquipmentModifier(parentId, equipmentModifierRows(item));
+      const siblings = parentId === null
+        ? equipmentModifierRows(item)
+        : parent.children;
+      const id = input.id ?? generateId(runtime.idGenerator, "equipment-modifier");
+      const node = input.kind === "container"
+        ? {
+          type: "eqp_modifier_container",
+          id,
+          name: input.name ?? "",
+          notes: input.notes ?? "",
+          children: [],
+        }
+        : createEquipmentModifierInput({ ...input, id });
+      return execute(EQUIPMENT_COMMAND_TYPES.ADD_MODIFIER, {
+        itemId: input.itemId,
+        parentId,
+        index: input.index ?? siblings.length,
+        node,
+      });
+    },
+    editEquipmentModifier(input = {}) {
+      requirePlainObject(input, "Alpha mobile Equipment modifier edit");
+      const item = findEquipment(input.itemId, persistence.getActiveSession().character.equipment);
+      const modifier = requireEquipmentModifier(input.modifierId, equipmentModifierRows(item));
+      const patch = {
+        name: input.name ?? modifier.name,
+        notes: input.notes ?? modifier.notes,
+      };
+      if (
+        modifier.kind === "modifier" ||
+        modifier.type === "eqp_modifier"
+      ) {
+        const normalized = createEquipmentModifier(createEquipmentModifierInput({
+          ...input,
+          id: modifier.id,
+          name: patch.name,
+          notes: patch.notes,
+          features: modifier.features,
+        }));
+        patch.costAdjustment = normalized.costAdjustment;
+        patch.weightAdjustment = normalized.weightAdjustment;
+      }
+      return execute(EQUIPMENT_COMMAND_TYPES.EDIT_MODIFIER, {
+        itemId: input.itemId,
+        modifierId: input.modifierId,
+        patch,
+      });
+    },
+    removeEquipmentModifier: run(EQUIPMENT_COMMAND_TYPES.REMOVE_MODIFIER),
+    reorderEquipmentModifier: run(EQUIPMENT_COMMAND_TYPES.REORDER_MODIFIER),
+    setEquipmentModifierEnabled: run(EQUIPMENT_COMMAND_TYPES.SET_MODIFIER_ENABLED),
 
     addSpell(input = {}) {
       requirePlainObject(input, "Alpha mobile spell addition");
@@ -526,6 +587,63 @@ function splitTextList(value) {
 function normalizeOptionalText(value) {
   if (value === undefined || value === null || value === "") return null;
   return value;
+}
+
+function createEquipmentModifierInput(input) {
+  const costExpression = normalizeOptionalText(input.costExpression);
+  const weightExpression = normalizeOptionalText(input.weightExpression);
+  return {
+    type: "eqp_modifier",
+    id: input.id,
+    name: input.name ?? "",
+    notes: input.notes ?? "",
+    enabled: input.enabled ?? true,
+    features: input.features ?? [],
+    ...(costExpression === null ? {} : {
+      cost_type: "to_base_cost",
+      cost: costExpression,
+    }),
+    ...(weightExpression === null ? {} : {
+      weight_type: "to_base_weight",
+      weight: weightExpression,
+    }),
+  };
+}
+
+function findEquipment(itemId, items) {
+  const item = findEquipmentOrNull(itemId, items);
+  if (item !== null) return item;
+  throw new Error(`Equipment item not found: ${itemId}`);
+}
+
+function findEquipmentOrNull(itemId, items) {
+  for (const item of items) {
+    if (item.id === itemId) return item;
+    const nested = findEquipmentOrNull(itemId, item.children ?? []);
+    if (nested !== null) return nested;
+  }
+  return null;
+}
+
+function equipmentModifierRows(item) {
+  return item.modifierList?.rows ?? item.modifiers ?? [];
+}
+
+function findEquipmentModifier(modifierId, rows) {
+  for (const row of rows) {
+    if (row.id === modifierId) return row;
+    if (row.kind === "container" || Array.isArray(row.children)) {
+      const nested = findEquipmentModifier(modifierId, row.children ?? []);
+      if (nested !== null) return nested;
+    }
+  }
+  return null;
+}
+
+function requireEquipmentModifier(modifierId, rows) {
+  const modifier = findEquipmentModifier(modifierId, rows);
+  if (modifier !== null) return modifier;
+  throw new Error(`Equipment modifier not found: ${modifierId}`);
 }
 
 function requirePlainObject(value, label) {

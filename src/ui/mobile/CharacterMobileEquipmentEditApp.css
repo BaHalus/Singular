@@ -17,6 +17,57 @@
   overflow-wrap: anywhere;
 }
 
+.singular-mobile-sheet__equipment-modifier-editor {
+  display: grid;
+  gap: 0.65rem;
+  margin-block: 0.65rem;
+  padding: 0.65rem;
+  border: 1px solid color-mix(in srgb, currentColor 22%, transparent);
+  border-radius: 0.6rem;
+}
+
+.singular-mobile-sheet__equipment-modifier-editor h3 {
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+.singular-mobile-sheet__equipment-modifier-form {
+  display: grid;
+  gap: 0.5rem;
+  padding-block: 0.5rem;
+  border-top: 1px solid color-mix(in srgb, currentColor 18%, transparent);
+}
+
+.singular-mobile-sheet__equipment-modifier-form label {
+  display: grid;
+  gap: 0.25rem;
+  font-weight: 700;
+}
+
+.singular-mobile-sheet__equipment-modifier-form input,
+.singular-mobile-sheet__equipment-modifier-form select,
+.singular-mobile-sheet__equipment-modifier-form textarea,
+.singular-mobile-sheet__equipment-modifier-form button {
+  width: 100%;
+  min-height: 2.75rem;
+  border: 1px solid #344457;
+  border-radius: 0.65rem;
+  background: #202b38;
+  color: inherit;
+  padding: 0.55rem;
+}
+
+.singular-mobile-sheet__equipment-modifier-form textarea {
+  min-height: 4.5rem;
+  resize: vertical;
+}
+
+.singular-mobile-sheet__equipment-modifier-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+
 .singular-mobile-sheet__equipment-modifier-read h3,
 .singular-mobile-sheet__equipment-modifier-read h4 {
   margin: 0;
@@ -84,6 +135,16 @@
   }
 
   .singular-mobile-sheet__equipment-inline-editor > button {
+    grid-column: 1 / -1;
+  }
+
+  .singular-mobile-sheet__equipment-modifier-form {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .singular-mobile-sheet__equipment-modifier-form > strong,
+  .singular-mobile-sheet__equipment-modifier-form > button,
+  .singular-mobile-sheet__equipment-modifier-form > .singular-mobile-sheet__equipment-modifier-actions {
     grid-column: 1 / -1;
   }
 }

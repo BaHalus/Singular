@@ -2,7 +2,7 @@ import {
   serializeCharacterMobileSheetRenderModel,
 } from "./CharacterMobileSheetRenderModel.js";
 
-const HTML_SHELL_SCHEMA_VERSION = 15;
+const HTML_SHELL_SCHEMA_VERSION = 16;
 const EQUIPMENT_STATES = Object.freeze([
   "equipped",
   "carried",
@@ -496,7 +496,7 @@ function renderEquipmentItem(item, mode, siblingOrder) {
   return [
     `<div data-equipment-id="${escapeAttribute(item.id)}" data-equipment-state="${escapeAttribute(item.state)}" data-depth="${escapeAttribute(item.depth)}">`,
     `<dt>${escapeText(item.label)}</dt>`,
-    `<dd>${escapeText(`${prefix}${item.value}`)}${renderItemDetails(item)}${renderEquipmentModifierRead(item.modifierRead)}${controls}</dd>`,
+    `<dd>${escapeText(`${prefix}${item.value}`)}${renderItemDetails(item)}${renderEquipmentModifierRead(item.modifierRead)}${mode === "creation" ? renderEquipmentModifierEditor(item) : ""}${controls}</dd>`,
     "</div>",
   ].join("");
 }
@@ -531,6 +531,74 @@ function renderEquipmentModifierRead(read) {
       ? renderEquipmentFeatureBreakdown(read.breakdown.features)
       : "",
     "</section>",
+  ].join("");
+}
+
+function renderEquipmentModifierEditor(item) {
+  const read = item.modifierRead;
+  if (!read) return "";
+  const itemId = escapeAttribute(item.id);
+  const containers = read.modifiers.filter(modifier => modifier.kind === "container");
+  const groups = new Map();
+  for (const modifier of read.modifiers) {
+    const siblings = groups.get(modifier.parentId) ?? [];
+    siblings.push(modifier);
+    groups.set(modifier.parentId, siblings);
+  }
+  return [
+    `<section class="singular-mobile-sheet__equipment-modifier-editor" data-role="equipment-modifier-editor" data-equipment-id="${itemId}">`,
+    "<h3>Editar modificadores</h3>",
+    read.modifiers.map(modifier => renderEquipmentModifierInlineEditor(item.id, modifier, groups.get(modifier.parentId) ?? [])).join(""),
+    `<div class="singular-mobile-sheet__equipment-modifier-form" data-role="equipment-modifier-add-${itemId}">`,
+    `<label>Nome <input type="text" data-role="equipment-modifier-add-name-${itemId}" autocomplete="off"></label>`,
+    `<label>Tipo <select data-role="equipment-modifier-add-kind-${itemId}"><option value="modifier">Modificador</option><option value="container">Grupo</option></select></label>`,
+    `<label>Grupo pai <select data-role="equipment-modifier-add-parent-${itemId}">${renderEquipmentModifierParentOptions(containers)}</select></label>`,
+    `<label>Ajuste de custo <input type="text" inputmode="decimal" placeholder="x2, +10 ou -20%" data-role="equipment-modifier-add-cost-${itemId}"></label>`,
+    `<label>Ajuste de peso <input type="text" inputmode="decimal" placeholder="x0.5, -1 ou -20%" data-role="equipment-modifier-add-weight-${itemId}"></label>`,
+    `<label>Notas <textarea data-role="equipment-modifier-add-notes-${itemId}" autocomplete="off"></textarea></label>`,
+    `<button type="button" data-action="equipment-modifier-add" data-equipment-id="${itemId}">Adicionar modificador</button>`,
+    "</div>",
+    "</section>",
+  ].join("");
+}
+
+function renderEquipmentModifierParentOptions(containers) {
+  return [
+    '<option value="">Raiz</option>',
+    ...containers.map(container => `<option value="${escapeAttribute(container.id)}">${escapeText(`${"↳ ".repeat(container.depth)}${container.name || container.id}`)}</option>`),
+  ].join("");
+}
+
+function renderEquipmentModifierInlineEditor(itemId, modifier, siblings) {
+  const itemSuffix = escapeAttribute(itemId);
+  const modifierSuffix = escapeAttribute(modifier.id);
+  const suffix = `${itemSuffix}-${modifierSuffix}`;
+  const index = siblings.findIndex(item => item.id === modifier.id);
+  const up = index > 0
+    ? `<button type="button" data-action="equipment-modifier-reorder" data-equipment-id="${itemSuffix}" data-modifier-id="${modifierSuffix}" data-parent-id="${escapeAttribute(modifier.parentId ?? "")}" data-target-index="${index - 1}" aria-label="Mover ${escapeAttribute(modifier.name || modifier.id)} para cima">↑</button>`
+    : "";
+  const down = index >= 0 && index < siblings.length - 1
+    ? `<button type="button" data-action="equipment-modifier-reorder" data-equipment-id="${itemSuffix}" data-modifier-id="${modifierSuffix}" data-parent-id="${escapeAttribute(modifier.parentId ?? "")}" data-target-index="${index + 1}" aria-label="Mover ${escapeAttribute(modifier.name || modifier.id)} para baixo">↓</button>`
+    : "";
+  return [
+    `<div class="singular-mobile-sheet__equipment-modifier-form" data-role="equipment-modifier-edit-${suffix}">`,
+    `<strong>${escapeText(`${"↳ ".repeat(modifier.depth)}${modifier.name || modifier.id}`)}</strong>`,
+    `<label>Nome <input type="text" data-role="equipment-modifier-edit-name-${suffix}" value="${escapeAttribute(modifier.name)}" autocomplete="off"></label>`,
+    modifier.kind === "modifier"
+      ? `<label>Ajuste de custo <input type="text" inputmode="decimal" data-role="equipment-modifier-edit-cost-${suffix}" value="${escapeAttribute(modifier.costAdjustment?.expression ?? "")}"></label>`
+      : "",
+    modifier.kind === "modifier"
+      ? `<label>Ajuste de peso <input type="text" inputmode="decimal" data-role="equipment-modifier-edit-weight-${suffix}" value="${escapeAttribute(modifier.weightAdjustment?.expression ?? "")}"></label>`
+      : "",
+    `<label>Notas <textarea data-role="equipment-modifier-edit-notes-${suffix}" autocomplete="off">${escapeText(modifier.notes ?? "")}</textarea></label>`,
+    '<span class="singular-mobile-sheet__equipment-modifier-actions">',
+    up,
+    down,
+    `<button type="button" data-action="equipment-modifier-enabled-set" data-equipment-id="${itemSuffix}" data-modifier-id="${modifierSuffix}" data-enabled="${modifier.enabled}">${modifier.enabled ? "Desativar" : "Ativar"}</button>`,
+    `<button type="button" data-action="equipment-modifier-remove" data-equipment-id="${itemSuffix}" data-modifier-id="${modifierSuffix}">Excluir</button>`,
+    "</span>",
+    `<button type="button" data-action="equipment-modifier-update" data-equipment-id="${itemSuffix}" data-modifier-id="${modifierSuffix}" data-modifier-kind="${escapeAttribute(modifier.kind)}">Salvar modificador</button>`,
+    "</div>",
   ].join("");
 }
 

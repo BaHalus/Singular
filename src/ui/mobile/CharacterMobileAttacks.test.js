@@ -147,7 +147,7 @@ test("renders attack provenance and declared values in the mobile HTML", () => {
     { mode: "table" },
   );
 
-  assert.match(html, /data-schema-version="15"/);
+  assert.match(html, /data-schema-version="16"/);
   assert.match(html, /data-card="attacks" data-status="declared-only"/);
   assert.match(
     html,

@@ -32,6 +32,8 @@ export function mountCharacterMobileInteractionController(options = {}) {
   const skillReaders = createOptionalSkillTechniqueReaders(options);
   const languageCultureCommands = createOptionalLanguageCultureCommands(options.commands);
   const languageCultureReaders = createOptionalLanguageCultureReaders(options);
+  const equipmentModifierCommands = createOptionalEquipmentModifierCommands(options.commands);
+  const equipmentModifierReaders = createOptionalEquipmentModifierReaders(options);
   const root = options.root;
   if (!root || typeof root !== "object") {
     throw new Error("Mobile interaction root must be an object");
@@ -150,6 +152,71 @@ export function mountCharacterMobileInteractionController(options = {}) {
           targetIndex: targetIndexValue === null
             ? Number.NaN
             : Number(targetIndexValue),
+        }),
+        root,
+        rerender,
+      );
+    }
+
+    if ([
+      "equipment-modifier-add",
+      "equipment-modifier-update",
+      "equipment-modifier-remove",
+      "equipment-modifier-reorder",
+      "equipment-modifier-enabled-set",
+    ].includes(action)) {
+      event.preventDefault?.();
+      if (structuralActionBlocked(options, root)) return null;
+      const itemId = readDataset(actionTarget, "equipmentId");
+      const modifierId = readDataset(actionTarget, "modifierId");
+
+      if (action === "equipment-modifier-add") {
+        return applyResult(
+          equipmentModifierCommands.addEquipmentModifier({
+            itemId,
+            ...equipmentModifierReaders.readEquipmentModifierDraft(itemId),
+          }),
+          root,
+          rerender,
+        );
+      }
+      if (action === "equipment-modifier-update") {
+        return applyResult(
+          equipmentModifierCommands.editEquipmentModifier({
+            itemId,
+            modifierId,
+            kind: readDataset(actionTarget, "modifierKind"),
+            ...equipmentModifierReaders.readEquipmentModifierEdit(itemId, modifierId),
+          }),
+          root,
+          rerender,
+        );
+      }
+      if (action === "equipment-modifier-remove") {
+        return applyResult(
+          equipmentModifierCommands.removeEquipmentModifier({ itemId, modifierId }),
+          root,
+          rerender,
+        );
+      }
+      if (action === "equipment-modifier-reorder") {
+        const targetIndex = readDataset(actionTarget, "targetIndex");
+        return applyResult(
+          equipmentModifierCommands.reorderEquipmentModifier({
+            itemId,
+            modifierId,
+            parentId: readDataset(actionTarget, "parentId") || null,
+            toIndex: targetIndex === null ? Number.NaN : Number(targetIndex),
+          }),
+          root,
+          rerender,
+        );
+      }
+      return applyResult(
+        equipmentModifierCommands.setEquipmentModifierEnabled({
+          itemId,
+          modifierId,
+          enabled: readDataset(actionTarget, "enabled") !== "true",
         }),
         root,
         rerender,
@@ -479,6 +546,23 @@ function createOptionalLanguageCultureReaders(options) {
   return Object.freeze({
     readLanguageDraft: optionalFunction(options.readLanguageDraft, "Mobile language draft reader"),
     readFamiliarityDraft: optionalFunction(options.readFamiliarityDraft, "Mobile familiarity draft reader"),
+  });
+}
+
+function createOptionalEquipmentModifierCommands(commands) {
+  return Object.freeze({
+    addEquipmentModifier: optionalFunction(commands?.addEquipmentModifier, "Mobile Equipment modifier addition command"),
+    editEquipmentModifier: optionalFunction(commands?.editEquipmentModifier, "Mobile Equipment modifier edit command"),
+    removeEquipmentModifier: optionalFunction(commands?.removeEquipmentModifier, "Mobile Equipment modifier removal command"),
+    reorderEquipmentModifier: optionalFunction(commands?.reorderEquipmentModifier, "Mobile Equipment modifier reorder command"),
+    setEquipmentModifierEnabled: optionalFunction(commands?.setEquipmentModifierEnabled, "Mobile Equipment modifier enabled command"),
+  });
+}
+
+function createOptionalEquipmentModifierReaders(options) {
+  return Object.freeze({
+    readEquipmentModifierDraft: optionalFunction(options.readEquipmentModifierDraft, "Mobile Equipment modifier draft reader"),
+    readEquipmentModifierEdit: optionalFunction(options.readEquipmentModifierEdit, "Mobile Equipment modifier edit reader"),
   });
 }
 
