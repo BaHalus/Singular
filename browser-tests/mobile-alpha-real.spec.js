@@ -80,6 +80,66 @@ function parsePoolText(text) {
   };
 }
 
+async function createModifiedEquipmentExport(page) {
+  return page.evaluate(async () => {
+    const [{ createCharacter }, { createSingularCharacterExport }] = await Promise.all([
+      import("../../src/domain/character/Character.js"),
+      import("../../src/infrastructure/persistence/browser/BrowserLocalPersistence.js"),
+    ]);
+    return JSON.stringify(createSingularCharacterExport(createCharacter({
+      identity: { id: "character:equipment-modifier-read", name: "Armeira" },
+      equipment: [{
+        id: "equipment:fine-sword",
+        kind: "item",
+        name: "Espada superior",
+        quantity: 2,
+        weightKg: 1.5,
+        cost: 500,
+        state: "carried",
+        weapons: [{ type: "melee_weapon", usage: "Balanço" }],
+        modifierList: {
+          type: "eqp_modifier_list",
+          id: "equipment:fine-sword:modifiers",
+          rows: [{
+            type: "eqp_modifier",
+            id: "fine-quality",
+            name: "Qualidade superior",
+            cost_type: "to_base_cost",
+            cost: "x2",
+            weight_type: "to_base_weight",
+            weight: "-20%",
+          }],
+        },
+      }],
+    }), { exportedAt: "2026-07-15T00:50:00.000Z" }));
+  });
+}
+
+test("real mobile equipment cards show canonical modifier totals in both modes", async ({ page }) => {
+  await page.goto("/test/browser/mobile-alpha-harness.html?reset=1");
+  await page.evaluate(() => globalThis.__SINGULAR_ALPHA_HARNESS_READY__);
+
+  await page.locator('[data-role="persistence-import-json"]').fill(
+    await createModifiedEquipmentExport(page),
+  );
+  await page.locator('[data-action="persistence-import"]').click();
+
+  const readonly = page.locator('[data-role="equipment-modifier-readonly"]');
+  await expect(readonly).toHaveCount(1);
+  await expect(readonly).toContainText("Qualidade superior");
+  await expect(readonly).toContainText("$ 500 → $ 1000");
+  await expect(readonly).toContainText("1.5 kg → 1.2 kg");
+  await expect(readonly).toContainText("Custo total$ 2000");
+  await expectNoCriticalHorizontalOverflow(page);
+
+  await page.locator('[data-action="mode-table"]').click();
+  await expect(page.locator('[data-singular-mobile-root]')).toHaveAttribute("data-mode", "table");
+  await expect(readonly).toHaveCount(1);
+  await expect(readonly).toContainText("Qualidade superior");
+  await expect(page.locator('[data-action^="equipment-modifier"]')).toHaveCount(0);
+  await expectNoCriticalHorizontalOverflow(page);
+});
+
 test("real mobile composition edits, persists, changes mode and remounts without duplication", async ({ page }) => {
   const browserErrors = [];
   page.on("pageerror", error => browserErrors.push(error.message));

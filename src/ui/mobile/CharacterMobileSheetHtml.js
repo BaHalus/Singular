@@ -2,7 +2,7 @@ import {
   serializeCharacterMobileSheetRenderModel,
 } from "./CharacterMobileSheetRenderModel.js";
 
-const HTML_SHELL_SCHEMA_VERSION = 14;
+const HTML_SHELL_SCHEMA_VERSION = 15;
 const EQUIPMENT_STATES = Object.freeze([
   "equipped",
   "carried",
@@ -496,9 +496,133 @@ function renderEquipmentItem(item, mode, siblingOrder) {
   return [
     `<div data-equipment-id="${escapeAttribute(item.id)}" data-equipment-state="${escapeAttribute(item.state)}" data-depth="${escapeAttribute(item.depth)}">`,
     `<dt>${escapeText(item.label)}</dt>`,
-    `<dd>${escapeText(`${prefix}${item.value}`)}${renderItemDetails(item)}${controls}</dd>`,
+    `<dd>${escapeText(`${prefix}${item.value}`)}${renderItemDetails(item)}${renderEquipmentModifierRead(item.modifierRead)}${controls}</dd>`,
     "</div>",
   ].join("");
+}
+
+function renderEquipmentModifierRead(read) {
+  if (!read || read.modifiers.length === 0) return "";
+  const totals = read.status === "resolved"
+    ? [
+      '<dl class="singular-mobile-sheet__equipment-adjusted-totals">',
+      renderAdjustedMetric("Custo/un", read.baseUnitCost, read.adjustedUnitCost, "$ "),
+      renderAdjustedMetric("Peso/un", read.baseUnitWeightKg, read.adjustedUnitWeightKg, "", " kg"),
+      `<div><dt>Custo total</dt><dd>$ ${formatValue(read.selfTotals.cost)}</dd></div>`,
+      `<div><dt>Peso total</dt><dd>${formatValue(read.selfTotals.weightKg)} kg</dd></div>`,
+      "</dl>",
+    ].join("")
+    : renderEquipmentModifierBlockedNotice(read.diagnostics);
+  return [
+    '<section class="singular-mobile-sheet__equipment-modifier-read" data-role="equipment-modifier-readonly"',
+    ` data-authority="${escapeAttribute(read.authority)}" data-status="${escapeAttribute(read.status)}">`,
+    '<h3>Modificadores e totais ajustados</h3>',
+    totals,
+    '<ol class="singular-mobile-sheet__equipment-modifier-tree" aria-label="Árvore de modificadores">',
+    read.modifiers.map(renderEquipmentModifierNode).join(""),
+    "</ol>",
+    read.status === "resolved"
+      ? renderEquipmentAdjustmentBreakdown("Custo", read.breakdown.cost)
+      : "",
+    read.status === "resolved"
+      ? renderEquipmentAdjustmentBreakdown("Peso", read.breakdown.weight)
+      : "",
+    read.status === "resolved"
+      ? renderEquipmentFeatureBreakdown(read.breakdown.features)
+      : "",
+    "</section>",
+  ].join("");
+}
+
+function renderEquipmentModifierBlockedNotice(diagnostics) {
+  const messages = diagnostics
+    .map(diagnostic => diagnostic.message)
+    .filter(message => typeof message === "string" && message.length > 0);
+  return [
+    '<div class="singular-mobile-sheet__equipment-modifier-blocked" data-role="equipment-modifier-blocked">',
+    "<p>Totais ajustados indisponíveis: o motor bloqueou este cálculo.</p>",
+    messages.length === 0
+      ? ""
+      : `<ul>${messages.map(message => `<li>${escapeText(message)}</li>`).join("")}</ul>`,
+    "</div>",
+  ].join("");
+}
+
+function renderAdjustedMetric(label, base, adjusted, prefix = "", suffix = "") {
+  const changed = !Object.is(base, adjusted);
+  const value = changed
+    ? `${prefix}${formatValue(base)}${suffix} → ${prefix}${formatValue(adjusted)}${suffix}`
+    : `${prefix}${formatValue(adjusted)}${suffix}`;
+  return `<div><dt>${escapeText(label)}</dt><dd>${escapeText(value)}</dd></div>`;
+}
+
+function renderEquipmentModifierNode(modifier) {
+  const indent = "↳ ".repeat(modifier.depth);
+  const state = modifier.effectiveEnabled ? "Ativo" : "Inativo";
+  const kind = modifier.kind === "container" ? "Grupo" : "Modificador";
+  const adjustments = [
+    renderDeclaredAdjustment("custo", modifier.costAdjustment),
+    renderDeclaredAdjustment("peso", modifier.weightAdjustment),
+    modifier.featureCount > 0 ? `${modifier.featureCount} feature(s)` : "",
+  ].filter(Boolean).join("; ");
+  return [
+    `<li data-modifier-id="${escapeAttribute(modifier.id)}" data-enabled="${modifier.effectiveEnabled}">`,
+    `<strong>${escapeText(`${indent}${modifier.name || modifier.id}`)}</strong>`,
+    `<span>${escapeText(`${kind} · ${state}${adjustments ? ` · ${adjustments}` : ""}`)}</span>`,
+    "</li>",
+  ].join("");
+}
+
+function renderDeclaredAdjustment(label, adjustment) {
+  if (!adjustment) return "";
+  const expression = adjustment.expression ?? adjustment.kind;
+  return `${label}: ${expression}`;
+}
+
+function renderEquipmentAdjustmentBreakdown(label, pipeline) {
+  if (!pipeline || pipeline.steps.length === 0) return "";
+  return [
+    `<div class="singular-mobile-sheet__equipment-breakdown" data-breakdown="${escapeAttribute(label.toLowerCase())}">`,
+    `<h4>Breakdown de ${escapeText(label.toLowerCase())}</h4>`,
+    "<ol>",
+    pipeline.steps.map(step => {
+      const result = step.applied
+        ? `${formatValue(step.before)} → ${formatValue(step.after)}`
+        : `sem efeito (${localizedEquipmentModifierReason(step.reason)})`;
+      return `<li><strong>${escapeText(step.modifierName || step.modifierId || "Modificador")}</strong><span>${escapeText(result)}</span></li>`;
+    }).join(""),
+    "</ol>",
+    "</div>",
+  ].join("");
+}
+
+function renderEquipmentFeatureBreakdown(features) {
+  if (!features || features.steps.length === 0) return "";
+  return [
+    '<div class="singular-mobile-sheet__equipment-breakdown" data-breakdown="features">',
+    "<h4>Features</h4><ol>",
+    features.steps.map(step => {
+      const result = step.applied
+        ? `aplicada (${formatValue(step.amount)})`
+        : `sem efeito (${localizedEquipmentModifierReason(step.reason)})`;
+      return `<li><strong>${escapeText(step.modifierName || step.modifierId || "Modificador")}</strong><span>${escapeText(result)}</span></li>`;
+    }).join(""),
+    "</ol></div>",
+  ].join("");
+}
+
+function localizedEquipmentModifierReason(reason) {
+  const labels = {
+    disabled: "desativado",
+    unsupported: "não suportado",
+    unsupportedPredicate: "predicado não suportado",
+    unsupportedSelection: "seleção não suportada",
+    notApplicable: "não aplicável",
+    incompatibleTarget: "alvo incompatível",
+    invalidAmount: "valor inválido",
+    invalidResult: "resultado inválido",
+  };
+  return labels[reason] ?? reason ?? "não aplicado";
 }
 
 function renderEquipmentControls(item, siblingOrder = { index: 0, total: 1 }) {

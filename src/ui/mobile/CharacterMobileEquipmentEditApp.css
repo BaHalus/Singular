@@ -6,6 +6,56 @@
   padding-top: 0.65rem;
 }
 
+.singular-mobile-sheet__equipment-modifier-read {
+  display: grid;
+  gap: 0.5rem;
+  margin-block: 0.65rem;
+  min-width: 0;
+  padding: 0.65rem;
+  border: 1px solid color-mix(in srgb, currentColor 22%, transparent);
+  border-radius: 0.6rem;
+  overflow-wrap: anywhere;
+}
+
+.singular-mobile-sheet__equipment-modifier-read h3,
+.singular-mobile-sheet__equipment-modifier-read h4 {
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+.singular-mobile-sheet__equipment-adjusted-totals,
+.singular-mobile-sheet__equipment-modifier-tree,
+.singular-mobile-sheet__equipment-breakdown ol {
+  display: grid;
+  gap: 0.35rem;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+}
+
+.singular-mobile-sheet__equipment-adjusted-totals > div,
+.singular-mobile-sheet__equipment-modifier-tree > li,
+.singular-mobile-sheet__equipment-breakdown li {
+  min-width: 0;
+}
+
+.singular-mobile-sheet__equipment-modifier-tree,
+.singular-mobile-sheet__equipment-breakdown ol {
+  list-style: none;
+}
+
+.singular-mobile-sheet__equipment-modifier-tree li,
+.singular-mobile-sheet__equipment-breakdown li {
+  display: grid;
+  gap: 0.15rem;
+}
+
+.singular-mobile-sheet__equipment-modifier-tree span,
+.singular-mobile-sheet__equipment-breakdown span {
+  font-size: 0.82rem;
+  opacity: 0.85;
+}
+
 .singular-mobile-sheet__equipment-inline-editor label {
   display: grid;
   gap: 0.25rem;

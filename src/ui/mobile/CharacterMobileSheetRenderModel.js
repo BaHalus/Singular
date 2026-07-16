@@ -306,6 +306,7 @@ function createEquipmentCard(equipment) {
       uses: item.uses,
       maxUses: item.maxUses,
       notes: item.notes,
+      modifierRead: cloneValue(item.modifierRead),
       status: item.status,
     })),
   };
