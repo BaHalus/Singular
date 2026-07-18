@@ -37,6 +37,14 @@ const PRICING_RULE_SCOPES = Object.freeze({
   "character-point-activation": "trait",
   "alternative-ability": "trait-group",
 });
+const PRICING_ROUNDING_PHASES = Object.freeze({
+  "one-use": "pre-alternative",
+  "character-point-activation": "pre-alternative",
+  "alternative-ability": "alternative-group",
+});
+const PRICING_ROUNDING_MECHANISMS = new Set(
+  Object.keys(PRICING_ROUNDING_PHASES),
+);
 const BREAKDOWN_STAGES = new Set(["construction", "pricing"]);
 const ROUNDING_POLICIES = new Set(["none", "ceil"]);
 
@@ -179,8 +187,12 @@ export function createPricingRule(input = {}) {
     "Pricing rule scope",
   );
   requirePricingRuleScope(rule, scope);
-  if (input.domain === "equipment") {
+  const domain = input.domain ?? "trait";
+  if (domain === "equipment") {
     throw new Error("Equipment cannot use character-point pricing rules");
+  }
+  if (domain !== "trait") {
+    throw new Error("Pricing rule domain must be trait");
   }
   const divisor = input.divisor ?? 5;
   if (divisor !== 5) {
@@ -196,7 +208,7 @@ export function createPricingRule(input = {}) {
     id: requireString(input.id, "Pricing rule id"),
     rule,
     scope,
-    domain: "trait",
+    domain,
     divisor,
     rounding,
     enabled: input.enabled !== false,
@@ -255,7 +267,7 @@ export function createModifierBreakdownStep(input = {}) {
     allowedPhases,
     "Modifier breakdown phase",
   );
-  const rounding = normalizeRounding(input.rounding, stage);
+  const rounding = normalizeRounding(input.rounding, stage, phase);
   const step = {
     schemaVersion: SCHEMA_VERSION,
     sequence: requireNonNegativeInteger(
@@ -309,7 +321,7 @@ export function validateModifierBreakdownStep(step) {
   if (!step.applied) {
     requireString(reason, "Unapplied modifier breakdown reason");
   }
-  normalizeRounding(step.rounding, step.stage);
+  normalizeRounding(step.rounding, step.stage, step.phase);
   assertPortable(step.source, "Modifier breakdown source");
   assertPortable(step, "Modifier breakdown step");
   return true;
@@ -356,7 +368,7 @@ export function createModifierBreakdown(input = {}) {
   return deepFreeze(breakdown);
 }
 
-function normalizeRounding(value, stage) {
+function normalizeRounding(value, stage, phase) {
   const rounding = value ?? { policy: "none", mechanism: null };
   requireObject(rounding, "Modifier breakdown rounding");
   const policy = requireMember(
@@ -368,8 +380,21 @@ function normalizeRounding(value, stage) {
   if (stage === "construction" && (policy !== "none" || mechanism !== null)) {
     throw new Error("Construction breakdown cannot apply structural rounding");
   }
-  if (stage === "pricing" && policy === "ceil" && mechanism === null) {
-    throw new Error("Pricing rounding must identify its mechanism");
+  if (stage === "pricing" && policy === "ceil") {
+    if (mechanism === null) {
+      throw new Error("Pricing rounding must identify its mechanism");
+    }
+    requireMember(
+      mechanism,
+      PRICING_ROUNDING_MECHANISMS,
+      "Pricing rounding mechanism",
+    );
+    const expectedPhase = PRICING_ROUNDING_PHASES[mechanism];
+    if (phase !== expectedPhase) {
+      throw new Error(
+        `Pricing rounding mechanism ${mechanism} requires phase ${expectedPhase}`,
+      );
+    }
   }
   if (policy === "none" && mechanism !== null) {
     throw new Error("Non-rounding step cannot name a rounding mechanism");
