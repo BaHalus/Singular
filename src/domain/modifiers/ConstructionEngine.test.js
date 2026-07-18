@@ -169,3 +169,57 @@ test("returns a frozen portable result with full provenance", () => {
   );
   assert.doesNotThrow(() => JSON.stringify(result));
 });
+
+test("keeps base and level parcels separate through component-scoped phases", () => {
+  const result = calculateConstructionCost({
+    baseCost: 10,
+    levelCost: 5,
+    levels: 2,
+    modifiers: [
+      modifier("levels-add", "addition", 2, { target: "levels" }),
+      modifier("base-factor", "multiplier", 2, { target: "base" }),
+    ],
+  });
+
+  assert.equal(result.normalCost, 34);
+  assert.equal(result.components.base.outputValue, 20);
+  assert.equal(result.components.levels.outputValue, 14);
+  assert.equal(result.components.levels.addition, 2);
+});
+
+test("includes component-scoped modifiers when calculating the total", () => {
+  const result = calculateConstructionCost({
+    baseCost: 10,
+    levelCost: 5,
+    levels: 2,
+    modifiers: [
+      modifier("base-only", "addition", 5, { target: "base" }),
+    ],
+  });
+
+  assert.equal(result.normalCost, 25);
+  assert.equal(result.breakdown.steps[1].applied, true);
+  assert.deepEqual(result.breakdown.steps[1].source.componentTargets, ["base"]);
+});
+
+test("aggregates percentage modifiers instead of compounding them", () => {
+  const forward = calculateConstructionCost({
+    baseCost: 100,
+    modifiers: [
+      modifier("enhancement", "percentage", 50),
+      modifier("limitation", "percentage", -20),
+    ],
+  });
+  const reverse = calculateConstructionCost({
+    baseCost: 100,
+    modifiers: [
+      modifier("limitation", "percentage", -20),
+      modifier("enhancement", "percentage", 50),
+    ],
+  });
+
+  assert.equal(forward.normalCost, 130);
+  assert.equal(reverse.normalCost, 130);
+  assert.equal(forward.components.base.percentage, 30);
+  assert.equal(reverse.components.base.percentage, 30);
+});
