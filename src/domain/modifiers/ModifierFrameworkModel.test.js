@@ -113,6 +113,15 @@ test("keeps each structural pricing mechanism local and trait-only", () => {
   );
   assert.throws(
     () => createPricingRule({
+      id: "unknown-domain",
+      rule: "one-use",
+      scope: "trait",
+      domain: "spell",
+    }),
+    /Pricing rule domain must be trait/,
+  );
+  assert.throws(
+    () => createPricingRule({
       id: "wrong-alternative-scope",
       rule: "alternative-ability",
       scope: "trait",
@@ -257,7 +266,7 @@ test("requires a reason whenever a breakdown step is not applied", () => {
   );
 });
 
-test("rejects global or misplaced structural rounding", () => {
+test("rejects global, unknown or misplaced structural rounding", () => {
   assert.throws(
     () => createModifierBreakdownStep({
       sequence: 0,
@@ -281,6 +290,46 @@ test("rejects global or misplaced structural rounding", () => {
       rounding: { policy: "ceil", mechanism: null },
     }),
     /must identify its mechanism/,
+  );
+  assert.throws(
+    () => createModifierBreakdownStep({
+      sequence: 0,
+      stage: "pricing",
+      phase: "pre-alternative",
+      ruleId: "unknown-round",
+      inputValue: 2.2,
+      outputValue: 3,
+      rounding: { policy: "ceil", mechanism: "global" },
+    }),
+    /Pricing rounding mechanism is invalid/,
+  );
+  assert.throws(
+    () => createModifierBreakdownStep({
+      sequence: 0,
+      stage: "pricing",
+      phase: "alternative-group",
+      ruleId: "misplaced-one-use",
+      inputValue: 2.2,
+      outputValue: 3,
+      rounding: { policy: "ceil", mechanism: "one-use" },
+    }),
+    /requires phase pre-alternative/,
+  );
+  assert.throws(
+    () => validateModifierBreakdownStep({
+      schemaVersion: 1,
+      sequence: 0,
+      stage: "pricing",
+      phase: "pre-alternative",
+      ruleId: "misplaced-alternative",
+      inputValue: 2.2,
+      outputValue: 3,
+      applied: true,
+      reason: null,
+      rounding: { policy: "ceil", mechanism: "alternative-ability" },
+      source: null,
+    }),
+    /requires phase alternative-group/,
   );
 });
 
