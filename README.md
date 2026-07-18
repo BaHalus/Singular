@@ -90,3 +90,40 @@ Antes de ampliar campos ou editores, preserve as invariantes arquiteturais:
 - nenhum cálculo mecânico na UI;
 - nenhum listener, observer ou bootstrap duplicado;
 - nenhuma abstração genérica sem uso real em módulos concretos.
+
+# SINGULAR — Automação de Handoff
+
+Este repositório implementa o protocolo de sucessão definido nas issues **#356 → #340 → #354**, garantindo que o processo seja automatizado via GitHub Actions.
+
+## Estrutura principal
+
+### HANDOFF.md
+- Documento que formaliza o protocolo de sucessão.
+- Define a ordem: **Assumir (#356) → Sincronizar (#340) → Implementar (#354)**.
+
+### .github/workflows/handoff.yml
+- Workflow do GitHub Actions que dispara automaticamente em cada push na branch `main`.
+- Executa três jobs:
+  1. **Assumir coordenação** (#356)  
+  2. **Sincronizar estado** (#340)  
+  3. **Implementar MF6** (#354)
+
+### scripts/mf6.sh
+- Script que executa a implementação da fatia **MF6 — API pública única**.
+- Atualiza o arquivo `MF6_STATUS.md` com o log da execução.
+
+### MF6_STATUS.md
+- Arquivo de log que registra o estado da implementação da fatia MF6.
+- Atualizado automaticamente pelo workflow e pelo script `mf6.sh`.
+
+## Fluxo de execução
+
+1. **Push na branch main** → dispara o workflow.  
+2. **Job 1**: valida coordenação conforme Issue #356.  
+3. **Job 2**: consulta comentário 4970944834 da Issue #340 e sincroniza o estado.  
+4. **Job 3**: executa `scripts/mf6.sh` e atualiza `MF6_STATUS.md`.  
+
+## Objetivo
+Garantir que o processo de handoff seja contínuo, transparente e automatizado, sem depender de execução manual.
+
+---
