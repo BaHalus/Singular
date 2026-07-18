@@ -44,6 +44,40 @@ test("rounds character-point activation inside its own mechanism", () => {
   );
 });
 
+test("normalizes construction noise before each local pricing ceiling", () => {
+  const preAlternative = calculatePricing({
+    traits: [{
+      id: "noisy-activation",
+      normalCost: 55.00000000000001,
+      rules: [rule("activation", "character-point-activation")],
+    }],
+  });
+
+  assert.equal(preAlternative.traits[0].preAlternativeBasis, 11);
+  assert.equal(
+    preAlternative.traits[0].breakdown.steps[1].source.unroundedValue,
+    11,
+  );
+
+  const alternatives = calculatePricing({
+    traits: [
+      { id: "primary", normalCost: 100 },
+      { id: "noisy-alternative", normalCost: 55.00000000000001 },
+    ],
+    groupRules: [rule("alternatives", "alternative-ability")],
+  });
+  const noisyAlternative = alternatives.traits.find(
+    item => item.id === "noisy-alternative",
+  );
+
+  assert.equal(noisyAlternative.paidCost, 11);
+  assert.equal(
+    noisyAlternative.breakdown.steps
+      .find(item => item.ruleId === "alternatives").source.unroundedValue,
+    11,
+  );
+});
+
 test("applies pre-alternative mechanisms in canonical deterministic order", () => {
   const result = calculatePricing({
     traits: [{
@@ -127,6 +161,19 @@ test("breaks equal reduced-basis ties by lexicographically lowest trait id", () 
 
   assert.equal(result.primaryTraitId, "alpha");
   assert.equal(result.diagnostics[0].tieBreak, "lexicographically-lowest-trait-id");
+});
+
+test("normalizes reduced-basis noise before deterministic primary selection", () => {
+  const result = calculatePricing({
+    traits: [
+      { id: "zeta", normalCost: 55.00000000000001 },
+      { id: "alpha", normalCost: 55 },
+    ],
+    groupRules: [rule("alternatives", "alternative-ability")],
+  });
+
+  assert.equal(result.primaryTraitId, "alpha");
+  assert.equal(result.traits.find(item => item.id === "alpha").groupRole, "primary");
 });
 
 test("honors one explicit primary only when tied for maximum reduced basis", () => {
