@@ -9,6 +9,7 @@ const PRE_ALTERNATIVE_RULE_ORDER = Object.freeze({
   "one-use": 0,
   "character-point-activation": 1,
 });
+const ARITHMETIC_PRECISION_DIGITS = 12;
 
 export function calculatePricing(input = {}) {
   requirePlainObject(input, "Pricing input");
@@ -118,7 +119,7 @@ function applyPreAlternativePricing(trait) {
   for (const rule of trait.rules) {
     const before = current;
     const applied = rule.enabled;
-    const unroundedValue = before / rule.divisor;
+    const unroundedValue = normalizeArithmetic(before / rule.divisor);
     if (applied) current = Math.ceil(unroundedValue);
     else diagnostics.push({
       code: "PRICING_RULE_DISABLED",
@@ -155,8 +156,12 @@ function resolvePrimary(traits, alternativeRule) {
   if (traits.length < 2) {
     throw new Error("Alternative-ability pricing requires at least two traits");
   }
-  const maximum = Math.max(...traits.map(item => item.preAlternativeBasis));
-  const candidates = traits.filter(item => item.preAlternativeBasis === maximum);
+  const normalizedBases = new Map(traits.map(item => [
+    item.id,
+    normalizeArithmetic(item.preAlternativeBasis),
+  ]));
+  const maximum = Math.max(...normalizedBases.values());
+  const candidates = traits.filter(item => normalizedBases.get(item.id) === maximum);
   const explicit = traits.filter(item => item.isPrimaryAlternative === true);
   if (explicit.length > 1) {
     throw new Error("Alternative-ability group cannot declare multiple primaries");
@@ -179,7 +184,7 @@ function applyAlternativePricing(item, rule, primaryTraitId) {
     const enabled = rule.enabled;
     const isPrimary = enabled && item.id === primaryTraitId;
     role = enabled ? (isPrimary ? "primary" : "alternative") : "standalone";
-    const unroundedValue = before / rule.divisor;
+    const unroundedValue = normalizeArithmetic(before / rule.divisor);
     if (enabled && !isPrimary) current = Math.ceil(unroundedValue);
     if (!enabled) diagnostics.push({
       code: "PRICING_RULE_DISABLED",
@@ -262,6 +267,12 @@ function requireFinite(value, label) {
     throw new Error(`${label} must be finite number`);
   }
   return value;
+}
+
+function normalizeArithmetic(value) {
+  if (!Number.isFinite(value)) return value;
+  const normalized = Number(value.toFixed(ARITHMETIC_PRECISION_DIGITS));
+  return Object.is(normalized, -0) ? 0 : normalized;
 }
 
 function requirePlainObject(value, label) {
