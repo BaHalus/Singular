@@ -48,6 +48,9 @@ export function calculateConstructionCost(input = {}) {
   const components = createComponents({ baseCost, levelCost, levels, target });
   const steps = [];
   const diagnostics = [];
+  const percentageContributions = [];
+  let percentageApplicationInput = null;
+  let percentageComponentsBefore = null;
   let current = evaluateComponents(components);
 
   steps.push(createModifierBreakdownStep({
@@ -78,8 +81,23 @@ export function calculateConstructionCost(input = {}) {
 
     const before = current;
     if (reason === null) {
+      if (modifier.operation === "percentage" && percentageApplicationInput === null) {
+        percentageApplicationInput = current;
+        percentageComponentsBefore = snapshotComponents(components);
+      }
       applyModifier(components, componentTargets, modifier);
-      current = evaluateComponents(components);
+      if (modifier.operation === "percentage") {
+        percentageContributions.push({
+          modifierId: modifier.id,
+          value: modifier.value,
+          target: modifier.target,
+          componentTargets,
+          sourceIndex: index,
+          declaredSource: modifier.source,
+        });
+      } else {
+        current = evaluateComponents(components);
+      }
     } else {
       diagnostics.push({
         code: reason.startsWith("target-mismatch")
@@ -103,11 +121,39 @@ export function calculateConstructionCost(input = {}) {
       source: {
         modifierId: modifier.id,
         operation: modifier.operation,
+        modifierValue: modifier.value,
         target: modifier.target,
         componentTargets,
         sourceIndex: index,
         declaredSource: modifier.source,
+        transformation: modifier.operation === "percentage"
+          ? "percentage-contribution"
+          : "direct",
+        cumulativePercentageByComponent: modifier.operation === "percentage"
+          ? Object.fromEntries(componentTargets.map(name => [
+              name,
+              components[name].percentage,
+            ]))
+          : null,
         components: snapshotComponents(components),
+      },
+    }));
+  }
+
+  if (percentageContributions.length > 0) {
+    current = evaluateComponents(components);
+    steps.push(createModifierBreakdownStep({
+      sequence: steps.length,
+      stage: "construction",
+      phase: "percentage",
+      ruleId: "construction:percentage-total",
+      inputValue: percentageApplicationInput,
+      outputValue: current,
+      source: {
+        transformation: "aggregate-percentage-application",
+        contributors: percentageContributions,
+        componentsBefore: percentageComponentsBefore,
+        componentsAfter: snapshotComponents(components),
       },
     }));
   }
