@@ -45,9 +45,10 @@ export function calculateConstructionCost(input = {}) {
       left.index - right.index
     );
 
+  const components = createComponents({ baseCost, levelCost, levels, target });
   const steps = [];
   const diagnostics = [];
-  let current = baseCost + levelCost * levels;
+  let current = evaluateComponents(components);
 
   steps.push(createModifierBreakdownStep({
     sequence: steps.length,
@@ -56,24 +57,29 @@ export function calculateConstructionCost(input = {}) {
     ruleId: "construction:base-and-levels",
     inputValue: 0,
     outputValue: current,
-    source: { baseCost, levelCost, levels, target },
+    source: {
+      baseCost,
+      levelCost,
+      levels,
+      target,
+      components: snapshotComponents(components),
+    },
   }));
 
   for (const { modifier, index } of ordered) {
     const phase = PHASE_BY_OPERATION[modifier.operation];
-    const appliesToTarget =
-      modifier.target === target ||
-      (target !== "total" && modifier.target === "total");
+    const componentTargets = resolveComponentTargets(target, modifier);
     let reason = null;
     if (!modifier.enabled) {
       reason = "modifier-disabled";
-    } else if (!appliesToTarget) {
+    } else if (componentTargets.length === 0) {
       reason = `target-mismatch:${modifier.target}->${target}`;
     }
 
     const before = current;
     if (reason === null) {
-      current = applyModifier(current, modifier);
+      applyModifier(components, componentTargets, modifier);
+      current = evaluateComponents(components);
     } else {
       diagnostics.push({
         code: reason.startsWith("target-mismatch")
@@ -98,8 +104,10 @@ export function calculateConstructionCost(input = {}) {
         modifierId: modifier.id,
         operation: modifier.operation,
         target: modifier.target,
+        componentTargets,
         sourceIndex: index,
         declaredSource: modifier.source,
+        components: snapshotComponents(components),
       },
     }));
   }
@@ -111,7 +119,10 @@ export function calculateConstructionCost(input = {}) {
     ruleId: "construction:normal-cost",
     inputValue: current,
     outputValue: current,
-    source: { target },
+    source: {
+      target,
+      components: snapshotComponents(components),
+    },
   }));
 
   const breakdown = createModifierBreakdown({
@@ -125,24 +136,110 @@ export function calculateConstructionCost(input = {}) {
     schemaVersion: getModifierFrameworkSchemaVersion(),
     target,
     normalCost: current,
+    components: snapshotComponents(components),
     breakdown,
     diagnostics: breakdown.diagnostics,
   });
 }
 
-function applyModifier(current, modifier) {
-  switch (modifier.operation) {
-    case "addition":
-      return current + modifier.value;
-    case "multiplier":
-      return current * modifier.value;
-    case "divisor":
-      return current / modifier.value;
-    case "percentage":
-      return current * (1 + modifier.value / 100);
-    default:
-      throw new Error("Construction modifier operation is invalid");
+function createComponents({ baseCost, levelCost, levels, target }) {
+  const base = createComponent({ baseValue: baseCost });
+  const levelComponent = createComponent({ unitValue: levelCost, levels });
+
+  if (target === "levels") {
+    base.active = false;
+  } else if (target !== "total") {
+    levelComponent.active = false;
   }
+
+  return { base, levels: levelComponent };
+}
+
+function createComponent({ baseValue = 0, unitValue = 0, levels = 0 } = {}) {
+  return {
+    active: true,
+    baseValue,
+    unitValue,
+    levels,
+    addition: 0,
+    factor: 1,
+    percentage: 0,
+  };
+}
+
+function resolveComponentTargets(target, modifier) {
+  if (target === "total") {
+    if (modifier.target === "base") return ["base"];
+    if (modifier.target === "levels") return ["levels"];
+    if (modifier.target !== "total") return [];
+    return modifier.operation === "addition"
+      ? ["base"]
+      : ["base", "levels"];
+  }
+
+  if (target === "base") {
+    return ["base", "total"].includes(modifier.target) ? ["base"] : [];
+  }
+  if (target === "levels") {
+    return ["levels", "total"].includes(modifier.target) ? ["levels"] : [];
+  }
+  return [target, "total"].includes(modifier.target) ? ["base"] : [];
+}
+
+function applyModifier(components, componentTargets, modifier) {
+  for (const componentTarget of componentTargets) {
+    const component = components[componentTarget];
+    switch (modifier.operation) {
+      case "addition":
+        component.addition += modifier.value;
+        break;
+      case "multiplier":
+        component.factor *= modifier.value;
+        break;
+      case "divisor":
+        component.factor /= modifier.value;
+        break;
+      case "percentage":
+        component.percentage += modifier.value;
+        break;
+      default:
+        throw new Error("Construction modifier operation is invalid");
+    }
+  }
+}
+
+function evaluateComponents(components) {
+  return Object.values(components).reduce(
+    (total, component) => total + evaluateComponent(component),
+    0,
+  );
+}
+
+function evaluateComponent(component) {
+  if (!component.active) return 0;
+  const additiveValue = component.levels === 0
+    ? component.baseValue + component.addition
+    : component.baseValue + (component.unitValue + component.addition) * component.levels;
+  const factoredValue = additiveValue * component.factor;
+  return factoredValue * (1 + component.percentage / 100);
+}
+
+function snapshotComponents(components) {
+  return Object.fromEntries(
+    Object.entries(components).map(([name, component]) => [
+      name,
+      {
+        ...component,
+        additiveValue: component.active
+          ? component.levels === 0
+            ? component.baseValue + component.addition
+            : component.baseValue +
+              (component.unitValue + component.addition) * component.levels
+          : 0,
+        outputValue: evaluateComponent(component),
+      },
+    ]),
+  );
 }
 
 function rejectDuplicateIds(modifiers) {
