@@ -43,4 +43,4 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v3
       - name: Execute MF6
-        run: echo "Implementando API pública única conforme Issue #354"
+  run: bash scripts/mf6.sh
