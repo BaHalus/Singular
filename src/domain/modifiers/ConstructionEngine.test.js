@@ -36,12 +36,13 @@ test("constructs normalCost in canonical phase order", () => {
       "own-factor",
       "own-factor",
       "percentage",
+      "percentage",
       "normal-cost",
     ],
   );
   assert.deepEqual(
     result.breakdown.steps.slice(1, -1).map(step => step.ruleId),
-    ["add", "multiply", "divide", "percent"],
+    ["add", "multiply", "divide", "percent", "construction:percentage-total"],
   );
   assert.equal(result.breakdown.paidCost, null);
 });
@@ -222,4 +223,83 @@ test("aggregates percentage modifiers instead of compounding them", () => {
   assert.equal(reverse.normalCost, 130);
   assert.equal(forward.components.base.percentage, 30);
   assert.equal(reverse.components.base.percentage, 30);
+});
+
+
+test("records percentage contributions separately from aggregate application", () => {
+  const result = calculateConstructionCost({
+    baseCost: 100,
+    modifiers: [
+      modifier("enhancement", "percentage", 50, {
+        source: { list: "enhancements", externalId: "enhancement-50" },
+      }),
+      modifier("limitation", "percentage", -20, {
+        source: { list: "limitations", externalId: "limitation-20" },
+      }),
+    ],
+  });
+
+  const percentageSteps = result.breakdown.steps.filter(
+    step => step.phase === "percentage",
+  );
+  const [enhancement, limitation, aggregate] = percentageSteps;
+
+  assert.equal(enhancement.inputValue, 100);
+  assert.equal(enhancement.outputValue, 100);
+  assert.equal(enhancement.source.transformation, "percentage-contribution");
+  assert.equal(enhancement.source.modifierValue, 50);
+  assert.deepEqual(enhancement.source.cumulativePercentageByComponent, {
+    base: 50,
+    levels: 50,
+  });
+
+  assert.equal(limitation.inputValue, 100);
+  assert.equal(limitation.outputValue, 100);
+  assert.equal(limitation.source.modifierValue, -20);
+  assert.deepEqual(limitation.source.cumulativePercentageByComponent, {
+    base: 30,
+    levels: 30,
+  });
+
+  assert.equal(aggregate.ruleId, "construction:percentage-total");
+  assert.equal(aggregate.inputValue, 100);
+  assert.equal(aggregate.outputValue, 130);
+  assert.equal(
+    aggregate.source.transformation,
+    "aggregate-percentage-application",
+  );
+  assert.deepEqual(
+    aggregate.source.contributors.map(item => ({
+      modifierId: item.modifierId,
+      value: item.value,
+      target: item.target,
+      componentTargets: item.componentTargets,
+      declaredSource: item.declaredSource,
+    })),
+    [
+      {
+        modifierId: "enhancement",
+        value: 50,
+        target: "total",
+        componentTargets: ["base", "levels"],
+        declaredSource: {
+          list: "enhancements",
+          externalId: "enhancement-50",
+        },
+      },
+      {
+        modifierId: "limitation",
+        value: -20,
+        target: "total",
+        componentTargets: ["base", "levels"],
+        declaredSource: {
+          list: "limitations",
+          externalId: "limitation-20",
+        },
+      },
+    ],
+  );
+  assert.equal(aggregate.source.componentsBefore.base.outputValue, 100);
+  assert.equal(aggregate.source.componentsAfter.base.outputValue, 130);
+  assert.equal(result.normalCost, 130);
 });
