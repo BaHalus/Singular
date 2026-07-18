@@ -1,0 +1,305 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+
+import { calculateConstructionCost } from "./ConstructionEngine.js";
+import { createConstructionModifier } from "./ModifierFrameworkModel.js";
+
+const modifier = (id, operation, value, options = {}) =>
+  createConstructionModifier({
+    id,
+    operation,
+    value,
+    target: options.target ?? "total",
+    enabled: options.enabled,
+    source: options.source ?? null,
+  });
+
+test("constructs normalCost in canonical phase order", () => {
+  const result = calculateConstructionCost({
+    baseCost: 10,
+    levelCost: 5,
+    levels: 2,
+    modifiers: [
+      modifier("percent", "percentage", -20),
+      modifier("multiply", "multiplier", 2),
+      modifier("add", "addition", 5),
+      modifier("divide", "divisor", 2),
+    ],
+  });
+
+  assert.equal(result.normalCost, 20);
+  assert.deepEqual(
+    result.breakdown.steps.map(step => step.phase),
+    [
+      "base-and-levels",
+      "additive",
+      "own-factor",
+      "own-factor",
+      "percentage",
+      "percentage",
+      "normal-cost",
+    ],
+  );
+  assert.deepEqual(
+    result.breakdown.steps.slice(1, -1).map(step => step.ruleId),
+    ["add", "multiply", "divide", "percent", "construction:percentage-total"],
+  );
+  assert.equal(result.breakdown.paidCost, null);
+});
+
+test("preserves declaration order inside the same canonical phase", () => {
+  const result = calculateConstructionCost({
+    baseCost: 10,
+    modifiers: [
+      modifier("multiply-first", "multiplier", 3),
+      modifier("divide-second", "divisor", 2),
+      modifier("add-first", "addition", 4),
+      modifier("add-second", "addition", -1),
+    ],
+  });
+
+  assert.equal(result.normalCost, 19.5);
+  assert.deepEqual(
+    result.breakdown.steps.slice(1, -1).map(step => step.ruleId),
+    ["add-first", "add-second", "multiply-first", "divide-second"],
+  );
+});
+
+test("records disabled and nonmatching modifiers without applying them", () => {
+  const result = calculateConstructionCost({
+    baseCost: 20,
+    target: "baseCost",
+    modifiers: [
+      modifier("disabled", "addition", 10, { enabled: false }),
+      modifier("weight-only", "multiplier", 3, { target: "baseWeight" }),
+      modifier("shared", "percentage", -50, { target: "total" }),
+    ],
+  });
+
+  assert.equal(result.normalCost, 10);
+  const [disabled, mismatch, shared] = result.breakdown.steps.slice(1, -1);
+  assert.equal(disabled.applied, false);
+  assert.equal(disabled.reason, "modifier-disabled");
+  assert.equal(mismatch.applied, false);
+  assert.equal(mismatch.reason, "target-mismatch:baseWeight->baseCost");
+  assert.equal(shared.applied, true);
+  assert.deepEqual(
+    result.diagnostics.map(item => item.code),
+    ["CONSTRUCTION_MODIFIER_DISABLED", "CONSTRUCTION_TARGET_MISMATCH"],
+  );
+});
+
+test("keeps structural pricing and structural rounding outside construction", () => {
+  const result = calculateConstructionCost({
+    baseCost: 15,
+    modifiers: [modifier("intrinsic-divisor", "divisor", 3)],
+  });
+
+  assert.equal(result.normalCost, 5);
+  assert.ok(result.breakdown.steps.every(step =>
+    step.stage === "construction" &&
+    step.rounding.policy === "none" &&
+    step.rounding.mechanism === null
+  ));
+});
+
+test("is deterministic for repeated inputs and cross-phase declaration order", () => {
+  const inputs = {
+    baseCost: 12,
+    levelCost: 2,
+    levels: 4,
+    modifiers: [
+      modifier("percent", "percentage", 25),
+      modifier("add", "addition", 4),
+      modifier("factor", "multiplier", 1.5),
+    ],
+  };
+  const reordered = {
+    ...inputs,
+    modifiers: [inputs.modifiers[1], inputs.modifiers[2], inputs.modifiers[0]],
+  };
+
+  assert.deepEqual(calculateConstructionCost(inputs), calculateConstructionCost(inputs));
+  assert.equal(
+    calculateConstructionCost(inputs).normalCost,
+    calculateConstructionCost(reordered).normalCost,
+  );
+});
+
+test("rejects duplicate modifier ids and malformed numeric input", () => {
+  assert.throws(
+    () => calculateConstructionCost({
+      baseCost: 10,
+      modifiers: [
+        modifier("duplicate", "addition", 1),
+        modifier("duplicate", "percentage", 10),
+      ],
+    }),
+    /id must be unique/,
+  );
+  assert.throws(
+    () => calculateConstructionCost({ baseCost: Number.NaN }),
+    /baseCost must be finite number/,
+  );
+  assert.throws(
+    () => calculateConstructionCost({ baseCost: 10, levels: -1 }),
+    /levels must be non-negative integer/,
+  );
+  assert.throws(
+    () => calculateConstructionCost({ baseCost: 10, target: "paidCost" }),
+    /target is invalid/,
+  );
+});
+
+test("returns a frozen portable result with full provenance", () => {
+  const result = calculateConstructionCost({
+    baseCost: 8,
+    modifiers: [
+      modifier("source", "addition", 2, {
+        source: { list: "advantages", externalId: "example" },
+      }),
+    ],
+  });
+
+  assert.equal(result.schemaVersion, 1);
+  assert.equal(Object.isFrozen(result), true);
+  assert.equal(Object.isFrozen(result.breakdown), true);
+  assert.deepEqual(
+    result.breakdown.steps[1].source.declaredSource,
+    { list: "advantages", externalId: "example" },
+  );
+  assert.doesNotThrow(() => JSON.stringify(result));
+});
+
+test("keeps base and level parcels separate through component-scoped phases", () => {
+  const result = calculateConstructionCost({
+    baseCost: 10,
+    levelCost: 5,
+    levels: 2,
+    modifiers: [
+      modifier("levels-add", "addition", 2, { target: "levels" }),
+      modifier("base-factor", "multiplier", 2, { target: "base" }),
+    ],
+  });
+
+  assert.equal(result.normalCost, 34);
+  assert.equal(result.components.base.outputValue, 20);
+  assert.equal(result.components.levels.outputValue, 14);
+  assert.equal(result.components.levels.addition, 2);
+});
+
+test("includes component-scoped modifiers when calculating the total", () => {
+  const result = calculateConstructionCost({
+    baseCost: 10,
+    levelCost: 5,
+    levels: 2,
+    modifiers: [
+      modifier("base-only", "addition", 5, { target: "base" }),
+    ],
+  });
+
+  assert.equal(result.normalCost, 25);
+  assert.equal(result.breakdown.steps[1].applied, true);
+  assert.deepEqual(result.breakdown.steps[1].source.componentTargets, ["base"]);
+});
+
+test("aggregates percentage modifiers instead of compounding them", () => {
+  const forward = calculateConstructionCost({
+    baseCost: 100,
+    modifiers: [
+      modifier("enhancement", "percentage", 50),
+      modifier("limitation", "percentage", -20),
+    ],
+  });
+  const reverse = calculateConstructionCost({
+    baseCost: 100,
+    modifiers: [
+      modifier("limitation", "percentage", -20),
+      modifier("enhancement", "percentage", 50),
+    ],
+  });
+
+  assert.equal(forward.normalCost, 130);
+  assert.equal(reverse.normalCost, 130);
+  assert.equal(forward.components.base.percentage, 30);
+  assert.equal(reverse.components.base.percentage, 30);
+});
+
+
+test("records percentage contributions separately from aggregate application", () => {
+  const result = calculateConstructionCost({
+    baseCost: 100,
+    modifiers: [
+      modifier("enhancement", "percentage", 50, {
+        source: { list: "enhancements", externalId: "enhancement-50" },
+      }),
+      modifier("limitation", "percentage", -20, {
+        source: { list: "limitations", externalId: "limitation-20" },
+      }),
+    ],
+  });
+
+  const percentageSteps = result.breakdown.steps.filter(
+    step => step.phase === "percentage",
+  );
+  const [enhancement, limitation, aggregate] = percentageSteps;
+
+  assert.equal(enhancement.inputValue, 100);
+  assert.equal(enhancement.outputValue, 100);
+  assert.equal(enhancement.source.transformation, "percentage-contribution");
+  assert.equal(enhancement.source.modifierValue, 50);
+  assert.deepEqual(enhancement.source.cumulativePercentageByComponent, {
+    base: 50,
+    levels: 50,
+  });
+
+  assert.equal(limitation.inputValue, 100);
+  assert.equal(limitation.outputValue, 100);
+  assert.equal(limitation.source.modifierValue, -20);
+  assert.deepEqual(limitation.source.cumulativePercentageByComponent, {
+    base: 30,
+    levels: 30,
+  });
+
+  assert.equal(aggregate.ruleId, "construction:percentage-total");
+  assert.equal(aggregate.inputValue, 100);
+  assert.equal(aggregate.outputValue, 130);
+  assert.equal(
+    aggregate.source.transformation,
+    "aggregate-percentage-application",
+  );
+  assert.deepEqual(
+    aggregate.source.contributors.map(item => ({
+      modifierId: item.modifierId,
+      value: item.value,
+      target: item.target,
+      componentTargets: item.componentTargets,
+      declaredSource: item.declaredSource,
+    })),
+    [
+      {
+        modifierId: "enhancement",
+        value: 50,
+        target: "total",
+        componentTargets: ["base", "levels"],
+        declaredSource: {
+          list: "enhancements",
+          externalId: "enhancement-50",
+        },
+      },
+      {
+        modifierId: "limitation",
+        value: -20,
+        target: "total",
+        componentTargets: ["base", "levels"],
+        declaredSource: {
+          list: "limitations",
+          externalId: "limitation-20",
+        },
+      },
+    ],
+  );
+  assert.equal(aggregate.source.componentsBefore.base.outputValue, 100);
+  assert.equal(aggregate.source.componentsAfter.base.outputValue, 130);
+  assert.equal(result.normalCost, 130);
+});
