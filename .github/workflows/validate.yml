@@ -2,15 +2,55 @@ name: Validate
 
 on:
   push:
+    branches:
+      - main
+      - develop
   pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: validate-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  validate:
+  documentation:
+    name: Documentation Validation
     runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v4
-      - name: Validate Markdown files
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Verify required directories
         run: |
-          find . -name '*.md' -print
-      - name: Validation summary
-        run: echo 'Validation completed.'
+          test -d docs
+          test -f README.md
+
+      - name: Verify Markdown files
+        run: |
+          COUNT=$(find . -name "*.md" | wc -l)
+          echo "Markdown files: $COUNT"
+          if [ "$COUNT" -eq 0 ]; then
+            echo "No Markdown files found."
+            exit 1
+          fi
+
+      - name: Check broken internal links
+        run: |
+          BAD=$(grep -R "\]\((docs/.*)\)" . --include="*.md" | sed -E 's/.*\]\((.*)\).*/\1/' | while read f; do test -e "$f" || echo "$f"; done)
+          if [ -n "$BAD" ]; then
+            echo "$BAD"
+            exit 1
+          fi
+
+      - name: Validate UTF-8
+        run: |
+          find . -name "*.md" -print0 | while IFS= read -r -d '' file; do
+            iconv -f UTF-8 -t UTF-8 "$file" >/dev/null
+          done
+
+      - name: Summary
+        run: echo "Documentation validation completed successfully."
