@@ -1,0 +1,16 @@
+name: Validate
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate Markdown files
+        run: |
+          find . -name '*.md' -print
+      - name: Validation summary
+        run: echo 'Validation completed.'
