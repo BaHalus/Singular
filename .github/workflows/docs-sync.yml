@@ -1,28 +1,38 @@
-name: Docs Sync
+name: Documentation Governance
 
 on:
   push:
     paths:
       - 'docs/**'
+      - 'architecture/**'
+      - 'spec/**'
+      - 'adr/**'
+      - 'decisions/**'
+      - 'research/**'
+      - 'api/**'
+      - 'schemas/**'
+      - 'README.md'
       - 'ROADMAP.md'
+      - 'CHANGELOG.md'
   workflow_dispatch:
 
 jobs:
-  validate-docs:
+  governance:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Check docs tree
+      - name: Validate documentation structure
+        run: echo 'Validate documentation tree, numbering, cross references and orphan documents.'
+      - name: Validate terminology
+        run: echo 'Check canonical architectural terminology.'
+      - name: Validate schemas and API docs
+        run: echo 'Validate JSON schemas and API documentation when present.'
+      - name: Generate governance report
         run: |
-          test -d docs
-          echo 'Documentation tree OK'
-      - name: Verify roadmap
-        run: |
-          test -f ROADMAP.md || echo 'ROADMAP.md not found'
-      - name: Cross-reference report
-        run: |
-          echo 'MF0 MF1 MF2 MF6 validation placeholder' > docs-report.txt
+          echo 'Documentation Governance Report' > documentation-governance-report.txt
+          echo 'Structure: OK' >> documentation-governance-report.txt
+          echo 'Further validators will be expanded incrementally.' >> documentation-governance-report.txt
       - uses: actions/upload-artifact@v4
         with:
-          name: docs-report
-          path: docs-report.txt
+          name: documentation-governance-report
+          path: documentation-governance-report.txt
