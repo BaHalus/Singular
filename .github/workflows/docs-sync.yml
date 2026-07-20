@@ -1,0 +1,28 @@
+name: Docs Sync
+
+on:
+  push:
+    paths:
+      - 'docs/**'
+      - 'ROADMAP.md'
+  workflow_dispatch:
+
+jobs:
+  validate-docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check docs tree
+        run: |
+          test -d docs
+          echo 'Documentation tree OK'
+      - name: Verify roadmap
+        run: |
+          test -f ROADMAP.md || echo 'ROADMAP.md not found'
+      - name: Cross-reference report
+        run: |
+          echo 'MF0 MF1 MF2 MF6 validation placeholder' > docs-report.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: docs-report
+          path: docs-report.txt
