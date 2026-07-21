@@ -17,40 +17,269 @@ concurrency:
 
 jobs:
   documentation:
-    name: Documentation Validation
+    name: Documentation validation
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Verify required directories
+      - name: Prepare report
         run: |
-          test -d docs
-          test -f README.md
+          mkdir -p .ci/reports
+          cat > .ci/reports/validate.md <<'REPORT'
+          # Validate workflow report
 
-      - name: Verify Markdown files
+          REPORT
+
+      - name: Validate required documentation structure
+        shell: bash
         run: |
-          COUNT=$(find . -name "*.md" | wc -l)
-          echo "Markdown files: $COUNT"
-          if [ "$COUNT" -eq 0 ]; then
+          set -euo pipefail
+
+          required_paths=(
+            "README.md"
+            "docs"
+            "docs/architecture"
+            ".github/workflows"
+          )
+
+          failures=0
+          {
+            echo "## Required structure"
+            echo
+          } >> .ci/reports/validate.md
+
+          for path in "${required_paths[@]}"; do
+            if [ -e "$path" ]; then
+              echo "- OK: \`$path\`" >> .ci/reports/validate.md
+            else
+              echo "- MISSING: \`$path\`" >> .ci/reports/validate.md
+              echo "Missing required path: $path"
+              failures=$((failures + 1))
+            fi
+          done
+
+          if ! grep -q "O motor calcula" README.md; then
+            echo "README.md does not document the core architecture rule."
+            echo "- MISSING: core architecture rule in \`README.md\`" >> .ci/reports/validate.md
+            failures=$((failures + 1))
+          fi
+
+          exit "$failures"
+
+      - name: Validate Markdown formatting
+        shell: bash
+        run: |
+          set -euo pipefail
+          failures=0
+          mapfile -t markdown_files < <(find . -path ./.git -prune -o -name "*.md" -print | sort)
+
+          {
+            echo
+            echo "## Markdown validation"
+            echo
+            echo "- Markdown files: ${#markdown_files[@]}"
+          } >> .ci/reports/validate.md
+
+          if [ "${#markdown_files[@]}" -eq 0 ]; then
             echo "No Markdown files found."
             exit 1
           fi
 
-      - name: Check broken internal links
-        run: |
-          BAD=$(grep -R "\]\((docs/.*)\)" . --include="*.md" | sed -E 's/.*\]\((.*)\).*/\1/' | while read f; do test -e "$f" || echo "$f"; done)
-          if [ -n "$BAD" ]; then
-            echo "$BAD"
-            exit 1
-          fi
+          for file in "${markdown_files[@]}"; do
+            if ! iconv -f UTF-8 -t UTF-8 "$file" >/dev/null; then
+              echo "Invalid UTF-8: $file"
+              echo "- INVALID UTF-8: \`$file\`" >> .ci/reports/validate.md
+              failures=$((failures + 1))
+            fi
 
-      - name: Validate UTF-8
-        run: |
-          find . -name "*.md" -print0 | while IFS= read -r -d '' file; do
-            iconv -f UTF-8 -t UTF-8 "$file" >/dev/null
+            if grep -n $'\t' "$file" >/tmp/markdown-tabs.txt; then
+              echo "Tab character found in Markdown: $file"
+              cat /tmp/markdown-tabs.txt
+              echo "- TAB FOUND: \`$file\`" >> .ci/reports/validate.md
+              failures=$((failures + 1))
+            fi
+
+            if grep -nE '[[:blank:]]+$' "$file" >/tmp/markdown-trailing.txt; then
+              echo "Trailing whitespace found in Markdown: $file"
+              cat /tmp/markdown-trailing.txt
+              echo "- TRAILING WHITESPACE: \`$file\`" >> .ci/reports/validate.md
+              failures=$((failures + 1))
+            fi
+
+            first_heading=$(grep -m 1 -n '^# ' "$file" || true)
+            if [ -z "$first_heading" ]; then
+              echo "Missing top-level heading: $file"
+              echo "- MISSING H1: \`$file\`" >> .ci/reports/validate.md
+              failures=$((failures + 1))
+            fi
           done
 
-      - name: Summary
-        run: echo "Documentation validation completed successfully."
+          exit "$failures"
+
+      - name: Check internal Markdown links
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs = require('fs');
+          const path = require('path');
+
+          const report = '.ci/reports/validate.md';
+          const failures = [];
+
+          function walk(dir) {
+            const entries = fs.readdirSync(dir, { withFileTypes: true });
+            const files = [];
+            for (const entry of entries) {
+              if (entry.name === '.git' || entry.name === 'node_modules') continue;
+              const full = path.join(dir, entry.name);
+              if (entry.isDirectory()) files.push(...walk(full));
+              else if (entry.isFile() && entry.name.endsWith('.md')) files.push(full);
+            }
+            return files;
+          }
+
+          const markdownFiles = walk('.').sort();
+          const linkPattern = /!?\[[^\]]*\]\(([^)\s]+)(?:\s+"[^"]*")?\)/g;
+
+          for (const file of markdownFiles) {
+            const text = fs.readFileSync(file, 'utf8');
+            for (const match of text.matchAll(linkPattern)) {
+              const raw = match[1].trim();
+              if (!raw || raw.startsWith('#')) continue;
+              if (/^[a-z][a-z0-9+.-]*:/i.test(raw) || raw.startsWith('mailto:')) continue;
+
+              const [targetPath, fragment] = raw.split('#');
+              const decoded = decodeURIComponent(targetPath || '');
+              const resolved = path.normalize(path.resolve(path.dirname(file), decoded));
+              const root = path.resolve('.');
+              if (!resolved.startsWith(root)) {
+                failures.push(`${file}: link escapes repository: ${raw}`);
+                continue;
+              }
+              if (decoded && !fs.existsSync(resolved)) {
+                failures.push(`${file}: broken internal link: ${raw}`);
+                continue;
+              }
+              if (fragment && decoded && fs.existsSync(resolved) && fs.statSync(resolved).isDirectory()) {
+                failures.push(`${file}: directory link cannot contain heading fragment: ${raw}`);
+              }
+            }
+          }
+
+          fs.appendFileSync(report, `\n## Internal links\n\n- Checked Markdown files: ${markdownFiles.length}\n- Broken links: ${failures.length}\n`);
+          if (failures.length) {
+            for (const failure of failures) console.error(failure);
+            fs.appendFileSync(report, failures.map((failure) => `- FAIL: ${failure}`).join('\n') + '\n');
+            process.exit(1);
+          }
+          NODE
+
+      - name: Check orphan documentation files
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs = require('fs');
+          const path = require('path');
+
+          const report = '.ci/reports/validate.md';
+          const ignored = new Set(['README.md']);
+          const docsRoots = ['docs'];
+          const markdownFiles = [];
+
+          function walk(dir) {
+            if (!fs.existsSync(dir)) return;
+            for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+              const full = path.join(dir, entry.name);
+              if (entry.isDirectory()) walk(full);
+              else if (entry.isFile() && entry.name.endsWith('.md')) markdownFiles.push(path.normalize(full));
+            }
+          }
+
+          for (const root of docsRoots) walk(root);
+          const linked = new Set();
+          const allMarkdown = ['README.md', ...markdownFiles].filter((file) => fs.existsSync(file));
+          const linkPattern = /!?\[[^\]]*\]\(([^)\s#]+)(?:#[^)\s]+)?(?:\s+"[^"]*")?\)/g;
+
+          for (const file of allMarkdown) {
+            const text = fs.readFileSync(file, 'utf8');
+            for (const match of text.matchAll(linkPattern)) {
+              const raw = match[1];
+              if (/^[a-z][a-z0-9+.-]*:/i.test(raw)) continue;
+              const resolved = path.normalize(path.relative('.', path.resolve(path.dirname(file), decodeURIComponent(raw))));
+              linked.add(resolved);
+            }
+          }
+
+          const orphans = markdownFiles.filter((file) => !ignored.has(file) && !linked.has(file));
+          fs.appendFileSync(report, `\n## Orphan documentation\n\n- Documentation files: ${markdownFiles.length}\n- Orphans: ${orphans.length}\n`);
+          if (orphans.length) {
+            for (const file of orphans) console.error(`Orphan documentation file: ${file}`);
+            fs.appendFileSync(report, orphans.map((file) => `- ORPHAN: \`${file}\``).join('\n') + '\n');
+            process.exit(1);
+          }
+          NODE
+
+      - name: Validate MF conventions
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs = require('fs');
+          const path = require('path');
+
+          const report = '.ci/reports/validate.md';
+          const failures = [];
+          const mfFiles = [];
+
+          function walk(dir) {
+            if (!fs.existsSync(dir)) return;
+            for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+              const full = path.join(dir, entry.name);
+              if (entry.isDirectory()) walk(full);
+              else if (entry.isFile() && /(^|[-_.])MF[-_.].*\.md$/i.test(entry.name)) mfFiles.push(full);
+            }
+          }
+
+          walk('docs');
+          for (const file of mfFiles) {
+            const text = fs.readFileSync(file, 'utf8');
+            const checks = [
+              [/^#\s+.+/m, 'top-level title'],
+              [/\bMF[-_][A-Z0-9.-]+\b/i, 'MF identifier'],
+              [/^##\s+Status\b/im, 'Status section'],
+              [/^##\s+Scope\b|^##\s+Escopo\b/im, 'Scope section'],
+              [/^##\s+Validation\b|^##\s+Valida[cç][aã]o\b/im, 'Validation section'],
+            ];
+            for (const [pattern, label] of checks) {
+              if (!pattern.test(text)) failures.push(`${file}: missing ${label}`);
+            }
+          }
+
+          fs.appendFileSync(report, `\n## MF conventions\n\n- MF files: ${mfFiles.length}\n- Convention failures: ${failures.length}\n`);
+          if (failures.length) {
+            for (const failure of failures) console.error(failure);
+            fs.appendFileSync(report, failures.map((failure) => `- FAIL: ${failure}`).join('\n') + '\n');
+            process.exit(1);
+          }
+          NODE
+
+      - name: Publish execution summary
+        if: always()
+        shell: bash
+        run: |
+          if [ -f .ci/reports/validate.md ]; then
+            cat .ci/reports/validate.md >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "Validation report was not generated." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Upload validation report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: validate-report
+          path: .ci/reports/validate.md
