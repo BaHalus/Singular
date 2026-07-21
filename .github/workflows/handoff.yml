@@ -1,14 +1,177 @@
 name: Handoff
+
 on:
   push:
-    branches: [ main, master ]
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      release_label:
+        description: Optional label for the generated handoff package
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: handoff-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  publish:
+  package-documentation:
+    name: Package documentation handoff
     runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v4
-      - run: mkdir -p artifacts && cp -r Docs artifacts/ || true
-      - uses: actions/upload-artifact@v4
+      - name: Checkout
+        uses: actions/checkout@v4
         with:
-          name: documentation
-          path: artifacts
+          fetch-depth: 0
+
+      - name: Prepare handoff workspace
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf .handoff
+          mkdir -p .handoff/package .handoff/reports
+
+      - name: Generate execution changelog
+        shell: bash
+        run: |
+          set -euo pipefail
+          label="${{ inputs.release_label }}"
+          if [ -z "$label" ]; then
+            label="${GITHUB_REF_NAME}-${GITHUB_SHA::12}"
+          fi
+
+          previous_tag=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || true)
+          {
+            echo "# SINGULAR handoff changelog"
+            echo
+            echo "- Label: $label"
+            echo "- Commit: $GITHUB_SHA"
+            echo "- Ref: $GITHUB_REF_NAME"
+            echo "- Actor: $GITHUB_ACTOR"
+            echo "- Generated at: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            echo
+            if [ -n "$previous_tag" ]; then
+              echo "## Commits since $previous_tag"
+              git log --no-merges --pretty='- %h %s' "$previous_tag..HEAD"
+            else
+              echo "## Recent commits"
+              git log --no-merges --max-count=25 --pretty='- %h %s'
+            fi
+            echo
+            echo "## Changed documentation files"
+            if [ -n "$previous_tag" ]; then
+              git diff --name-only "$previous_tag..HEAD" -- '*.md' 'docs/**' '.github/workflows/**' '.github/CODEOWNERS' | sed 's/^/- /'
+            else
+              git ls-files '*.md' 'docs/**' '.github/workflows/**' '.github/CODEOWNERS' | sed 's/^/- /'
+            fi
+          } > .handoff/reports/changelog.md
+
+      - name: Package documentation sources
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p .handoff/package/repository
+
+          if [ -f README.md ]; then
+            cp README.md .handoff/package/repository/README.md
+          fi
+          if [ -d docs ]; then
+            cp -R docs .handoff/package/repository/docs
+          fi
+          if [ -d .github ]; then
+            mkdir -p .handoff/package/repository/.github
+            cp -R .github/workflows .handoff/package/repository/.github/workflows
+            if [ -f .github/CODEOWNERS ]; then
+              cp .github/CODEOWNERS .handoff/package/repository/.github/CODEOWNERS
+            fi
+          fi
+
+          cp .handoff/reports/changelog.md .handoff/package/CHANGELOG.md
+
+      - name: Create package manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs = require('fs');
+          const crypto = require('crypto');
+          const path = require('path');
+
+          function walk(dir) {
+            if (!fs.existsSync(dir)) return [];
+            const files = [];
+            for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+              const full = path.join(dir, entry.name);
+              if (entry.isDirectory()) files.push(...walk(full));
+              else if (entry.isFile()) files.push(full);
+            }
+            return files;
+          }
+
+          const root = '.handoff/package';
+          const files = walk(root).sort().map((file) => {
+            const content = fs.readFileSync(file);
+            return {
+              path: path.relative(root, file).replaceAll(path.sep, '/'),
+              bytes: content.length,
+              sha256: crypto.createHash('sha256').update(content).digest('hex'),
+            };
+          });
+
+          const manifest = {
+            name: 'singular-documentation-handoff',
+            commit: process.env.GITHUB_SHA,
+            ref: process.env.GITHUB_REF_NAME,
+            generatedAt: new Date().toISOString(),
+            files,
+          };
+
+          fs.writeFileSync(`${root}/manifest.json`, JSON.stringify(manifest, null, 2) + '\n');
+          NODE
+
+      - name: Create compressed archive
+        shell: bash
+        run: |
+          set -euo pipefail
+          tar -czf singular-handoff.tar.gz -C .handoff/package .
+          sha256sum singular-handoff.tar.gz > singular-handoff.tar.gz.sha256
+          cp singular-handoff.tar.gz .handoff/reports/
+          cp singular-handoff.tar.gz.sha256 .handoff/reports/
+
+      - name: Write handoff summary
+        shell: bash
+        run: |
+          set -euo pipefail
+          {
+            echo "# Handoff package"
+            echo
+            echo "- Commit: $GITHUB_SHA"
+            echo "- Ref: $GITHUB_REF_NAME"
+            echo "- Archive: singular-handoff.tar.gz"
+            echo "- Package files: $(find .handoff/package -type f | wc -l)"
+            echo
+            echo "## Changelog"
+            cat .handoff/reports/changelog.md
+            echo
+            echo "## Archive checksum"
+            cat singular-handoff.tar.gz.sha256
+            echo
+            echo "## Future publication hook"
+            echo "This workflow currently prepares verified artifacts only. A deployment job can depend on this package later without changing the package contract."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload documentation package
+        uses: actions/upload-artifact@v4
+        with:
+          name: singular-documentation-handoff
+          path: |
+            singular-handoff.tar.gz
+            singular-handoff.tar.gz.sha256
+            .handoff/package/manifest.json
+            .handoff/reports/changelog.md
+          retention-days: 30
