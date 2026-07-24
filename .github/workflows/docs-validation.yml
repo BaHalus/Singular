@@ -1,0 +1,51 @@
+name: Documentation Validation
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "Docs/**"
+      - "docs/**"
+      - "tools/docs/**"
+      - ".github/workflows/docs-validation.yml"
+
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "Docs/**"
+      - "docs/**"
+      - "tools/docs/**"
+      - ".github/workflows/docs-validation.yml"
+
+
+permissions:
+  contents: read
+
+
+jobs:
+
+  validate-docs:
+
+    name: Validate Documentation
+
+    runs-on: ubuntu-latest
+
+
+    steps:
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+
+      - name: Validate documentation
+        run:
+
+          node tools/docs/validate.cjs
