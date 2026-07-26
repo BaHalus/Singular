@@ -10,9 +10,36 @@
     "test": "node --test",
     "build:public": "node scripts/build-public-site.mjs",
     "test:mobile-smoke": "playwright test browser-tests/mobile-alpha-real.spec.js browser-tests/pwa-installable.spec.js",
-    "test:public-deployment": "playwright test --config=playwright.public.config.js"
+    "test:public-deployment": "playwright test --config=playwright.public.config.js",
+
+    "atk:new": "tsx tools/atk/cli/docs-new.ts",
+    "atk:validate": "tsx tools/atk/cli/docs-validate.ts",
+    "atk:index": "tsx tools/atk/cli/docs-index.ts",
+    "atk:graph": "tsx tools/atk/cli/docs-graph.ts"
   },
   "devDependencies": {
-    "@playwright/test": "1.61.1"
-  }
+    "@playwright/test": "1.61.1",
+    "@types/node": "^26.1.1",
+    "tsx": "^4.23.1",
+    "typescript": "^7.0.2"
+  },
+  "main": "playwright.config.js",
+  "directories": {
+    "test": "tests"
+  },
+  "dependencies": {
+    "playwright": "^1.61.1",
+    "playwright-core": "^1.61.1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/BaHalus/Singular.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/BaHalus/Singular/issues"
+  },
+  "homepage": "https://github.com/BaHalus/Singular#readme"
 }
