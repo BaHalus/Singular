@@ -26,6 +26,7 @@ Toda conclusão deve preservar rastreabilidade para arquivo e tipo, método ou f
 - `GCS-Spells.md` depende de `GCS-Character.md` e do pipeline documentado em `GCS-Recalculate.md`.
 - `GCS-Equipment.md` depende de `GCS-Character.md` e da investigação de features.
 - `GCS-Weapons.md` registra estrutura, identidade, clonagem, persistência, ownership e resolução de nível observadas de `Weapon`; implementações auxiliares ainda não rastreadas permanecem abertas no próprio documento.
+- `GCS-Leveled-Bonuses.md` registra somente a ligação diretamente observada entre classes concretas de bônus inspecionadas e `LeveledAmount`; tipos ainda não inspecionados não são generalizados.
 - `GCS-Construction.md`, `GCS-Pricing.md` e `GCS-Importer.md` dependem de múltiplos documentos estruturais.
 
 ## Ordem de análise
@@ -38,16 +39,17 @@ Toda conclusão deve preservar rastreabilidade para arquivo e tipo, método ou f
 6. `GCS-Modifiers.md`
 7. `GCS-Features.md`
 8. `GCS-Bonuses.md`
-9. `GCS-Prerequisites.md`
-10. `GCS-Construction.md`
-11. `GCS-Pricing.md`
-12. `GCS-Templates.md`
-13. `GCS-Skills.md`
-14. `GCS-Skill-Level.md`
-15. `GCS-Spells.md`
-16. `GCS-Equipment.md`
-17. `GCS-Weapons.md`
-18. `GCS-Importer.md`
+9. `GCS-Leveled-Bonuses.md`
+10. `GCS-Prerequisites.md`
+11. `GCS-Construction.md`
+12. `GCS-Pricing.md`
+13. `GCS-Templates.md`
+14. `GCS-Skills.md`
+15. `GCS-Skill-Level.md`
+16. `GCS-Spells.md`
+17. `GCS-Equipment.md`
+18. `GCS-Weapons.md`
+19. `GCS-Importer.md`
 
 ## Estado coordenado das evidências
 
@@ -63,6 +65,7 @@ Toda conclusão deve preservar rastreabilidade para arquivo e tipo, método ou f
 - **Confirmada:** `SpellBonus.MatchForType()` e `SpellPointBonus.MatchForType()` delegam a `spellmatch.Type.MatchForType()`, e o matching textual consumido pelos bônus está rastreado por `criteria.Text.Matches()`/`MatchesList()` e `StringComparison.Matches()`. Rastreabilidade: `model/gurps/spell_bonus.go` — `(*SpellBonus).MatchForType`; `model/gurps/spell_point_bonus.go` — `(*SpellPointBonus).MatchForType`; `model/gurps/enums/spellmatch/type.go` — `Type.MatchForType`; `model/criteria/text.go` — `Text.Matches`, `Text.MatchesList`; `model/criteria/string_comparison.go` — `StringComparison.Matches`.
 - **Confirmada:** `bonusReplacements()` consulta o `Owner()` do bônus e retorna `NameableReplacements()` quando esse owner implementa `nameable.Accesser`; `BonusOwner.DerivedLeveledOwner()` privilegia um sub-owner leveled, depois um owner leveled, e recorre a `zeroLeveledOwner` quando nenhum se aplica. Rastreabilidade: `model/gurps/bonus_owner.go` — `bonusReplacements`, `BonusOwner`, `LeveledOwner`, `(*BonusOwner).DerivedLeveledOwner`, `zeroLeveledOwner`.
 - **Confirmada:** `LeveledAmount.AdjustedAmount()` retorna `Amount` diretamente quando `PerLevel` é falso; quando `PerLevel` é verdadeiro, retorna zero sem `LeveledOwner` ou com nível não positivo e, nos demais casos, retorna `Amount.Mul(CurrentLevel())`. Rastreabilidade: `model/gurps/leveled_amount.go` — `LeveledAmount`, `(*LeveledAmount).AdjustedAmount`.
+- **Confirmada:** `AttributeBonus`, `SkillBonus`, `SpellBonus` e `DRBonus` conectam-se a `LeveledAmount` nas implementações diretamente inspecionadas em `GCS-Leveled-Bonuses.md`: incorporam `LeveledAmount`, seus `SetLeveledOwner()` atribuem o owner ao campo promovido e seus hashes incluem `LeveledAmount.Hash(h)`. Os construtores observados inicializam `Amount` com `fxp.One` sem ativar `PerLevel` explicitamente. Rastreabilidade: `model/gurps/attribute_bonus.go` — `AttributeBonus`, `NewAttributeBonus`, `SetLeveledOwner`, `Hash`; `model/gurps/skill_bonus.go` — `SkillBonus`, `SkillBonusData`, `NewSkillBonus`, `SetLeveledOwner`, `Hash`; `model/gurps/spell_bonus.go` — `SpellBonus`, `SpellBonusData`, `NewSpellBonus`, `SetLeveledOwner`, `Hash`; `model/gurps/dr_bonus.go` — `DRBonus`, `DRBonusData`, `NewDRBonus`, `SetLeveledOwner`, `Hash`.
 - **Confirmada:** o pricing de Traits, incluindo classificação e extração de `TraitModifier.CostAdj`, multiplicadores de autocontrole/frequência e arredondamento observado, está consolidado em `GCS-Trait-Pricing.md`. Rastreabilidade: `model/gurps/trait.go` — `(*Trait).AdjustedPoints`, `AdjustedPoints`; `model/gurps/enums/emweight/value.go` — `ValueFromString`, `Value.ExtractFraction`; `model/gurps/enums/selfctrl/roll.go` — `Roll.Multiplier`; `model/gurps/enums/frequency/frequency.go` — `Roll.Multiplier`.
 - **Confirmada:** `PrereqList`, `AttributePrereq` e `EquippedEquipmentPrereq` possuem avaliação concreta documentada em `GCS-Prerequisites.md`; isso não confirma os demais tipos de `Prereq`. Rastreabilidade: `model/gurps/prereq.go`; `model/gurps/prereq_list.go` — `(*PrereqList).Satisfied`; `model/gurps/attribute_prereq.go` — `(*AttributePrereq).Satisfied`; `model/gurps/equipped_equipment_prereq.go` — `(*EquippedEquipmentPrereq).Satisfied`.
 - **Confirmada:** `Equipment.ReallyEquipped()` está rastreado em `GCS-Equipment.md`: exige `Equipped == true` e `Quantity > 0` no próprio item e em todos os ancestrais. `SetDataOwner()` também confirma o vínculo de runtime entre Equipment, Weapons incorporadas, filhos e EquipmentModifiers. Rastreabilidade: `model/gurps/equipment.go` — `(*Equipment).ReallyEquipped`, `(*Equipment).SetDataOwner`.
@@ -76,6 +79,6 @@ Toda conclusão deve preservar rastreabilidade para arquivo e tipo, método ou f
 - **Não confirmada:** ajuste de pontos usado por `Spell.AdjustedPoints()` e semântica interna de `SpellPrereq`. `Spell.UpdateLevel()` e `Entity.SpellBonusFor()` já estão confirmados nos documentos especializados e não integram mais esta questão aberta.
 - **Não confirmada:** `WeaponDamage.ResolvedDamage()`, métodos `Resolve()` das estruturas de combate, `Validate()` e pipeline integral de `collectWeaponBonuses()`. `Weapon.SkillLevel()`, `SkillDefault.SkillLevelFast()`, seus ajustes diretamente observados e `ResolveBoolFlag()` já estão confirmados em `GCS-Weapons.md` e `GCS-Skill-Level.md` e não integram mais esta questão aberta.
 - **Não confirmada:** implementações internas dos pontos de sincronização e ajuste de save de Templates mantidos em aberto em `GCS-Templates.md`; estrutura, ownership, persistência e despacho de sincronização já estão confirmados.
-- **Não confirmada:** como cada classe concreta de bônus conecta ou especializa `LeveledAmount`; o comportamento genérico de `LeveledAmount.AdjustedAmount()`, `SpellBonus.MatchForType()`/`SpellPointBonus.MatchForType()`, critérios `Matches()`/`MatchesList()` e o matching de Skills já estão confirmados em `GCS-Bonuses.md` e não integram mais esta questão aberta.
+- **Não confirmada:** ligação de `LeveledAmount` nas demais classes concretas de bônus ainda não inspecionadas diretamente. `AttributeBonus`, `SkillBonus`, `SpellBonus` e `DRBonus` já estão confirmados em `GCS-Leveled-Bonuses.md`; o comportamento genérico de `LeveledAmount.AdjustedAmount()` permanece consolidado em `GCS-Bonuses.md`.
 
 Questões resolvidas deixam esta lista quando a implementação correspondente é observada e registrada no documento de domínio apropriado; o README conserva apenas o estado coordenado atual.
