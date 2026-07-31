@@ -4,7 +4,7 @@
 
 Este documento registra somente comportamento observado diretamente em `richardwilkes/gcs`.
 
-Fontes principais: `model/gurps/entity.go`, tipo `Entity` e seus consumidores de bônus; `model/gurps/bonus_owner.go`, função `bonusReplacements`, tipo `BonusOwner` e interface `LeveledOwner`.
+Fontes principais: `model/gurps/entity.go`, tipo `Entity` e seus consumidores de bônus; `model/gurps/bonus_owner.go`, função `bonusReplacements`, tipo `BonusOwner` e interface `LeveledOwner`; `model/gurps/leveled_amount.go`, tipo `LeveledAmount`.
 
 ## Coleções internas
 
@@ -23,6 +23,16 @@ Rastreabilidade: `model/gurps/entity.go` — `features`, `(*Entity).processFeatu
 **Confirmada.** `BonusOwner.DerivedLeveledOwner()` tenta primeiro o `subOwner`: se ele implementar `LeveledOwner` e `IsLeveled()` for verdadeiro, ele é retornado. Se isso não ocorrer, aplica o mesmo teste ao `owner`. Se nenhum satisfizer essas condições, retorna `zeroLeveledOwner`, cujo `IsLeveled()` é falso e `CurrentLevel()` retorna zero.
 
 Rastreabilidade: `model/gurps/bonus_owner.go` — `bonusReplacements`, `BonusOwner`, `LeveledOwner`, `(*BonusOwner).DerivedLeveledOwner`, `zeroLeveledOwner`.
+
+## Ajuste de valores por nível
+
+**Confirmada.** `LeveledAmount` persiste `Amount` e `PerLevel`; seu campo `LeveledOwner` não é serializado (`json:"-"`).
+
+**Confirmada.** `(*LeveledAmount).AdjustedAmount()` retorna `Amount` sem alteração quando `PerLevel` é falso. Quando `PerLevel` é verdadeiro, retorna zero se `LeveledOwner` for nil ou se `CurrentLevel()` for menor ou igual a zero; caso contrário retorna `Amount.Mul(CurrentLevel())`.
+
+**Confirmada.** `(*LeveledAmount).Format()` usa `AdjustedAmount()` na representação de valores por nível, mantendo `Amount` como o valor indicado por nível.
+
+Rastreabilidade: `model/gurps/leveled_amount.go` — `LeveledAmount`, `(*LeveledAmount).AdjustedAmount`, `(*LeveledAmount).Format`.
 
 ## Bônus de atributo e redução de custo
 
@@ -82,7 +92,7 @@ Rastreabilidade: `model/gurps/entity.go` — `(*Entity).AddWeaponWithSkillBonuse
 
 ## Limites desta passagem
 
-- **Não confirmada:** implementação interna de `AdjustedAmount()` de cada classe concreta de bônus.
+- **Não confirmada:** como cada classe concreta de bônus conecta ou especializa `LeveledAmount`, além do comportamento genérico de `LeveledAmount.AdjustedAmount()` confirmado acima.
 - **Não confirmada:** implementação interna de `SpellBonus.MatchForType()` e `SpellPointBonus.MatchForType()`.
 - **Não confirmada:** implementação interna dos critérios `Matches()`/`MatchesList()` usados pelos consumidores.
 - **Não confirmada:** implementação interna de `SkillNamed()` usada na seleção de WeaponBonus por required skill.
