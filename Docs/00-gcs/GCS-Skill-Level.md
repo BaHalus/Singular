@@ -2,7 +2,7 @@
 
 ## Escopo e evidência
 
-**Status: Confirmada.** Evidência observada em `richardwilkes/gcs`, commit `49cb0baddb44d15421e13138a7b1b104d4a12163`, arquivo `model/gurps/skill.go`, tipos `Skill`, `SkillDefault` e `Level`, métodos `Skill.SetRawPoints()`, `Skill.AdjustedPoints()`, `Skill.CalculateLevel()`, `Skill.UpdateLevel()`, `Skill.bestDefaultWithPoints()`, `Skill.bestDefault()`, `Skill.calcSkillDefaultLevel()`, `Skill.inDefaultChain()`, `Skill.resolveToSpecificDefaults()`, `Skill.resolvableDefaults()`, `Skill.AlternateDefaultsAvailable()` e `Skill.SwapToNextDefault()`, e funções `AdjustedPointsForNonContainerSkillOrTechnique()`, `CalculateSkillLevel()` e `CalculateTechniqueLevel()`.
+**Status: Confirmada.** Evidência observada em `richardwilkes/gcs`, arquivos `model/gurps/skill.go` e `model/gurps/skill_default.go`, tipos `Skill`, `SkillDefault` e `Level`. Este documento registra somente os caminhos cuja implementação foi diretamente observada.
 
 ## Fluxo de atualização
 
@@ -66,6 +66,22 @@
 
 **Confirmada.** `resolveToSpecificDefaults()` também sintetiza defaults de `-2` para outras skills de mesmo nome e mesma especialização requerida que possuam optional specialization, mas somente quando a própria skill não possui optional specialization. Esses candidatos são obtidos por `Entity.SkillNamed(...)`; candidatos sem optional specialization ou com especialização requerida diferente são ignorados.
 
+## SkillDefault.SkillLevel e SkillLevelFast
+
+**Confirmada.** `SkillDefault.SkillLevel()` despacha por `DefaultType`. `ParryID` e `BlockID` obtêm o melhor nível por `best()`, dividem por dois com `Floor()`, somam 3 e respectivamente `Entity.ParryBonus` ou `Entity.BlockBonus`, e então aplicam `finalLevel()`. `SkillID` aplica `finalLevel()` diretamente ao resultado de `best()`. Outros tipos delegam a `SkillLevelFast()`.
+
+**Confirmada.** `best()` percorre `Entity.SkillMatching(...)`, rejeita candidatos cuja TL não satisfaça `isTLPermitted()`, chama `Skill.CalculateLevel(excludes).Level` nos candidatos que podem superar o melhor valor corrente e conserva o maior resultado calculado.
+
+**Confirmada.** `SkillLevelFast()` trata `DodgeID` usando `Entity.Dodge(Entity.EncumbranceLevel(false))`; quando `ruleOf20` é verdadeiro, limita esse valor a 20 antes de `finalLevel()`.
+
+**Confirmada.** Em `SkillLevelFast()`, `ParryID`, `BlockID` e `SkillID` usam `bestFast()`. Diferentemente de `best()`, `bestFast()` lê diretamente `sk.LevelData.Level`, sem chamar `CalculateLevel()`, após o mesmo filtro de TL observado.
+
+**Confirmada.** Para tipos diferentes de Dodge, Parry, Block e Skill, `SkillLevelFast()` primeiro exige `isTLPermitted()`, resolve o valor por `Entity.ResolveAttributeCurrent(s.Type())`, aplica teto 20 quando `ruleOf20` é verdadeiro e, se `SheetSettings.UseHalfStatDefaults` estiver ativo, transforma o valor em `floor(level / 2) + 5`. O resultado passa por `finalLevel()`.
+
+**Confirmada.** `finalLevel()` soma `SkillDefault.Modifier` somente quando o nível recebido não é `fxp.Min`; `fxp.Min` é preservado.
+
+**Confirmada.** `isTLPermitted()` aceita imediatamente `criteria.AnyNumber`. Nos demais casos usa a TL da skill recebida; se ela estiver vazia, usa `Entity.Profile.TechLevel` quando há Entity. O valor passa por `ExtractTechLevel()`, valores negativos são elevados a zero e a decisão final é `WhenTL.Compare.Matches(WhenTL.Qualifier, tl)`.
+
 ## Troca explícita de default
 
 **Confirmada.** `resolvableDefaults()` avalia os candidatos de `resolveToSpecificDefaults()` por `calcSkillDefaultLevel()`, descarta `fxp.Min`, elimina equivalentes duplicados, clona os candidatos restantes sem nível/pontos, preenche `Level` e ordena o resultado de forma estável por nível decrescente.
@@ -76,5 +92,4 @@
 
 ## Limites desta passagem
 
-- **Não confirmada nesta passagem:** implementação interna de `SkillDefault.SkillLevel()` e `SkillDefault.SkillLevelFast()`.
-- **Não confirmada nesta passagem:** mecanismos de matching chamados por `Entity.BestSkillMatching()`, `Entity.SkillMatching()` e `Entity.SkillNamed()`.
+- **Não confirmada nesta passagem:** mecanismos internos de matching chamados por `Entity.BestSkillMatching()`, `Entity.SkillMatching()` e `Entity.SkillNamed()`.
