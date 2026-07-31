@@ -4,7 +4,19 @@
 
 Este documento registra somente comportamento observado diretamente em `richardwilkes/gcs`.
 
-Fontes observadas nesta consolidação: `model/gurps/attribute_bonus.go`, `model/gurps/skill_bonus.go`, `model/gurps/spell_bonus.go`, `model/gurps/dr_bonus.go`, `model/gurps/trait_bonus.go`, `model/gurps/spell_point_bonus.go`, `model/gurps/reaction_bonus.go`, `model/gurps/conditional_modifier_bonus.go`, `model/gurps/skill_point_bonus.go`, `model/gurps/trait_max_level_bonus.go` e `model/gurps/equipment_max_uses_bonus.go`.
+Fontes observadas nesta consolidação: `model/gurps/leveled_amount.go`, `model/gurps/attribute_bonus.go`, `model/gurps/skill_bonus.go`, `model/gurps/spell_bonus.go`, `model/gurps/dr_bonus.go`, `model/gurps/trait_bonus.go`, `model/gurps/spell_point_bonus.go`, `model/gurps/reaction_bonus.go`, `model/gurps/conditional_modifier_bonus.go`, `model/gurps/skill_point_bonus.go`, `model/gurps/trait_max_level_bonus.go` e `model/gurps/equipment_max_uses_bonus.go`.
+
+## `LeveledAmount`
+
+**Confirmada.** `LeveledAmount` contém `LeveledOwner LeveledOwner` excluído do JSON, `Amount fxp.Int` persistido como `amount` e `PerLevel bool` persistido como `per_level` quando não zero.
+
+**Confirmada.** `LeveledAmount.AdjustedAmount()` retorna `Amount` sem alteração quando `PerLevel` é falso. Quando `PerLevel` é verdadeiro, retorna zero se `LeveledOwner` for nil ou se `CurrentLevel() <= 0`; caso contrário, retorna `Amount.Mul(CurrentLevel())`.
+
+**Confirmada.** `LeveledAmount.Format()` usa `Amount.StringWithSign()` quando `PerLevel` é falso. Quando verdadeiro, formata o valor ajustado e o valor unitário por nível.
+
+**Confirmada.** `LeveledAmount.Hash()` grava um marcador `uint8(255)` quando o receptor é nil; para receptor não nil, inclui `Amount` e `PerLevel`, mas não `LeveledOwner`.
+
+Rastreabilidade: `model/gurps/leveled_amount.go` — `LeveledAmount`, `AdjustedAmount()`, `Format()`, `Hash()`.
 
 ## Estrutura baseada em `LeveledAmount`
 
