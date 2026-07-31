@@ -2,7 +2,7 @@
 
 ## Escopo e evidência
 
-**Status: Confirmada.** Evidência observada em `richardwilkes/gcs`, commit `49cb0baddb44d15421e13138a7b1b104d4a12163`, arquivo `model/gurps/skill.go`, tipos `Skill`, `SkillDefault` e `Level`, métodos `Skill.SetRawPoints()`, `Skill.AdjustedPoints()`, `Skill.CalculateLevel()`, `Skill.UpdateLevel()`, `Skill.bestDefaultWithPoints()`, `Skill.bestDefault()`, `Skill.calcSkillDefaultLevel()`, `Skill.inDefaultChain()`, `Skill.resolveToSpecificDefaults()`, `Skill.resolvableDefaults()`, `Skill.AlternateDefaultsAvailable()` e `Skill.SwapToNextDefault()`, e funções `AdjustedPointsForNonContainerSkillOrTechnique()` e `CalculateSkillLevel()`.
+**Status: Confirmada.** Evidência observada em `richardwilkes/gcs`, commit `49cb0baddb44d15421e13138a7b1b104d4a12163`, arquivo `model/gurps/skill.go`, tipos `Skill`, `SkillDefault` e `Level`, métodos `Skill.SetRawPoints()`, `Skill.AdjustedPoints()`, `Skill.CalculateLevel()`, `Skill.UpdateLevel()`, `Skill.bestDefaultWithPoints()`, `Skill.bestDefault()`, `Skill.calcSkillDefaultLevel()`, `Skill.inDefaultChain()`, `Skill.resolveToSpecificDefaults()`, `Skill.resolvableDefaults()`, `Skill.AlternateDefaultsAvailable()` e `Skill.SwapToNextDefault()`, e funções `AdjustedPointsForNonContainerSkillOrTechnique()`, `CalculateSkillLevel()` e `CalculateTechniqueLevel()`.
 
 ## Fluxo de atualização
 
@@ -29,6 +29,24 @@
 **Confirmada.** Para nível válido, o relativo é somado ao valor-base. Havendo default não-Wildcard, se o resultado ficar abaixo de `def.AdjLevel`, o nível é elevado a `def.AdjLevel`.
 
 **Confirmada.** Havendo `Entity`, `Entity.SkillBonusFor(...)` é somado ao nível absoluto e ao relativo. Separadamente, `Entity.EncumbranceLevel(true).Penalty().Mul(encumbrancePenaltyMultiplier)` é somado apenas ao nível absoluto; quando não zero, essa parcela é registrada no tooltip.
+
+## CalculateTechniqueLevel
+
+**Confirmada.** `CalculateTechniqueLevel()` inicia `level` em `fxp.Min` e só tenta resolver a técnica quando `Entity` e `SkillDefault` são não nulos.
+
+**Confirmada.** Quando `def.DefaultType == SkillID`, a função obtém candidatos por `Entity.SkillMatching(def.Name, def.Specialization, replacements, requirePoints, excludes)`. Para cada candidato, rejeita a ligação que aponta de volta à técnica corrente: em outra técnica, compara nome e especialização de `TechniqueDefault`; em skill comum, compara nome e especialização de `DefaultedFrom`.
+
+**Confirmada.** Para cada candidato utilizável baseado em Skill, a função marca temporariamente `sk.String()` em `excludes`, calcula `sk.CalculateLevel(excludes).Level`, conserva o maior nível encontrado e depois restaura o estado anterior desse item no mapa de exclusões.
+
+**Confirmada.** Para defaults cujo tipo não é `SkillID`, o nível-base é obtido por `def.SkillLevelFast(e, replacements, true, nil, false) - def.Modifier`; a subtração remove o modificador do default antes das etapas seguintes.
+
+**Confirmada.** Resolvido um nível-base válido, a função o preserva em `baseLevel` e soma `def.Modifier` a `level`. Se `diffLevel == difficulty.Hard`, subtrai 1 dos pontos recebidos. Apenas pontos restantes maiores que zero são copiados para `relativeLevel`.
+
+**Confirmada.** Em seguida, `Entity.SkillBonusFor(name, specialization, "", tags, &tooltip)` é somado a `relativeLevel`, e o relativo resultante é somado a `level`.
+
+**Confirmada.** Quando `limitModifier != nil`, a função calcula `maximum = baseLevel + *limitModifier`. Se o nível calculado exceder esse máximo, reduz `relativeLevel` pela diferença e fixa `level` no máximo.
+
+**Confirmada.** O resultado é um `Level` contendo o nível final, o relativo final e o tooltip acumulado por `SkillBonusFor()`.
 
 ## Seleção de defaults
 
@@ -58,5 +76,5 @@
 
 ## Limites desta passagem
 
-- **Não confirmada nesta passagem:** algoritmo completo de `CalculateTechniqueLevel()`.
-- **Não confirmada nesta passagem:** implementação interna de `SkillDefault.SkillLevel()` e dos mecanismos de matching chamados por `Entity.BestSkillMatching()`, `Entity.SkillMatching()` e `Entity.SkillNamed()`.
+- **Não confirmada nesta passagem:** implementação interna de `SkillDefault.SkillLevel()` e `SkillDefault.SkillLevelFast()`.
+- **Não confirmada nesta passagem:** mecanismos de matching chamados por `Entity.BestSkillMatching()`, `Entity.SkillMatching()` e `Entity.SkillNamed()`.
