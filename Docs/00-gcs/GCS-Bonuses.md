@@ -76,7 +76,23 @@ Rastreabilidade: `model/gurps/entity.go` — `(*Entity).SkillNamed`, `(*Entity).
 
 **Confirmada.** `SpellPointBonusFor(...)` executa a mesma sequência observada sobre `spellPointBonuses`.
 
-Rastreabilidade: `model/gurps/entity.go` — `(*Entity).SpellBonusFor`, `(*Entity).SpellPointBonusFor`; `model/gurps/bonus_owner.go` — `bonusReplacements`.
+**Confirmada.** `SpellBonus.MatchForType()` e `SpellPointBonus.MatchForType()` não implementam matching próprio: ambos delegam a `SpellMatchType.MatchForType()`, passando `NameCriteria`, replacements, nome, power source e colleges.
+
+**Confirmada.** `spellmatch.Type.MatchForType()` retorna `true` sem consultar o critério para `AllColleges`; usa `matcher.MatchesList(replacements, colleges...)` para `CollegeName`; `matcher.Matches(replacements, powerSource)` para `PowerSource`; e `matcher.Matches(replacements, name)` para `Name`. Um valor não tratado é registrado por `errs.Log(...)` e retorna `false`.
+
+Rastreabilidade: `model/gurps/entity.go` — `(*Entity).SpellBonusFor`, `(*Entity).SpellPointBonusFor`; `model/gurps/spell_bonus.go` — `(*SpellBonus).MatchForType`; `model/gurps/spell_point_bonus.go` — `(*SpellPointBonus).MatchForType`; `model/gurps/enums/spellmatch/type.go` — `Type.MatchForType`; `model/gurps/bonus_owner.go` — `bonusReplacements`.
+
+## Matching textual dos critérios consumidos pelos bônus
+
+**Confirmada.** `criteria.Text.Matches(replacements, value)` aplica primeiro `nameable.Apply()` ao `Qualifier` e delega a comparação a `StringComparison.Matches()`.
+
+**Confirmada.** `criteria.Text.MatchesList()` aplica replacements ao qualifier, divide-o por vírgulas, remove espaços periféricos e entradas vazias; se nenhum qualifier permanecer, usa uma única string vazia. Se a lista de valores recebida estiver vazia, usa também uma única string vazia como valor.
+
+**Confirmada.** Para comparações negativas (`IsNotText`, `DoesNotContainText`, `DoesNotStartWithText`, `DoesNotEndWithText`), `MatchesList()` somente retorna `true` se cada valor falhar contra todos os qualifiers. Para os demais tipos, retorna `true` assim que qualquer par valor/qualifier corresponder.
+
+**Confirmada.** `StringComparison.Matches()` implementa `AnyText` como sempre verdadeiro; igualdade e desigualdade por `strings.EqualFold`; e contains/starts-with/ends-with, positivos ou negativos, convertendo ambos os operandos para minúsculas antes da operação correspondente. Um valor de comparação desconhecido cai no comportamento de `AnyText`.
+
+Rastreabilidade: `model/criteria/text.go` — `Text.Matches`, `Text.MatchesList`, `splitQualifiers`; `model/criteria/string_comparison.go` — `StringComparison.Matches`, `StringComparison.IsNotType`.
 
 ## Bônus de Trait e máximos
 
@@ -111,5 +127,3 @@ Rastreabilidade: `model/gurps/entity.go` — `(*Entity).AddWeaponWithSkillBonuse
 ## Limites desta passagem
 
 - **Não confirmada:** como cada classe concreta de bônus conecta ou especializa `LeveledAmount`, além do comportamento genérico de `LeveledAmount.AdjustedAmount()` confirmado acima.
-- **Não confirmada:** implementação interna de `SpellBonus.MatchForType()` e `SpellPointBonus.MatchForType()`.
-- **Não confirmada:** implementação interna dos critérios `Matches()`/`MatchesList()` usados pelos consumidores.
