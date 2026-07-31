@@ -22,7 +22,7 @@ Rastreabilidade: `model/gurps/trait.go` — `(*Trait).AllModifiers`.
 
 **Confirmada.** `selfctrl.Roll.Multiplier()` retorna: `None` = 1; `Always` = 2,5; `CR6` = 2; `CR7` = 1,83; `CR8` = 1,67; `CR9` = 1,5; `CR10` = 1,33; `CR11` = 1,17; `CR12` = 1; `CR13` = 0,83; `CR14` = 0,67; `CR15` = 0,5. Um valor fora dos casos reconhecidos retorna recursivamente o multiplicador de `None`.
 
-Rastreabilidade: `model/gurps/enums/selfctrl/roll.go` — `Roll`, `(*Roll).Multiplier` (método `Roll.Multiplier`).
+Rastreabilidade: `model/gurps/enums/selfctrl/roll.go` — `Roll`, `Roll.Multiplier`.
 
 **Confirmada.** `frequency.Roll.Multiplier()` retorna: `None` = 1; `FR6` = 0,5; `FR9` = 1; `FR12` = 2; `FR15` = 3; `Constant` = 4. Um valor fora dos casos reconhecidos retorna recursivamente o multiplicador de `None`.
 
@@ -42,7 +42,11 @@ Rastreabilidade adicional do uso no pricing: `model/gurps/trait.go` — função
 
 **Confirmada.** A conversão de `CostAdj` em fração é feita por `TraitModifier.CostModifier()`: o método obtém a fração por `CostModifierType().ExtractFraction(CostAdj)`, multiplica o numerador por `CostMultiplier()` e normaliza o resultado. A classificação de `CostAdj` é delegada a `emweight.ValueFromString()`.
 
-Rastreabilidade: `model/gurps/trait.go` — `AdjustedPoints`; `model/gurps/trait_modifier.go` — `(*TraitModifier).CostModifier`, `(*TraitModifier).CostModifierType`; enums `emweight.Addition`, `emweight.PercentageAdder`, `emweight.PercentageMultiplier`, `emweight.Multiplier`; `affects.Total`, `affects.BaseOnly`, `affects.LevelsOnly`.
+**Confirmada.** `emweight.ValueFromString()` normaliza a entrada com `TrimSpace()` e `ToLower()`. Sufixo `%` classifica como `PercentageAdder`, exceto quando a string também começa por `x` ou `×`, caso em que classifica como `PercentageMultiplier`. Prefixo ou sufixo `x`/`×`, sem o caso percentual anterior, classifica como `Multiplier`. As demais entradas são `Addition`.
+
+**Confirmada.** `emweight.Value.ExtractFraction()` remove espaços externos, remove à esquerda caracteres pertencentes à chave de `Multiplier`, elimina caracteres finais enquanto o último byte não for um dígito e entrega o restante a `fxp.NewFraction()`. Depois de `EnsureValid()`, se o tipo for `PercentageMultiplier` e a fração tiver numerador negativo, substitui-a por 100/1; se for `Multiplier` e tiver numerador negativo, substitui-a por 1/1.
+
+Rastreabilidade: `model/gurps/trait.go` — `AdjustedPoints`; `model/gurps/trait_modifier.go` — `(*TraitModifier).CostModifier`, `(*TraitModifier).CostModifierType`; `model/gurps/enums/emweight/value.go` — `ValueFromString`, `Value.ExtractFraction`; enums `emweight.Addition`, `emweight.PercentageAdder`, `emweight.PercentageMultiplier`, `emweight.Multiplier`; `affects.Total`, `affects.BaseOnly`, `affects.LevelsOnly`.
 
 ## Aplicação dos percentuais
 
@@ -84,4 +88,4 @@ Rastreabilidade: `model/gurps/trait.go` — `(*Trait).ResolvedMaxLevels`; `Trait
 
 ## Questões em aberto
 
-- **Não confirmada:** gramática interna completa de `emweight.ValueFromString()` e `ExtractFraction()`; está confirmado apenas que `TraitModifier` delega a essas funções a classificação e extração da fração de `CostAdj`.
+Nenhuma questão específica deste documento permanece aberta após a inspeção de `emweight.ValueFromString()` e `Value.ExtractFraction()`.
