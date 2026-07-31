@@ -20,7 +20,15 @@ Rastreabilidade: `model/gurps/trait.go` — `(*Trait).AllModifiers`.
 
 **Confirmada.** O multiplicador global começa como o produto de `cr.Multiplier()` e `fr.Multiplier()`, isto é, dos multiplicadores fornecidos pelos valores de autocontrole e frequência recebidos pela função.
 
-Rastreabilidade: `model/gurps/trait.go` — função `AdjustedPoints`; tipos/valores `selfctrl.Roll`, `frequency.Roll`, `fxp.Fraction`.
+**Confirmada.** `selfctrl.Roll.Multiplier()` retorna: `None` = 1; `Always` = 2,5; `CR6` = 2; `CR7` = 1,83; `CR8` = 1,67; `CR9` = 1,5; `CR10` = 1,33; `CR11` = 1,17; `CR12` = 1; `CR13` = 0,83; `CR14` = 0,67; `CR15` = 0,5. Um valor fora dos casos reconhecidos retorna recursivamente o multiplicador de `None`.
+
+Rastreabilidade: `model/gurps/enums/selfctrl/roll.go` — `Roll`, `(*Roll).Multiplier` (método `Roll.Multiplier`).
+
+**Confirmada.** `frequency.Roll.Multiplier()` retorna: `None` = 1; `FR6` = 0,5; `FR9` = 1; `FR12` = 2; `FR15` = 3; `Constant` = 4. Um valor fora dos casos reconhecidos retorna recursivamente o multiplicador de `None`.
+
+Rastreabilidade: `model/gurps/enums/frequency/frequency.go` — `Roll`, `Roll.Multiplier`.
+
+Rastreabilidade adicional do uso no pricing: `model/gurps/trait.go` — função `AdjustedPoints`; tipos/valores `selfctrl.Roll`, `frequency.Roll`, `fxp.Fraction`.
 
 ## TraitModifier no cálculo
 
@@ -76,5 +84,4 @@ Rastreabilidade: `model/gurps/trait.go` — `(*Trait).ResolvedMaxLevels`; `Trait
 
 ## Questões em aberto
 
-- **Não confirmada:** implementação interna dos multiplicadores retornados por `selfctrl.Roll.Multiplier()` e `frequency.Roll.Multiplier()`; está confirmado apenas onde e como esses resultados entram no pricing.
 - **Não confirmada:** gramática interna completa de `emweight.ValueFromString()` e `ExtractFraction()`; está confirmado apenas que `TraitModifier` delega a essas funções a classificação e extração da fração de `CostAdj`.
