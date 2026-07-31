@@ -1,10 +1,10 @@
-# GCS — Equipment: estrutura e persistência
+# GCS — Equipment: estrutura, persistência e cálculo
 
 ## Escopo e evidência
 
 Este documento registra exclusivamente comportamento observado no código-fonte público de `richardwilkes/gcs`, no commit `49cb0baddb44d15421e13138a7b1b104d4a12163`.
 
-Fonte principal desta passagem: `model/gurps/equipment.go`, tipos `Equipment`, `EquipmentData`, `EquipmentEditData`, `EquipmentSyncData` e funções/métodos associados citados abaixo.
+Fontes desta passagem: `model/gurps/equipment.go` e `model/gurps/equipment_modifier.go`, tipos `Equipment`, `EquipmentModifier` e funções/métodos citados abaixo.
 
 ## Estrutura persistida
 
@@ -68,20 +68,57 @@ Rastreabilidade: `model/gurps/equipment.go`: `Equipment.MarshalJSONTo`.
 
 Rastreabilidade: `model/gurps/equipment.go`: `Equipment.UnmarshalJSONFrom`.
 
+## Valor e EquipmentModifier
+
+**Confirmada.** `ResolvedBaseValue()` resolve `BaseValue` após substituições e scripts, limita o resultado ao intervalo de zero a `fxp.Max-1`, e `AdjustedValue()` passa esse resultado a `ValueAdjustedForModifiers(e, ..., e.Modifiers)`.
+
+**Confirmada.** `ValueAdjustedForModifiers()` executa quatro etapas, nesta ordem: `emcost.Original`, `emcost.Base`, `emcost.FinalBase` e `emcost.Final`. As etapas `Original`, `FinalBase` e `Final` são processadas por `processNonCFStep()`.
+
+**Confirmada.** Em `processNonCFStep()`, modifiers do tipo da etapa são percorridos recursivamente. `Addition` é acumulada; `Percentage` é acumulada e depois aplicada sobre o valor recebido pela etapa; `Multiplier` altera imediatamente `cost` por multiplicação. Depois são somadas as adições e, se houver percentuais, soma-se `value * percentages / 100`.
+
+**Confirmada.** Na etapa `emcost.Base`, `ValueAdjustedForModifiers()` acumula `cf` a partir do valor extraído de cada modifier multiplicado por `CostMultiplier()`. Quando o valor analisado é `emcost.Multiplier`, subtrai `fxp.One` dessa contribuição. Se `cf != 0`, o custo corrente é multiplicado por `cf.Max(fxp.NegPointEight) + fxp.One`.
+
+**Confirmada.** Ao final das quatro etapas, `ValueAdjustedForModifiers()` retorna `cost.Max(0)`.
+
+**Confirmada.** `EquipmentModifier.CostMultiplier()` usa `multiplierForEquipmentModifier()` para aplicar nível quando `CostIsPerLevel` está ativo. Quando `CostIsPerPound` está ativo, multiplica ainda pelo maior entre `AdjustedWeight(false, defaultUnits)` e `ResolvedBaseWeight()`, arredondado por `Ceil()` e limitado a no mínimo `fxp.One`. `multiplierForEquipmentModifier()` também garante multiplicador mínimo `fxp.One`.
+
+**Confirmada.** `ExtendedValue()` retorna zero para `Quantity <= 0`; caso contrário parte de `AdjustedValue()`, soma recursivamente `ExtendedValue()` dos filhos se for container e multiplica o total pela quantidade do próprio item. `ExtendedValueOfJustOne()` segue o mesmo cálculo, mas não multiplica pela quantidade do próprio item.
+
+Rastreabilidade: `model/gurps/equipment.go`: `ResolvedBaseValue`, `AdjustedValue`, `ExtendedValue`, `ExtendedValueOfJustOne`; `model/gurps/equipment_modifier.go`: `EquipmentModifier.CostMultiplier`, `multiplierForEquipmentModifier`, `ValueAdjustedForModifiers`, `processNonCFStep`.
+
+## Peso e EquipmentModifier
+
+**Confirmada.** `ResolvedBaseWeight()` resolve `BaseWeight` após substituições/scripts usando as unidades padrão da ficha. `AdjustedWeight()` retorna zero quando `forSkills` é verdadeiro, `WeightIgnoredForSkills` é verdadeiro e `ReallyEquipped()` é verdadeiro; nos demais casos delega a `WeightAdjustedForModifiers()`.
+
+**Confirmada.** `WeightAdjustedForModifiers()` processa, nesta ordem, `emweight.Original`, `emweight.Base`, `emweight.FinalBase` e `emweight.Final`, e limita o resultado final a no mínimo zero.
+
+**Confirmada.** Na etapa `Original`, adições são convertidas para libras pela unidade final presente na string ou pela unidade padrão; percentuais são acumulados e depois aplicados sobre o peso original recebido pela função. O numerador da fração extraída é multiplicado por `WeightMultiplier()` antes da aplicação.
+
+**Confirmada.** As etapas `Base`, `FinalBase` e `Final` usam `processMultiplyAddWeightStep()`. Nelas, `Addition` é acumulada separadamente; `PercentageMultiplier` substitui o peso corrente por `weight * numerator / (denominator * 100)`; `Multiplier` substitui o peso corrente por `weight * numerator / denominator`; as adições acumuladas são somadas ao fim da etapa.
+
+**Confirmada.** `EquipmentModifier.WeightMultiplier()` aplica `multiplierForEquipmentModifier()` com `WeightIsPerLevel`, portanto o nível do Equipment é usado somente quando a flag está ativa e o item é nivelado; o multiplicador resultante nunca fica abaixo de `fxp.One`.
+
+**Confirmada.** `ExtendedWeight()` delega a `ExtendedWeightAdjustedForModifiers()` com quantidade, peso base, modifiers, features, filhos e os flags relativos a skills.
+
+**Confirmada.** `ExtendedWeightAdjustedForModifiers()` retorna zero para quantidade não positiva. O peso próprio entra por `WeightAdjustedForModifiers()` salvo quando está sendo calculado para skills e `weightIgnoredForSkills` é verdadeiro.
+
+**Confirmada.** Quando existem filhos, seus `ExtendedWeight()` são somados. Em seguida, `ContainedWeightReduction` é coletado tanto das `Features` do próprio Equipment quanto das `Features` dos `EquipmentModifier` percorridos. Reduções percentuais são somadas entre si e reduções fixas são somadas separadamente.
+
+**Confirmada.** Percentual acumulado de pelo menos 100 zera o peso contido; percentual positivo menor que 100 subtrai `contained * percentage / 100`. Depois o peso contido recebe a redução fixa e é limitado a no mínimo zero antes de ser somado ao peso próprio. O resultado é finalmente multiplicado pela quantidade.
+
+Rastreabilidade: `model/gurps/equipment.go`: `ResolvedBaseWeight`, `AdjustedWeight`, `ExtendedWeight`, `ExtendedWeightAdjustedForModifiers`; `model/gurps/equipment_modifier.go`: `EquipmentModifier.WeightMultiplier`, `WeightAdjustedForModifiers`, `processMultiplyAddWeightStep`.
+
 ## Relação com Weapons, Features e Prerequisites
 
 **Confirmada.** `EquipmentSyncData` possui diretamente `Weapons []*Weapon`, `Features Features` e `Prereq *PrereqList`; portanto esses objetos fazem parte da estrutura de dados sincronizável/persistível declarada de Equipment.
 
-**Não confirmada nesta passagem.** A semântica completa de atualização e cálculo das `Weapons` incorporadas não é estabelecida apenas pela presença do campo e requer rastreamento das implementações de Weapon.
+**Confirmada.** `ContainedWeightReduction` é consumido diretamente pelo cálculo de `ExtendedWeightAdjustedForModifiers()` a partir das features do Equipment e de seus EquipmentModifiers. Isso é independente do fato de `Entity.processFeature()` reconhecer esse tipo sem armazená-lo na coleção interna `Entity.features`.
 
-**Não confirmada nesta passagem.** A aplicação integral das `Features` de Equipment no ciclo da Entity não é estabelecida neste documento; deve ser correlacionada com o fluxo já documentado de coleta/processamento da Entity.
+**Não confirmada nesta passagem.** A semântica completa de atualização e cálculo das `Weapons` incorporadas não é estabelecida apenas pela presença do campo e requer rastreamento das implementações de Weapon.
 
 **Não confirmada nesta passagem.** A avaliação interna de `PrereqList` não é inferida a partir do campo `Prereq`.
 
 ## Questões abertas desta passagem
 
-- **Não confirmada:** pipeline interno de `AdjustedValue()` e `ExtendedValue()`.
-- **Não confirmada:** pipeline interno de `AdjustedWeight()` e `ExtendedWeight()`.
 - **Não confirmada:** semântica completa de `ReallyEquipped()`, inclusive propagação por containers ancestrais.
-- **Não confirmada:** transformação de custo/peso realizada por `EquipmentModifier`.
 - **Não confirmada:** comportamento das `Weapons` incorporadas ao Equipment além da estrutura observada.
