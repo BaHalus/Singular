@@ -2,7 +2,7 @@
 
 ## Escopo e evidência
 
-**Status: Confirmada.** Evidência observada em `richardwilkes/gcs`, commit `49cb0baddb44d15421e13138a7b1b104d4a12163`, arquivo `model/gurps/skill.go`, tipos `Skill` e `Level`, métodos `Skill.SetRawPoints()`, `Skill.AdjustedPoints()`, `Skill.CalculateLevel()`, `Skill.UpdateLevel()` e funções `AdjustedPointsForNonContainerSkillOrTechnique()` e `CalculateSkillLevel()`.
+**Status: Confirmada.** Evidência observada em `richardwilkes/gcs`, commit `49cb0baddb44d15421e13138a7b1b104d4a12163`, arquivo `model/gurps/skill.go`, tipos `Skill`, `SkillDefault` e `Level`, métodos `Skill.SetRawPoints()`, `Skill.AdjustedPoints()`, `Skill.CalculateLevel()`, `Skill.UpdateLevel()`, `Skill.bestDefaultWithPoints()`, `Skill.bestDefault()`, `Skill.calcSkillDefaultLevel()`, `Skill.inDefaultChain()`, `Skill.resolveToSpecificDefaults()`, `Skill.resolvableDefaults()`, `Skill.AlternateDefaultsAvailable()` e `Skill.SwapToNextDefault()`, e funções `AdjustedPointsForNonContainerSkillOrTechnique()` e `CalculateSkillLevel()`.
 
 ## Fluxo de atualização
 
@@ -30,8 +30,33 @@
 
 **Confirmada.** Havendo `Entity`, `Entity.SkillBonusFor(...)` é somado ao nível absoluto e ao relativo. Separadamente, `Entity.EncumbranceLevel(true).Penalty().Mul(encumbrancePenaltyMultiplier)` é somado apenas ao nível absoluto; quando não zero, essa parcela é registrada no tooltip.
 
+## Seleção de defaults
+
+**Confirmada.** `bestDefaultWithPoints()` retorna `nil` para técnicas. Para as demais skills, chama `bestDefault()`. Quando existe default selecionado, calcula uma baseline como `floor(ResolveAttributeCurrent(AdjustedDifficulty().Attribute) + AdjustedDifficulty().Difficulty.BaseRelativeLevel())`, grava `best.AdjLevel` com `floor(best.Level)` e deriva `best.Points` comparando esse nível com a baseline: igualdade produz 1 ponto; baseline + 1 produz 2; acima disso produz `4 * (level - (baseline + 1))`; abaixo da baseline produz o negativo de `max(level, 0)`.
+
+**Confirmada.** `bestDefault()` retorna `nil` quando `EntityFromNode(s)` é `nil`. A própria skill é inserida no mapa de exclusões antes da avaliação dos candidatos.
+
+**Confirmada.** `bestDefault()` obtém candidatos por `resolveToSpecificDefaults()`. Candidatos equivalentes ao default explicitamente excluído ou que participem de uma cadeia de default que retorna à própria skill são ignorados. Cada candidato restante é avaliado por `calcSkillDefaultLevel()`; resultados `fxp.Min` são descartados. O maior nível encontrado é conservado em clone produzido por `CloneWithoutLevelOrPoints()`, com `Level` preenchido pelo nível calculado.
+
+**Confirmada.** Existe uma exceção explícita à escolha dinâmica do maior nível. Quando `excluded == nil`, há `DefaultedFrom`, `AdjustedPoints(nil) > 0` e a skill declara `Defaults`, `bestDefault()` tenta conservar o default corrente se ele continuar resolvível. Se um candidato for equivalente ao `DefaultedFrom`, ele é guardado como `preferredDef`; ao final, `preferredDef` tem precedência sobre o candidato de maior nível.
+
+**Confirmada.** `calcSkillDefaultLevel()` chama `SkillDefault.SkillLevel(...)`. Se o resultado for `fxp.Min`, devolve-o sem outro ajuste. Para default baseado em skill, procura `Entity.BestSkillMatching(...)` e, quando encontra uma skill, subtrai do nível o `Entity.SkillBonusFor(...)` aplicável à skill encontrada antes de devolver o resultado.
+
+**Confirmada.** `inDefaultChain()` só percorre defaults baseados em skill. Ele consulta `Entity.SkillMatching(...)`, retorna verdadeiro se encontrar a própria skill e, para outros resultados ainda não visitados, percorre recursivamente `DefaultedFrom`.
+
+**Confirmada.** `resolveToSpecificDefaults()` conserva diretamente defaults que não sejam baseados em skill ou quando não existe Entity. Para defaults baseados em skill com Entity, expande os resultados de `Entity.SkillMatching(...)` em cópias específicas do default, fixando nome e especialização com critérios `criteria.IsText`. Quando a skill correspondente possui optional specialization e o critério original de especialização casa com a especialização requerida, a cópia recebe `Modifier -= 2`.
+
+**Confirmada.** `resolveToSpecificDefaults()` também sintetiza defaults de `-2` para outras skills de mesmo nome e mesma especialização requerida que possuam optional specialization, mas somente quando a própria skill não possui optional specialization. Esses candidatos são obtidos por `Entity.SkillNamed(...)`; candidatos sem optional specialization ou com especialização requerida diferente são ignorados.
+
+## Troca explícita de default
+
+**Confirmada.** `resolvableDefaults()` avalia os candidatos de `resolveToSpecificDefaults()` por `calcSkillDefaultLevel()`, descarta `fxp.Min`, elimina equivalentes duplicados, clona os candidatos restantes sem nível/pontos, preenche `Level` e ordena o resultado de forma estável por nível decrescente.
+
+**Confirmada.** `AlternateDefaultsAvailable()` exige `CanSwapDefaults()`, pelo menos um default declarado e mais de um candidato resolvível.
+
+**Confirmada.** `SwapToNextDefault()` não faz nada com menos de dois candidatos. Caso contrário, localiza o default corrente entre os candidatos, seleciona o próximo com retorno circular ao início e grava-o em `DefaultedFrom`. Se o default recém-selecionado formar uma cadeia que retorna à própria skill, `DefaultSkill()` é consultado e o `DefaultedFrom` da skill-alvo é limpo quando ela existe e é diferente da skill corrente. Havendo Entity, o método termina chamando `Entity.Recalculate()`.
+
 ## Limites desta passagem
 
-- **Não confirmada nesta passagem:** implementação completa de `bestDefaultWithPoints()` e `bestDefault()`.
 - **Não confirmada nesta passagem:** algoritmo completo de `CalculateTechniqueLevel()`.
-- **Não confirmada nesta passagem:** implementação interna de `Entity.SkillPointBonusFor()` e `Entity.SkillBonusFor()`.
+- **Não confirmada nesta passagem:** implementação interna de `SkillDefault.SkillLevel()` e dos mecanismos de matching chamados por `Entity.BestSkillMatching()`, `Entity.SkillMatching()` e `Entity.SkillNamed()`.
