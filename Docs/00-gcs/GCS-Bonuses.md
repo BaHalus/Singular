@@ -4,7 +4,7 @@
 
 Este documento registra somente comportamento observado diretamente em `richardwilkes/gcs`.
 
-Fonte principal: `model/gurps/entity.go`, tipo `Entity` e métodos `AttributeBonusFor`, `CostReductionFor`, `SkillBonusFor`, `SkillPointBonusFor`, `SpellBonusFor`, `SpellPointBonusFor`, `TraitBonusFor`, `TraitMaxLevelBonusesFor`, `EquipmentMaxUsesBonusesFor`, `AddDRBonusesFor`, `AddWeaponWithSkillBonusesFor`, `AddNamedWeaponBonusesFor` e `NamedWeaponSkillBonusesFor`.
+Fontes principais: `model/gurps/entity.go`, tipo `Entity` e seus consumidores de bônus; `model/gurps/bonus_owner.go`, função `bonusReplacements`, tipo `BonusOwner` e interface `LeveledOwner`.
 
 ## Coleções internas
 
@@ -13,6 +13,16 @@ Fonte principal: `model/gurps/entity.go`, tipo `Entity` e métodos `AttributeBon
 **Confirmada.** `processFeature()` classifica instâncias concretas de Feature e as acrescenta às coleções correspondentes. Antes desse despacho, objetos que implementam `Bonus` recebem owner, sub-owner e leveled owner; objetos que implementam `Override` recebem owner e sub-owner.
 
 Rastreabilidade: `model/gurps/entity.go` — `features`, `(*Entity).processFeature`.
+
+## Ownership e replacements dos bônus
+
+**Confirmada.** `bonusReplacements(b Bonus)` consulta `b.Owner()`. Se o owner implementar `nameable.Accesser`, retorna diretamente `NameableReplacements()` desse owner; caso contrário retorna `nil`. A função não consulta o sub-owner para obter replacements.
+
+**Confirmada.** `BonusOwner` armazena separadamente `owner` e `subOwner`, expostos por `Owner()`/`SetOwner()` e `SubOwner()`/`SetSubOwner()`.
+
+**Confirmada.** `BonusOwner.DerivedLeveledOwner()` tenta primeiro o `subOwner`: se ele implementar `LeveledOwner` e `IsLeveled()` for verdadeiro, ele é retornado. Se isso não ocorrer, aplica o mesmo teste ao `owner`. Se nenhum satisfizer essas condições, retorna `zeroLeveledOwner`, cujo `IsLeveled()` é falso e `CurrentLevel()` retorna zero.
+
+Rastreabilidade: `model/gurps/bonus_owner.go` — `bonusReplacements`, `BonusOwner`, `LeveledOwner`, `(*BonusOwner).DerivedLeveledOwner`, `zeroLeveledOwner`.
 
 ## Bônus de atributo e redução de custo
 
@@ -32,7 +42,7 @@ Rastreabilidade: `model/gurps/entity.go` — `(*Entity).processFeatures`, `(*Ent
 
 **Confirmada.** `NamedWeaponSkillBonusesFor(name, usage, tags, tooltip)` é um consumidor separado de `skillBonuses`: seleciona apenas `SelectionType == skillsel.WeaponsWithName`, testa nome, uso por `SpecializationCriteria` e tags, e retorna os objetos `*SkillBonus` correspondentes em vez de somar seus valores.
 
-Rastreabilidade: `model/gurps/entity.go` — `(*Entity).SkillBonusFor`, `(*Entity).SkillPointBonusFor`, `(*Entity).NamedWeaponSkillBonusesFor`.
+Rastreabilidade: `model/gurps/entity.go` — `(*Entity).SkillBonusFor`, `(*Entity).SkillPointBonusFor`, `(*Entity).NamedWeaponSkillBonusesFor`; `model/gurps/bonus_owner.go` — `bonusReplacements`.
 
 ## Bônus de Spell
 
@@ -40,7 +50,7 @@ Rastreabilidade: `model/gurps/entity.go` — `(*Entity).SkillBonusFor`, `(*Entit
 
 **Confirmada.** `SpellPointBonusFor(...)` executa a mesma sequência observada sobre `spellPointBonuses`.
 
-Rastreabilidade: `model/gurps/entity.go` — `(*Entity).SpellBonusFor`, `(*Entity).SpellPointBonusFor`.
+Rastreabilidade: `model/gurps/entity.go` — `(*Entity).SpellBonusFor`, `(*Entity).SpellPointBonusFor`; `model/gurps/bonus_owner.go` — `bonusReplacements`.
 
 ## Bônus de Trait e máximos
 
@@ -48,7 +58,7 @@ Rastreabilidade: `model/gurps/entity.go` — `(*Entity).SpellBonusFor`, `(*Entit
 
 **Confirmada.** `TraitMaxLevelBonusesFor(name, tags, tooltip)` considera apenas `TraitMaxLevelBonus` com `SelectionType == traitsel.TraitWithName`, aplica replacements e exige correspondência de nome e tags. O método retorna a lista dos bônus correspondentes, sem somá-los nesse ponto.
 
-Rastreabilidade: `model/gurps/entity.go` — `(*Entity).TraitBonusFor`, `(*Entity).TraitMaxLevelBonusesFor`.
+Rastreabilidade: `model/gurps/entity.go` — `(*Entity).TraitBonusFor`, `(*Entity).TraitMaxLevelBonusesFor`; `model/gurps/bonus_owner.go` — `bonusReplacements`.
 
 ## Equipment e DR
 
@@ -56,7 +66,7 @@ Rastreabilidade: `model/gurps/entity.go` — `(*Entity).TraitBonusFor`, `(*Entit
 
 **Confirmada.** `AddDRBonusesFor(locationID, tooltip, drMap)` percorre `drBonuses`. Um bônus é aceito quando uma de suas locations é `AllID` e a location solicitada é top-level no `BodyType`, ou quando a location coincide com `locationID` sem distinção de maiúsculas/minúsculas. O valor adicionado ao mapa é `AdjustedAmount()` convertido para inteiro, indexado pela especialização em minúsculas.
 
-Rastreabilidade: `model/gurps/entity.go` — `(*Entity).EquipmentMaxUsesBonusesFor`, `(*Entity).AddDRBonusesFor`.
+Rastreabilidade: `model/gurps/entity.go` — `(*Entity).EquipmentMaxUsesBonusesFor`, `(*Entity).AddDRBonusesFor`; `model/gurps/bonus_owner.go` — `bonusReplacements`.
 
 ## Bônus de Weapon
 
@@ -66,11 +76,12 @@ Rastreabilidade: `model/gurps/entity.go` — `(*Entity).EquipmentMaxUsesBonusesF
 
 **Confirmada.** `addWeaponBonusToMap()` evita inserir novamente um mesmo ponteiro `*WeaponBonus` já presente no mapa. Para um bônus novo, calcula o valor usado no tooltip por `adjustedAmount()` com o número de dados fornecido e `DerivedLeveledOwner()`, e então marca o bônus no mapa.
 
-Rastreabilidade: `model/gurps/entity.go` — `(*Entity).AddWeaponWithSkillBonusesFor`, `(*Entity).AddNamedWeaponBonusesFor`, `addWeaponBonusToMap`.
+**Confirmada.** O `DerivedLeveledOwner()` usado nesse caminho privilegia um sub-owner leveled sobre um owner leveled; na ausência de ambos, fornece um owner sintético com nível zero.
+
+Rastreabilidade: `model/gurps/entity.go` — `(*Entity).AddWeaponWithSkillBonusesFor`, `(*Entity).AddNamedWeaponBonusesFor`, `addWeaponBonusToMap`; `model/gurps/bonus_owner.go` — `(*BonusOwner).DerivedLeveledOwner`, `zeroLeveledOwner`.
 
 ## Limites desta passagem
 
-- **Não confirmada:** implementação interna de `bonusReplacements()`.
 - **Não confirmada:** implementação interna de `AdjustedAmount()` de cada classe concreta de bônus.
 - **Não confirmada:** implementação interna de `SpellBonus.MatchForType()` e `SpellPointBonus.MatchForType()`.
 - **Não confirmada:** implementação interna dos critérios `Matches()`/`MatchesList()` usados pelos consumidores.
