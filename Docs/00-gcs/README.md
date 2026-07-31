@@ -43,6 +43,9 @@ Toda conclusão deve preservar rastreabilidade para arquivo e tipo, método ou f
 
 ## Questões abertas coordenadas
 
-- **Não confirmada:** implementação interna de `selfctrl.Roll.Multiplier()` e `frequency.Roll.Multiplier()` no pricing de Traits.
-- **Não confirmada:** gramática interna completa de `emweight.ValueFromString()` e `ExtractFraction()` usada por `TraitModifier.CostAdj`.
 - **Não confirmada:** efeitos posteriores das `Features` de `TraitModifier` além dos pontos já rastreados no fluxo de coleta da `Entity`.
+
+## Questões encerradas por evidência posterior
+
+- **Confirmada:** multiplicadores de `selfctrl.Roll` e `frequency.Roll`, documentados em `GCS-Trait-Pricing.md` a partir de `model/gurps/enums/selfctrl/roll.go` e `model/gurps/enums/frequency/frequency.go`.
+- **Confirmada:** classificação e extração de `TraitModifier.CostAdj` por `emweight.ValueFromString()` e `Value.ExtractFraction()`, observadas em `model/gurps/enums/emweight/value.go`; a consolidação detalhada permanece em `GCS-Trait-Pricing.md`.
