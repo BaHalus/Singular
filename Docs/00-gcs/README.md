@@ -41,11 +41,17 @@ Toda conclusão deve preservar rastreabilidade para arquivo e tipo, método ou f
 13. `GCS-Equipment.md`
 14. `GCS-Importer.md`
 
+## Estado coordenado das evidências
+
+- **Confirmada:** `Entity.Recalculate()` coleta `Features` de `TraitModifier` durante `processFeatures()` e as encaminha ao mesmo `processFeature()` usado pelas features do Trait. Rastreabilidade: `model/gurps/entity.go` — `(*Entity).processFeatures`, `(*Entity).processFeature`; tipo `TraitModifier`.
+- **Confirmada:** o pricing de Traits, incluindo classificação e extração de `TraitModifier.CostAdj`, multiplicadores de autocontrole/frequência e arredondamento observado, está consolidado em `GCS-Trait-Pricing.md`. Rastreabilidade: `model/gurps/trait.go` — `(*Trait).AdjustedPoints`, `AdjustedPoints`; `model/gurps/enums/emweight/value.go` — `ValueFromString`, `Value.ExtractFraction`; `model/gurps/enums/selfctrl/roll.go` — `Roll.Multiplier`; `model/gurps/enums/frequency/frequency.go` — `Roll.Multiplier`.
+- **Confirmada:** estrutura e persistência observadas de Skills, Spells e Equipment estão separadas nos respectivos documentos de domínio; o README não replica esses detalhes.
+
 ## Questões abertas coordenadas
 
-- **Não confirmada:** efeitos posteriores das `Features` de `TraitModifier` além dos pontos já rastreados no fluxo de coleta da `Entity`.
+- **Não confirmada:** cadeia completa de consumo de cada tipo concreto de `Feature` originada em `TraitModifier`, além da coleta e despacho já confirmados em `Entity.processFeatures()`/`processFeature()`.
+- **Não confirmada:** implementação interna de `Prereq.Satisfied()` para cada tipo concreto de pré-requisito.
+- **Não confirmada:** algoritmos internos de `Skill.UpdateLevel()` e `Spell.UpdateLevel()` além de sua participação já confirmada no ciclo de convergência de `Entity.Recalculate()`.
+- **Não confirmada:** participação completa de Weapons e Templates no grafo e no ciclo de vida, fora dos pontos já documentados por inspeção direta.
 
-## Questões encerradas por evidência posterior
-
-- **Confirmada:** multiplicadores de `selfctrl.Roll` e `frequency.Roll`, documentados em `GCS-Trait-Pricing.md` a partir de `model/gurps/enums/selfctrl/roll.go` e `model/gurps/enums/frequency/frequency.go`.
-- **Confirmada:** classificação e extração de `TraitModifier.CostAdj` por `emweight.ValueFromString()` e `Value.ExtractFraction()`, observadas em `model/gurps/enums/emweight/value.go`; a consolidação detalhada permanece em `GCS-Trait-Pricing.md`.
+Questões resolvidas deixam esta lista quando a implementação correspondente é observada e registrada no documento de domínio apropriado; o README conserva apenas o estado coordenado atual.
