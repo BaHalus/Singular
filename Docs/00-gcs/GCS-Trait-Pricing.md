@@ -32,7 +32,9 @@ Rastreabilidade: `model/gurps/trait.go` — função `AdjustedPoints`; tipos/val
 
 **Confirmada.** Para `emweight.PercentageMultiplier`, o multiplicador global é multiplicado pelo modificador e dividido por 100. Para `emweight.Multiplier`, o multiplicador global é multiplicado diretamente pelo modificador.
 
-Rastreabilidade: `model/gurps/trait.go` — `AdjustedPoints`; `TraitModifier.CostModifier`, `TraitModifier.CostModifierType`; enums `emweight.Addition`, `emweight.PercentageAdder`, `emweight.PercentageMultiplier`, `emweight.Multiplier`; `affects.Total`, `affects.BaseOnly`, `affects.LevelsOnly`.
+**Confirmada.** A conversão de `CostAdj` em fração é feita por `TraitModifier.CostModifier()`: o método obtém a fração por `CostModifierType().ExtractFraction(CostAdj)`, multiplica o numerador por `CostMultiplier()` e normaliza o resultado. A classificação de `CostAdj` é delegada a `emweight.ValueFromString()`.
+
+Rastreabilidade: `model/gurps/trait.go` — `AdjustedPoints`; `model/gurps/trait_modifier.go` — `(*TraitModifier).CostModifier`, `(*TraitModifier).CostModifierType`; enums `emweight.Addition`, `emweight.PercentageAdder`, `emweight.PercentageMultiplier`, `emweight.Multiplier`; `affects.Total`, `affects.BaseOnly`, `affects.LevelsOnly`.
 
 ## Aplicação dos percentuais
 
@@ -50,9 +52,11 @@ Rastreabilidade: `model/gurps/trait.go` — `AdjustedPoints`, `modifyPoints`; `S
 
 ## Multiplicadores e arredondamento final
 
-**Confirmada.** Depois de adições e percentuais, o total é multiplicado pelo multiplicador global. O retorno passa por `fxp.ApplyRounding(..., roundCostDown)`. Assim, o parâmetro `RoundCostDown` recebido do Trait controla a direção usada nessa operação final de arredondamento.
+**Confirmada.** Depois de adições e percentuais, o total é multiplicado pelo multiplicador global. O retorno passa por `fxp.ApplyRounding(..., roundCostDown)`.
 
-Rastreabilidade: `model/gurps/trait.go` — `AdjustedPoints`; `fxp.ApplyRounding` como função chamada.
+**Confirmada.** `fxp.ApplyRounding(value, roundDown)` chama `value.Floor()` quando `roundDown` é verdadeiro e `value.Ceil()` quando é falso. Portanto, o `RoundCostDown` recebido pelo pricing seleciona diretamente essas duas operações.
+
+Rastreabilidade: `model/gurps/trait.go` — `AdjustedPoints`; `model/fxp/int.go` — `ApplyRounding`.
 
 ## Containers
 
@@ -60,7 +64,7 @@ Rastreabilidade: `model/gurps/trait.go` — `AdjustedPoints`; `fxp.ApplyRounding
 
 **Confirmada.** Para `container.AlternativeAbilities`, o método calcula primeiro o custo ajustado de cada filho e identifica o maior valor. O maior é incluído integralmente uma vez; cada outro valor é multiplicado por 20/100 e arredondado individualmente por `fxp.ApplyRounding(..., t.RoundCostDown)` antes de ser somado. Se mais de um filho empatar no maior valor, apenas a primeira ocorrência encontrada é tratada como a parcela integral; as demais entram no ramo de 20%.
 
-Rastreabilidade: `model/gurps/trait.go` — `(*Trait).AdjustedPoints`; `container.AlternativeAbilities`.
+Rastreabilidade: `model/gurps/trait.go` — `(*Trait).AdjustedPoints`; `container.AlternativeAbilities`; `model/fxp/int.go` — `ApplyRounding`.
 
 ## Limite de níveis observado
 
@@ -70,8 +74,7 @@ Rastreabilidade: `model/gurps/trait.go` — `(*Trait).AdjustedPoints`; `containe
 
 Rastreabilidade: `model/gurps/trait.go` — `(*Trait).ResolvedMaxLevels`; `TraitMaxLevelBonus`; `maxusesmod.Percentage`, `maxusesmod.Multiplier`.
 
-## Questões não promovidas a fato
+## Questões em aberto
 
-- **Não confirmada:** semântica interna de `TraitModifier.CostModifier()` e de como seus campos persistidos são convertidos em `fxp.Fraction`; requer inspeção direta da implementação desse método.
-- **Não confirmada:** implementação interna dos multiplicadores retornados por `selfctrl.Roll.Multiplier()` e `frequency.Roll.Multiplier()`; nesta passagem está confirmado apenas onde e como esses resultados entram no pricing.
-- **Não confirmada:** semântica interna de `fxp.ApplyRounding`; está confirmado somente que ela recebe o total final e `roundCostDown`, e que também é usada individualmente nos custos reduzidos de Alternative Abilities.
+- **Não confirmada:** implementação interna dos multiplicadores retornados por `selfctrl.Roll.Multiplier()` e `frequency.Roll.Multiplier()`; está confirmado apenas onde e como esses resultados entram no pricing.
+- **Não confirmada:** gramática interna completa de `emweight.ValueFromString()` e `ExtractFraction()`; está confirmado apenas que `TraitModifier` delega a essas funções a classificação e extração da fração de `CostAdj`.
