@@ -4,7 +4,7 @@
 
 **Status desta passagem: Confirmada.** Este documento registra somente comportamento observado diretamente na implementação pública de `richardwilkes/gcs`, no commit `49cb0baddb44d15421e13138a7b1b104d4a12163`.
 
-Fonte principal desta passagem: `model/gurps/spell.go`, tipos `Spell`, `SpellData`, `SpellEditData`, `SpellNonContainerOnlyEditData`, `SpellSyncData`, `SpellNonContainerOnlySyncData` e `spellListData`.
+Fonte principal: `model/gurps/spell.go`, tipos `Spell`, `SpellData`, `SpellEditData`, `SpellNonContainerOnlyEditData`, `SpellSyncData`, `SpellNonContainerOnlySyncData`, `spellListData` e funções de cálculo de nível nele definidas.
 
 ## Estrutura do domínio
 
@@ -34,6 +34,24 @@ Fonte principal desta passagem: `model/gurps/spell.go`, tipos `Spell`, `SpellDat
 
 **Confirmada.** `Clone()` preserva a distinção de Ritual Magic, spell comum e container. Filhos são clonados recursivamente, recebendo o novo spell como `parent` e o `owner` fornecido à clonagem.
 
+## Atualização e cálculo de nível
+
+**Confirmada.** `(*Spell).UpdateLevel()` salva o `LevelData` anterior, resolve `CollegeWithReplacements()` e substitui `LevelData` pelo resultado de um de dois caminhos: `CalculateRitualMagicSpellLevel(...)` quando `IsRitualMagic()` é verdadeiro, ou `CalculateSpellLevel(...)` nos demais casos. O retorno é `saved != s.LevelData`. Rastreabilidade: `model/gurps/spell.go` — `(*Spell).UpdateLevel`.
+
+**Confirmada.** `(*Spell).CalculateLevel()` executa os mesmos dois caminhos de cálculo sem escrever em `s.LevelData`. Rastreabilidade: `model/gurps/spell.go` — `(*Spell).CalculateLevel`.
+
+**Confirmada.** `CalculateSpellLevel()` inicia `relativeLevel` com `attrDiff.Difficulty.BaseRelativeLevel()` e `level` com `fxp.Min`. Com `Entity` presente, os pontos são truncados por `Floor()` e o nível-base é obtido por `Entity.ResolveAttributeCurrent(attrDiff.Attribute)`. Para dificuldade `Wildcard`, os pontos usados no cálculo são divididos por três e truncados. Rastreabilidade: `model/gurps/spell.go` — `CalculateSpellLevel`.
+
+**Confirmada.** Ainda em `CalculateSpellLevel()`, pontos inferiores a 1 colocam `level` em `fxp.Min` e `relativeLevel` em zero; exatamente 1 ponto mantém o relativo-base; valores entre 1 e 4 acrescentam 1 ao relativo; a partir de 4, o acréscimo observado é `1 + floor(points/4)`. Se `level` não for `fxp.Min`, `Entity.SpellBonusFor(...)` é somado ao nível relativo, o resultado relativo é truncado por `Floor()` e então somado ao nível absoluto. O `Level` retornado contém `Level`, `RelativeLevel` e o tooltip acumulado. Rastreabilidade: `model/gurps/spell.go` — `CalculateSpellLevel`; `Entity.SpellBonusFor` é chamado aqui, sem que sua implementação interna seja afirmada neste documento.
+
+**Confirmada.** `CalculateRitualMagicSpellLevel()` calcula uma opção por college através de `determineRitualMagicSkillLevelForCollege()` e conserva a de maior `Level`; sem colleges, chama a mesma função com college vazio. Com `Entity` presente, chama `Entity.SpellBonusFor(...)`, trunca o bônus com `Floor()` e soma o resultado tanto a `Level` quanto a `RelativeLevel`. Rastreabilidade: `model/gurps/spell.go` — `CalculateRitualMagicSpellLevel`.
+
+**Confirmada.** `determineRitualMagicSkillLevelForCollege()` constrói um `SkillDefault` de tipo `SkillID`, especialização igual ao college e modificador `-prereqCount`; quando `ritualSkillName` não é vazio, também exige esse nome. O cálculo principal chama `CalculateTechniqueLevel(...)`; em seguida o método soma `def.Modifier` ao `RelativeLevel`, porque o comentário da própria implementação registra que `CalculateTechniqueLevel()` não adiciona esse modificador ao nível relativo. Rastreabilidade: `model/gurps/spell.go` — `determineRitualMagicSkillLevelForCollege`.
+
+**Confirmada.** O mesmo método calcula um fallback removendo a especialização do default e reduzindo seu modificador em mais 6. Esse fallback também passa por `CalculateTechniqueLevel(...)` e recebe `def.Modifier` em `RelativeLevel`. A função retorna o cálculo principal quando seu `Level` é maior ou igual ao fallback; caso contrário, retorna o fallback. Rastreabilidade: `model/gurps/spell.go` — `determineRitualMagicSkillLevelForCollege`, `specializedRitualSkills`.
+
+**Confirmada.** `RitualMagicSatisfied()` retorna imediatamente verdadeiro para spells que não são Ritual Magic. Para Ritual Magic, ausência de college produz falso. Com colleges presentes, retorna verdadeiro se encontrar `BestSkillNamed(ritual, college, ...)` para qualquer college; caso contrário procura uma skill com o nome ritual e especialização efetivamente vazia. Sem correspondência, retorna falso e pode escrever a exigência no tooltip. Rastreabilidade: `model/gurps/spell.go` — `(*Spell).RitualMagicSatisfied`.
+
 ## Persistência de listas
 
 **Confirmada.** Listas independentes são persistidas por `spellListData`, composto por `Version int` e `Rows []*Spell`.
@@ -56,10 +74,9 @@ Fonte principal desta passagem: `model/gurps/spell.go`, tipos `Spell`, `SpellDat
 
 ## Questões ainda não documentadas nesta passagem
 
-- **Não confirmada nesta passagem:** algoritmo interno de `Spell.UpdateLevel()` e cálculo de `LevelData`.
-- **Não confirmada nesta passagem:** semântica interna de `SpellBonus`, `SpellPointBonus` e `SpellPrereq`.
-- **Não confirmada nesta passagem:** cálculo e uso posterior de `PrereqCount`.
+- **Não confirmada nesta passagem:** implementação interna de `Entity.SpellBonusFor()` e do ajuste de pontos usado por `Spell.AdjustedPoints()`.
+- **Não confirmada nesta passagem:** implementação completa de `CalculateTechniqueLevel()`, embora sua chamada e os ajustes posteriores feitos pelo caminho de Ritual Magic estejam confirmados acima.
+- **Não confirmada nesta passagem:** semântica interna de `SpellPrereq`.
 - **Não confirmada nesta passagem:** interação detalhada entre `Weapons` incorporadas ao spell e o restante do motor.
-- **Não confirmada nesta passagem:** comportamento interno específico de Ritual Magic além do observado em `spell.go`.
 
 Esses pontos permanecem fora deste documento até inspeção direta das implementações correspondentes.
