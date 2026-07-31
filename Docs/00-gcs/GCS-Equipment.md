@@ -30,6 +30,14 @@ Rastreabilidade: `model/gurps/equipment.go`: `Equipment`, `EquipmentData`, `Equi
 
 Rastreabilidade: `model/gurps/equipment.go`: `NewEquipment`, `equipmentKind`, `Container`, `HasChildren`, `Parent`, `SetParent`, `Clone`.
 
+## Estado efetivo de equipamento e ownership
+
+**Confirmada.** `ReallyEquipped()` retorna `false` quando o próprio item possui `Equipped == false` ou `Quantity <= 0`. Se o próprio item passa nesses testes, o método percorre `parent` até a raiz e retorna `false` se qualquer ancestral possuir `Equipped == false` ou `Quantity <= 0`; somente retorna `true` quando o item e todos os ancestrais satisfazem ambas as condições.
+
+**Confirmada.** `SetDataOwner(owner)` grava `owner`, atribui o próprio `Equipment` como owner de cada `Weapon` por `w.SetOwner(e)`, propaga recursivamente o mesmo `DataOwner` aos filhos quando o item é container e, para cada `EquipmentModifier`, chama `setEquipment(e)` e `SetDataOwner(owner)`.
+
+Rastreabilidade: `model/gurps/equipment.go`: `(*Equipment).ReallyEquipped`, `(*Equipment).SetDataOwner`.
+
 ## Carga e salvamento de listas
 
 **Confirmada.** O formato de lista usado por `NewEquipmentFromFile()` e `SaveEquipment()` é `equipmentListData`, composto por `Version` e `Rows []*Equipment`.
@@ -112,13 +120,14 @@ Rastreabilidade: `model/gurps/equipment.go`: `ResolvedBaseWeight`, `AdjustedWeig
 
 **Confirmada.** `EquipmentSyncData` possui diretamente `Weapons []*Weapon`, `Features Features` e `Prereq *PrereqList`; portanto esses objetos fazem parte da estrutura de dados sincronizável/persistível declarada de Equipment.
 
+**Confirmada.** `SetDataOwner()` estabelece concretamente o vínculo de runtime entre cada `Weapon` incorporada e o Equipment que a contém por `Weapon.SetOwner(e)`.
+
 **Confirmada.** `ContainedWeightReduction` é consumido diretamente pelo cálculo de `ExtendedWeightAdjustedForModifiers()` a partir das features do Equipment e de seus EquipmentModifiers. Isso é independente do fato de `Entity.processFeature()` reconhecer esse tipo sem armazená-lo na coleção interna `Entity.features`.
 
-**Não confirmada nesta passagem.** A semântica completa de atualização e cálculo das `Weapons` incorporadas não é estabelecida apenas pela presença do campo e requer rastreamento das implementações de Weapon.
+**Não confirmada nesta passagem.** A semântica completa de atualização e cálculo das `Weapons` incorporadas não é estabelecida apenas pelo vínculo de ownership observado e requer rastreamento das implementações de Weapon.
 
 **Não confirmada nesta passagem.** A avaliação interna de `PrereqList` não é inferida a partir do campo `Prereq`.
 
 ## Questões abertas desta passagem
 
-- **Não confirmada:** semântica completa de `ReallyEquipped()`, inclusive propagação por containers ancestrais.
-- **Não confirmada:** comportamento das `Weapons` incorporadas ao Equipment além da estrutura observada.
+- **Não confirmada:** comportamento de resolução das `Weapons` incorporadas ao Equipment além do vínculo de ownership confirmado em `SetDataOwner()`.
