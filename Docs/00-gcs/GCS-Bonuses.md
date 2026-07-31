@@ -54,6 +54,22 @@ Rastreabilidade: `model/gurps/entity.go` — `(*Entity).processFeatures`, `(*Ent
 
 Rastreabilidade: `model/gurps/entity.go` — `(*Entity).SkillBonusFor`, `(*Entity).SkillPointBonusFor`, `(*Entity).NamedWeaponSkillBonusesFor`; `model/gurps/bonus_owner.go` — `bonusReplacements`.
 
+## Matching de Skills usado por bônus de Weapon
+
+**Confirmada.** `SkillNamed(name, specialization, requirePoints, excludes)` percorre `e.Skills` por `Traverse(..., false, true, e.Skills...)`. Exclui uma Skill quando `excludes[sk.String()]` é verdadeiro. Com `requirePoints == true`, aceita a Skill se ela for Technique ou se `AdjustedPoints(nil) > 0`.
+
+**Confirmada.** O nome em `SkillNamed()` é comparado por `strings.EqualFold()` contra `NameWithReplacements()`. Uma especialização solicitada vazia aceita qualquer especialização; caso contrário, há correspondência quando ela coincide sem distinção de caixa com `SpecializationWithReplacements()` ou `OptionalSpecializationWithReplacements()`.
+
+**Confirmada.** `BestSkillNamed()` chama `SkillNamed()`, recalcula cada candidato por `CalculateLevel(excludes)` e retorna aquele com maior `Level` observado.
+
+**Confirmada.** `SkillMatching()` aplica os mesmos filtros de exclusão e pontos de `SkillNamed()`, mas usa `criteria.Text`: o nome deve satisfazer `nameCriteria.Matches()`, e a especialização é resolvida por `skillSpecializationMatches()`.
+
+**Confirmada.** `skillSpecializationMatches()` permite que uma Skill com especialização requerida seja correspondida pela especialização requerida ou, quando não vazia, pela especialização opcional. Quando não existe especialização requerida, o critério é aplicado somente à especialização opcional.
+
+**Confirmada.** `BestSkillMatching()` chama `SkillMatching()`, recalcula cada candidato por `CalculateLevel(excludes)` e retorna o candidato de maior `Level`.
+
+Rastreabilidade: `model/gurps/entity.go` — `(*Entity).SkillNamed`, `(*Entity).BestSkillNamed`, `(*Entity).SkillMatching`, `(*Entity).BestSkillMatching`, `skillSpecializationMatches`.
+
 ## Bônus de Spell
 
 **Confirmada.** `SpellBonusFor(name, powerSource, colleges, tags, tooltip)` percorre `spellBonuses`, aplica replacements, exige `TagsCriteria.MatchesList(...)` e `MatchForType(...)`, e soma `AdjustedAmount()` dos bônus aceitos.
@@ -82,17 +98,18 @@ Rastreabilidade: `model/gurps/entity.go` — `(*Entity).EquipmentMaxUsesBonusesF
 
 **Confirmada.** `AddWeaponWithSkillBonusesFor(...)` determina inicialmente o maior `RelativeLevel` entre as Skills retornadas por `SkillNamed(name, specialization, true, nil)`. Depois percorre `weaponBonuses` e exige: tipo permitido pelo mapa `allowedFeatureTypes`; `SelectionType == wsel.WithRequiredSkill`; correspondência de `RelativeLevelCriteria`; e correspondência de nome, especialização, uso e tags após replacements. Bônus aceitos são encaminhados a `addWeaponBonusToMap()`.
 
+**Confirmada.** A chamada a `SkillNamed(..., true, nil)` nesse caminho usa o matching confirmado acima: Techniques são elegíveis independentemente de pontos; demais Skills exigem `AdjustedPoints(nil) > 0`; nome é exato sem distinção de caixa; e a especialização pode coincidir com a requerida ou opcional.
+
 **Confirmada.** `AddNamedWeaponBonusesFor(...)` percorre `weaponBonuses`, exige tipo permitido, `SelectionType == wsel.WithName` e correspondência de nome, uso e tags antes de encaminhar o bônus a `addWeaponBonusToMap()`.
 
 **Confirmada.** `addWeaponBonusToMap()` evita inserir novamente um mesmo ponteiro `*WeaponBonus` já presente no mapa. Para um bônus novo, calcula o valor usado no tooltip por `adjustedAmount()` com o número de dados fornecido e `DerivedLeveledOwner()`, e então marca o bônus no mapa.
 
 **Confirmada.** O `DerivedLeveledOwner()` usado nesse caminho privilegia um sub-owner leveled sobre um owner leveled; na ausência de ambos, fornece um owner sintético com nível zero.
 
-Rastreabilidade: `model/gurps/entity.go` — `(*Entity).AddWeaponWithSkillBonusesFor`, `(*Entity).AddNamedWeaponBonusesFor`, `addWeaponBonusToMap`; `model/gurps/bonus_owner.go` — `(*BonusOwner).DerivedLeveledOwner`, `zeroLeveledOwner`.
+Rastreabilidade: `model/gurps/entity.go` — `(*Entity).AddWeaponWithSkillBonusesFor`, `(*Entity).AddNamedWeaponBonusesFor`, `addWeaponBonusToMap`, `(*Entity).SkillNamed`; `model/gurps/bonus_owner.go` — `(*BonusOwner).DerivedLeveledOwner`, `zeroLeveledOwner`.
 
 ## Limites desta passagem
 
 - **Não confirmada:** como cada classe concreta de bônus conecta ou especializa `LeveledAmount`, além do comportamento genérico de `LeveledAmount.AdjustedAmount()` confirmado acima.
 - **Não confirmada:** implementação interna de `SpellBonus.MatchForType()` e `SpellPointBonus.MatchForType()`.
 - **Não confirmada:** implementação interna dos critérios `Matches()`/`MatchesList()` usados pelos consumidores.
-- **Não confirmada:** implementação interna de `SkillNamed()` usada na seleção de WeaponBonus por required skill.
