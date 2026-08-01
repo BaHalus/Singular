@@ -4,7 +4,7 @@
 
 Este documento registra somente comportamento observado diretamente em `richardwilkes/gcs`.
 
-Fontes observadas nesta consolidação: `model/gurps/leveled_amount.go`, `model/gurps/attribute_bonus.go`, `model/gurps/skill_bonus.go`, `model/gurps/spell_bonus.go`, `model/gurps/dr_bonus.go`, `model/gurps/trait_bonus.go`, `model/gurps/spell_point_bonus.go`, `model/gurps/reaction_bonus.go`, `model/gurps/conditional_modifier_bonus.go`, `model/gurps/skill_point_bonus.go`, `model/gurps/trait_max_level_bonus.go` e `model/gurps/equipment_max_uses_bonus.go`.
+Fontes observadas nesta consolidação: `model/gurps/leveled_amount.go`, `model/gurps/attribute_bonus.go`, `model/gurps/skill_bonus.go`, `model/gurps/spell_bonus.go`, `model/gurps/dr_bonus.go`, `model/gurps/trait_bonus.go`, `model/gurps/spell_point_bonus.go`, `model/gurps/reaction_bonus.go`, `model/gurps/conditional_modifier_bonus.go`, `model/gurps/skill_point_bonus.go`, `model/gurps/trait_max_level_bonus.go`, `model/gurps/equipment_max_uses_bonus.go` e `model/gurps/weapon_bonus.go`.
 
 ## `LeveledAmount`
 
@@ -60,6 +60,18 @@ Rastreabilidade: `model/gurps/skill_point_bonus.go` — `SkillPointBonusData`, `
 
 Rastreabilidade: `model/gurps/trait_max_level_bonus.go` — `TraitMaxLevelBonus`, `NewTraitMaxLevelBonus`, `Operation`, `SetLeveledOwner`, `AdjustedAmount`, `Hash`; `model/gurps/equipment_max_uses_bonus.go` — `EquipmentMaxUsesBonus`, `NewEquipmentMaxUsesBonus`, `Operation`, `SetLeveledOwner`, `AdjustedAmount`, `Hash`.
 
+### `WeaponBonus`
+
+**Confirmada.** `WeaponBonus` também implementa `Bonus`, mas `WeaponBonusData` não incorpora `LeveledAmount`. Ele mantém diretamente `LeveledOwner`, `DieCount`, `Amount`, `PerLevel` e `PerDie`; `LeveledOwner` e `DieCount` são excluídos do JSON, `Amount` é persistido como `amount`, `PerLevel` como `leveled` e `PerDie` como `per_die`.
+
+**Confirmada.** `newWeaponBonus()` inicializa `Amount` com `fxp.One` e não ativa explicitamente `PerLevel` nem `PerDie`.
+
+**Confirmada.** `WeaponBonus.AdjustedAmount()` delega a `adjustedAmount(w.DieCount, w.LeveledOwner)`. Se `PerDie` estiver ativo, `adjustedAmount()` retorna zero para `dieCount < 0` e, caso contrário, multiplica `Amount` por `dieCount`. Se `PerLevel` estiver ativo e o owner recebido for nil, tenta `DerivedLeveledOwner()`; em seguida obtém `CurrentLevel()`, retorna zero quando o nível é negativo e, caso contrário, multiplica o valor pelo nível. Quando `PerDie` e `PerLevel` estão ativos, as duas multiplicações são aplicadas sequencialmente.
+
+**Confirmada.** `AdjustedAmountForWeapon()` define `DieCount` como `fxp.One` para `feature.WeaponMinSTBonus` e `feature.WeaponEffectiveSTBonus`; para os demais tipos usa `wpn.Damage.BaseDamageDice().Count`, e então chama `AdjustedAmount()`.
+
+Rastreabilidade: `model/gurps/weapon_bonus.go` — `WeaponBonus`, `WeaponBonusData`, `newWeaponBonus()`, `AdjustedAmountForWeapon()`, `AdjustedAmount()`, `adjustedAmount()`, `SetLeveledOwner()`.
+
 ## Limites desta passagem
 
-**Não confirmada.** A inspeção confirma nove implementações baseadas em `LeveledAmount` e duas implementações de `Bonus` com mecanismo próprio de nível. Não foi feita nesta passagem uma enumeração exaustiva de todas as implementações da interface `Bonus`; portanto, nenhum desses padrões é generalizado para tipos ainda não inspecionados diretamente.
+**Não confirmada.** A inspeção confirma nove implementações baseadas em `LeveledAmount` e três implementações de `Bonus` com mecanismo próprio de nível (`TraitMaxLevelBonus`, `EquipmentMaxUsesBonus` e `WeaponBonus`). A busca por `SetLeveledOwner` também alcança chamadas e tipos consumidores; ela não constitui, por si só, uma enumeração formalmente exaustiva de todas as implementações da interface `Bonus`. Portanto, nenhum desses padrões é generalizado para tipos ainda não inspecionados diretamente.
