@@ -2,6 +2,15 @@
 
 Todas as mudanças relevantes da SINGULAR serão registradas neste arquivo.
 
+## [Pesquisa Arquitetural] — 2026-07-27
+
+### Alteração Metodológica
+
+- Data da alteração: 2026-07-27.
+- O executor dos agentes foi alterado de GitHub Copilot (GPT) para GitHub Copilot utilizando Gemini.
+- A metodologia, os prompts, o backlog e os templates permaneceram inalterados.
+- O objetivo da alteração é validar que a metodologia de pesquisa arquitetural da SINGULAR é independente do modelo de IA utilizado.
+
 ## [0.9.0-alpha.1] — 2026-07-11
 
 Primeira baseline Alpha mobile utilizável.
