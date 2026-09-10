@@ -2,6 +2,7 @@ import {
   serializeAttacks,
   validateAttacks,
 } from "../../domain/character/Attacks.js";
+import { constructTraitAttacks } from "../../domain/character/TraitAttackEffects.js";
 import { validateCharacter } from "../../domain/character/Character.js";
 
 const SCHEMA_VERSION = 1;
@@ -14,10 +15,17 @@ const PROJECTION_KEYS = Object.freeze([
 export function createAttackReadProjection(character) {
   validateCharacter(character);
 
+  const attacks = [
+    ...character.attacks,
+    ...constructTraitAttacks(character.traits),
+  ];
+
+  validateAttacks(attacks);
+
   const projection = clonePortableValue({
     schemaVersion: SCHEMA_VERSION,
     characterId: character.identity.id,
-    attacks: serializeAttacks(character.attacks),
+    attacks: serializeAttacks(attacks),
   }, "Attack read projection");
 
   validateAttackReadProjection(projection);
