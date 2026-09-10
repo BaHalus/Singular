@@ -1,0 +1,77 @@
+name: temporary-repair-mobile-projection
+
+on:
+  push:
+    branches: ["BaHalus-patch-1"]
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: BaHalus-patch-1
+
+      - name: Restore intact projection and apply surgical integration
+        shell: bash
+        run: |
+          git checkout 1dfb9da3699ef2c8026face7cf5a0e9b86dc33e2 -- src/ui/mobile/CharacterMobileProjection.js
+          node <<'NODE'
+          const fs = require('fs');
+          const path = 'src/ui/mobile/CharacterMobileProjection.js';
+          let s = fs.readFileSync(path, 'utf8');
+
+          s = s.replace(
+            'import {\n  resolveAttributeLevels,\n  serializeAttributeLevelsReport,\n} from "../../engine/attributes/AttributeLevelResolver.js";',
+            'import {\n  resolveAttributeLevels,\n  serializeAttributeLevelsReport,\n} from "../../engine/attributes/AttributeLevelResolver.js";\nimport {\n  resolveCharacterDerivedEffects,\n} from "../../engine/derived/CharacterDerivedEffectsResolver.js";'
+          );
+          s = s.replace('const MOBILE_PROJECTION_SCHEMA_VERSION = 8;', 'const MOBILE_PROJECTION_SCHEMA_VERSION = 9;');
+
+          const oldSetup = `  const attributeLevelsReport = resolveAttributeLevels(serializedCharacter.attributes);\n  const attributeLevels = serializeAttributeLevelsReport(attributeLevelsReport);\n  const derivedDefenseMovement = serializeDerivedDefenseMovementReport(\n    resolveDerivedDefenseMovement({\n      attributeLevels: attributeLevelsReport,\n      secondaryCharacteristics: serializedCharacter.secondaryCharacteristics,\n    }),\n  );`;
+          const newSetup = `  const attributeLevelsReport = resolveAttributeLevels(serializedCharacter.attributes);\n  const attributeLevels = serializeAttributeLevelsReport(attributeLevelsReport);\n  const derivedEffects = resolveCharacterDerivedEffects({\n    attributes: serializedCharacter.attributes,\n    traits: serializedCharacter.traits,\n    secondaryCharacteristics: serializedCharacter.secondaryCharacteristics,\n    skills: serializedCharacter.skills,\n  });\n  const effectiveAttributeLevelsReport = {\n    ...attributeLevelsReport,\n    results: Object.fromEntries(\n      ATTRIBUTE_KEYS.map(key => [key, {\n        ...attributeLevelsReport.results[key],\n        level: derivedEffects.attributes.results[key].level,\n        status: "resolved",\n        source: derivedEffects.attributes.results[key].override !== null ? "override" : "base",\n      }]),\n    ),\n  };\n  const effectiveSecondaryCharacteristics = Object.fromEntries(\n    SECONDARY_KEYS.map(key => [key, {\n      base: derivedEffects.secondaryCharacteristics.results[key].final,\n      override: null,\n    }]),\n  );\n  const derivedDefenseMovement = serializeDerivedDefenseMovementReport(\n    resolveDerivedDefenseMovement({\n      attributeLevels: effectiveAttributeLevelsReport,\n      secondaryCharacteristics: effectiveSecondaryCharacteristics,\n    }),\n  );`;
+          if (!s.includes(oldSetup)) throw new Error('Expected projection setup was not found');
+          s = s.replace(oldSetup, newSetup);
+
+          s = s.replace(
+            '    attributes: projectAttributes(attributeLevels),',
+            '    attributes: projectAttributes(derivedEffects.attributes),'
+          );
+          s = s.replace(
+            `    secondaryCharacteristics: projectSecondaryCharacteristics(\n      serializedCharacter.secondaryCharacteristics,\n    ),`,
+            '    secondaryCharacteristics: projectSecondaryCharacteristics(derivedEffects.secondaryCharacteristics),'
+          );
+          s = s.replace(
+            '    mechanicalResults: projectMechanicalResults(derivedDefenseMovement),',
+            '    mechanicalResults: projectMechanicalResults(derivedDefenseMovement),\n    defenses: derivedEffects.defenses,'
+          );
+
+          const oldAttr = `function projectAttributes(attributeLevels) {\n  return Object.fromEntries(\n    ATTRIBUTE_KEYS.map(attributeKey => {\n      const result = attributeLevels.results[attributeKey];\n      return [attributeKey, {\n        key: attributeKey,\n        status: result.status,\n        level: result.level,\n        source: result.source,\n        diagnostics: result.diagnostics,\n      }];\n    }),\n  );\n}`;
+          const newAttr = `function projectAttributes(report) {\n  return Object.fromEntries(\n    ATTRIBUTE_KEYS.map(attributeKey => {\n      const result = report.results[attributeKey];\n      return [attributeKey, {\n        key: attributeKey,\n        status: "resolved",\n        base: result.base,\n        bonus: result.bonus,\n        level: result.level,\n        final: result.level,\n        source: result.override !== null ? "override" : "base",\n        sources: result.sources,\n        diagnostics: [],\n      }];\n    }),\n  );\n}`;
+          if (!s.includes(oldAttr)) throw new Error('Expected projectAttributes was not found');
+          s = s.replace(oldAttr, newAttr);
+
+          const oldSec = `function projectSecondaryCharacteristics(secondaryCharacteristics) {\n  return Object.fromEntries(\n    SECONDARY_KEYS.map(key => {\n      const characteristic = secondaryCharacteristics[key];\n      return [key, {\n        key,\n        status: "declared",\n        base: characteristic.base,\n        override: characteristic.override,\n      }];\n    }),\n  );\n}`;
+          const newSec = `function projectSecondaryCharacteristics(report) {\n  return Object.fromEntries(\n    SECONDARY_KEYS.map(key => {\n      const result = report.results[key];\n      return [key, {\n        key,\n        status: "resolved",\n        base: result.base,\n        bonus: result.bonus,\n        final: result.final,\n        override: result.override,\n        sources: result.sources,\n      }];\n    }),\n  );\n}`;
+          if (!s.includes(oldSec)) throw new Error('Expected projectSecondaryCharacteristics was not found');
+          s = s.replace(oldSec, newSec);
+
+          fs.writeFileSync(path, s);
+          NODE
+
+      - name: Syntax check
+        run: node --check src/ui/mobile/CharacterMobileProjection.js
+
+      - name: Commit repaired file
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/ui/mobile/CharacterMobileProjection.js
+          git diff --cached --check
+          git diff --cached --stat
+          git commit -m "fix: surgically integrate derived effects projection"
+          git push origin HEAD:BaHalus-patch-1
