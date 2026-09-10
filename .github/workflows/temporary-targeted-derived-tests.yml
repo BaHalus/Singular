@@ -1,0 +1,12 @@
+name: temporary-targeted-derived-tests
+
+on:
+  push:
+    branches: ["BaHalus-patch-1"]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: node --test src/engine/derived/CharacterDerivedEffectsResolver.test.js src/application/projections/AttackReadProjection.effects.test.js src/ui/mobile/CharacterMobileProjection.test.js
