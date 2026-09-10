@@ -1,0 +1,57 @@
+name: Create Singular sem biblioteca 0.0.69
+
+on:
+  push:
+    branches: [BaHalus-patch-1]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  create:
+    if: github.ref == 'refs/heads/BaHalus-patch-1'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Create corrected 0.0.69 copy
+        shell: python
+        run: |
+          from pathlib import Path
+
+          src = Path('docs/arquivo/Singular-v2_sem_biblioteca-12_v0_0_68.html')
+          dst = Path('docs/arquivo/Singular-v2_sem_biblioteca-13_v0_0_69.html')
+
+          if dst.exists():
+              print('Target already exists; nothing to do.')
+              raise SystemExit(0)
+
+          text = src.read_text(encoding='utf-8')
+
+          # Versionamento coerente no documento, sem alterar versões da biblioteca GCS.
+          text = text.replace('Singular-v2 0.0.67', 'Singular-v2 0.0.69')
+          text = text.replace('content="0.0.67"', 'content="0.0.69"')
+          text = text.replace('v0.0.68', 'v0.0.69')
+
+          # Remove somente texto cru que eventualmente tenha escapado para o início
+          # do <body>, antes do cabeçalho (#toolbar), sem tocar nos elementos reais.
+          marker = '<body oninput="updateAll()" style="overflow-x: hidden; overflow-y: auto;">'
+          cleanup = '''\n<script id="singular-preheader-text-cleanup">\n(function(){\n    const toolbar = document.getElementById('toolbar');\n    if (!toolbar) return;\n    let node = document.body.firstChild;\n    while (node && node !== toolbar) {\n        const next = node.nextSibling;\n        if (node.nodeType === Node.TEXT_NODE && node.textContent.trim()) node.remove();\n        node = next;\n    }\n})();\n</script>\n'''
+          if marker not in text:
+              raise SystemExit('Expected <body> marker not found; refusing to create file.')
+          text = text.replace(marker, marker + cleanup, 1)
+
+          dst.write_text(text, encoding='utf-8', newline='\n')
+          print(f'Created {dst}')
+
+      - name: Commit new file and remove temporary workflow
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/arquivo/Singular-v2_sem_biblioteca-13_v0_0_69.html
+          git rm .github/workflows/create-sem-biblioteca-0-0-69.yml
+          git commit -m "fix: criar Singular sem biblioteca 0.0.69"
+          git push origin HEAD:BaHalus-patch-1
