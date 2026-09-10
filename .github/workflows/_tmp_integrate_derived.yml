@@ -1,0 +1,71 @@
+name: temporary-derived-effects-integration
+on:
+  push:
+    branches: [BaHalus-patch-1]
+
+jobs:
+  integrate:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: BaHalus-patch-1
+          fetch-depth: 0
+      - name: Patch mobile projection
+        shell: python
+        run: |
+          from pathlib import Path
+          p = Path('src/ui/mobile/CharacterMobileProjection.js')
+          s = p.read_text(encoding='utf-8')
+          old = '''import {\n  resolveAttributeLevels,\n  serializeAttributeLevelsReport,\n} from "../../engine/attributes/AttributeLevelResolver.js";'''
+          new = old + '''\nimport {\n  resolveCharacterDerivedEffects,\n} from "../../engine/derived/CharacterDerivedEffectsResolver.js";'''
+          assert old in s and 'resolveCharacterDerivedEffects' not in s
+          s = s.replace(old, new, 1)
+          s = s.replace('const MOBILE_PROJECTION_SCHEMA_VERSION = 8;', 'const MOBILE_PROJECTION_SCHEMA_VERSION = 9;', 1)
+          old = '''  const attributeLevelsReport = resolveAttributeLevels(serializedCharacter.attributes);\n  const attributeLevels = serializeAttributeLevelsReport(attributeLevelsReport);\n  const derivedDefenseMovement = serializeDerivedDefenseMovementReport(\n    resolveDerivedDefenseMovement({\n      attributeLevels: attributeLevelsReport,\n      secondaryCharacteristics: serializedCharacter.secondaryCharacteristics,\n    }),\n  );'''
+          new = '''  const derivedEffects = resolveCharacterDerivedEffects({\n    attributes: serializedCharacter.attributes,\n    traits: serializedCharacter.traits,\n    secondaryCharacteristics: serializedCharacter.secondaryCharacteristics,\n    skills: serializedCharacter.skills,\n  });\n  const attributeLevels = derivedEffects.attributes;\n  const effectiveSecondaryCharacteristics = Object.fromEntries(\n    SECONDARY_KEYS.map(key => [key, {\n      base: derivedEffects.secondaryCharacteristics.results[key].final,\n      override: null,\n    }]),\n  );\n  const derivedDefenseMovement = serializeDerivedDefenseMovementReport(\n    resolveDerivedDefenseMovement({\n      attributeLevels: {\n        schemaVersion: 1,\n        results: Object.fromEntries(\n          ATTRIBUTE_KEYS.map(key => [key, {\n            attribute: key,\n            status: "resolved",\n            level: attributeLevels.results[key].level,\n            source: attributeLevels.results[key].override !== null ? "override" : "base",\n            diagnostics: [],\n          }]),\n        ),\n      },\n      secondaryCharacteristics: effectiveSecondaryCharacteristics,\n    }),\n  );'''
+          assert old in s
+          s = s.replace(old, new, 1)
+          old = '''        key: attributeKey,\n        status: result.status,\n        level: result.level,\n        source: result.source,\n        diagnostics: result.diagnostics,'''
+          new = '''        key: attributeKey,\n        status: "resolved",\n        base: result.base,\n        bonus: result.bonus,\n        level: result.level,\n        final: result.level,\n        source: result.override !== null ? "override" : "base",\n        sources: result.sources,\n        diagnostics: [],'''
+          assert old in s
+          s = s.replace(old, new, 1)
+          old = '''function projectSecondaryCharacteristics(secondaryCharacteristics) {\n  return Object.fromEntries(\n    SECONDARY_KEYS.map(key => {\n      const characteristic = secondaryCharacteristics[key];\n      return [key, {\n        key,\n        status: "declared",\n        base: characteristic.base,\n        override: characteristic.override,\n      }];\n    }),\n  );\n}'''
+          new = '''function projectSecondaryCharacteristics(secondaryReport) {\n  return Object.fromEntries(\n    SECONDARY_KEYS.map(key => {\n      const characteristic = secondaryReport.results[key];\n      return [key, {\n        key,\n        status: "resolved",\n        base: characteristic.base,\n        bonus: characteristic.bonus,\n        final: characteristic.final,\n        override: characteristic.override,\n        sources: characteristic.sources,\n      }];\n    }),\n  );\n}'''
+          assert old in s
+          s = s.replace(old, new, 1)
+          old = '''    if (characteristic.status !== "declared") {\n      throw new Error(`Mobile secondary characteristic projection ${key} status is invalid`);\n    }'''
+          new = '''    if (characteristic.status !== "resolved") {\n      throw new Error(`Mobile secondary characteristic projection ${key} status is invalid`);\n    }'''
+          assert old in s
+          s = s.replace(old, new, 1)
+          marker = '''    requireNullableFiniteNumber(\n      characteristic.override,\n      `Mobile secondary characteristic projection ${key} override`,\n    );'''
+          repl = marker + '''\n    requireNullableFiniteNumber(characteristic.bonus, `Mobile secondary characteristic projection ${key} bonus`);\n    requireNullableFiniteNumber(characteristic.final, `Mobile secondary characteristic projection ${key} final`);\n    if (!Array.isArray(characteristic.sources)) {\n      throw new Error(`Mobile secondary characteristic projection ${key} sources is invalid`);\n    }'''
+          assert marker in s
+          s = s.replace(marker, repl, 1)
+          marker = '''    if (!Array.isArray(attribute.diagnostics)) {\n      throw new Error(`Mobile attribute projection ${key} diagnostics is invalid`);\n    }'''
+          repl = marker + '''\n    requireNullableFiniteNumber(attribute.base, `Mobile attribute projection ${key} base`);\n    requireNullableFiniteNumber(attribute.bonus, `Mobile attribute projection ${key} bonus`);\n    requireNullableFiniteNumber(attribute.final, `Mobile attribute projection ${key} final`);\n    if (!Array.isArray(attribute.sources)) {\n      throw new Error(`Mobile attribute projection ${key} sources is invalid`);\n    }'''
+          assert marker in s
+          s = s.replace(marker, repl, 1)
+          p.write_text(s, encoding='utf-8')
+
+      - name: Test
+        run: npm test -- --runInBand
+
+      - name: Commit integration
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/ui/mobile/CharacterMobileProjection.js
+          git commit -m "feat: expose trait-derived attribute and secondary bonuses"
+          git push origin HEAD:BaHalus-patch-1
+
+      - name: Remove temporary workflow
+        if: success()
+        shell: bash
+        run: |
+          git rm .github/workflows/_tmp_integrate_derived.yml
+          git commit -m "chore: remove temporary derived-effects workflow"
+          git push origin HEAD:BaHalus-patch-1
