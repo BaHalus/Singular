@@ -10,7 +10,7 @@ const secondary = () => createSecondaryCharacteristics({
 });
 
 const trait = (id, attribute, amount) => ({
-  id, name: `+${attribute}`, role: "advantage", points: 1, levels: null, notes: "",
+  id, externalIds: {}, name: `+${attribute}`, role: "advantage", points: 1, levels: null, notes: "",
   tags: [], selfControl: null, frequency: null, roundCostDown: false, choices: [],
   modifiers: [], features: [{ type: "attribute_bonus", amount, attribute }],
   weapons: [], prereqs: null, importMeta: null, raw: null, power: null,
@@ -43,7 +43,7 @@ test("IQ and DX/HT bonuses propagate to secondary characteristics", () => {
 
 test("melee, shield and cloak skills contribute Parry and Block", () => {
   const skill = (id, name, level, weapons = [], tags = []) => ({
-    id, name, specialization: "", techLevel: null, attribute: "DX", difficulty: "A",
+    id, externalIds: {}, name, specialization: "", techLevel: null, attribute: "DX", difficulty: "A",
     points: 4, importedLevel: level, importedRelativeLevel: null, defaults: [],
     features: [], weapons, prereqs: null, notes: "", tags, importMeta: null, raw: null,
   });
