@@ -59,6 +59,15 @@ function withMobilePresentationLabels(model) {
   return {
     ...model,
     cards: model.cards.map(card => {
+      if (card.id === "attributes") {
+        return {
+          ...card,
+          items: card.items.map(item => ({
+            ...item,
+            value: attributePresentationValue(item),
+          })),
+        };
+      }
       if (card.id !== "secondary-characteristics") return card;
       return {
         ...card,
@@ -72,7 +81,7 @@ function withMobilePresentationLabels(model) {
   };
 }
 
-function createMechanicalResultsCard({ attributes, derivedResults, equipmentTotals }) {
+function createMechanicalResultsCard({ attributes, derivedResults, defenses, equipmentTotals }) {
   return {
     id: "mechanical-results",
     title: "Resultados mecânicos",
@@ -107,8 +116,20 @@ function createDerivedDefenseMovementResultItems(results) {
 function createCombatDefenseResultItems(defenses) {
   if (!defenses) return [];
   return [
-    { id: "mechanical:parry", label: "Aparar", value: formatPresentationValue(defenses.parry?.value), notes: "Calculado pelo motor de efeitos derivados", status: "available" },
-    { id: "mechanical:block", label: "Bloqueio", value: formatPresentationValue(defenses.block?.value), notes: "Calculado pelo motor de efeitos derivados", status: "available" },
+    {
+      id: "mechanical:parry",
+      label: "Aparar",
+      value: formatPresentationValue(defenses.parry?.value),
+      notes: "Calculado pelo motor de efeitos derivados",
+      status: "available",
+    },
+    {
+      id: "mechanical:block",
+      label: "Bloqueio",
+      value: formatPresentationValue(defenses.block?.value),
+      notes: "Calculado pelo motor de efeitos derivados",
+      status: "available",
+    },
   ];
 }
 
@@ -150,12 +171,26 @@ function secondaryCharacteristicLabel(id, fallback) {
   return fallback;
 }
 
+function attributePresentationValue(item) {
+  const finalValue = item.final ?? item.value;
+  const bonus = item.bonus ?? 0;
+  const finalText = formatPresentationValue(finalValue);
+  if (Number.isFinite(bonus) && bonus !== 0) {
+    return `${finalText} (${formatSignedValue(bonus)})`;
+  }
+  return finalText;
+}
+
 function secondaryCharacteristicValue(item) {
   const finalValue = item.final ?? item.base;
   const bonus = item.bonus ?? 0;
   const finalText = formatPresentationValue(finalValue);
-  if (Number.isFinite(bonus) && bonus !== 0) return `${finalText} (${formatSignedValue(bonus)})`;
-  if (item.override !== null && item.override !== undefined) return `${finalText} (ajuste ${formatPresentationValue(item.override)})`;
+  if (Number.isFinite(bonus) && bonus !== 0) {
+    return `${finalText} (${formatSignedValue(bonus)})`;
+  }
+  if (item.override !== null && item.override !== undefined) {
+    return `${finalText} (ajuste ${formatPresentationValue(item.override)})`;
+  }
   return finalText;
 }
 
