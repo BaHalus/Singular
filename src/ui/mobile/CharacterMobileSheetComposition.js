@@ -24,6 +24,7 @@ export function createCharacterMobileSheetRenderModelForCharacter(character) {
   const mechanicalResultsCard = createMechanicalResultsCard({
     attributes: baseModel.summary.attributes,
     derivedResults: projection.mechanicalResults,
+    defenses: projection.defenses,
     equipmentTotals: equipmentCard?.totals,
   });
 
@@ -85,6 +86,7 @@ function createMechanicalResultsCard({ attributes, derivedResults, equipmentTota
         status: attribute.status,
       })),
       ...createDerivedDefenseMovementResultItems(derivedResults),
+      ...createCombatDefenseResultItems(defenses),
       ...createEquipmentTotalResultItems(equipmentTotals),
     ],
   };
@@ -100,6 +102,14 @@ function createDerivedDefenseMovementResultItems(results) {
     notes: `${notes}; fonte ${item.source}`,
     status: item.status,
   }));
+}
+
+function createCombatDefenseResultItems(defenses) {
+  if (!defenses) return [];
+  return [
+    { id: "mechanical:parry", label: "Aparar", value: formatPresentationValue(defenses.parry?.value), notes: "Calculado pelo motor de efeitos derivados", status: "available" },
+    { id: "mechanical:block", label: "Bloqueio", value: formatPresentationValue(defenses.block?.value), notes: "Calculado pelo motor de efeitos derivados", status: "available" },
+  ];
 }
 
 function createEquipmentTotalResultItems(totals) {
@@ -141,10 +151,18 @@ function secondaryCharacteristicLabel(id, fallback) {
 }
 
 function secondaryCharacteristicValue(item) {
-  if (item.override === null || item.override === undefined) {
-    return formatPresentationValue(item.base);
-  }
-  return `${formatPresentationValue(item.base)} (ajuste ${formatPresentationValue(item.override)})`;
+  const finalValue = item.final ?? item.base;
+  const bonus = item.bonus ?? 0;
+  const finalText = formatPresentationValue(finalValue);
+  if (Number.isFinite(bonus) && bonus !== 0) return `${finalText} (${formatSignedValue(bonus)})`;
+  if (item.override !== null && item.override !== undefined) return `${finalText} (ajuste ${formatPresentationValue(item.override)})`;
+  return finalText;
+}
+
+function formatSignedValue(value) {
+  if (value > 0) return `+${value}`;
+  if (value < 0) return `−${Math.abs(value)}`;
+  return "0";
 }
 
 function formatPresentationValue(value) {
