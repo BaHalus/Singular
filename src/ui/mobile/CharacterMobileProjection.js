@@ -133,7 +133,6 @@ export function validateCharacterMobileProjection(projection) {
   validateAttackProjection(projection.attacks, projection.identity.id);
   validateEquipmentProjection(projection.equipment);
   validateMechanicalResultsProjection(projection.mechanicalResults);
-  validateDerivedDefensesProjection(projection.defenses);
   validateSectionsProjection(projection.sections);
   return true;
 }
@@ -430,15 +429,9 @@ function validateAttributesProjection(attributes) {
     if (!["resolved", "blocked"].includes(attribute.status)) {
       throw new Error(`Mobile attribute projection ${key} status is invalid`);
     }
-    requireNullableFiniteNumber(attribute.base, `Mobile attribute projection ${key} base`);
-    requireNullableFiniteNumber(attribute.bonus, `Mobile attribute projection ${key} bonus`);
     requireNullableFiniteNumber(attribute.level, `Mobile attribute projection ${key} level`);
-    requireNullableFiniteNumber(attribute.final, `Mobile attribute projection ${key} final`);
     if (!["base", "override"].includes(attribute.source)) {
       throw new Error(`Mobile attribute projection ${key} source is invalid`);
-    }
-    if (!Array.isArray(attribute.sources)) {
-      throw new Error(`Mobile attribute projection ${key} sources is invalid`);
     }
     if (!Array.isArray(attribute.diagnostics)) {
       throw new Error(`Mobile attribute projection ${key} diagnostics is invalid`);
@@ -454,16 +447,17 @@ function validateSecondaryCharacteristicsProjection(secondaryCharacteristics) {
     if (characteristic.key !== key) {
       throw new Error(`Mobile secondary characteristic projection ${key} key mismatch`);
     }
-    if (characteristic.status !== "resolved") {
+    if (characteristic.status !== "declared") {
       throw new Error(`Mobile secondary characteristic projection ${key} status is invalid`);
     }
-    requireNullableFiniteNumber(characteristic.base, `Mobile secondary characteristic projection ${key} base`);
-    requireNullableFiniteNumber(characteristic.bonus, `Mobile secondary characteristic projection ${key} bonus`);
-    requireNullableFiniteNumber(characteristic.final, `Mobile secondary characteristic projection ${key} final`);
-    requireNullableFiniteNumber(characteristic.override, `Mobile secondary characteristic projection ${key} override`);
-    if (!Array.isArray(characteristic.sources)) {
-      throw new Error(`Mobile secondary characteristic projection ${key} sources is invalid`);
-    }
+    requireNullableFiniteNumber(
+      characteristic.base,
+      `Mobile secondary characteristic projection ${key} base`,
+    );
+    requireNullableFiniteNumber(
+      characteristic.override,
+      `Mobile secondary characteristic projection ${key} override`,
+    );
   }
 }
 
@@ -705,23 +699,6 @@ function validateEquipmentStateTotals(totals, state) {
   requireNonNegativeFiniteNumber(totals.weightKg, `Mobile equipment ${state} weightKg`);
   requireNonNegativeFiniteNumber(totals.loadWeightKg, `Mobile equipment ${state} loadWeightKg`);
   requireNonNegativeFiniteNumber(totals.cost, `Mobile equipment ${state} cost`);
-}
-
-function validateDerivedDefensesProjection(defenses) {
-  requirePlainObject(defenses, "Mobile derived defenses projection");
-  for (const key of ["parry", "block"]) {
-    const defense = defenses[key];
-    requirePlainObject(defense, `Mobile derived defense ${key}`);
-    requireNullableFiniteNumber(defense.value, `Mobile derived defense ${key} value`);
-    requireArray(defense.sources, `Mobile derived defense ${key} sources`);
-    for (const source of defense.sources) {
-      requirePlainObject(source, `Mobile derived defense ${key} source`);
-      requireString(source.skillId, `Mobile derived defense ${key} source skillId`);
-      requireString(source.name, `Mobile derived defense ${key} source name`);
-      requireFiniteNumber(source.level, `Mobile derived defense ${key} source level`);
-      requireFiniteNumber(source.value, `Mobile derived defense ${key} source value`);
-    }
-  }
 }
 
 function validateMechanicalResultsProjection(mechanicalResults) {
