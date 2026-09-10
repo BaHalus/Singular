@@ -1,0 +1,30 @@
+name: temporary-fix-schema-test
+
+on:
+  push:
+    branches: ["BaHalus-patch-1"]
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: BaHalus-patch-1
+      - run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('src/ui/mobile/CharacterMobileProjection.test.js')
+          s=p.read_text()
+          old='assert.equal(projection.schemaVersion, 8);'
+          new='assert.equal(projection.schemaVersion, 9);'
+          if old in s: p.write_text(s.replace(old,new,1))
+          elif new not in s: raise SystemExit('schema assertion missing')
+          PY
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/ui/mobile/CharacterMobileProjection.test.js
+          if ! git diff --cached --quiet; then git commit -m "test: update mobile projection schema version"; git push origin HEAD:BaHalus-patch-1; fi
