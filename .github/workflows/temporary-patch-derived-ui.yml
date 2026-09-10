@@ -17,48 +17,32 @@ jobs:
       - name: Patch render model and composition
         shell: bash
         run: |
-          node <<'NODE'
-          const fs = require('fs');
-          const renderPath = 'src/ui/mobile/CharacterMobileSheetRenderModel.js';
-          let render = fs.readFileSync(renderPath, 'utf8');
-          const oldSummary = `      value: attribute.level,\n      status: attribute.status,\n      source: attribute.source,\n      diagnostics: cloneValue(attribute.diagnostics),`;
-          const newSummary = `      value: attribute.final ?? attribute.level,\n      base: attribute.base,\n      bonus: attribute.bonus,\n      final: attribute.final ?? attribute.level,\n      status: attribute.status,\n      source: attribute.source,\n      sources: cloneValue(attribute.sources),\n      diagnostics: cloneValue(attribute.diagnostics),`;
-          if (!render.includes(oldSummary)) throw new Error('Summary attribute mapping not found');
-          render = render.replace(oldSummary, newSummary);
-          const oldAttributeCard = `        value: attribute.level,\n        status: attribute.status,\n        source: attribute.source,\n        diagnostics: cloneValue(attribute.diagnostics),`;
-          const newAttributeCard = `        value: attribute.final ?? attribute.level,\n        base: attribute.base,\n        bonus: attribute.bonus,\n        final: attribute.final ?? attribute.level,\n        status: attribute.status,\n        source: attribute.source,\n        sources: cloneValue(attribute.sources),\n        diagnostics: cloneValue(attribute.diagnostics),`;
-          if (!render.includes(oldAttributeCard)) throw new Error('Attribute card mapping not found');
-          render = render.replace(oldAttributeCard, newAttributeCard);
-          const oldSecondary = `        base: characteristic.base,\n        override: characteristic.override,\n        status: characteristic.status,`;
-          const newSecondary = `        base: characteristic.base,\n        bonus: characteristic.bonus,\n        final: characteristic.final ?? characteristic.base,\n        override: characteristic.override,\n        sources: cloneValue(characteristic.sources),\n        status: characteristic.status,`;
-          if (!render.includes(oldSecondary)) throw new Error('Secondary card mapping not found');
-          render = render.replace(oldSecondary, newSecondary);
-          fs.writeFileSync(renderPath, render);
-
-          const compPath = 'src/ui/mobile/CharacterMobileSheetComposition.js';
-          let comp = fs.readFileSync(compPath, 'utf8');
-          const oldArgs = `    derivedResults: projection.mechanicalResults,\n    equipmentTotals: equipmentCard?.totals,`;
-          const newArgs = `    derivedResults: projection.mechanicalResults,\n    defenses: projection.defenses,\n    equipmentTotals: equipmentCard?.totals,`;
-          if (!comp.includes(oldArgs)) throw new Error('Mechanical card arguments not found');
-          comp = comp.replace(oldArgs, newArgs);
-          const oldItems = `      ...createDerivedDefenseMovementResultItems(derivedResults),\n      ...createEquipmentTotalResultItems(equipmentTotals),`;
-          const newItems = `      ...createDerivedDefenseMovementResultItems(derivedResults),\n      ...createCombatDefenseResultItems(defenses),\n      ...createEquipmentTotalResultItems(equipmentTotals),`;
-          if (!comp.includes(oldItems)) throw new Error('Mechanical card items not found');
-          comp = comp.replace(oldItems, newItems);
-          const marker = `function createEquipmentTotalResultItems(totals) {`;
-          const defenseFn = `function createCombatDefenseResultItems(defenses) {\n  if (!defenses) return [];\n  return [\n    {\n      id: "mechanical:parry",\n      label: "Aparar",\n      value: formatPresentationValue(defenses.parry?.value),\n      notes: "Calculado pelo motor de efeitos derivados; fonte nas perícias de combate corpo a corpo",\n      status: "available",\n    },\n    {\n      id: "mechanical:block",\n      label: "Bloqueio",\n      value: formatPresentationValue(defenses.block?.value),\n      notes: "Calculado pelo motor de efeitos derivados; fonte nas perícias Escudo/Capa",\n      status: "available",\n    },\n  ];\n}\n\n`;
-          if (!comp.includes(marker)) throw new Error('Equipment result marker not found');
-          comp = comp.replace(marker, defenseFn + marker);
-          const oldSecondaryValue = `function secondaryCharacteristicValue(item) {\n  if (item.override === null || item.override === undefined) {\n    return formatPresentationValue(item.base);\n  }\n  return \`${formatPresentationValue(item.base)} (ajuste \${formatPresentationValue(item.override)})\`;\n}`;
-          const newSecondaryValue = `function secondaryCharacteristicValue(item) {\n  const finalValue = item.final ?? item.base;\n  const bonus = item.bonus ?? 0;\n  const finalText = formatPresentationValue(finalValue);\n  if (Number.isFinite(bonus) && bonus !== 0) {\n    return \`${finalText} (\${formatSignedValue(bonus)})\`;\n  }\n  if (item.override !== null && item.override !== undefined) {\n    return \`${finalText} (ajuste \${formatPresentationValue(item.override)})\`;\n  }\n  return finalText;\n}`;
-          if (!comp.includes(oldSecondaryValue)) throw new Error('Secondary presentation function not found');
-          comp = comp.replace(oldSecondaryValue, newSecondaryValue);
-          const formatMarker = `function formatPresentationValue(value) {`;
-          const signedFn = `function formatSignedValue(value) {\n  if (value === null || value === undefined || value === "") return "—";\n  if (value > 0) return `+${value}`;\n  if (value < 0) return `−${Math.abs(value)}`;\n  return "0";\n}\n\n`;
-          if (!comp.includes(formatMarker)) throw new Error('Presentation formatter marker not found');
-          comp = comp.replace(formatMarker, signedFn + formatMarker);
-          fs.writeFileSync(compPath, comp);
-          NODE
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('src/ui/mobile/CharacterMobileSheetRenderModel.js')
+          s = p.read_text()
+          if 'bonus: attribute.bonus' not in s:
+              s = s.replace('value: attribute.level,', 'value: attribute.final ?? attribute.level,\n      base: attribute.base,\n      bonus: attribute.bonus,\n      final: attribute.final ?? attribute.level,', 1)
+              s = s.replace('value: attribute.level,', 'value: attribute.final ?? attribute.level,\n        base: attribute.base,\n        bonus: attribute.bonus,\n        final: attribute.final ?? attribute.level,', 1)
+          if 'bonus: characteristic.bonus' not in s:
+              s = s.replace('base: characteristic.base,\n        override: characteristic.override,', 'base: characteristic.base,\n        bonus: characteristic.bonus,\n        final: characteristic.final ?? characteristic.base,\n        override: characteristic.override,\n        sources: cloneValue(characteristic.sources),', 1)
+          p.write_text(s)
+          p = Path('src/ui/mobile/CharacterMobileSheetComposition.js')
+          s = p.read_text()
+          if 'defenses: projection.defenses' not in s:
+              s = s.replace('derivedResults: projection.mechanicalResults,\n    equipmentTotals:', 'derivedResults: projection.mechanicalResults,\n    defenses: projection.defenses,\n    equipmentTotals:', 1)
+          if 'createCombatDefenseResultItems(defenses)' not in s:
+              s = s.replace('...createDerivedDefenseMovementResultItems(derivedResults),', '...createDerivedDefenseMovementResultItems(derivedResults),\n      ...createCombatDefenseResultItems(defenses),', 1)
+          if 'function createCombatDefenseResultItems(defenses)' not in s:
+              marker = 'function createEquipmentTotalResultItems(totals) {'
+              fn = '''function createCombatDefenseResultItems(defenses) {\n  if (!defenses) return [];\n  return [\n    { id: "mechanical:parry", label: "Aparar", value: formatPresentationValue(defenses.parry?.value), notes: "Calculado pelo motor de efeitos derivados", status: "available" },\n    { id: "mechanical:block", label: "Bloqueio", value: formatPresentationValue(defenses.block?.value), notes: "Calculado pelo motor de efeitos derivados", status: "available" },\n  ];\n}\n\n'''
+              if marker not in s: raise SystemExit('equipment marker not found')
+              s = s.replace(marker, fn + marker, 1)
+          old = '''function secondaryCharacteristicValue(item) {\n  if (item.override === null || item.override === undefined) {\n    return formatPresentationValue(item.base);\n  }\n  return `${formatPresentationValue(item.base)} (ajuste ${formatPresentationValue(item.override)})`;\n}'''
+          new = '''function secondaryCharacteristicValue(item) {\n  const finalValue = item.final ?? item.base;\n  const bonus = item.bonus ?? 0;\n  const finalText = formatPresentationValue(finalValue);\n  if (Number.isFinite(bonus) && bonus !== 0) return `${finalText} (${formatSignedValue(bonus)})`;\n  if (item.override !== null && item.override !== undefined) return `${finalText} (ajuste ${formatPresentationValue(item.override)})`;\n  return finalText;\n}\n\nfunction formatSignedValue(value) {\n  if (value > 0) return `+${value}`;\n  if (value < 0) return `−${Math.abs(value)}`;\n  return "0";\n}'''
+          if old in s: s = s.replace(old, new, 1)
+          p.write_text(s)
+          PY
           node --check src/ui/mobile/CharacterMobileSheetRenderModel.js
           node --check src/ui/mobile/CharacterMobileSheetComposition.js
           git diff --check
