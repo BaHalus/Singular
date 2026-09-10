@@ -43,7 +43,15 @@ function collectAttributeBonuses(traits) {
   for (const trait of traits) {
     collectFeatures(trait, trait.features, trait.id, trait.name, totals, sources);
     for (const modifier of trait.modifiers ?? []) {
-      collectFeatures(trait, modifier?.features, trait.id, trait.name, totals, sources, modifier?.id ?? null);
+      collectFeatures(
+        trait,
+        modifier?.features,
+        trait.id,
+        trait.name,
+        totals,
+        sources,
+        modifier?.id ?? null,
+      );
     }
   }
 
@@ -121,53 +129,79 @@ function resolveAttributes(attributes, bonuses) {
 function resolveSecondaries({ secondaryCharacteristics, attributesReport, secondaryBonuses }) {
   const a = attributesReport.results;
   const results = {};
+
   for (const key of SECONDARY_KEYS) {
     const declared = secondaryCharacteristics[key];
     const explicitBonus = secondaryBonuses.totals[key];
     const sources = [...secondaryBonuses.sources[key]];
+    const override = declared.override;
+
     let base = declared.base;
     let bonus = explicitBonus;
-    let final = Number.isFinite(declared.override) ? declared.override : null;
+    let final;
 
-    if (final === null) {
-      if (key === "HP") {
-        base = declared.base ?? a.ST.base;
-        bonus = explicitBonus + (a.ST.bonus);
-        if (a.ST.bonus !== 0) sources.push({ kind: "attribute", id: "ST", name: "ST", amount: a.ST.bonus });
-        final = (declared.base ?? a.ST.base) + bonus;
-      } else if (key === "FP") {
-        base = declared.base ?? a.HT.base;
-        bonus = explicitBonus + a.HT.bonus;
-        if (a.HT.bonus !== 0) sources.push({ kind: "attribute", id: "HT", name: "HT", amount: a.HT.bonus });
-        final = (declared.base ?? a.HT.base) + bonus;
-      } else if (key === "Will") {
-        base = declared.base ?? a.IQ.base;
-        bonus = explicitBonus + a.IQ.bonus;
-        if (a.IQ.bonus !== 0) sources.push({ kind: "attribute", id: "IQ", name: "IQ", amount: a.IQ.bonus });
-        final = (declared.base ?? a.IQ.base) + bonus;
-      } else if (key === "Per") {
-        base = declared.base ?? a.IQ.base;
-        bonus = explicitBonus + a.IQ.bonus;
-        if (a.IQ.bonus !== 0) sources.push({ kind: "attribute", id: "IQ", name: "IQ", amount: a.IQ.bonus });
-        final = (declared.base ?? a.IQ.base) + bonus;
-      } else if (key === "BasicSpeed") {
-        base = declared.base ?? ((a.DX.base + a.HT.base) / 4);
-        bonus = explicitBonus + ((a.DX.bonus + a.HT.bonus) / 4);
-        if (a.DX.bonus !== 0) sources.push({ kind: "attribute", id: "DX", name: "DX", amount: a.DX.bonus / 4 });
-        if (a.HT.bonus !== 0) sources.push({ kind: "attribute", id: "HT", name: "HT", amount: a.HT.bonus / 4 });
-        final = (declared.base ?? ((a.DX.base + a.HT.base) / 4)) + bonus;
-      } else if (key === "BasicMove") {
-        const speed = Number.isFinite(secondaryCharacteristics.BasicMove.base)
-          ? secondaryCharacteristics.BasicMove.base
-          : Math.floor((a.DX.level + a.HT.level) / 4);
-        base = speed;
-        final = speed + explicitBonus;
+    if (Number.isFinite(override)) {
+      final = override;
+    } else if (key === "HP") {
+      base = declared.base ?? a.ST.base;
+      bonus += a.ST.bonus;
+      if (a.ST.bonus !== 0) sources.push(attributeSource("ST", a.ST.bonus));
+      final = base + bonus;
+    } else if (key === "FP") {
+      base = declared.base ?? a.HT.base;
+      bonus += a.HT.bonus;
+      if (a.HT.bonus !== 0) sources.push(attributeSource("HT", a.HT.bonus));
+      final = base + bonus;
+    } else if (key === "Will") {
+      base = declared.base ?? a.IQ.base;
+      bonus += a.IQ.bonus;
+      if (a.IQ.bonus !== 0) sources.push(attributeSource("IQ", a.IQ.bonus));
+      final = base + bonus;
+    } else if (key === "Per") {
+      base = declared.base ?? a.IQ.base;
+      bonus += a.IQ.bonus;
+      if (a.IQ.bonus !== 0) sources.push(attributeSource("IQ", a.IQ.bonus));
+      final = base + bonus;
+    } else if (key === "BasicSpeed") {
+      const derivedBase = (a.DX.base + a.HT.base) / 4;
+      base = declared.base ?? derivedBase;
+      const attributeBonus = (a.DX.bonus + a.HT.bonus) / 4;
+      bonus += attributeBonus;
+      if (a.DX.bonus !== 0) sources.push(attributeSource("DX", a.DX.bonus / 4));
+      if (a.HT.bonus !== 0) sources.push(attributeSource("HT", a.HT.bonus / 4));
+      final = base + bonus;
+    } else if (key === "BasicMove") {
+      const declaredBase = declared.base;
+      const basicSpeedFinal = resolveBasicSpeedFinal(a, secondaryCharacteristics.BasicSpeed, secondaryBonuses);
+      const derivedMove = Math.floor(basicSpeedFinal);
+      base = declaredBase ?? derivedMove;
+      final = base + explicitBonus;
+      if (basicSpeedFinal !== 0 && declaredBase === null) {
+        sources.push({
+          kind: "derived",
+          id: "BasicSpeed",
+          name: "Velocidade Básica",
+          amount: derivedMove - (secondaryCharacteristics.BasicMove.base ?? derivedMove),
+        });
       }
+    } else {
+      final = (base ?? 0) + bonus;
     }
 
-    results[key] = { key, base, override: declared.override, bonus, final, sources };
+    results[key] = { key, base, override, bonus, final, sources };
   }
-  return { results, totals: secondaryBonuses.totals, sources: secondaryBonuses.sources };
+
+  return {
+    results,
+    totals: secondaryBonuses.totals,
+    sources: secondaryBonuses.sources,
+  };
+}
+
+function resolveBasicSpeedFinal(attributes, declaredBasicSpeed, secondaryBonuses) {
+  if (Number.isFinite(declaredBasicSpeed.override)) return declaredBasicSpeed.override;
+  const declaredBase = declaredBasicSpeed.base ?? ((attributes.DX.base + attributes.HT.base) / 4);
+  return declaredBase + ((attributes.DX.bonus + attributes.HT.bonus) / 4) + secondaryBonuses.totals.BasicSpeed;
 }
 
 function resolveCombatDefenses(skills) {
@@ -183,7 +217,8 @@ function resolveCombatDefenses(skills) {
     const tags = (skill.tags ?? []).map(normalizeText);
     const isShield = normalizedName === "escudo" || normalizedName === "shield" || tags.includes("shield");
     const isCloak = normalizedName === "capa" || normalizedName === "cloak" || tags.includes("cloak");
-    const isMelee = tags.includes("melee") || tags.includes("combat") || tags.includes("unarmed") || (skill.weapons ?? []).some(weapon => normalizeText(weapon?.category) === "melee");
+    const isMelee = tags.includes("melee") || tags.includes("combat") || tags.includes("unarmed") ||
+      (skill.weapons ?? []).some(weapon => normalizeText(weapon?.category) === "melee");
 
     if (isShield || isCloak) {
       const value = Math.floor(level / 2) + 3;
@@ -201,6 +236,10 @@ function resolveCombatDefenses(skills) {
     parry: { value: parry, sources: parrySources },
     block: { value: block, sources: blockSources },
   };
+}
+
+function attributeSource(id, amount) {
+  return { kind: "attribute", id, name: id, amount };
 }
 
 function normalizeAttributeKey(value) {
