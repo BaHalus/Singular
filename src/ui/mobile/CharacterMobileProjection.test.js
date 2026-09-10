@@ -52,9 +52,9 @@ test("projects identity, attributes and pools for the mobile sheet", () => {
   assert.deepEqual(
     projection.mechanicalResults.items.map(item => [item.id, item.label, item.value, item.source]),
     [
-      ["basic-speed", "Velocidade Básica", 5.5, "attributes"],
-      ["basic-move", "Deslocamento Básico", 5, "attributes"],
-      ["dodge", "Esquiva", 8, "attributes"],
+      ["basic-speed", "Velocidade Básica", 5.5, "secondary"],
+      ["basic-move", "Deslocamento Básico", 5, "secondary"],
+      ["dodge", "Esquiva", 8, "secondary"],
     ],
   );
 });
