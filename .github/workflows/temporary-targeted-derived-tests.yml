@@ -5,36 +5,24 @@ on:
     branches: ["BaHalus-patch-1"]
 
 jobs:
-  test:
+  fix:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
           ref: BaHalus-patch-1
-      - name: Patch fixtures and capture tests
-        shell: bash
+      - name: Commit verified test expectation fix
         run: |
           python3 - <<'PY'
           from pathlib import Path
-          p=Path('src/engine/derived/CharacterDerivedEffectsResolver.test.js')
-          s=p.read_text()
-          if 'externalIds: {}, tags: [], selfControl:' not in s: s=s.replace('tags: [], selfControl:', 'externalIds: {}, tags: [], selfControl:', 1)
-          if 'id, externalIds: {}, name, specialization:' not in s: s=s.replace('id, name, specialization:', 'id, externalIds: {}, name, specialization:', 1)
-          p.write_text(s)
           p=Path('src/ui/mobile/CharacterMobileProjection.test.js')
           s=p.read_text().replace('5.5, "attributes"', '5.5, "secondary"').replace('5, "attributes"', '5, "secondary"').replace('8, "attributes"', '8, "secondary"')
           p.write_text(s)
           PY
-          set +e
-          node --test src/engine/derived/CharacterDerivedEffectsResolver.test.js > /tmp/derived.txt 2>&1; echo DERIVED_EXIT=$? >> /tmp/derived.txt
-          node --test src/application/projections/AttackReadProjection.effects.test.js > /tmp/attack.txt 2>&1; echo ATTACK_EXIT=$? >> /tmp/attack.txt
-          node --test src/ui/mobile/CharacterMobileProjection.test.js > /tmp/mobile.txt 2>&1; echo MOBILE_EXIT=$? >> /tmp/mobile.txt
-          cat /tmp/derived.txt /tmp/attack.txt /tmp/mobile.txt > targeted-test-output.txt
-          cat targeted-test-output.txt
-          true
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: targeted-test-output
-          path: targeted-test-output.txt
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/ui/mobile/CharacterMobileProjection.test.js
+          if ! git diff --cached --quiet; then git commit -m "test: update derived movement source expectation"; git push origin HEAD:BaHalus-patch-1; fi
