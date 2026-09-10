@@ -1,3 +1,6 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+
 import { createAttributes } from "../../domain/character/Attributes.js";
 import { createSecondaryCharacteristics } from "../../domain/character/SecondaryCharacteristics.js";
 import { resolveCharacterDerivedEffects } from "./CharacterDerivedEffectsResolver.js";
@@ -20,10 +23,10 @@ test("trait attribute bonus changes final attribute and HP", () => {
     traits: [trait("trait-1", "ST", 2)],
     secondaryCharacteristics: secondary(), skills: [],
   });
-  expect(report.attributes.results.ST.level).toBe(12);
-  expect(report.attributes.results.ST.bonus).toBe(2);
-  expect(report.secondaryCharacteristics.results.HP.final).toBe(12);
-  expect(report.secondaryCharacteristics.results.HP.bonus).toBe(2);
+  assert.equal(report.attributes.results.ST.level, 12);
+  assert.equal(report.attributes.results.ST.bonus, 2);
+  assert.equal(report.secondaryCharacteristics.results.HP.final, 12);
+  assert.equal(report.secondaryCharacteristics.results.HP.bonus, 2);
 });
 
 test("IQ and DX/HT bonuses propagate to secondary characteristics", () => {
@@ -32,10 +35,10 @@ test("IQ and DX/HT bonuses propagate to secondary characteristics", () => {
     traits: [trait("iq", "IQ", 2), trait("dx", "DX", 2), trait("ht", "HT", 2)],
     secondaryCharacteristics: secondary(), skills: [],
   });
-  expect(report.secondaryCharacteristics.results.Will.final).toBe(12);
-  expect(report.secondaryCharacteristics.results.Per.final).toBe(12);
-  expect(report.secondaryCharacteristics.results.BasicSpeed.final).toBe(6);
-  expect(report.secondaryCharacteristics.results.BasicMove.final).toBe(6);
+  assert.equal(report.secondaryCharacteristics.results.Will.final, 12);
+  assert.equal(report.secondaryCharacteristics.results.Per.final, 12);
+  assert.equal(report.secondaryCharacteristics.results.BasicSpeed.final, 6);
+  assert.equal(report.secondaryCharacteristics.results.BasicMove.final, 6);
 });
 
 test("melee, shield and cloak skills contribute Parry and Block", () => {
@@ -52,6 +55,6 @@ test("melee, shield and cloak skills contribute Parry and Block", () => {
       skill("cloak", "Capa", 12),
     ],
   });
-  expect(report.defenses.parry.value).toBe(10);
-  expect(report.defenses.block.value).toBe(11);
+  assert.equal(report.defenses.parry.value, 10);
+  assert.equal(report.defenses.block.value, 11);
 });
