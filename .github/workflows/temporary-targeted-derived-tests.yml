@@ -7,33 +7,27 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
           ref: BaHalus-patch-1
-      - name: Fix test fixtures and run targeted tests
+      - name: Run targeted tests with captured output
         shell: bash
         run: |
-          python3 - <<'PY'
-          from pathlib import Path
-          p=Path('src/engine/derived/CharacterDerivedEffectsResolver.test.js')
-          s=p.read_text()
-          s=s.replace('tags: [], selfControl:', 'externalIds: {}, tags: [], selfControl:', 1)
-          s=s.replace('id, name, specialization:', 'id, externalIds: {}, name, specialization:', 1)
-          p.write_text(s)
-          p=Path('src/ui/mobile/CharacterMobileProjection.test.js')
-          s=p.read_text().replace('5.5, "attributes"', '5.5, "secondary"').replace('5, "attributes"', '5, "secondary"').replace('8, "attributes"', '8, "secondary"')
-          p.write_text(s)
-          PY
-          node --test src/engine/derived/CharacterDerivedEffectsResolver.test.js
-          node --test src/application/projections/AttackReadProjection.effects.test.js
-          node --test src/ui/mobile/CharacterMobileProjection.test.js
-          node --check src/ui/mobile/CharacterMobileSheetRenderModel.js
-          node --check src/ui/mobile/CharacterMobileSheetComposition.js
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add src/engine/derived/CharacterDerivedEffectsResolver.test.js src/ui/mobile/CharacterMobileProjection.test.js
-          if ! git diff --cached --quiet; then git commit -m "test: align derived effects fixtures and projection expectations"; git push origin HEAD:BaHalus-patch-1; fi
+          set +e
+          node --test src/engine/derived/CharacterDerivedEffectsResolver.test.js > /tmp/derived.txt 2>&1
+          echo DERIVED_EXIT=$? >> /tmp/derived.txt
+          node --test src/application/projections/AttackReadProjection.effects.test.js > /tmp/attack.txt 2>&1
+          echo ATTACK_EXIT=$? >> /tmp/attack.txt
+          node --test src/ui/mobile/CharacterMobileProjection.test.js > /tmp/mobile.txt 2>&1
+          echo MOBILE_EXIT=$? >> /tmp/mobile.txt
+          cat /tmp/derived.txt /tmp/attack.txt /tmp/mobile.txt > targeted-test-output.txt
+          cat targeted-test-output.txt
+          grep -q 'DERIVED_EXIT=0' /tmp/derived.txt && grep -q 'ATTACK_EXIT=0' /tmp/attack.txt && grep -q 'MOBILE_EXIT=0' /tmp/mobile.txt
+      - name: Upload diagnostic output
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: targeted-test-output
+          path: targeted-test-output.txt
