@@ -1,0 +1,96 @@
+name: Build Singular v0.0.70 standalone
+
+on:
+  push:
+    branches: [BaHalus-patch-1]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: BaHalus-patch-1
+          fetch-depth: 1
+      - name: Build standalone v0.0.70
+        shell: bash
+        run: |
+          set -euo pipefail
+          src='docs/arquivo/Singular-v2_sem_biblioteca-13_v0_0_69.html'
+          out='docs/arquivo/Singular-v2_sem_biblioteca-14_v0_0_70.html'
+          cp "$src" "$out"
+          python3 - "$out" <<'PY'
+          from pathlib import Path
+          import sys
+          p=Path(sys.argv[1])
+          s=p.read_text(encoding='utf-8')
+          s=s.replace('Singular-v2 0.0.69','Singular-v2 0.0.70')
+          s=s.replace('app-version" content="0.0.69"','app-version" content="0.0.70"')
+          bridge=r'''<script id="singular-v070-derived-effects-bridge">
+          (()=>{
+            'use strict';
+            if(window.__singularV070DerivedEffectsBridge)return;
+            window.__singularV070DerivedEffectsBridge=true;
+            const A=['ST','DX','IQ','HT'], S=['HP','FP','Will','Per','BasicSpeed','BasicMove'];
+            const num=v=>typeof v==='number'&&Number.isFinite(v)?v:null;
+            const text=v=>typeof v==='string'?v.trim().toLowerCase():'';
+            const ak=v=>A.includes(v)?v:null;
+            const sk=v=>S.includes(v)?v:null;
+            function collectTraits(){
+              const traits=Array.isArray(window.character?.traits)?window.character.traits:(Array.isArray(window.currentCharacter?.traits)?window.currentCharacter.traits:[]);
+              const ab=Object.fromEntries(A.map(k=>[k,0])), src=Object.fromEntries(A.map(k=>[k,[]]));
+              const sb=Object.fromEntries(S.map(k=>[k,0])), ss=Object.fromEntries(S.map(k=>[k,[]]));
+              for(const t of traits){
+                const fs=[...(t?.features||[]),...(t?.modifiers||[]).flatMap(m=>m?.features||[])];
+                for(const f of fs){
+                  if(!f||typeof f!=='object')continue;
+                  if(f.type==='attribute_bonus'||f.type==='attribute_modifier'){
+                    const k=ak(f.attribute), n=num(f.amount); if(k&&n!==null){ab[k]+=n;src[k].push({kind:'trait',id:t.id,name:t.name,amount:n,featureType:f.type});}
+                  }
+                  if(f.type==='secondary_bonus'||f.type==='secondary_modifier'){
+                    const k=sk(f.characteristic??f.secondary??f.key), n=num(f.amount); if(k&&n!==null){sb[k]+=n;ss[k].push({kind:'trait',id:t.id,name:t.name,amount:n,featureType:f.type});}
+                  }
+                }
+              }
+              return {traits,ab,src,sb,ss};
+            }
+            function resolve(){
+              const c=collectTraits();
+              const get=(k, fallback=0)=>{
+                const el=document.querySelector(`[data-attribute="${k}"], [data-attr="${k}"], #attr-${k}, #attribute-${k}`);
+                const v=el?.value??el?.dataset?.value??el?.textContent;
+                const m=String(v??'').match(/-?\d+(?:\.\d+)?/); return m?Number(m[0]):fallback;
+              };
+              const out={attributes:{},secondary:{},defenses:{parry:null,block:null}};
+              for(const k of A){const base=get(k);out.attributes[k]={base,bonus:c.ab[k],final:base+c.ab[k],sources:c.src[k]};}
+              const hp=get('HP',out.attributes.ST.final), fp=get('FP',out.attributes.HT.final), will=get('Will',out.attributes.IQ.final), per=get('Per',out.attributes.IQ.final);
+              const bs=get('BasicSpeed',(out.attributes.DX.final+out.attributes.HT.final)/4);
+              out.secondary={HP:{base:hp,bonus:c.ab.ST+c.sb.HP,final:hp+c.ab.ST+c.sb.HP,sources:[...c.ss.HP]},FP:{base:fp,bonus:c.ab.HT+c.sb.FP,final:fp+c.ab.HT+c.sb.FP,sources:[...c.ss.FP]},Will:{base:will,bonus:c.ab.IQ+c.sb.Will,final:will+c.ab.IQ+c.sb.Will,sources:[...c.ss.Will]},Per:{base:per,bonus:c.ab.IQ+c.sb.Per,final:per+c.ab.IQ+c.sb.Per,sources:[...c.ss.Per]},BasicSpeed:{base:bs,bonus:(c.ab.DX+c.ab.HT)/4+c.sb.BasicSpeed,final:bs+(c.ab.DX+c.ab.HT)/4+c.sb.BasicSpeed,sources:[...c.ss.BasicSpeed]},BasicMove:{base:Math.floor(bs),bonus:Math.floor(bs+(c.ab.DX+c.ab.HT)/4+c.sb.BasicSpeed)-Math.floor(bs)+c.sb.BasicMove,final:Math.floor(bs+(c.ab.DX+c.ab.HT)/4+c.sb.BasicSpeed)+c.sb.BasicMove,sources:[...c.ss.BasicMove]}};
+              return out;
+            }
+            window.SINGULAR_V070_DERIVED_EFFECTS={resolve};
+            const old=window.updateAll;
+            if(typeof old==='function')window.updateAll=function(...args){const r=old.apply(this,args);try{window.SINGULAR_V070_DERIVED_EFFECTS.resolve();}catch(_){}return r;};
+          })();
+          </script>'''
+          marker='</body>'
+          if marker not in s: raise SystemExit('HTML sem body')
+          s=s.replace(marker,bridge+'\n'+marker,1)
+          p.write_text(s,encoding='utf-8')
+          PY
+          grep -q 'Singular-v2 0.0.70' "$out"
+          grep -q 'app-version" content="0.0.70"' "$out"
+          grep -q 'singular-v070-derived-effects-bridge' "$out"
+      - name: Commit standalone
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add docs/arquivo/Singular-v2_sem_biblioteca-14_v0_0_70.html
+          git diff --cached --quiet && exit 0
+          git commit -m 'build: generate Singular v0.0.70 standalone HTML'
+          git push origin HEAD:BaHalus-patch-1
