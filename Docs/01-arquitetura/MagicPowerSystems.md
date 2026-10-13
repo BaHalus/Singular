@@ -3,7 +3,7 @@
 **Código:** ARC-MAGIC-POWER-1.0  
 **Status:** Proposta para revisão; sem implementação mecânica  
 **Marco:** M1 — contratos canônicos  
-**Base de código auditada:** \`main\` em \`f4ccd36d2407920866154a7837f1f4c1be28e68f\`
+**Base de código auditada:** `main` em `f4ccd36d2407920866154a7837f1f4c1be28e68f`
 
 ## 1. Objetivo
 
@@ -19,13 +19,13 @@ Princípio obrigatório:
 
 A implementação parte dos contratos existentes:
 
-- \`Character\` permanece o Aggregate Root.
-- \`Traits\` é a autoridade canônica para vantagens, modificadores, níveis e custos em pontos.
-- \`Powers\` é um agregado persistente de agrupamento e qualificação de Traits; não duplica Traits, não calcula custos e não contribui diretamente para o Point Ledger.
-- \`Spells\` preserva mágicas aprendidas e metadados operacionais. Os campos operacionais textuais atuais não constituem, por si só, um motor de regras.
-- \`TraitFinalCost\`, \`TraitAlternativeGroups\`, a autoridade final de custo e o Point Ledger mantêm suas responsabilidades atuais.
-- \`ConstructionEngine\` e \`PricingEngine\` não devem ser substituídos por um calculador mágico paralelo.
-- \`ApplicationSession\`, o Command Executor, o histórico e a persistência existentes continuam sendo as autoridades de sessão e de transições.
+- `Character` permanece o Aggregate Root.
+- `Traits` é a autoridade canônica para vantagens, modificadores, níveis e custos em pontos.
+- `Powers` é um agregado persistente de agrupamento e qualificação de Traits; não duplica Traits, não calcula custos e não contribui diretamente para o Point Ledger.
+- `Spells` preserva mágicas aprendidas e metadados operacionais. Os campos operacionais textuais atuais não constituem, por si só, um motor de regras.
+- `TraitFinalCost`, `TraitAlternativeGroups`, a autoridade final de custo e o Point Ledger mantêm suas responsabilidades atuais.
+- `ConstructionEngine` e `PricingEngine` não devem ser substituídos por um calculador mágico paralelo.
+- `ApplicationSession`, o Command Executor, o histórico e a persistência existentes continuam sendo as autoridades de sessão e de transições.
 - Os comandos estruturais e as projeções existentes de Powers e Spells continuam sendo a base da integração de aplicação e UI.
 
 Referências normativas atuais: ADR-0043, ADR-0068, ADR-0069, ADR-0070, ADR-0071, ADR-0035 a ADR-0041 e ADR do Modifier Framework.
@@ -59,14 +59,14 @@ A tabela define a natureza dos contratos, não uma declaração de que todo deta
 
 Uma definição de sistema é dado declarativo, versionado e validável, que identifica:
 
-- \`systemId\` estável;
+- `systemId` estável;
 - versão do contrato/schema;
 - versão ou referência do conjunto de regras;
 - tipos de conteúdo suportados;
 - validadores e estratégias de construção/execução disponibilizados pelo módulo;
 - políticas de compatibilidade explicitamente suportadas.
 
-Ela não contém lógica executável arbitrária nem permite que dados de biblioteca definam código. O motor resolve \`systemId\` por registro explícito de implementações conhecido pela aplicação.
+Ela não contém lógica executável arbitrária nem permite que dados de biblioteca definam código. O motor resolve `systemId` por registro explícito de implementações conhecido pela aplicação.
 
 ### 4.2 Definições de conteúdo
 
@@ -88,20 +88,20 @@ O personagem registra referências e escolhas canônicas, não cópias concorren
 
 Cada módulo de regras deve oferecer uma operação pura de análise de construção, conceitualmente:
 
-\`\`\`text
+```text
 analyzeConstruction(character, systemDefinition, options)
     -> status + diagnostics + references to canonical calculations
-\`\`\`
+```
 
 O contrato é conceitual; a assinatura TypeScript/JavaScript final deve seguir as convenções do domínio após revisão.
 
 Estados mínimos padronizados para interoperabilidade:
 
-- \`ready\`: dados suficientes e compatíveis para análise;
-- \`incomplete\`: falta uma escolha ou dado obrigatório;
-- \`conflict\`: declarações incompatíveis ou referências conflitantes;
-- \`unsupported\`: regra ou versão não suportada pelo motor;
-- \`invalid\`: violação estrutural do contrato.
+- `ready`: dados suficientes e compatíveis para análise;
+- `incomplete`: falta uma escolha ou dado obrigatório;
+- `conflict`: declarações incompatíveis ou referências conflitantes;
+- `unsupported`: regra ou versão não suportada pelo motor;
+- `invalid`: violação estrutural do contrato.
 
 Diagnósticos devem identificar entidade, regra e origem do problema. Não corrigir silenciosamente escolhas ou custos.
 
@@ -113,13 +113,13 @@ Cada módulo executável deve oferecer uma operação de preparação e uma oper
 
 Contrato conceitual:
 
-\`\`\`text
+```text
 prepareExecution(character, systemDefinition, intent, sessionState)
     -> ready | incomplete | rejected + diagnostics
 
 resolveExecution(preparedExecution, sessionState, runtimeInputs)
     -> outcome + stateTransition + auditBreakdown
-\`\`\`
+```
 
 A operação não altera diretamente o personagem permanente nem persiste por conta própria. A camada de aplicação valida revisão, coordena a transição de sessão, registra histórico e emite recibo usando o App Core existente.
 
@@ -131,7 +131,7 @@ Estado transitório de execução pertence ao contexto de sessão existente, nã
 
 - O estado atual de PV/PF e demais recursos continua sob as autoridades de recursos já existentes.
 - Energia de RPM, acumulação de ritual, petição em andamento e detalhes transitórios de execução são estados tipados do sistema, quando necessários.
-- Não introduzir um segundo \`ApplicationSession\`, Point Ledger, histórico ou sistema de persistência.
+- Não introduzir um segundo `ApplicationSession`, Point Ledger, histórico ou sistema de persistência.
 - Não assumir que energia de RPM é PF, nem que todos os poderes consomem o mesmo recurso.
 - Cada módulo declara o tipo de custo/consumo e delega a alteração de recursos ao contrato de recursos apropriado.
 - Cancelar ou falhar uma execução deve obedecer às regras do sistema e produzir transição auditável; não se deve inferir reembolso ou consumo.
@@ -142,7 +142,7 @@ Estado transitório de execução pertence ao contexto de sessão existente, nã
 
 O framework opera sobre Traits e seus cálculos soberanos. Deve representar referências a fonte, modificador de poder, talento, capacidades membros, condições e relações de habilidades alternativas quando aplicáveis.
 
-O agregado \`Powers\` atual permanece um agrupador estrutural. O seu campo \`powerModifier\` continua sendo uma declaração para auditoria/apresentação e não altera custos sozinho. Qualquer aplicação mecânica deve produzir modificadores canônicos nos Traits por uma operação explícita, validada e auditável, sem duplicação.
+O agregado `Powers` atual permanece um agrupador estrutural. O seu campo `powerModifier` continua sendo uma declaração para auditoria/apresentação e não altera custos sozinho. Qualquer aplicação mecânica deve produzir modificadores canônicos nos Traits por uma operação explícita, validada e auditável, sem duplicação.
 
 O framework não pode impor que todo poder possua talento, que toda capacidade pertença a apenas um agrupamento ou que todas as fontes compartilhem o mesmo modificador.
 
@@ -203,7 +203,7 @@ Não incluir texto protegido integral de suplementos nos arquivos de biblioteca.
 
 Direção permitida:
 
-\`\`\`text
+```text
 Catálogo/schema
     -> módulo de regras
         -> Traits / Skills / Spells / recursos canônicos
@@ -211,7 +211,7 @@ Catálogo/schema
     -> App Core / comandos / transições
     -> projeções
     -> UI passiva
-\`\`\`
+```
 
 Direção proibida:
 
@@ -262,7 +262,7 @@ M1 só poderá ser encerrado quando:
 - os estados de erro e versionamento estiverem definidos;
 - os limites entre construção, execução e recursos estiverem claros;
 - os testes de contrato forem especificados sem duplicar testes mecânicos dos módulos;
-- a validação documental \`node tools/docs/validate.cjs\` passar;
+- a validação documental `node tools/docs/validate.cjs` passar;
 - nenhuma implementação mecânica tiver sido antecipada sem referência e teste de regra.
 
 M1 não autoriza iniciar Sorcery, Divine Favor, Power Investiture, RPM ou Psionic Powers antes de o framework e os contratos comuns serem aprovados. Após o encerramento, M2 implementa o framework geral de poderes, e os módulos especializados seguem a ordem registrada no plano de trabalho.
