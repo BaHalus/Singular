@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Verificador de Versão — Singular-v2</title>
+<link rel="icon" href="data:,">
+<style>
+  :root{
+    --bg:#0b0b0b; --panel:#151515; --panel2:#1c1c1c; --border:#2a2a2a; --txt:#e8e8e8;
+    --grey:#9a9a9a; --gold:#d4af37; --ok:#3fb950; --bad:#ff5c5c; --warn:#d29922;
+  }
+  *{ box-sizing:border-box; }
+  body{ margin:0; background:var(--bg); color:var(--txt); font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif; padding:24px 14px 64px; }
+  .wrap{ max-width:920px; margin:0 auto; }
+  h1{ font-size:1.35rem; margin:0 0 6px; }
+  h1 .v{ color:var(--gold); font-weight:700; }
+  p.sub{ color:var(--grey); font-size:.85rem; margin:0 0 18px; line-height:1.5; }
+  .card{ background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:16px; margin-bottom:14px; }
+  .row{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+  button{ background:transparent; color:var(--txt); border:1px solid var(--border); border-radius:9px; padding:10px 14px; font-size:.9rem; cursor:pointer; }
+  button.primary{ background:linear-gradient(180deg,#e6c766,#c9a227); color:#141414; font-weight:700; border-color:#e6c766; }
+  button:hover{ filter:brightness(1.08); }
+  .drop{ border:1px dashed #3a3a3a; border-radius:12px; padding:22px 14px; text-align:center; color:var(--grey); font-size:.85rem; transition:border-color .15s, background .15s; }
+  .drop.over{ border-color:var(--gold); background:rgba(212,175,55,.06); color:#e6c766; }
+  input[type=file]{ display:none; }
+  textarea{ width:100%; min-height:120px; background:#101010; color:#d8d8d8; border:1px solid var(--border); border-radius:10px; padding:10px; font-family:ui-monospace,Consolas,Menlo,monospace; font-size:.78rem; resize:vertical; }
+  .result{ border-radius:12px; padding:16px; border:1px solid var(--border); background:var(--panel2); }
+  .banner{ font-weight:800; font-size:1.05rem; margin:0 0 10px; }
+  .banner.ok{ color:var(--ok); }
+  .banner.bad{ color:var(--bad); }
+  .meta-line{ font-size:.85rem; color:var(--grey); margin:0 0 12px; }
+  ul.problems{ list-style:none; padding:0; margin:0; }
+  ul.problems li{ background:#121212; border:1px solid #262626; border-left:3px solid var(--bad); border-radius:8px; padding:9px 11px; margin-bottom:8px; font-size:.83rem; line-height:1.5; }
+  ul.problems li.warn{ border-left-color:var(--warn); }
+  .tag{ display:inline-block; min-width:74px; font-weight:700; font-size:.7rem; letter-spacing:.4px; text-transform:uppercase; color:#ff9a9a; margin-right:6px; }
+  .linref{ color:var(--gold); font-weight:700; }
+  .snip{ color:#bdbdbd; }
+  .stats{ font-size:.75rem; color:var(--grey); margin-top:10px; }
+  details.more{ margin-top:14px; }
+  details.more summary{ cursor:pointer; color:var(--gold); font-size:.85rem; }
+  details.more .body{ font-size:.8rem; color:var(--grey); line-height:1.6; margin-top:8px; }
+  .foot{ color:#6f6f6f; font-size:.72rem; margin-top:22px; text-align:center; line-height:1.6; }
+  @media (max-width:520px){ h1{font-size:1.12rem;} .card{padding:13px;} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>🛡️ Verificador de Versão — <span class="v">Singular-v2</span></h1>
+  <p class="sub">Confere se o programa segue a regra da <strong>fonte única de versão</strong>: tudo é lido do <code>&lt;meta name="app-version"&gt;</code>. Serve para qualquer aparelho — celular ou computador — e <strong>não envia nada para lugar nenhum</strong> (roda inteiro no navegador).</p>
+
+  <div class="card">
+    <div class="row">
+      <button class="primary" id="btn-pick">📂 Escolher arquivo .html</button>
+      <span id="file-name" style="font-size:.8rem;color:var(--grey);"></span>
+    </div>
+    <input type="file" id="file-input" accept=".html,text/html,application/xhtml+xml">
+    <div id="drop" class="drop" style="margin-top:12px;">ou arraste o arquivo aqui (no computador)</div>
+    <div id="advanced-box" style="margin-top:12px;display:none;">
+      <textarea id="paste-area" placeholder="Cole aqui o conteúdo completo do arquivo .html").spellcheck="false"></textarea>
+    </div>
+    <div class="row" style="margin-top:12px;">
+      <button id="btn-paste" style="font-size:.78rem;">⌨️ Colar conteúdo manualmente</button>
+    </div>
+  </div>
+
+  <div class="card result" id="result-box" hidden>
+    <p class="banner" id="banner"></p>
+    <p class="meta-line" id="meta-line"></p>
+    <ul class="problems" id="problems"></ul>
+    <p class="stats" id="stats"></p>
+  </div>
+
+  <details class="more card">
+    <summary>ℹ️ O que exatamente ele confere</summary>
+    <div class="body">
+      <p><strong>Falha quando encontra:</strong> um número de versão (<code>X.Y.Z</code>) repetido em qualquer outro ponto do arquivo fora da meta-fonte — por exemplo um rótulo estático esquecido na barra, no guia ou no título.</p>
+      <p><strong>Não é falha (permitido):</strong> menções dentro de comentários (changelog/notas históricas como “corrigido na v0.0.NNN”), o conteúdo da própria meta e identificadores técnicos internos antigos (ex.: campo <code>front</code> das bibliotecas RAW).</p>
+      <p><strong>Como usar no fluxo novo:</strong> sempre depois de subir de versão (editar só a <code>meta</code> + adicionar a linha do changelog), rode este verificador — no celular ou no computador — e publique apenas se der <em style="color:#3fb950;">OK</em>.</p>
+    </div>
+  </details>
+
+  <p class="foot">Mesma regra lógica do <code>verificar_versao.py</code> (versão para computador/CI). Este arquivo não coleta dados nem faz uploads: analisa apenas o texto do arquivo escolhido, localmente.</p>
+</div>
+
+<script>
+// <<<CORE_INICIO>>>
+/* ── Núcleo do verificador (funções puras; sem DOM) ─────────────────────── */
+function _faixasUnicas(faixas){
+  if(!faixas.length) return [];
+  const f = faixas.slice().sort((a,b)=>a[0]-b[0]);
+  const out = [[ f[0][0], f[0][1] ]];
+  for(let i=1;i<f.length;i++){
+    const cur = f[i], last = out[out.length-1];
+    if(cur[0] <= last[1]) last[1] = Math.max(last[1], cur[1]);
+    else out.push([cur[0], cur[1]]);
+  }
+  return out;
+}
+function _aplicarFaixas(texto, faixas){
+  const partes = []; let ult = 0;
+  for(const [s,e] of faixas){
+    partes.push(texto.substring(ult, s));
+    partes.push(' '.repeat(Math.max(0, e - s)));
+    ult = e;
+  }
+  partes.push(texto.substring(ult));
+  return partes.join('');
+}
+function _comentariosHTML(t){
+  const fs = []; let i = 0;
+  while(true){
+    const s = t.indexOf('<!--', i); if(s < 0) break;
+    const e = t.indexOf('-->', s + 4); if(e < 0) break;
+    fs.push([s, e + 3]); i = e + 3;
+  }
+  return fs;
+}
+function _comentariosBloco(t){
+  const fs = [];
+  for(const m of t.matchAll(/\/\*[\s\S]*?\*\//g)) fs.push([m.index, m.index + m[0].length]);
+  return fs;
+}
+function _comentariosLinha(t){
+  const fs = [];
+  for(const m of t.matchAll(/\/\//g)){
+    const idx = m.index;
+    const ls = t.lastIndexOf('\n', idx) + 1;
+    let le = t.indexOf('\n', idx); if(le < 0) le = t.length;
+    const antes = t.slice(ls, idx);
+    if(antes.indexOf('://') !== -1) continue;   // ignora URLs do tipo http://
+    fs.push([idx, le]);
+  }
+  return fs;
+}
+function _limpar(texto){
+  const faixas = _faixasUnicas([
+    ..._comentariosHTML(texto),
+    ..._comentariosBloco(texto),
+    ..._comentariosLinha(texto)
+  ]);
+  return _aplicarFaixas(texto, faixas);
+}
+function _metasAppVersion(limpo){
+  const decs = [];
+  for(const mm of limpo.matchAll(/<meta\b[^>]*>/g)){
+    const achados = {};
+    for(const am of mm[0].matchAll(/([\w-]+)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/g)){
+      achados[am[1]] = am[2] || am[3] || am[4] || '';
+    }
+    if(achados.name === 'app-version'){
+      decs.push({ ini:mm.index, fim:mm.index + mm[0].length, conteudo:achados.content });
+    }
+  }
+  return decs;
+}
+function _idsTecnicos(limpo){
+  const fs = [];
+  for(const pat of [ /\bfront\s*:\s*'[^']*'/g, /\bfront\s*:\s*"[^"]*"/g ]){
+    for(const m of limpo.matchAll(pat)) fs.push([m.index, m.index + m[0].length]);
+  }
+  return fs;
+}
+function analisarPrograma(texto){
+  const problemas = [], avisos = [];
+  const limpo = _limpar(texto);
+  const decs = _metasAppVersion(limpo);
+
+  let versaoDeclarada = null;
+  if(decs.length === 0){
+    problemas.push({ tipo:'fonte ausente', linha:0, msg:'não existe <meta name="app-version"> no arquivo — a versão precisa ter uma fonte única' });
+  } else {
+    versaoDeclarada = decs[0].conteudo || null;
+    if(decs.length > 1){
+      for(const d of decs) problemas.push({ tipo:'fonte duplicada', linha:_linhaEm(texto, d.ini), msg:`<meta name="app-version"> duplicada (conteúdo '${d.conteudo}')` });
+    } else if(!decs[0].conteudo){
+      problemas.push({ tipo:'fonte vazia', linha:_linhaEm(texto, decs[0].ini), msg:'a <meta name="app-version"> está sem atributo content' });
+    }
+  }
+
+  const permitidos = [
+    ...decs.map(d => [d.ini, d.fim]),
+    ..._idsTecnicos(limpo)
+  ];
+  const copias = [];
+  for(const m of limpo.matchAll(/(\d+\.\d+\.\d+)/g)){
+    const ini = m.index, fim = m.index + m[0].length;
+    const antes = limpo.charCodeAt(ini - 1), depois = limpo.charCodeAt(fim);
+    if((antes >= 48 && antes <= 57) || (depois >= 48 && depois <= 57)) continue; // parte de número maior
+    let liberado = false;
+    for(const [a, b] of permitidos){ if(a <= ini && ini < b){ liberado = true; break; } }
+    if(!liberado) copias.push({ pos:ini, val:m[0] });
+  }
+  const linhasProgressivas = _linhasPos(texto, copias.map(c => c.pos));
+  for(let i = 0; i < copias.length; i++){
+    const c = copias[i];
+    problemas.push({
+      tipo:'cópia solta',
+      linha:linhasProgressivas[i],
+      msg:`o número ${c.val} aparece fora da fonte única: …${_trecho(texto, c.pos)}…`
+    });
+  }
+
+  for(const probe of ['id="help-version"', 'class="tb-version"', 'window.APP_VERSION', '<title>Singular-v2</title>']){
+    if(texto.indexOf(probe) === -1) avisos.push('falta: ' + ({
+      'id="help-version"':'elemento #help-version (rodapé do guia)',
+      'class="tb-version"':'elemento .tb-version (barra de ferramentas)',
+      'window.APP_VERSION':'exposição window.APP_VERSION',
+      '<title>Singular-v2</title>':'<title> limpo (sem número estático)'
+    })[probe]);
+  }
+
+  return {
+    ok: problemas.length === 0,
+    versaoDeclarada,
+    problemas,
+    avisos,
+    totalCopiasSuspeitas: copias.length,
+    tamanhoKB: Math.round(texto.length / 1024)
+  };
+}
+function _linhaEm(texto, pos){ return texto.slice(0, pos).split('\n').length; }
+function _linhasPos(texto, poss){
+  const ordenadas = poss.map((p,i) => [p,i]).sort((a,b) => a[0]-b[0]);
+  const resultado = new Array(poss.length);
+  let ln = 1, ult = 0;
+  for(const [pos, idx] of ordenadas){
+    for(let j = ult; j < pos; j++) if(texto[j] === '\n') ln++;
+    resultado[idx] = ln; ult = pos;
+  }
+  return resultado;
+}
+function _trecho(texto, pos){
+  const a = Math.max(0, pos - 90), b = Math.min(texto.length, pos + 110);
+  return texto.slice(a, b).replace(/\s+/g, ' ').trim();
+}
+// <<<CORE_FIM>>>
+
+/* ── Interface ──────────────────────────────────────────────────────────── */
+const $ = id => document.getElementById(id);
+const btnPick = $('btn-pick'), fileInput = $('file-input'), drop = $('drop');
+const btnPaste = $('btn-paste'), advancedBox = $('advanced-box'), pasteArea = $('paste-area');
+const box = $('result-box'), banner = $('banner'), metaLine = $('meta-line');
+const ul = $('problems'), stats = $('stats'), fileName = $('file-name');
+
+function render(res, origem){
+  box.hidden = false;
+  banner.className = 'banner ' + (res.ok ? 'ok' : 'bad');
+  banner.textContent = res.ok ? '✅ RESULTADO: OK — segue a regra da fonte única.' : '❌ RESULTADO: FALHOU — há cópias/deriva de versão.';
+  metaLine.textContent = 'Fonte única (meta): ' + (res.versaoDeclarada ? `"${res.versaoDeclarada}"` : '(não encontrada)') +
+                         (origem ? `  ·  analisado: ${origem}` : '');
+  ul.innerHTML = '';
+  const itens = res.problemas.slice(0, 12);
+  for(const p of itens){
+    const li = document.createElement('li');
+    if(p.tipo === 'aviso') li.className = 'warn';
+    const tag = document.createElement('span'); tag.className = 'tag'; tag.textContent = p.tipo;
+    li.appendChild(tag);
+    if(p.linha) { const lr = document.createElement('span'); lr.className='linref'; lr.textContent = `linha ${p.linha}: `; li.appendChild(lr); }
+    const sn = document.createElement('span'); sn.className = 'snip'; sn.textContent = p.msg; li.appendChild(sn);
+    ul.appendChild(li);
+  }
+  if(res.problemas.length > 12){
+    const li = document.createElement('li'); li.className = 'warn';
+    li.textContent = `(mais ${res.problemas.length - 12} problema(s) omitidos)`; ul.appendChild(li);
+  }
+  for(const a of res.avisos){
+    const li = document.createElement('li'); li.className = 'warn';
+    const tag = document.createElement('span'); tag.className = 'tag'; tag.style.color = '#e3b341'; tag.textContent = 'aviso';
+    li.appendChild(tag);
+    const sn = document.createElement('span'); sn.className = 'snip'; sn.textContent = a; li.appendChild(sn);
+    ul.appendChild(li);
+  }
+  stats.textContent = `${res.totalCopiasSuspeitas} cópia(s) suspeita(s) de versão · arquivo ≈ ${res.tamanhoKB} KB.`;
+}
+function analisarTexto(texto, origem){
+  try{
+    const res = analisarPrograma(texto);
+    render(res, origem);
+  } catch(err){
+    box.hidden = false;
+    banner.className = 'banner bad';
+    banner.textContent = '⚠️ Não foi possível analisar: ' + (err && err.message ? err.message : String(err));
+  }
+}
+btnPick.addEventListener('click', () => fileInput.click());
+fileInput.addEventListener('change', ev => {
+  const f = ev.target.files && ev.target.files[0];
+  if(!f) return;
+  fileName.textContent = f.name + (f.size ? ` (${Math.round(f.size/1024)} KB)` : '');
+  const fr = new FileReader();
+  fr.onload = () => analisarTexto(String(fr.result || ''), f.name);
+  fr.readAsText(f);
+});
+['dragenter','dragover'].forEach(evt => drop.addEventListener(evt, ev => { ev.preventDefault(); drop.classList.add('over'); }));
+['dragleave','drop'].forEach(evt => drop.addEventListener(evt, ev => {
+  ev.preventDefault(); drop.classList.remove('over');
+  if(evt === 'drop' && ev.dataTransfer && ev.dataTransfer.files && ev.dataTransfer.files[0]){
+    const f = ev.dataTransfer.files[0];
+    fileName.textContent = f.name;
+    const fr = new FileReader();
+    fr.onload = () => analisarTexto(String(fr.result || ''), f.name);
+    fr.readAsText(f);
+  }
+}));
+btnPaste.addEventListener('click', () => {
+  advancedBox.style.display = advancedBox.style.display === 'none' ? 'block' : 'none';
+});
+let timer = 0;
+pasteArea.addEventListener('input', () => {
+  clearTimeout(timer);
+  timer = setTimeout(() => {
+    const v = pasteArea.value;
+    if(v.trim().length > 200) analisarTexto(v, 'conteúdo colado');
+  }, 300);
+});
+</script>
+</body>
+</html>
