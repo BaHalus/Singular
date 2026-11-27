@@ -1,4 +1,4 @@
-const CACHE='singular-v0.11.4';
+const CACHE='singular-v0.11.4-teste2';
 const ASSETS=['./','./index.html','./manifest.webmanifest','./c-Singular-v2_v0.11.3.html','./icons/icon.svg','./icons/icon-192.png','./icons/icon-512.png'];
 self.addEventListener('install',e=>{e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS.map(u=>new Request(u,{cache:'reload'})))));});
 self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k.startsWith('singular-')&&k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim()));});

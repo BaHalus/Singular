@@ -28,7 +28,7 @@ let waitingWorker=null;
 const updateBar=document.getElementById('update');
 updateBar.querySelector('button').addEventListener('click',()=>{if(waitingWorker){waitingWorker.postMessage({type:'SKIP_WAITING'});waitingWorker.addEventListener('statechange',()=>{if(waitingWorker.state==='activated')location.reload();});}});
 if('serviceWorker' in navigator){
-navigator.serviceWorker.register('sw.js').then(reg=>{
+navigator.serviceWorker.register('sw.js?v=2').then(reg=>{
 if(reg.waiting){waitingWorker=reg.waiting;updateBar.style.display='flex';}
 reg.addEventListener('updatefound',()=>{const installing=reg.installing;installing.addEventListener('statechange',()=>{if(installing.state==='installed'&&navigator.serviceWorker.controller){waitingWorker=installing;updateBar.style.display='flex';}});});
 });
